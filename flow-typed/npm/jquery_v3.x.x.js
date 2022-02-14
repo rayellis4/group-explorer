@@ -926,6 +926,14 @@ declare class JQueryStatic {
   (element: Element): JQuery;
 
   /**
+   * Wraps a Document (XMLDocument, HTMLDocument) or DocumentFragment in a jQuery object
+   *
+   * (rwe -- can't seem to find any explicit documentation for this on the jQuery site,
+   *    but it's certainly in their code)
+   */
+  (document: Document | DocumentFragment): JQuery;
+
+  /**
    * Accepts a string containing a CSS selector which is then used to match a set of elements.
    *
    * @param elementArray An array containing a set of DOM elements to wrap in a jQuery object.

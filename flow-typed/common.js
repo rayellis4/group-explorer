@@ -16,7 +16,7 @@ declare type mathml = string
 declare type groupElement = number
 declare type color = string
 declare type css_color = string
-declare type eventLocation = {clientX: number, clientY: number}
+declare interface eventLocation { clientX: number, clientY: number }
 
 // Window, as used in GE3
 declare class Window extends EventTarget {
@@ -36,9 +36,9 @@ declare class Window extends EventTarget {
   getSelection(): Selection;
   ontouchstart?: Function;
   onresize?: Function;
-  VC?: Module;
+  VC: typeof Object.prototype; // visualizerFramework/visualizer.js module
   sagecell: any;
-  $: jQuery;
+  $: JQuery;
   isEditor: boolean;
   performance: { now: () => number };
   indexedDB: IDBFactory;

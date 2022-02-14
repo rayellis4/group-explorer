@@ -70,7 +70,8 @@ class Log {
 }
 
 // initialize static properties on window load
-window.addEventListener('load', Log.init, {once: true});
+// $FlowFixMe -- Flow problem with class static functions
+window.addEventListener('load', Log.init, { once: true })
 /*
 ```
  */

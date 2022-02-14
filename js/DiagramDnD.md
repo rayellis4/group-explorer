@@ -65,9 +65,9 @@ export default class DiagramDnD {
 /*::
    cayley_diagram_view: CayleyDiagramView;
    canvas: HTMLCanvasElement;
-   eventLocation: THREE.Vector2;  // position of the last mouse/touch event
+   eventLocation: THREE$Vector2;  // position of the last mouse/touch event
                                   //    (note that we don't drag-and-drop on multi-touch events)
-   raycaster: THREE.Raycaster;
+   raycaster: THREE$Raycaster;
    mouse_handler: (MouseEvent) => void;
    touch_handler: (TouchEvent) => void;
    async_painter: ?number;  // asyncPainter timeoutID; null if asyncPainter not queued
@@ -251,7 +251,7 @@ its arrowhead when it is picked, and then change it back upon completion of the 
       }
    }
 
-   findObject3DByUserData (userData /*: {node: NodeData} | {arrow: ArrowData} */) /*: ?THREE.Object3D */ {
+   findObject3DByUserData (userData /*: {node: NodeData} | {arrow: ArrowData} */) /*: ?THREE$Object3D */ {
       let object3d;
       if (userData.hasOwnProperty('node')) {
          const sphere_data = ((userData /*: any */) /*: {node: NodeData} */);
@@ -277,9 +277,9 @@ the [raycaster](https://threejs.org/docs/#api/en/core/Raycaster) class from [THR
       this.raycaster.setFromCamera(this.eventLocation, this.cayley_diagram_view.camera);
 
       // collect drag candidates, spheres & lines
-      const pickable_objects /*: Array<THREE.Object3D> */ =
+      const pickable_objects /*: Array<THREE$Object3D> */ =
             ((this.cayley_diagram_view.getGroup('lines').children /*: any */) /*: Array<LineType> */)
-            .concat( ((this.cayley_diagram_view.getGroup('spheres').children /*: any */) /*: Array<THREE.Mesh> */) );
+            .concat( ((this.cayley_diagram_view.getGroup('spheres').children /*: any */) /*: Array<THREE$Mesh> */) );
       
       // find intersection with closest pickable object
       const intersects = this.raycaster.intersectObjects(pickable_objects, false);
@@ -502,7 +502,7 @@ highlighting, labels, lines, and arrowheads.
       if (picked_object == undefined || !picked_object.hasOwnProperty('node'))
          return;
       
-      const sphere = ((this.findObject3DByUserData(picked_object) /*: any */) /*: THREE.Mesh */);
+      const sphere = ((this.findObject3DByUserData(picked_object) /*: any */) /*: THREE$Mesh */);
       const node = ((picked_object /*: any */) /*: {node: NodeData} */).node;
 
       // update raycaster with new event location

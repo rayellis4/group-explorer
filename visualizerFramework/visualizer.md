@@ -138,7 +138,7 @@ a`changeBroadcaster`is created and stored in`broadcastChange.`The`changeBroadcas
 the current JSON with JSON from the previous invocation and posts the new JSON if there is a change.
 ```javascript
 */
-export let broadcastChange = () => {};
+export let broadcastChange /*: () => void */ = () => {};
 
 export function disableChangeBroadcast () {
     broadcastChange = () => {};

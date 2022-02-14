@@ -18,18 +18,13 @@ export {summary, display, showSubgroupLattice, showEmbeddingSheet, showQuotientS
 /*::
 import XMLGroup from './XMLGroup.js'
 
-import type {
-    JSONType,
-    SheetElementJSON,
-    RectangleElementJSON,
-    TextElementJSON,
-    VisualizerType,
-    VisualizerElementJSON,
-    ConnectingElementJSON,
-    MorphismElementJSON
-} from './SheetModel.js';
+import type { VisualizerName, SheetCreateJSON } from './SheetModel.js';
 
-type DecoratedSubgroup = Subgroup & {_tierIndex?: number, _used?: boolean};
+// type DecoratedSubgroup = Subgroup & {_tierIndex?: number, _used?: boolean};
+interface DecoratedSubgroup extends Subgroup {
+    _tierIndex?: number;
+    _used?: boolean;
+}
 */
 
 // Load templates
@@ -40,7 +35,7 @@ const LoadPromise = GEUtils.ajaxLoad(SUBGROUP_INFO_URL)
 let Group /*: XMLGroup */;
 let Cayley_Diagram_View	/*: CayleyDiagramView */;
 
-function summary (group /*: XMLGroup */) {
+function summary (group /*: XMLGroup */) /*: string */ {
     return `${group.subgroups.length} subgroups`;
 }
 
@@ -165,7 +160,7 @@ function highlightSubgroup ( H /*: Subgroup */ ) {
    return Array( Group.order ).fill( '' ).map( ( e /*: color */, i ) =>
       H.members.isSet( i ) ? 'hsl(0, 100%, 80%)' : e );
 }
-function showSubgroupLattice ( type /*: VisualizerType */ ) {
+function showSubgroupLattice ( type /*: VisualizerName */ ) {
    // Handy function
    function subset ( H /*: Subgroup */, K /*: Subgroup */ ) /*: boolean */ { return K.members.contains( H.members ); }
    // Let's tier the group's subgroups by order.
@@ -243,7 +238,7 @@ function showSubgroupLattice ( type /*: VisualizerType */ ) {
       return { x : latticeLeft + x, y : latticeTop + y };
    }
    // Build a sheet with subgroups shown at those locations.
-   var sheetElementsAsJSON = [ ];
+   const sheetElementsAsJSON /*: Array<SheetCreateJSON> */ = [ ];
    Group.subgroups.map( (H /*: Subgroup */) => {
       const pos = subgroupPosition( H );
       sheetElementsAsJSON.push( {
@@ -291,7 +286,8 @@ function showSubgroupLattice ( type /*: VisualizerType */ ) {
       Group.subgroups.map( ( K, j ) => {
          if ( ( H != K ) && subset( H, K ) && !existsIntermediateSubgroup( H, K ) ) {
             sheetElementsAsJSON.push( {
-               className : 'ConnectingElement', fromIndex : i, toIndex : j,
+                className : 'ConnectingElement',
+                sourceId : i.toString(), destinationId : j.toString(),
                 thickness : 2, hasArrowhead : false
             } );
          }
@@ -306,13 +302,13 @@ function showSubgroupLattice ( type /*: VisualizerType */ ) {
       fontSize : '20pt', alignment : 'center'
    } );
    // Show the sheet.
-   CreateNewSheet( sheetElementsAsJSON );
+   SheetModel.createNewSheet(sheetElementsAsJSON);
 }
 
-function showEmbeddingSheet ( indexOfH /*: number */, type /*: VisualizerType */ ) {
+function showEmbeddingSheet ( indexOfH /*: number */, type /*: VisualizerName */ ) {
    const H = Group.subgroups[indexOfH],
          [ libraryH, embedding ] = ((IsomorphicGroups.findEmbedding( Group, H ) /*: any */) /*: [XMLGroup, Array<groupElement>] */);
-   CreateNewSheet( [
+   SheetModel.createNewSheet( [
       {
          className : 'TextElement',
          text : `Embedding ${libraryH.name} as <i>H</i><sub>${indexOfH}</sub> in ${Group.name}`,
@@ -336,15 +332,15 @@ function showEmbeddingSheet ( indexOfH /*: number */, type /*: VisualizerType */
       },
       {
          className : 'MorphismElement',
-         fromIndex : 1, toIndex : 2, name : '<i>e</i>',
+         sourceId : '1', destinationId : '2', name : '<i>e</i>',
          definingPairs : libraryH.generators[0].map( gen =>
             [ gen, embedding[gen] ] ),
-         showManyArrows : true, showInjSurj : true
+         showManyArrows : true, showInjectionSurjection : true
       }
-   ] );
+   ] )
 }
 
-function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */) {
+function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerName */) {
    const adj = Math.min(window.innerWidth, window.innerHeight)/1100
    const N = Group.subgroups[indexOfN],
          [ libraryQ, quotientMap ] = ((IsomorphicGroups.findQuotient( Group, N ) /*: any */) /*: [XMLGroup, Array<groupElement>] */),
@@ -377,7 +373,7 @@ function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */)
    high2[0] = col1;
    high3[0] = col1;
    high4[0] = col4;
-   CreateNewSheet( [
+   SheetModel.createNewSheet( [
       {
          className : 'TextElement',
          x : L, y : T-100*adj, w : 5*W+4*gap, h : 50,
@@ -406,8 +402,8 @@ function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */)
          highlights : { background : high2 }
       },
       {
-         className : 'TextElement',
-         x : L+2*W+2*gap, y : T-50, w : W, h : 50,
+         className : 'TextElement', h : 50,
+         x : L+2*W+2*gap, y : T-50, w : W,
          text : Group.name, alignment : 'center', fontSize : `${12*adj}pt`
       },
       {
@@ -416,8 +412,8 @@ function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */)
          highlights : { background : high3 }
       },
       {
-         className : 'TextElement',
-         x : L+3*W+3*gap, y : T-50, w : W, h : 50,
+         className : 'TextElement', h : 50,
+         x : L+3*W+3*gap, y : T-50, w : W,
          text : libraryQ.name, alignment : 'center', fontSize : `${12*adj}pt`
       },
       {
@@ -456,32 +452,27 @@ function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */)
       },
       {
          className : 'MorphismElement', name : 'id',
-         fromIndex : 2, toIndex : 4,
-         showManyArrows : true, showInjSurj : true,
+         sourceId : 2, destinationId : 4,
+         showManyArrows : true, showInjectionSurjection : true,
          definingPairs : [ [ 0, 0 ] ]
       },
       {
          className : 'MorphismElement', name : 'e',
-         fromIndex : 4, toIndex : 6,
-         showManyArrows : true, showInjSurj : true,
+         sourceId : 4, destinationId : 6,
+         showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryN.generators[0].map( gen => [ gen, embedding[gen] ] )
       },
       {
          className : 'MorphismElement', name : 'q',
-         fromIndex : 6, toIndex : 8,
-         showManyArrows : true, showInjSurj : true,
+         sourceId : 6, destinationId : 8,
+         showManyArrows : true, showInjectionSurjection : true,
          definingPairs : Group.generators[0].map( gen => [ gen, quotientMap[gen] ] )
       },
       {
          className : 'MorphismElement', name : 'z',
-         fromIndex : 8, toIndex : 10,
-         showManyArrows : true, showInjSurj : true,
+         sourceId : 8, destinationId : 10,
+         showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryQ.generators[0].map( gen => [ gen, 0 ] )
       }
    ] );
-}
-
-function CreateNewSheet (oldJSONArray /*: Array<Obj> */) {
-    const newJSONArray = SheetModel.convertFromOldJSON(oldJSONArray)
-    SheetModel.createNewSheet(newJSONArray)
 }

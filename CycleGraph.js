@@ -1,7 +1,7 @@
 // @flow
 
 import {CycleGraphView, createLabelledCycleGraphView} from './js/CycleGraphView.js';
-import GEUtils from './js/GEUtils.js';
+import * as GEUtils from './js/GEUtils.js';
 import * as Library from './js/Library.js';
 import Log from './js/Log.js';
 import Menu from './js/Menu.js';
@@ -129,15 +129,15 @@ class LargeGraphic {
       const canvas = $('#graphic > canvas')[0];
       if (window.ontouchstart === undefined) {  // determine whether device supports touch events
          ['click', 'wheel', 'contextmenu', 'mousedown', 'mousemove', 'mouseup']
-            .forEach( (eventType) => canvas.addEventListener(eventType, LargeGraphic.mouseHandler) );
+            .forEach((eventType) => canvas.addEventListener(eventType, LargeGraphic.mouseHandler))
       } else {
          ['click', 'touchstart', 'touchmove', 'touchend']
-            .forEach( (eventType) => canvas.addEventListener(eventType, LargeGraphic.touchHandler) );
+            .forEach((eventType) => canvas.addEventListener(eventType, LargeGraphic.touchHandler))
       }
    }
 
    // Event handler for mouse-only platform
-   static mouseHandler(mouseEvent /*: MouseEvent */) {
+   static mouseHandler = (mouseEvent /*: MouseEvent */) => {
       // skip modified events
       if (mouseEvent.shiftKey || mouseEvent.ctrlKey || mouseEvent.altKey || mouseEvent.metaKey) {
          return;
@@ -192,7 +192,7 @@ class LargeGraphic {
    }
 
    // Event handler for platform that supports touch events
-   static touchHandler(event /*: TouchEvent | MouseEvent */) {
+   static touchHandler = (event /*: TouchEvent | MouseEvent */) => {
       // skip modified events
       if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
          return;

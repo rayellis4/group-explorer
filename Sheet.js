@@ -36,7 +36,7 @@ function demo () {
   const rect = $('#graphic')[0].getBoundingClientRect()
   const scale = Math.min(rect.width, rect.height)
 
-  const jsonObject = [
+  const jsonObject /*: Array<SheetModel.SheetCreateJSON> */ = [
 /*
     {
       id: 'Rectangle',

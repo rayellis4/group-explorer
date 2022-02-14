@@ -10,16 +10,7 @@ export {summary, display};
 /*::
 import XMLGroup from './XMLGroup.js'
 
-import type {
-    JSONType,
-    SheetElementJSON,
-    RectangleElementJSON,
-    TextElementJSON,
-    VisualizerType,
-    VisualizerElementJSON,
-    ConnectingElementJSON,
-    MorphismElementJSON
-} from './SheetModel.js';
+import type { VisualizerName, SheetCreateJSON } from './SheetModel.js';
 */
 
 // Load templates
@@ -46,7 +37,7 @@ async function display (group /*: XMLGroup */, $wrapper /*: JQuery */) {
     event.preventDefault();
     const target = ((event.target /*: any */) /*: HTMLElement */);
     const type = target.getAttribute( 'data-type' );
-    showAsSheet( ((type /*: any */) /*: VisualizerType */) );
+    showAsSheet( ((type /*: any */) /*: VisualizerName */) );
   } );
 }
 
@@ -82,19 +73,19 @@ function displayClassEquation () {
     }
 }
 
-function addHighlights ( i /*: number */, array /*: ?Array<null | void | color> */ ) /*: Array<null | void | color> */ {
-    if ( !array ) array = (Array( Group.order ).fill('') /*: Array<null | void | string> */);
+function addHighlights ( i /*: number */, array /*: Array<color> */ = Array(Group.order).fill('')) /*: Array<color> */ {
+//    if ( !array ) array = (Array( Group.order ).fill('') /*: Array<string> */);
     return array.map( ( e, j ) => Group.conjugacyClasses[i].isSet( j ) ? GEUtils.fromRainbow( i / Group.conjugacyClasses.length ) : e );
 }
 
-function showAsSheet ( type /*: VisualizerType*/ ) {
+function showAsSheet (type /*: VisualizerName */) {
     const n = Group.conjugacyClasses.length;
     // If the group is abelian, it may have an equation like
     // 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1=17, which we want to abbreviate
     // as 1+1+1+...+1=17, so we have "fake" values of n and i:
     const fakeN = ( Group.isAbelian && Group.order > 5 ) ? 5 : n;
     // Add title at top of sheet
-    var sheetElementsAsJSON = [
+    const sheetElementsAsJSON /*: Array<SheetCreateJSON> */ = [
         {
             className : 'TextElement',
             x : 50, y : 50, w : 150*fakeN+100, h : 50,
@@ -154,18 +145,13 @@ function showAsSheet ( type /*: VisualizerType*/ ) {
     } );
     // And the entire group, with rainbow highlighting by conjugacy classes,
     // in the bottom row:
-    var highlights = null;
+    var highlights = undefined;
     for ( var i = 0 ; i < n ; i++ ) highlights = addHighlights( i, highlights );
     sheetElementsAsJSON.push( {
         className : type, groupURL : Group.URL,
         x : 50 + 150*fakeN, y : 150, w : 100, h : 100,
-        highlights : { background : ((highlights /*: any */) /*: Array<null | void | color> */) }
+        highlights : { background : highlights }
     } );
     // Show it:
-    CreateNewSheet( sheetElementsAsJSON );
-}
-
-function CreateNewSheet (oldJSONArray /*: Array<Obj> */) {
-    const newJSONArray = SheetModel.convertFromOldJSON(oldJSONArray)
-    SheetModel.createNewSheet(newJSONArray)
+    SheetModel.createNewSheet(sheetElementsAsJSON)
 }

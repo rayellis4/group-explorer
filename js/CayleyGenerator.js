@@ -1,7 +1,7 @@
 // @flow
 
 import BitSet from './BitSet.js';
-import GEUtils from './GEUtils.js';
+import * as GEUtils from './GEUtils.js';
 import {CayleyDiagramView} from './CayleyDiagramView.js';
 
 // $FlowFixMe -- external module imports described in flow-typed directory
@@ -12,7 +12,7 @@ import type {Tree} from './GEUtils.js';
 import XMLGroup from './XMLGroup.js';
 import type {XMLCayleyDiagram} from './XMLGroup.js';
 import type {NodeData, ArrowData, ChunkData} from './CayleyDiagramView.js';
-import {CayleyDiagramGenerator} from './CayleyDiagramView.js';
+import type {CayleyDiagramGenerator} from './CayleyDiagramView.js';
 
 export type Layout = 'linear' | 'circular' | 'rotated';
 type LineDirection = 'X' | 'Y' | 'Z';
@@ -186,7 +186,7 @@ export class CayleyGeneratorFromStrategy /*:: implements CayleyDiagramGenerator 
         return result;
     }
 
-    createArrows (generators /*: Array<groupElement> */, right_multiply /*: boolean */) {
+    createArrows (generators /*: Array<groupElement> */, right_multiply /*: boolean */) /*: Array<ArrowData> */ {
         const multiply = (a, b) => right_multiply ? this.group.mult(a, b) : this.group.mult(b, a);
         
         const new_arrows = generators.reduce( (arrows_by_generator, generator, inx) => {
@@ -235,7 +235,7 @@ export class CayleyGeneratorFromStrategy /*:: implements CayleyDiagramGenerator 
      *      (1,0,0), start, and end aren't colinear	  (1,0,0)
      *      (0,1,0), start, and end can't be colinear	  (0,1,0)
      */
-    getThirdPoint (start_node /*: NodeData */, end_node /*: NodeData */) /*: THREE.Vector3 */ {
+    getThirdPoint (start_node /*: NodeData */, end_node /*: NodeData */) /*: THREE$Vector3 */ {
         const start = start_node.position;
         const end = end_node.position;
 
@@ -282,7 +282,7 @@ export class CayleyGeneratorFromStrategy /*:: implements CayleyDiagramGenerator 
         this.nodes.forEach( (node) => node.position.applyMatrix4(transform) );
     }
 
-    normalizationTransform (positions /*: Array<THREE.Vector3> */) /*: THREE.Matrix4 */ {
+    normalizationTransform (positions /*: Array<THREE$Vector3> */) /*: THREE$Matrix4 */ {
         const centroid = positions
               .reduce( (centroid, position) => centroid.add(position), new THREE.Vector3(0,0,0) )
               .multiplyScalar(1/positions.length);
@@ -295,13 +295,13 @@ export class CayleyGeneratorFromStrategy /*:: implements CayleyDiagramGenerator 
         return transform;
     }
 
-    markCenters (nodes /*: NodeData | Tree<NodeData> */ = this.node_tree) /*: THREE.Vector3 */ {
+    markCenters (nodes /*: NodeData | Tree<NodeData> */ = this.node_tree) /*: THREE$Vector3 */ {
         let center;
         if (Array.isArray(nodes)) {
             const [sum, count] =
                   nodes.reduce( ([sum, count], children) => [sum.add(this.markCenters(children)), count+1], [new THREE.Vector3(), 0]);
             center = sum.multiplyScalar(1/count);
-            GEUtils.flatten(nodes).forEach( (node) => node.centers.push(center) );
+            GEUtils.flatten(nodes).forEach((node) => ((node /*: any */) /*: NodeData */).centers.push(center))
         } else {
             nodes.centers = [];
             center = nodes.position;
@@ -323,7 +323,7 @@ export class CayleyGeneratorFromStrategy /*:: implements CayleyDiagramGenerator 
      *      if group has three generators map each of them to an axis in a 3D grid
      *      if group has four generators, pick the two smallest to display on same axis and map others to the remaining axes
      */
-    generateStrategy () {
+    generateStrategy () /*: Array<StrategyParameters> */ {
         let strategies = [];
         if (this.group.order == 1) {
             // this.nodes.push(new Diagram3D.Node(0));  // just draw a single node
@@ -506,7 +506,7 @@ class AbstractLayoutStrategy {
             0 );
     }
 
-    transformNodes (nodes /*: Array<NodeData> */, transform /*: THREE.Matrix4 */) {
+    transformNodes (nodes /*: Array<NodeData> */, transform /*: THREE$Matrix4 */) {
         nodes.forEach( (node) => {
             node.position = node.position.applyMatrix4(transform);
             const chunk = node.chunk;
@@ -530,7 +530,7 @@ class LinearLayoutStrategy extends AbstractLayoutStrategy {
         return 'linear';
     }
 
-    layoutNodes (children /*: Array<Array<NodeData>> */) /*: Array<Array<NodeData>> */ {
+    layoutNodes = (children /*: Array<Array<NodeData>> */) /*: Array<Array<NodeData>> */ => {
         const direction_index = DIRECTION_INDEX[this.direction];
         const direction_vector = new THREE.Vector3(
             ...Array.from({length: 3}, (_, inx) => (direction_index == inx) ? 1 : 0));
@@ -569,7 +569,7 @@ const positions = {
 
 class CurvedLayoutStrategy extends AbstractLayoutStrategy {
     /*::
-      position: (r: number, theta: number) => THREE.Vector3;
+      position: (r: number, theta: number) => THREE$Vector3;
     */
     constructor(generator /*: groupElement */, direction /*: Direction */, nesting_level /*: number */) {
         super(generator, direction, nesting_level);
@@ -588,7 +588,7 @@ class CircularLayoutStrategy extends CurvedLayoutStrategy {
         return 'circular';
     }
 
-    layoutNodes(children /*: Array<Array<NodeData>> */) /*: Array<Array<NodeData>> */ {
+    layoutNodes = (children /*: Array<Array<NodeData>> */) /*: Array<Array<NodeData>> */ => {
         // make circle radius to fit in [0,1] box
         const r = 0.5;
 
@@ -620,7 +620,7 @@ const rotations = {
 //   so they're distributed around the 0.5*e^i*[0,2*PI] circle centered at [.5,.5]
 class RotatedLayoutStrategy extends CurvedLayoutStrategy {
     /*::
-      rotation: (theta: number) => THREE.Matrix4;
+      rotation: (theta: number) => THREE$Matrix4;
     */
     constructor(generator /*: groupElement */, direction /*: Direction */, nesting_level /*: number */) {
         super(generator, direction, nesting_level);
@@ -631,7 +631,7 @@ class RotatedLayoutStrategy extends CurvedLayoutStrategy {
         return 'rotated';
     }
 
-    layoutNodes(children /*: Array<Array<NodeData>> */) /*: Array<Array<NodeData>> */ {
+    layoutNodes = (children /*: Array<Array<NodeData>> */) /*: Array<Array<NodeData>> */ => {
         // make circle radius to fit in [0,1] box
         const r = 0.5;
 
@@ -700,7 +700,7 @@ export class CayleyGeneratorFromSpec /*:: implements CayleyDiagramGenerator */ {
         return false;
     }
 
-    createArrows (generators /*: Array<groupElement> */, right_multiply /*: boolean */) {
+    createArrows (generators /*: Array<groupElement> */, right_multiply /*: boolean */) /*: Array<ArrowData> */ {
         const multiply = (a, b) => right_multiply ? this.group.mult(a, b) : this.group.mult(b, a);
               
         const new_arrows = generators.reduce( (arrows_by_generator, generator, inx) => {
@@ -734,7 +734,7 @@ export class CayleyGeneratorFromSpec /*:: implements CayleyDiagramGenerator */ {
      *      (1,0,0), start, and end aren't colinear	  (1,0,0)
      *      (0,1,0), start, and end can't be colinear	  (0,1,0)
      */
-    getThirdPoint (start_node /*: NodeData */, end_node /*: NodeData */) /*: THREE.Vector3 */ {
+    getThirdPoint (start_node /*: NodeData */, end_node /*: NodeData */) /*: THREE$Vector3 */ {
         const start = start_node.position;
         const end = end_node.position;
         let center;

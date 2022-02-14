@@ -139,8 +139,8 @@ class Chunking {
       }
    }
 
-   static changeHandler (changeEvent /*: Event */) {
-      const choice = $(changeEvent.target).children()[0]
+   static changeHandler = (changeEvent /*: Event */) => {
+      const choice = $(((changeEvent.target /*: any */) /*: HTMLElement */)).children()[0]
       if (choice != null) {
          const chunk = parseInt($(choice).attr('data-chunk'))
          Cayley_Diagram_View.chunk = chunk
@@ -183,8 +183,8 @@ class DiagramChoice {
       GEUtils.setupFauxSelect($('#diagram-select')[0], choices, choiceIndex)
    }
 
-   static changeHandler (changeEvent /*: Event */) {
-      const choice = $(changeEvent.target).children()[0]
+   static changeHandler = (changeEvent /*: Event */) => {
+      const choice = $(((changeEvent.target /*: any */) /*: HTMLElement */)).children()[0]
       if (choice != null) {
          const diagramName = $(choice).attr('data-diagram-name')
          Cayley_Diagram_View.diagram_name = diagramName
@@ -375,13 +375,13 @@ class Generator {
    /*
     * Drag-and-drop generation-table rows to re-order generators
     */
-   static dragStart (dragstartEvent /*: DragEvent */) {
+   static dragStart = (dragstartEvent /*: DragEvent */) => {
       const target = ((dragstartEvent.target /*: any */) /*: HTMLElement */);
       const dataTransfer = ((dragstartEvent.dataTransfer /*: any */) /*: DataTransfer */);
       dataTransfer.setData('text/plain', target.textContent);
    }
 
-   static drop (dropEvent /*: DragEvent */) {
+   static drop = (dropEvent /*: DragEvent */) => {
       dropEvent.preventDefault();
       const target = ((dropEvent.target /*: any */) /*: HTMLElement */);
       const dataTransfer = ((dropEvent.dataTransfer /*: any */) /*: DataTransfer */);
@@ -392,7 +392,7 @@ class Generator {
       updateStrategies(strategy_parameters);
    }
 
-   static dragOver (dragoverEvent /*: DragEvent */) {
+   static dragOver = (dragoverEvent /*: DragEvent */) => {
          dragoverEvent.preventDefault();
    }
 
@@ -491,7 +491,7 @@ function update() {
 
 function clickHandler(event /*: MouseEvent */) {
    event.preventDefault();
-   const $action = $(event.target).closest('[action]');
+   const $action = $(((event.target /*: any */) /*: HTMLElement */)).closest('[action]');
    if ($action.length != 0) {
       event.stopPropagation();
       eval($action.attr('action'));

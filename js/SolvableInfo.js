@@ -16,23 +16,14 @@ export {summary, display, showSolvableDecompositionSheet};
 /*::
 import XMLGroup from './XMLGroup.js';
 
-import type {
-    JSONType,
-    SheetElementJSON,
-    RectangleElementJSON,
-    TextElementJSON,
-    VisualizerType,
-    VisualizerElementJSON,
-    ConnectingElementJSON,
-    MorphismElementJSON
-} from './SheetModel.js';
+import type { VisualizerName, SheetCreateJSON } from './SheetModel.js';
 
-type AugmentedGroup = BasicGroup & {
+type AugmentedGroup = interface extends BasicGroup {
     isIsomorphicTo?: XMLGroup,
     subgroupIndex?: number,
     subgroupIsomorphicTo?: XMLGroup,
     quotientIsomorphicTo?: XMLGroup
-};
+}
 type Decomposition = Array<AugmentedGroup>;
 
 type BasicGroupWithMaybeDetails = {
@@ -204,14 +195,14 @@ function getDetailedSolvableDecomposition ( G /*: BasicGroup */) /*: ?Array<Basi
     return null;
 }
 
-function showSolvableDecompositionSheet ( type /*: VisualizerType */ ) {
+function showSolvableDecompositionSheet ( type /*: VisualizerName */ ) /*: void */ {
     const D = getDetailedSolvableDecomposition( Group );
     if ( !D ) return alert( 'Error computing solvable decomposition' );
     const n = D.length,
           L = 25, T = 175, txtH = 50, W = Math.floor( 600 / n ), H = W,
           hgap = Math.floor( W / 3 ), vgap = 100, bottomShift = vgap/4;
     // create sheet title and description
-    var sheetElementsAsJSON = [
+    const sheetElementsAsJSON /*: Array<SheetCreateJSON> */ = [
         {
             className : 'TextElement',
             text : `Solvable Decomposition for the group ${Group.name}`,
@@ -253,7 +244,7 @@ function showSolvableDecompositionSheet ( type /*: VisualizerType */ ) {
             className : type,
             groupURL : ((entry.group /*: any */) /*: {URL?: string} */).URL || '(unknown)',
             x : L+index*W+index*hgap, y : T, w : W, h : H,
-            elements : elementOrder, highlights : { background : highlight }
+          elements : elementOrder, highlights : { background : highlight }
         } );
         // for every visualizer except the trivial group, add the
         // embedding map, the quotient group, the quotient map, and its name.
@@ -266,7 +257,7 @@ function showSolvableDecompositionSheet ( type /*: VisualizerType */ ) {
             sheetElementsAsJSON.push( {
                 className : 'MorphismElement',
                 name : `<i>e</i><sub>${index}</sub>`,
-                fromIndex : previousIndex, toIndex : thisIndex,
+                sourceId : previousIndex, destinationId : thisIndex,
                 showManyArrows : true,
                 definingPairs : previous.group.generators[0].map( gen =>
                                                                   [ gen, embeddingFromPrevious[gen] ] )
@@ -296,7 +287,7 @@ function showSolvableDecompositionSheet ( type /*: VisualizerType */ ) {
             sheetElementsAsJSON.push( {
                 className : 'MorphismElement',
                 name : `<i>q</i><sub>${index}</sub>`,
-                fromIndex : thisIndex, toIndex : quotientIndex,
+                sourceId : thisIndex, destinationId : quotientIndex,
                 showManyArrows : true,
                 definingPairs : entry.group.generators[0].map( gen =>
                                                                [ gen, quotientMap[gen] ] )
@@ -305,10 +296,5 @@ function showSolvableDecompositionSheet ( type /*: VisualizerType */ ) {
         previous = entry;
         previousIndex = thisIndex;
     } );
-    CreateNewSheet( sheetElementsAsJSON );
-}
-
-function CreateNewSheet (oldJSONArray /*: Array<Obj> */) {
-    const newJSONArray = SheetModel.convertFromOldJSON(oldJSONArray)
-    SheetModel.createNewSheet(newJSONArray)
+    SheetModel.createNewSheet(sheetElementsAsJSON)
 }

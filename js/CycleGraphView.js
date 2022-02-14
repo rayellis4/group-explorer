@@ -2,24 +2,24 @@
 
 import {broadcastChange} from '../CycleGraph.js';
 import * as GEUtils from './GEUtils.js'
+import * as Library from './Library.js'
 import Log from './Log.js';
 import XMLGroup from './XMLGroup.js';
 
-// $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from '../lib/externals.js';
 
 /*::
-import {VizDisplay} from './SheetModel.js';
+import type {VizDisplay} from './SheetModel.js';
 
 type Highlights = {
     background: Array<css_color>,
     border: Array<css_color>,
     top: Array<css_color>,
 };
-export type CycleGraphJSON = {
+export type CycleGraphJSON = {|
     groupURL: string,
     highlights?: Highlights,
-};
+|};
 
 type CycleGraphOptions = {
     width?: number,
@@ -55,7 +55,7 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     options: CycleGraphOptions;
     zoomFactor: number;
     translate: {dx: number, dy: number};
-    transform: THREE.Matrix3;
+    transform: THREE$Matrix3;
     radius: number;
 
     _group: XMLGroup;
@@ -97,7 +97,8 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         return {w: this.canvas.width, h: this.canvas.height};
     }
 
-    set size ({w, h} /*: {w: number, h: number} */) {
+    set size (newSize /*: {w: number, h: number} */) {
+        const {w, h} = newSize
         if (this.canvas.width != w || this.canvas.height != h) {
             this.canvas.width = w;
             this.canvas.height = h;
@@ -345,7 +346,7 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         this._centeredZoom(1/(1 + deltaY * DEFAULT_ZOOM_STEP) - 1);
     }
 
-    zoom(factor /*: number */) {
+    zoom (factor /*: number */) /*: this */ {
         this._centeredZoom(factor -  1);
         return this;
     }
@@ -358,7 +359,7 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     }
 
     // deltaX, deltaY are in screen coordinates
-    move(deltaX /*: float */, deltaY /*: float */) {
+    move (deltaX /*: float */, deltaY /*: float */) /*: this */ {
         this.queueShowGraphic();
         this.translate.dx += deltaX;
         this.translate.dy += deltaY;
@@ -395,7 +396,7 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
 
     // Answer the question of where in the diagram each element is drawn.
     // We answer in normalized coordinates, [0,1]x[0,1].
-    unitSquarePositions () /*: Array<THREE.Vector2> */ {
+    unitSquarePositions () /*: Array<THREE$Vector2> */ {
         const scaled_transform = new THREE.Matrix3()
               .set(1/this.canvas.width, 0, 0, 0, 1/this.canvas.height, 0, 0, 0, 1)
               .multiply(this.transform);
@@ -414,13 +415,15 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
             highlights: this.highlights,
         };
     }
-    fromJSON(json /*: CycleGraphJSON */) {
+    fromJSON (json /*: { ...CycleGraphJSON } */) /*: this */ {
+        this.group = ((Library.getLocalGroup(json.groupURL) /*: any */) /*: XMLGroup */)
         if (json.highlights != undefined)
             this.highlights = json.highlights;
+        return this
     }
 
     
-    get group () {
+    get group () /*: XMLGroup */ {
         return this._group;
     }
 
@@ -784,13 +787,13 @@ function mutate(x /*: float */, y /*: float */, alpha /*: float */, beta /*: flo
 }
 
 
-export function createUnlabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) {
+export function createUnlabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) /*: CycleGraphView */ {
     const view = new CycleGraphView(options);
     view.displays_labels = false;
     return view;
 }
 
-export function createLabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) {
+export function createLabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) /*: CycleGraphView */ {
     const view = new CycleGraphView(options);
     view.displays_labels = true;
     return view;

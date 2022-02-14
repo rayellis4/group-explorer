@@ -14,6 +14,7 @@ import Template from './Template.js'
 import type {CayleyDiagramJSON} from './CayleyDiagramView.js'
 import type {CycleGraphJSON} from './CycleGraphView.js'
 import type {MulttableJSON} from './MulttableView.js'
+import type { ClassName, SheetCreateJSON, VisualizerClass } from './SheetModel.js'
 
 type VizDispJSON = CayleyDiagramJSON | CycleGraphJSON | MulttableJSON
  */
@@ -191,7 +192,7 @@ class TopSheetController extends AbstractController {
   onMouseDown (event /*: MouseEvent */) {
     this.downTime = event.timeStamp
     this.downPosition = new View.WindowUnits(event)
-    const domElement = $(event.target).closest('.NodeElement, .LinkElement')[0]
+    const domElement = $(((event.target /*: any */) /*: HTMLElement */)).closest('.NodeElement, .LinkElement')[0]
     if (domElement != null) {
       this.downModelElement = ((Model.sheetElements.get(domElement.id) /*: any */) /*: Model.SheetElement */)
     }
@@ -222,7 +223,7 @@ class TopSheetController extends AbstractController {
 
   // left NodeElement, return cursor to normal
   onMouseOut (event /*: MouseEvent */) {
-    const node = $(event.target).closest('.NodeElement')[0]
+    const node = $(((event.target /*: any */) /*: HTMLElement */)).closest('.NodeElement')[0]
     if (node != null) {
       $(node).css('cursor', '')
     }
@@ -231,7 +232,7 @@ class TopSheetController extends AbstractController {
 
   // entered NodeElement, set cursor to grab
   onMouseOver (event /*: MouseEvent */) {
-    const node = $(event.target).closest('.NodeElement')[0]
+    const node = $(((event.target /*: any */) /*: HTMLElement */)).closest('.NodeElement')[0]
     if (node != null) {
       $(node).css('cursor', 'move')
     }
@@ -264,7 +265,7 @@ class TopSheetController extends AbstractController {
   }
 
   onClick (event /*: MouseEvent */) {
-    if ($(event.target).closest('#control-panel')[0] != null) {
+    if ($(((event.target /*: any */) /*: HTMLElement */)).closest('#control-panel')[0] != null) {
       listener = new Controls()
       listener.onClick(event)
     }
@@ -276,7 +277,7 @@ class TopSheetController extends AbstractController {
     if (event.touches.length === 1) {
       this.downTime = event.timeStamp
       this.downPosition = new View.WindowUnits(event)
-      const domElement = $(event.target).closest('.NodeElement, .LinkElement')[0]
+      const domElement = $(((event.target /*: any */) /*: HTMLElement */)).closest('.NodeElement, .LinkElement')[0]
       if (domElement != null) {
         this.downModelElement = ((Model.sheetElements.get(domElement.id) /*: any */) /*: Model.NodeElement */)
       }
@@ -321,7 +322,7 @@ class TopSheetController extends AbstractController {
   }
 
   onWheel (event /*: WheelEvent */) {
-    if ($(event.target).closest('#graphic')[0] != null) {
+    if ($(((event.target /*: any */) /*: HTMLElement */)).closest('#graphic')[0] != null) {
       const zoomRatio = 1 + 3 * Math.abs(event.deltaY / window.innerWidth)
       const zoomFactor = (event.deltaY > 0) ? zoomRatio : 1 / zoomRatio
       View.zoom(zoomFactor)
@@ -341,9 +342,9 @@ class TopSheetController extends AbstractController {
     }
 
     const allNodes = Array
-      .from(((Model.sheetElements.values() /*: any */) /*: Iterator<Model.VisualizerElement> */))
+      .from(((Model.sheetElements.values() /*: any */) /*: Iterator<Model.VisualizerClass> */))
       .filter((el) => el instanceof Model.VisualizerElement)
-      .map((el) => ((el /*: any */) /*: Model.VisualizerElement */))
+      .map((el) => ((el /*: any */) /*: Model.VisualizerClass */))
       .sort((a, b) => {
         if (a.isClean && b.isClean) {
           return (a.group.URL === b.group.URL) ? 0 : (a.group.URL < b.group.URL) ? -1 : 1
@@ -555,10 +556,11 @@ class ElementContextMenuController extends AbstractController {
   }
 
   onClick (event /*: MouseEvent */) {
-    if ($(event.target).closest('.context-menu').length === 0) {
+    if ($(((event.target /*: any */) /*: HTMLElement */)).closest('.context-menu').length === 0) {
       this.exit() // event isn't over any context menu: dismiss the open menu and exit menu controller
     } else {
-      const $action = $(event.target).closest('[data-action]') // look for an action, and execute it if found
+      // look for an action, and execute it if found
+      const $action = $(((event.target /*: any */) /*: HTMLElement */)).closest('[data-action]')
       if ($action.length !== 0) {
         eval($action.attr('data-action')) // click on menu item => execute 'data-action' attribute of item
         if (this !== listener) {
@@ -571,7 +573,7 @@ class ElementContextMenuController extends AbstractController {
   createEditor (event) {
     DragAndDrop.enable()
     if (this.modelElement instanceof Model.VisualizerElement) {
-      RemoteEditor.start(this.modelElement)
+      RemoteEditor.start(((this.modelElement /*: any */) /*: Model.VisualizerClass */))
       reset()
     } else {
       listener = new EditController(this.modelElement, event)
@@ -579,7 +581,7 @@ class ElementContextMenuController extends AbstractController {
   }
 
   openInfo (event) {
-    window.open('./GroupInfo.html?groupURL=' + ((this.modelElement /*: any */) /*: Model.VisualizerElement */).group.URL)
+    window.open('./GroupInfo.html?groupURL=' + ((this.modelElement /*: any */) /*: Model.VisualizerClass */).group.URL)
     reset()
   }
 
@@ -600,14 +602,16 @@ class ElementContextMenuController extends AbstractController {
 }
 
 class RemoteEditor {
-  static start (modelElement /*: Model.VisualizerElement */) {
+  static start (modelElement /*: Model.VisualizerClass */) {
     const editPageURLs = {
       MTElement: './Multtable.html',
       CGElement: './CycleGraph.html',
       CDElement: './CayleyDiagram.html'
     }
-    const editPageURL = editPageURLs[modelElement.className] + '?SheetEditor=true&' +
-      ((modelElement.group == null) ? 'waitForMessage=true' : 'groupURL=' + modelElement.group.URL)
+    const editPageURL =
+      editPageURLs[((modelElement.className /*: any */) /*: Model.VisualizerName */)] +
+      '?SheetEditor=true' +
+      ((modelElement.group == null) ? '&waitForMessage=true' : `&groupURL=${modelElement.group.URL}`)
     const myDomain = new URL(window.location.href).origin
 
     const otherWin = window.open(editPageURL)
@@ -638,6 +642,7 @@ class RemoteEditor {
         // but when the editor changes, update us to be just like it
         if (event.data != null && event.data.source === 'editor') {
           const eventData = ((event.data /*: any */) /*: Model.MSG_editor<VizDispJSON> */)
+          // $FlowFixMe -- not static
           modelElement.visualizer.fromJSON(eventData.json)
           modelElement.redraw()
           if (modelElement instanceof Model.CDElement) {
@@ -652,7 +657,7 @@ class RemoteEditor {
 class EditController extends AbstractController {
   /*::
     modelElement: Model.SheetElement
-    initialJSON: Obj
+    initialJSON: Model.SheetJSON
     $editor: JQuery
   */
   constructor (modelElement /*: Model.SheetElement */, event /*: MouseEvent | Touch | View.WindowUnits */) {
@@ -672,7 +677,7 @@ class EditController extends AbstractController {
 
   onInput (event /*: Event */) {
     // if this is echoed by a sibling, find the sibling that echoes it and update the sibling
-    const $maybeEchoed = $(event.target).closest('.echoed')
+    const $maybeEchoed = $(((event.target /*: any */) /*: HTMLElement */)).closest('.echoed')
     if ($maybeEchoed.length !== 0) {
       const $echo = $maybeEchoed.siblings('.echoed')
       $echo.val($maybeEchoed.val())
@@ -704,8 +709,8 @@ class EditController extends AbstractController {
   }
 
   executeAction (event /*: MouseEvent | TouchEvent */) {
-    if ($(event.target).closest('.editor')[0] != null) {
-      const $maybeAction = $(event.target).closest('[data-action]')
+    if ($(((event.target /*: any */) /*: HTMLElement */)).closest('.editor')[0] != null) {
+      const $maybeAction = $(((event.target /*: any */) /*: HTMLElement */)).closest('[data-action]')
       if ($maybeAction.length !== 0) {
         eval($maybeAction.attr('data-action'))
       }
@@ -740,10 +745,10 @@ class ConnectionController extends AbstractController {
   // maybe display a reason for failure in linking indicator?
   onClick (event /*: MouseEvent */) {
     // if this is listener's cancel button, just exit
-    if ($(event.target).closest('#linking-indicator-cancel').length === 1) {
+    if ($(((event.target /*: any */) /*: HTMLElement */)).closest('#linking-indicator-cancel').length === 1) {
       this.exit()
-    } else if ($(event.target).closest('.NodeElement').length === 1) {
-      const destinationId = $(event.target).closest('.NodeElement')[0].id
+    } else if ($(((event.target /*: any */) /*: HTMLElement */)).closest('.NodeElement').length === 1) {
+      const destinationId = $(((event.target /*: any */) /*: HTMLElement */)).closest('.NodeElement')[0].id
       const destination = ((Model.sheetElements.get(destinationId) /*: any */) /*: Model.NodeElement */)
       if (this.isValidTarget(destination)) {
         const newConnection = this.createLink(destination)
@@ -768,8 +773,9 @@ class ConnectionController extends AbstractController {
   }
 
   createLink (nodeElement) {
-    const linkJson = { sourceId: this.source.id, destinationId: nodeElement.id }
-    return Model.addElement(linkJson, this.elementType)
+    // $FlowFixMe -- not static
+    const linkJson = { className: this.elementType, sourceId: this.source.id, destinationId: nodeElement.id }
+    return Model.addElement(linkJson)
   }
 
   get elementType () {
@@ -840,7 +846,7 @@ class DragAndDrop {
     }
   }
 
-  static handleMouseEvent (event /*: MouseEvent */) {
+  static handleMouseEvent = (event /*: MouseEvent */) => {
     if (!DragAndDrop.enabled) {
       return
     }
@@ -877,7 +883,7 @@ class DragAndDrop {
   }
 
   // if you have a touchend with one changedTouch and one touch, just let the last touch end
-  static handleTouchEvent (event /*: TouchEvent */) {
+  static handleTouchEvent = (event /*: TouchEvent */) => {
     if (!DragAndDrop.enabled) {
       return
     }
@@ -935,12 +941,12 @@ class DragAndDrop {
 
   static dragStart (event /*: MouseEvent | TouchEvent */) {
     const isDragStart =
-      $(event.target).closest('.draggable')[0] != null &&
-      $(event.target).closest('input')[0] == null && // range & text
-      $(event.target).closest('textarea')[0] == null
+      $(((event.target /*: any */) /*: HTMLElement */)).closest('.draggable')[0] != null &&
+      $(((event.target /*: any */) /*: HTMLElement */)).closest('input')[0] == null && // range & text
+      $(((event.target /*: any */) /*: HTMLElement */)).closest('textarea')[0] == null
 
     if (isDragStart) {
-      const domElement = (($(event.target).closest('.draggable')[0] /*: any */) /*: HTMLElement */)
+      const domElement = (($(((event.target /*: any */) /*: HTMLElement */)).closest('.draggable')[0] /*: any */) /*: HTMLElement */)
       DragAndDrop.domElement = domElement
       if ($(domElement).hasClass('NodeElement')) {
         DragAndDrop.nodeElement = ((Model.sheetElements.get(domElement.id) /*: any */) /*: Model.NodeElement */)
@@ -1038,7 +1044,7 @@ class Controls extends AbstractController {
   }
 
   onClick (event /*: MouseEvent */) {
-    const $target = $(event.target)
+    const $target = $(((event.target /*: any */) /*: HTMLElement */))
 
     if ($('#control-panel .controls-modal:visible').length !== 0 &&
         $target.closest('#control-panel .controls-modal:visible').length === 0) {
@@ -1110,7 +1116,7 @@ class Controls extends AbstractController {
   }
 
   showStoredSheetMenu (event /*: MouseEvent */) {
-    const maybeSelection = $(event.target).closest('li')[0]
+    const maybeSelection = $(((event.target /*: any */) /*: HTMLElement */)).closest('li')[0]
     this.storedSheetSelection =
       (maybeSelection == null || maybeSelection.textContent === '(None)')
         ? null
@@ -1139,7 +1145,7 @@ class Controls extends AbstractController {
   importSheetData () {
     const jsonString = (($('#import-sheet-value').val() /*: any */) /*: string */)
     if (jsonString !== '') {
-      Model.fromJSON(jsonString)
+      Model.fromJSON(((JSON.parse(jsonString) /*: any */) /*: Array<SheetCreateJSON> */))
     }
     this.exit()
   }
@@ -1156,14 +1162,15 @@ class Controls extends AbstractController {
 
   /* *********************** Add elements *********************************/
 
-  addElement (className /*: string */) {
+  addElement (className /*: Model.ClassName */) {
     const groupURL = $('#visualizer-select-group .faux-select-value [data-groupURL]').attr('data-groupURL')
     const { width, height } = View.graphicRect
     const scale = Math.min(width, height)
     const { x, y } = new View.GraphicUnits().toSheetUnits() // upper-left corner of #graphic
-    const element /*: {[key: string]: any} */= { x: x, y: y, w: 0.1 * scale, h: 0.1 * scale, groupURL: groupURL }
+    const element /*: {[key: string]: any} */ =
+      { x: x, y: y, w: 0.1 * scale, h: 0.1 * scale, groupURL: groupURL, className: className }
     if (className === 'RectangleElement') {
-      className = 'TextElement'
+      element.className = 'TextElement'
       element.text = ''
       element.color = '#DDDDDD'
     } else if (className === 'TextElement') {
@@ -1171,7 +1178,7 @@ class Controls extends AbstractController {
       delete element.w
       delete element.h
     }
-    Model.addElement(element, className)
+    Model.addElement(((element /*: any */) /*: SheetCreateJSON */))
     this.exit()
   }
 }

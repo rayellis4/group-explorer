@@ -11,6 +11,10 @@ export let PixelsPerModelUnit /*: float */ = 0
 export let zoomFactor /*: float */ = 1
 export let panVector /*: PhysicalUnits */ // pan expressed in window pixels
 
+/*::
+import type { VisualizerClass } from './SheetModel.js'
+*/
+
 export class PhysicalUnits extends THREE.Vector2 {
   /*::
     // Expose THREE.Vector2 methods to Flow as outputting a PhysicalUnits type,
@@ -45,7 +49,7 @@ export class WindowUnits extends PhysicalUnits {
     sub: (PhysicalUnits) => WindowUnits
   */
   constructor (
-    arg1 /*: ?number | MouseEvent | TouchEvent | Touch | WindowUnits | DOMRect |  THREE.Vector2 */,
+    arg1 /*: ?number | interface {clientX: number; clientY: number} | interface {x: number; y: number} | TouchEvent */,
     y /*: ?number */
   ) {
     (typeof arg1 === 'number' && typeof y === 'number') ? super(arg1, y) : super()
@@ -115,7 +119,7 @@ export class SheetUnits extends LogicalUnits {
     // $FlowFixMe
     add: (LogicalUnits) => SheetUnits
     // $FlowFixMe
-    applyMatrix3: (THREE.Matrix3) => SheetUnits
+    applyMatrix3: (THREE$Matrix3) => SheetUnits
     // $FlowFixMe
     addScaledVector: (LogicalUnits, float) => SheetUnits
     // $FlowFixMe
@@ -206,8 +210,8 @@ export function redrawNodes () {
 }
 
 function makeCssTransform (
-  scale /*: THREE.Vector2 | float */ = new THREE.Vector2(1, 1),
-  direction /*: THREE.Vector2 */ = new THREE.Vector2(1, 0),
+  scale /*: THREE$Vector2 | float */ = new THREE.Vector2(1, 1),
+  direction /*: THREE$Vector2 */ = new THREE.Vector2(1, 0),
   position /*: GraphicUnits | SheetUnits */ = new GraphicUnits() // Pixels of the transform's reference
 ) /*: string */ {
   scale = (typeof scale === 'number') ? new THREE.Vector2(scale, scale) : scale
@@ -402,12 +406,11 @@ export class TextView extends NodeView {
 
 export class VisualizerView extends NodeView {
   /*::
-   +modelElement: SheetModel.VisualizerElement
    +domElement: HTMLCanvasElement
-    unitSquarePositions: Array<THREE.Vector2>
+    unitSquarePositions: Array<THREE$Vector2>
     lastZoom: float
   */
-  constructor (modelElement /*: SheetModel.VisualizerElement */, domElement /*: HTMLElement */) {
+  constructor (modelElement /*: SheetModel.NodeElement */, domElement /*: HTMLElement */) {
     super(modelElement, domElement)
 
     $(this.domElement)
@@ -614,19 +617,19 @@ export class LinkView extends SheetView {
     $(this.domElement).addClass('LinkElement')
   }
 
-  get destination () {
+  get destination () /*: SheetModel.NodeElement */ {
     return this.modelElement.destination
   }
 
-  get destinationView () {
+  get destinationView () /*: NodeView */ {
     return this.destination.viewElement
   }
 
-  get source () {
+  get source () /*: SheetModel.NodeElement */ {
     return this.modelElement.source
   }
 
-  get sourceView () {
+  get sourceView () /*: NodeView */ {
     return this.source.viewElement
   }
 
@@ -689,6 +692,8 @@ export class ConnectingView extends LinkView {
 
       this.arrow.update(start, end, this.modelElement.thickness, undefined, this.modelElement.color)
     }
+
+    this.updateTransform()
   }
 }
 
@@ -806,13 +811,13 @@ export class MorphismView extends LinkView {
     const LINE_WIDTH = 1
     const LINE_COLOR = 'black'
 
-    const source = ((this.source /*: any */) /*: SheetModel.VisualizerElement */)
-    const destination = ((this.destination /*: any */) /*: SheetModel.VisualizerElement */)
+    const source = ((this.source /*: any */) /*: SheetModel.VisualizerClass */)
+    const destination = ((this.destination /*: any */) /*: SheetModel.VisualizerClass */)
 
     // create mapping arrows if they don't exist
     if (this.arrows === undefined) {
       this.arrows = Array.from(
-        { length: ((source /*: any */) /*: SheetModel.VisualizerElement */).group.order },
+        { length: source.group.order },
         () => new Arrow(this.domElement, LINE_WIDTH, LINE_COLOR)
       )
     }

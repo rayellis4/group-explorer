@@ -1,6 +1,6 @@
 // @flow
 
-import GEUtils from './js/GEUtils.js';
+import * as GEUtils from './js/GEUtils.js';
 import * as Library from './js/Library.js';
 import Log from './js/Log.js';
 import Menu from './js/Menu.js';
@@ -14,13 +14,12 @@ import * as SSD from './js/SubsetHighlightController.js';
 import * as VC from './visualizerFramework/visualizer.js';
 export {broadcastChange} from './visualizerFramework/visualizer.js';
 
-// $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from './lib/externals.js';
 
 export {load};
 
 /*::
-import type {MulttableJSON} from './js/MulttableView.js';
+import type { MulttableJSON, ColorReordering } from './js/MulttableView.js'
 import type {MSG_external, MSG_editor} from './js/SheetModel.js';
 
 declare type rowXcol = {row: number, col: number};
@@ -129,8 +128,10 @@ function receiveInitialSetup (event /*: MessageEvent */) {
    const event_data /*: MSG_external<MulttableJSON> */ = (event.data /*: any */);
    if (event_data.source == 'external') {
       const json_data = event_data.json;
-      if (json_data.separation != undefined)
-         $('#separation-slider').val(json_data.separation * 100);
+      if (json_data.separation != null) {
+         const separation = json_data.separation
+         $('#separation-slider').val(separation * 100);
+      }
       if (json_data.coloration != undefined)
          $('#' + json_data.coloration.toString()).prop('checked', true);
       if (json_data.organizingSubgroup != undefined)
@@ -151,7 +152,7 @@ function receiveInitialSetup (event /*: MessageEvent */) {
 
 /* Organize subgroups by data-subgroup-index value of #organization-choice child */
 function organizationChangeHandler(changeEvent /*: Event */) {
-   const organizationChoice = $(changeEvent.target).children()[0]
+   const organizationChoice = $(((changeEvent.target /*: any */) /*: HTMLElement */)).children()[0]
    if (organizationChoice != null) {
       const subgroupIndexChoice = $(organizationChoice).attr('data-subgroup-index')
       if (subgroupIndexChoice != null) {
@@ -177,7 +178,7 @@ function chooseColoration(coloration /*: 'rainbow' | 'grayscale' | 'none' */) {
 }
 
 /* Set color order option in multtable, and re-draw graphic */
-function chooseColorReordering (colorReordering /*: 'classicColorOrder' | 'fixedToElement' */) {
+function chooseColorReordering (colorReordering /*: ColorReordering */) {
    Multtable_View.colorReordering = colorReordering;
 }
 
@@ -223,16 +224,18 @@ class LargeGraphic {
 
       const graphic = $('#graphic')[0];
       if (window.ontouchstart === undefined) {  // determine whether device supports touch events
-         ['click', 'wheel', 'contextmenu', 'mousedown', 'mousemove', 'mouseup']
-            .forEach( (eventType) => graphic.addEventListener(eventType, LargeGraphic.mouseHandler) );
+         ['click', 'wheel', 'contextmenu', 'mousedown', 'mousemove', 'mouseup'].forEach((event) => {
+            graphic.addEventListener(event, LargeGraphic.mouseHandler)
+         })
       } else {
-         ['touchstart', 'touchmove', 'touchend']
-            .forEach( (eventType) => graphic.addEventListener(eventType, LargeGraphic.touchHandler) );
+         ['touchstart', 'touchmove', 'touchend'].forEach((event) => {
+            graphic.addEventListener(event, LargeGraphic.touchHandler)
+         })
       }
    }
 
    // Event handler for mouse-only platform
-   static mouseHandler(mouseEvent /*: MouseEvent */) {
+   static mouseHandler = (mouseEvent /*: MouseEvent */) => {
       // skip modified events, except for mouseXXX with shiftKey down
       if (   mouseEvent.ctrlKey || mouseEvent.altKey || mouseEvent.metaKey
           || (mouseEvent.shiftKey && !mouseEvent.type.startsWith('mouse')) ) {
@@ -325,7 +328,7 @@ class LargeGraphic {
    }
 
    // Event handler for platforms that support touch events
-   static touchHandler(touchEvent /*: TouchEvent */) {
+   static touchHandler = (touchEvent /*: TouchEvent */) => {
       // skip modified events
       if (touchEvent.shiftKey || touchEvent.ctrlKey || touchEvent.altKey || touchEvent.metaKey) {
          return;

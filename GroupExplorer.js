@@ -3,6 +3,7 @@
 import {CayleyDiagramView, createUnlabelledCayleyDiagramView} from './js/CayleyDiagramView.js';
 import {CycleGraphView, createUnlabelledCycleGraphView} from './js/CycleGraphView.js';
 import GroupURLs from './GroupURLs.js';
+import GEUtils from './js/GEUtils.js'
 import * as Library from './js/Library.js';
 import Log from './js/Log.js';
 import Menu from './js/Menu.js';
@@ -11,7 +12,6 @@ import {SymmetryObjectView, createStaticSymmetryObjectView} from './js/SymmetryO
 import Template from './js/Template.js';
 import XMLGroup from './js/XMLGroup.js';
 
-// $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from './lib/externals.js';
 
 export {load};
@@ -137,7 +137,7 @@ function displayGroup(group) {
 
 // callback to sort table on column value, invoked by clicking on column head
 function columnSort(event /*: JQueryEventObject */) {
-   const column = event.currentTarget;
+   const column = ((event.currentTarget /*: any */) /*: HTMLElement */);
    const columnIndex = $('#GroupTableHeaders th.sortable').toArray().findIndex( (th) => th == column );
    if (columnIndex == -1) {
       Log.err(`unknown event in columnSort`);
@@ -171,19 +171,22 @@ class HoverHelp {
  */
    static init() {
       const tbody = $('#GroupTable tbody')[0];
-      if (window.hasOwnProperty('ontouchstart')) {
-         $('#GroupTable')[0].addEventListener('click', HoverHelp.clickHandler);  // tap anywhere in table to clear tooltip
+      if (GEUtils.isTouchDevice()) {
+         // tap anywhere in table to clear tooltip
+         $('#GroupTable')[0].addEventListener('click', HoverHelp.clickHandler);
 
          // set up touch event listeners
-         ['touchstart', 'touchmove', 'touchend'].forEach( (event) => tbody.addEventListener(event, HoverHelp.highlightHandler) );
-         ['touchstart', 'touchmove', 'touchend'].forEach( (event) => tbody.addEventListener(event, HoverHelp.tipHandler) );
+         ['touchstart', 'touchmove', 'touchend'].forEach((event) => {
+            tbody.addEventListener(event, HoverHelp.highlightHandler)
+            tbody.addEventListener(event, HoverHelp.tipHandler)
+         })
       } else {
-         tbody.addEventListener('mousemove', HoverHelp.highlightHandler);
-         tbody.addEventListener('mouseleave', HoverHelp.clearHighlighting);
+         tbody.addEventListener('mousemove', HoverHelp.highlightHandler)
+         tbody.addEventListener('mouseleave', HoverHelp.clearHighlighting)
       }         
    }
 
-   static clickHandler(clickEvent /*: MouseEvent */) {
+   static clickHandler = (clickEvent /*: MouseEvent */) => {
       // skip modified events
       if (clickEvent.altKey || clickEvent.ctrlKey || clickEvent.metaKey || clickEvent.shiftKey) {
          return;
@@ -206,7 +209,7 @@ class HoverHelp {
       HoverHelp.lastEntry = null;
    }
 
-   static tipHandler(touchEvent /*: TouchEvent */) {
+   static tipHandler = (touchEvent /*: TouchEvent */) => {
       // skip modified events, multi-touches
       if (   touchEvent.altKey || touchEvent.ctrlKey || touchEvent.metaKey || touchEvent.shiftKey
           || touchEvent.touches.length > 1 || touchEvent.changedTouches.length > 1) {
@@ -280,7 +283,7 @@ class HoverHelp {
       return $newTip;
    }
 
-   static highlightHandler(event /*: MouseEvent | TouchEvent */) {
+   static highlightHandler = (event /*: MouseEvent | TouchEvent */) => {
       // skip modified events, multi-touches
       if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
          return;
@@ -313,7 +316,7 @@ class HoverHelp {
       }
    }
 
-   static clearHighlighting() {
+   static clearHighlighting = () => {
       $('#GroupTable > tbody > tr.highlighted').removeClass('highlighted');
       $('#GroupTable > tbody td.emphasized').removeClass('emphasized');
    }

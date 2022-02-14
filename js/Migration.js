@@ -33,6 +33,7 @@ const filesToReload = [
   'js/CyclicInfo.js',
   'js/DefiningRelations.js',
   'js/DiagramDnD.js',
+  'js/DragResizeExtension.js',
   'js/ge-lib-endmatter.js',
   'js/ge-lib-preamble.js',
   'js/GEUtils.js',
@@ -116,7 +117,7 @@ function updateLocalStorage () {
   localStorage.setItem('GE-version', Version.label)
 }
 
-export async function check () {
+export async function check () /*: Promise<void> */ {
   let result = Promise.resolve()
 
   const thisLabel = Version.label

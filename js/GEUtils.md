@@ -104,7 +104,7 @@ Actions taken are determined from the following classes applied to DOM elements:
    disable-on-clean -- disable buttons
 ```javascript
 */
-   static cleanWindow() {
+   static cleanWindow () /*: void */ {
       $('.highlighted').each( (_inx, el) => $(el).removeClass('highlighted') );
       $('.display-none-on-clean').hide();
       $('.visibility-hidden-on-clean').css('visibility', 'hidden');       
@@ -280,4 +280,20 @@ function htmlToContext (source /*: HTMLElement */, context /*: CanvasRenderingCo
     const y = rect.top + rect.height - yMin + center.y - (yMax - yMin) / 2
     context.fillText(node.textContent, x, y)
   }
+}
+
+export function fromRainbow (hue /*: float */, saturation /*:: ?: float */, lightness /*:: ?: float */) /*: css_color */ {
+   return GEUtils.fromRainbow(hue, saturation, lightness)
+}
+
+export function flatten/*:: <T> */(tree /*: Tree<T> */) /*: Array<T> */ {
+   return GEUtils.flatten(tree)
+}
+
+export function cleanWindow () /*: void */ {
+  GEUtils.cleanWindow()
+}
+
+export function isTouchDevice () /*: boolean */ {
+  return GEUtils.isTouchDevice()
 }

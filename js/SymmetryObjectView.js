@@ -11,7 +11,7 @@ import type {XMLSymmetryObject} from './XMLGroup.js';
 import type {AbstractDiagramDisplayOptions} from './AbstractDiagramDisplay.js';
 
 type LineData = {
-   vertices: Array<THREE.Vector3>,
+   vertices: Array<THREE$Vector3>,
    color: css_color,
 } & Obj;
 
@@ -68,7 +68,7 @@ export class SymmetryObjectView extends AbstractDiagramDisplay {
 
 ////////////////////////////   Factory Functions   ////////////////////////////////
 
-export function createInteractiveSymmetryObjectView(options /*: SymmetryObjectViewOptions */ = {}) {
+export function createInteractiveSymmetryObjectView(options /*: SymmetryObjectViewOptions */ = {}) /*: SymmetryObjectView */ {
     const display = new SymmetryObjectView(options);
     display.use_fat_lines = true;
     display.enableTrackballControl();
@@ -76,7 +76,7 @@ export function createInteractiveSymmetryObjectView(options /*: SymmetryObjectVi
     return display;
 }
 
-export function createStaticSymmetryObjectView(options /*: SymmetryObjectViewOptions */ = {}) {
+export function createStaticSymmetryObjectView(options /*: SymmetryObjectViewOptions */ = {}) /*: SymmetryObjectView */ {
     const display = new SymmetryObjectView(options);
     display.use_fat_lines = false;
     return display;

@@ -4,7 +4,7 @@ import {THREE} from './lib/externals.js';
 
 import {CayleyDiagramView, createInteractiveCayleyDiagramView} from './js/CayleyDiagramView.js';
 import DiagramDnD from './js/DiagramDnD.js';
-import GEUtils from './js/GEUtils.js';
+import * as GEUtils from './js/GEUtils.js'
 import * as Library from './js/Library.js';
 import Log from './js/Log.js';
 import Menu from './js/Menu.js';
@@ -186,17 +186,17 @@ function resizeBody() {
  */
 class Tooltip {
    static init() {
-      $('#graphic')[0].addEventListener('click', Tooltip.eventHandler);
+      $('#graphic')[0].addEventListener('click', Tooltip.eventHandler)
       if (GEUtils.isTouchDevice()) {
-         $('#graphic')[0].addEventListener('touchstart', Tooltip.eventHandler);
+         $('#graphic')[0].addEventListener('touchstart', Tooltip.eventHandler)
       } else {
-         $('#graphic')[0].addEventListener('mousedown', Tooltip.eventHandler);
-         $('#graphic')[0].addEventListener('wheel', Tooltip.eventHandler);
-         $('#graphic')[0].addEventListener('contextmenu', Tooltip.eventHandler);
+         $('#graphic')[0].addEventListener('mousedown', Tooltip.eventHandler)
+         $('#graphic')[0].addEventListener('wheel', Tooltip.eventHandler)
+         $('#graphic')[0].addEventListener('contextmenu', Tooltip.eventHandler)
       }
    } 
 
-   static eventHandler(event /*: Event */) {
+   static eventHandler = (event /*: Event */) => {
       if (event.type == 'touchstart') {
          const touchEvent = ((event /*: any */) /*: TouchEvent */);
          // only handle single touch events
@@ -246,7 +246,7 @@ class Tooltip {
       }
    }
 
-   static getObjectIDsAtLocation(location /*: eventLocation */) /*: Array<THREE.Object3D> */ {
+   static getObjectIDsAtLocation(location /*: eventLocation */) /*: Array<THREE$Object3D> */ {
       const $graphic = $(Cayley_Diagram_View.renderer.domElement);
       const bounding_box = $graphic[0].getBoundingClientRect();
       const x = ( (location.clientX - bounding_box.left) / $graphic.width()) * 2 - 1;

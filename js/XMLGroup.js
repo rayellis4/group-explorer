@@ -98,12 +98,9 @@ class XMLGroup extends BasicGroup {
 
    lastModifiedOnServer: string;
    URL: string;
-   CayleyThumbnail: string;
-   rowHTML: string;
-   userNotes: string;
-
    CayleyThumbnail: string | void;
    rowHTML: string | void;
+   userNotes: string;
  */
    constructor (text /*: void | string | Document */) {
       if (text === undefined) {
@@ -230,7 +227,7 @@ class XMLGroup extends BasicGroup {
       }
    }
 
-   get representationIsUserDefined () {
+   get representationIsUserDefined () /*: boolean */ {
       return this.representationIndex < 0
    }
 

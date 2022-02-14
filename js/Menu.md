@@ -73,10 +73,11 @@ constraints: the menus are placed by [`Menu.setMenuLocation()`](#setmenulocation
 the browser window; and by `Menu._setMenuTreeLocation()` so that when a submenu is exposed it does not cover its parent.
 ```js
 */
-   static addMenus ($menus /*: JQuery */,
-                    location /*: eventLocation */,
-                    clickHandler /*: MouseEventListener */ = Menu.actionClickHandler)
-   {
+   static addMenus (
+      $menus /*: JQuery */,
+      location /*: eventLocation */,
+      clickHandler /*: MouseEventHandler */ = ((Menu.actionClickHandler /*: any */) /*: MouseEventHandler */) // FLOWBUG?
+   ) {
       // remove all other menus
       const $parent = $menus.first().parent();
       $menus.detach();
@@ -205,7 +206,7 @@ menus in the [subsetDisplay](../subsetDisplay) and [diagramController](../diagra
 */
    static actionClickHandler (event /*: MouseEvent */) {
       event.preventDefault();
-      const $action = $(event.target).closest('[action]');
+      const $action = $(((event.target /*: any */) /*: HTMLElement */)).closest('[action]')
       if ($action.length != 0) {
          event.stopPropagation();
          eval($action.attr('action'));
@@ -247,7 +248,7 @@ used by [Menu.makeLink()](#makelinklabel-link).
          } );
       };
 
-      const $action = $(event.target).closest('[action]');
+      const $action = $(((event.target /*: any */) /*: HTMLElement */)).closest('[action]')
       const $element = $(`#${$action.attr('link')}`);
       const element_was_hidden = $element.css('visibility') == 'hidden';
       hideSubMenus($action.parent().children());

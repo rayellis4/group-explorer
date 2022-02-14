@@ -295,7 +295,7 @@ function displayNotes () {
 //   note that this requires that any function name referenced in the action be available to this routine
 //   many have to be exported/imported from the XXXInfo.js modules where they are defined
 function actionClickHandler(event /*: MouseEvent */) {
-    const $action = $(event.target).closest('[data-action]');
+    const $action = $(((event.target /*: any */) /*: HTMLElement */)).closest('[data-action]');
     if ($action.length != 0) {
         event.preventDefault();
         event.stopPropagation();
@@ -401,7 +401,7 @@ class Notes {
 
 function showAllVisualizersSheet () {
     const iso = Group.generators[0].map( g => [ g, g ] );
-    CreateNewSheet( [
+    SheetModel.createNewSheet( [
         {
             className : 'TextElement',
             x : 50, y : 50, w : 800, h : 50,
@@ -440,20 +440,15 @@ function showAllVisualizersSheet () {
         },
         {
             className : `MorphismElement`,
-            fromIndex : 4, toIndex : 5,
+            sourceId : 4, destinationId : 5,
             name : '<i>id</i><sub>1</sub>',
-            showInjSurj : true, showManyArrows : true, definingPairs : iso
+            showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         },
         {
             className : `MorphismElement`,
-            fromIndex : 5, toIndex : 6,
+            sourceId : 5, destinationId : 6,
             name : '<i>id</i><sub>2</sub>',
-            showInjSurj : true, showManyArrows : true, definingPairs : iso
+            showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         }
     ] );
-}
-
-function CreateNewSheet (oldJSONArray /*: Array<Obj> */) {
-    SheetModel.convertFromOldJSON(oldJSONArray)
-    SheetModel.createNewSheet(oldJSONArray)
 }

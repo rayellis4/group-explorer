@@ -1,6 +1,6 @@
 // @flow
 
-import GEUtils from './js/GEUtils.js';
+import * as GEUtils from './js/GEUtils.js';
 import * as Library from './js/Library.js';
 import Log from './js/Log.js';
 import {SymmetryObjectView, createInteractiveSymmetryObjectView} from './js/SymmetryObjectView.js';
@@ -109,7 +109,7 @@ function resizeBody() {
 
 /* Change diagram */
 function diagramChangeHandler(changeEvent /*: Event */) {
-   const choice = $(changeEvent.target).children()[0];
+   const choice = $(((changeEvent.target /*: any */) /*: HTMLElement */)).children()[0];
    if (choice != null) {
       const symmetryObjectIndex = $(choice).attr('data-symmetry-object-index')
       Symmetry_Object_View.setObject(Group.symmetryObjects[parseInt(symmetryObjectIndex)])

@@ -16,12 +16,13 @@ Controller interface:
     tooltip
 
 Sheet functions:
-    unitSquarePosition
+    unitSquarePositions
     toJSON/fromJSON (putToJSON/setFromJSON)
 */
 
 import GEUtils from './GEUtils.js';
 import * as GEUtilz from './GEUtils.js'
+import * as Library from './Library.js'
 import Log from './Log.js';
 import {broadcastChange} from '../Multtable.js';
 import Subgroup from './Subgroup.js';
@@ -32,23 +33,25 @@ import {THREE} from '../lib/externals.js';
 
 /*::
 import type {Tree} from './GEUtils.js';
-import {VizDisplay} from './SheetModel.js';
+import type {VizDisplay} from './SheetModel.js';
 
 export type Coloration = 'rainbow' | 'grayscale' | 'none';
 export type ColorReordering = 'topRowFixed' | 'elementColorsFixed';
 
-export type MulttableJSON = {
-   groupURL: string,
-   elements: Array<groupElement>,
-   separation: number,
-   organizingSubgroup: number,
-   coloration: Coloration,
-   highlights: {
-      background: void | Array<color>,
-      border: void | Array<color | void>,
-      corner: void | Array<color | void>
-   }
+export type Highlights = {
+   background?: void | Array<color>,
+   border?: void | Array<color | void>,
+   corner?: void | Array<color | void>
 }
+export type MulttableJSON = {|
+   groupURL: string,
+   elements?: Array<groupElement>,
+   separation?: number,
+   organizingSubgroup?: number,
+   coloration?: Coloration,
+   colorReordering?: ColorReordering,
+   highlights?: Highlights
+|}
 
 type MulttableViewOptions = {
    container?: JQuery,
@@ -71,7 +74,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     context: CanvasRenderingContext2D;
     zoomFactor: number;
     translate: {dx: number, dy: number};
-    transform: THREE.Matrix3;
+    transform: THREE$Matrix3;
     permutationLabels: void | Array<void | Array<string>>;
 
     _group: XMLGroup;
@@ -120,7 +123,8 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         return {w: this.canvas.width, h: this.canvas.height};
     }
 
-    set size ({w, h} /*: {w: number, h: number} */) {
+    set size (newSize /*: {w: number, h: number} */) {
+        const {w, h} = newSize
         if (this.canvas.width != w || this.canvas.height != h) {
             this.canvas.width = w;
             this.canvas.height = h;
@@ -466,7 +470,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this._centeredZoom(1/(1 + deltaY * ZOOM_STEP) - 1);
     }
 
-    zoom (factor /*: number */) {
+    zoom (factor /*: number */) /*: this */ {
         this.queueShowGraphic();
         this._centeredZoom(factor -  1);
         return this;
@@ -479,7 +483,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     }
 
     // deltaX, deltaY are in screen coordinates
-    move (deltaX /*: number */, deltaY /*: number */) {
+    move (deltaX /*: number */, deltaY /*: number */) /*: this */ {
         this.queueShowGraphic();
         this.translate.dx += deltaX;
         this.translate.dy += deltaY;
@@ -497,13 +501,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     // Be able to answer the question of where in the diagram any given element is drawn.
     // We answer in normalized coordinates, [0,1]x[0,1].
-    unitSquarePosition (element /*: number */) {
-        const max = this.position( this.group.order - 1 ) + 1;
-        const index = this.elements.indexOf( element );
-        return { x: 0.5 / max, y: ( this.position( index ) + 0.5 ) / max };
-    }
-
-    unitSquarePositions () /*: Array<THREE.Vector2> */ {
+    unitSquarePositions () /*: Array<THREE$Vector2> */ {
         const max = this.position( this.group.order - 1 ) + 1;
 
         const unit_square_positions = this.group.elements.map( (element) => {
@@ -516,7 +514,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     ////////////////////////////////////////////////////////////////////////////////
 
-    get group () {
+    get group () /*: XMLGroup */ {
         return this._group;
     }
     
@@ -546,7 +544,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this._colors = null;
     }
 
-    get separation () {
+    get separation () /*: float */ {
         if (this._separation == undefined) {
             this._separation = 0;
         }
@@ -712,22 +710,22 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         return tmp;
     }
 
-    fromJSON (json /*: MulttableJSON */) {
-        Object.keys(json).forEach( (name) => {
-            switch (name) {
-            case 'elements':            this.elements = json.elements;                                  break;
-            case 'separation':          this.separation = json.separation;                              break;
-            case 'organizingSubgroup':  this.organizingSubgroup = json.organizingSubgroup;              break;
-            case 'coloration':          this.coloration = json.coloration;                              break;
-            case 'colorReordering':     this.colorReordering = json.colorReordering || 'topRowFixed';   break;
-            case 'highlights':          this.backgrounds = json.highlights.background;
-                                        this.borders = json.highlights.border;
-                                        this.corners = json.highlights.corner;                          break;
-            default:                                                                                    break;
-            }
-        } );
+    fromJSON (json /*: { ...MulttableJSON } */) /*: this */ {
+        Object.assign(this, {
+            group: Library.getLocalGroup(json.groupURL),
+            elements: json.elements || this.group.elements,
+            separation: json.separation || 0,
+            organizingSubgroup: json.organizingSubgroup || this.group.subgroups.length - 1, // ~ no organizing subgroup
+            coloration: json.coloration || 'rainbow',
+            colorReordering: json.colorReordering || 'topRowFixed',
+            backgrounds: (json.highlights == null) ? undefined : json.highlights.background,
+            borders: (json.highlights == null) ? undefined : json.highlights.border,
+            corners: (json.highlights == null) ? undefined : json.highlights.corner
+        })
 
         this.queueShowGraphic();
+
+        return this
     }
 }
 

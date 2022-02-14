@@ -18,7 +18,7 @@
     "jquery": "3.4.1"
   },
   "devDependencies": {
-    "flow-bin": "^0.118.0"
+    "flow-bin": "^0.171.0"
   },
   "standard": {
     "globals": [

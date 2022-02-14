@@ -17,8 +17,6 @@ const DEFAULT = {
   NodeElement: {
     x: 0,
     y: 0,
-    w: 0.1,
-    h: 0.1,
 
     // NodeElements have even z-index, LinkElements have odd, so they can overlay/underlay the NodeElements they connect
     get z () {
@@ -27,7 +25,7 @@ const DEFAULT = {
   },
 
   TextElement: {
-    // w: null, => auto
+    // w: null => auto
     color: '#000000',
     opacity: 0, // transparent background
     text: '',
@@ -38,7 +36,9 @@ const DEFAULT = {
   },
 
   RectangleElement: {
-    color: '#DDDDDD'
+    color: '#DDDDDD',
+    w: 300,
+    h: 150
   },
 
   ConnectingElement: {
@@ -58,43 +58,161 @@ const DEFAULT = {
 }
 
 /*::
-import { CayleyDiagramView } from './CayleyDiagramView.js'
-import { CycleGraphView } from './CycleGraphView.js'
-import { MulttableView } from './MulttableView.js'
-import XMLGroup from './XMLGroup.js';
+import type { CayleyDiagramView, StrategyParameters } from './CayleyDiagramView.js'
+import type { CycleGraphView } from './CycleGraphView.js'
+import type { MulttableView } from './MulttableView.js'
+import type XMLGroup, { BriefXMLGroupJSON } from './XMLGroup.js'
+//import XMLGroup from './XMLGroup.js'
 
-export type VisualizerName = 'CDElement' | 'CGElement' | 'MTElement';
+import type { CayleyDiagramJSON, CayleyCreateJSON } from './CayleyDiagramView.js'
+import type { CycleGraphJSON } from './CycleGraphView.js'
+import type { MulttableJSON } from './MulttableView.js'
+
+export type VizJSONType = CayleyDiagramJSON | CycleGraphJSON | MulttableJSON
+export type VisualizerClass = CDElement | CGElement | MTElement
+export type VisualizerName = 'CDElement' | 'CGElement' | 'MTElement'
 
 export type ClassName =
       'RectangleElement'
     | 'TextElement'
     | VisualizerName
     | 'ConnectingElement'
-    | 'MorphismElement';
+    | 'MorphismElement'
 
 export interface VizDisplay<VizDispJSON> {
-   group: any;
-   +getSize: any;
-   +setSize: any;
-   +getImage: any;
-   +toJSON: any;
-   +fromJSON: any;
-   +unitSquarePosition: any;
+   group: XMLGroup;
+   +canvas: HTMLCanvasElement;
+   getSize(): {w: float, h: float}; // plausible, but can't find use
+   setSize(w: float, h: float): void;
+   getImage(): Image;
+   showGraphic(): void;
+   toJSON(): VizDispJSON;
+   fromJSON({ ...VizDispJSON }): VizDisplay<VizDispJSON>;
+   unitSquarePositions(): Array<THREE$Vector2>;
 };
-export type VisualizerElementJSON = any;
-export type JSONType = any;
-export type SheetElementJSON = any;
-export type RectangleElementJSON = any;
-export type TextElementJSON = any;
-export type ConnectingElementJSON = any;
-export type MorphismElementJSON = any;
-export type VisualizerType = any;
-export type MSG_loadGroup = any;
-export type MSG_external<VizType: any> = any;
-export type MSG_editor<VizType: any> = any;
+
+type SheetElementJSON = {|
+  id?: string | number;
+  className: ClassName;
+|}
+
+type NodeElementJSON = {|
+  ...SheetElementJSON;
+  x: float;
+  y: float;
+  z?: integer;
+  w?: float;
+  h?: float;
+|}
+
+type TextElementJSON = {|
+  className: 'TextElement';
+  ...NodeElementJSON;
+  text?: string;
+  color?: color;
+  opacity?: float;
+  fontSize?: string;
+  fontColor?: color;
+  alignment?: 'left' | 'center' | 'right';
+  isPlainText?: boolean;
+  details?: html;
+|}
+
+type VisualizerJSON = {|
+  ...NodeElementJSON;
+  groupURL: string;
+|}
+
+export type VizCreateJSON = {|
+  className: VisualizerName;
+  ...NodeElementJSON;
+  groupURL: string;
+  highlights?: { background?: Array<css_color> };
+  elements?: Array<groupElement>; // used by Multtable
+  strategies?: Array<StrategyParameters>; // used by CayleyDiagramView
+  arrows?: Array<groupElement>; // used by CayleyDiagramView
+  arrowColors?: Array<color>; // used by CayleyDiagramView
+|}
+
+export type CDElementJSON = {|
+  className: 'CDElement';
+  ...VisualizerJSON;
+  visualizer: CayleyDiagramJSON;
+  isClean: boolean;
+|}
+
+export type CGElementJSON = {|
+  className: 'CGElement';
+  ...VisualizerJSON;
+  ...CycleGraphJSON;
+|}
+
+export type MTElementJSON = {|
+  className: 'MTElement';
+  ...VisualizerJSON;
+  ...MulttableJSON;
+|}
+
+export type LinkJSON = {|
+  className: 'ConnectingElement' | 'MorphismElement';
+  ...SheetElementJSON;
+  sourceId: string | number;
+  destinationId: string | number;
+|}
+
+export type ConnectingElementJSON = {|
+  className: 'ConnectingElement';
+  ...LinkJSON;
+  thickness?: number;
+  color?: color;
+  hasArrowhead?: boolean;
+|}
+
+export type MorphismElementJSON = {|
+  className: 'MorphismElement';
+  ...LinkJSON;
+  name?: string;
+  showDefiningPairs?: boolean;
+  showDomainAndCodomain?: boolean;
+  showInjectionSurjection?: boolean;
+  showManyArrows?: boolean;
+  arrowMargin?: number;
+  definingPairs?: Array<[groupElement, groupElement]>;
+|}
+
+export type VisualizerElementJSON = CDElementJSON | CGElementJSON | MTElementJSON
+export type LinkElementJSON = ConnectingElementJSON | MorphismElementJSON
+export type SheetJSON = TextElementJSON | VisualizerElementJSON | LinkElementJSON
+export type SheetCreateJSON = SheetJSON | VizCreateJSON
+
+///// message formats
+
+// sent in gap-pkg-groupexplorer to create new Sheet.js using loadSheetFromJSON global function
+export type MSG_loadFromJSON = {
+   type: 'load from json',
+   json: Array<SheetCreateJSON>
+};
+
+// sent by parent window (or Sheet) to any page using Library and 'waitForMessage' in URL
+export type MSG_loadGroup = {
+   type: 'load group',
+   group: BriefXMLGroupJSON
+};
+
+// sent by SheetModel to visualizers to update visualizers
+export type MSG_external<VizType: MulttableJSON | CayleyDiagramJSON | CycleGraphJSON>  = {
+   source: 'external',
+   json: VizType
+};
+
+// sent by visualizers to SheetModel to update sheet
+export type MSG_editor<VizType: MulttableJSON | CayleyDiagramJSON | CycleGraphJSON> = {
+   source: 'editor',
+   json: VizType
+};
 */
 
-export const sheetElements = new Map/*:: <string, SheetElement> */()
+export const sheetElements /*: Map<string, SheetElement> */ = new Map()
 
 export function clear () {
   sheetElements.forEach((el) => {
@@ -105,24 +223,29 @@ export function clear () {
   SheetView.redrawAll()
 }
 
-export function toJSON () /*: Array<Obj> */ {
-  return Array.from(sheetElements.values()).map((el) => el.toJSON())
+export function toJSON () /*: Array<{ ...SheetElementJSON }> */ {
+  return Array.from(sheetElements.values()).map/*:: <{ ...SheetElementJSON }, void> */((el) => el.toJSON())
 }
 
-export function fromJSON (jsonString /*: string */) {
-  fromJSONObject(JSON.parse(jsonString))
+export function fromJSON (jsonObjects /*: Array<SheetCreateJSON> */) {
+  fromJSONObject(jsonObjects)
 }
 
-export function fromJSONObject (jsonObjects /*: JSONType */) {
+// called with SheetCreateJSON from fromJSON
+// called with SheetJSON from StoredSheets.load
+export function fromJSONObject (jsonObjects /*: Array<SheetJSON> | Array<SheetCreateJSON> */) {
   // remove existing elements
   clear()
 
-  // load all URLs
+  // ensure that all referenced URLs are loaded
   const groupURLs = Array.from(
     jsonObjects.reduce(
       (URLs, jsonObject) => {
-        if (jsonObject.groupURL !== undefined) {
-          URLs.add(jsonObject.groupURL)
+        if (jsonObject.className === 'CDElement' ||
+            jsonObject.className === 'CGElement' ||
+            jsonObject.className === 'MTElement') {
+          const _jsonObject = ((jsonObject /*: any */) /*: VisualizerElementJSON | VizCreateJSON */)
+          URLs.add(_jsonObject.groupURL)
         }
         return URLs
       }, new Set()))
@@ -136,11 +259,28 @@ export function fromJSONObject (jsonObjects /*: JSONType */) {
     })
 }
 
-export function addElement (options /*: Obj */, type /*: string */ = options.className) /*: SheetElement */ {
-  const newElement = new (eval(type))().fromJSON(options)
+export function addElement (options /*: SheetCreateJSON */) /*: SheetElement */ {
+  const newElement = new (eval(options.className))().fromJSON(options)
   sheetElements.set(newElement.id, newElement)
   newElement.viewElement = SheetView.createViewElement(newElement)
   return newElement
+}
+
+function newId () /*: string */ {
+  let inx = sheetElements.size
+  while (sheetElements.has('' + inx)) {
+    inx++
+  }
+  return '' + inx
+}
+
+function setObjectFromJSON (object /*: SheetElement */, jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) {
+  for (const [key, value] of Object.entries(jsonObject)) {
+    if (!customKeys.includes(key)) {
+      // $FlowFixMe -- too dynamic
+      object[key] = value
+    }
+  }
 }
 
 export class SheetElement {
@@ -149,8 +289,8 @@ export class SheetElement {
    +viewElement: SheetView.SheetView;
     z: integer;  // z-index
 */
-  get className () {
-    return this.constructor.name
+  get className () /*: ClassName */ {
+    return ((this.constructor.name /*: any */) /*: ClassName */)
   }
 
   destroy () {
@@ -170,7 +310,7 @@ export class SheetElement {
     this.viewElement.updateZ()
   }
 
-  toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ { // FIXME -- we can be more precise
+  toJSON (customKeys /*: Array<string> */ = []) /*: SheetJSON */ {
     customKeys.push('viewElement')
     const jsonObject = Object
       .getOwnPropertyNames(this)
@@ -184,31 +324,23 @@ export class SheetElement {
         }, {})
     jsonObject.className = this.className
 
-    return jsonObject
+    return ((jsonObject /*: any */) /*: SheetJSON */)
   }
 
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: SheetElement */ {
-    customKeys.push('id', 'viewElement')
-    Object.getOwnPropertyNames(this).filter((key) => !customKeys.includes(key))
-    // $FlowFixMe
-      .forEach((key) => { this[key] = (jsonObject[key] === undefined) ? this[key] : jsonObject[key] })
+  fromJSON (jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    customKeys.push('id', 'className', 'viewElement')
+    setObjectFromJSON(this, jsonObject, customKeys)
 
-    if (jsonObject.id === undefined) {
-      for (this.id = '' + sheetElements.size; sheetElements.has(this.id); this.id = parseInt(this.id) + 1 + '') {
-        continue
-      }
-    } else {
-      this.id = jsonObject.id
-    }
+    this.id = (jsonObject.id === undefined) ? newId() : jsonObject.id.toString()
 
     return this
   }
 
-  get $editor () {
+  get $editor () /*: JQuery */ {
     return $(`#${this.className.toLowerCase().replace('element', '-editor')}`)
   }
 
-  getEditor () {
+  getEditor () /*: JQuery */ {
     const model = this // needed in eval to form data-onload attribute
     this.$editor
       .find('[data-onload]')
@@ -277,8 +409,7 @@ export class NodeElement extends SheetElement {
   }
 
   copy () {
-    const jsonObject = this.toJSON()
-    delete jsonObject.id
+    const jsonObject = Object.assign(this.toJSON(), { id: newId() })
     addElement(jsonObject)
   }
 
@@ -373,12 +504,27 @@ export class TextElement extends NodeElement {
     Object.assign(this, DEFAULT.TextElement)
   }
 
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: TextElement */ {
+  toJSON (customKeys /*: Array<string> */ = []) /*: TextElementJSON */ {
+    return ((super.toJSON(customKeys) /*: any */) /*: TextElementJSON */)
+  }
+
+  fromJSON (_jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    if (_jsonObject.className !== 'TextElement') {
+      throw new TypeError('invalid JSON passed to SheetModel.TextElement.fromJSON')
+    }
+    const jsonObject = ((_jsonObject /*: any */) /*: TextElementJSON */)
     super.fromJSON(jsonObject, customKeys)
 
-    if (this.text !== '') {
-      this.w = jsonObject.w // undefined => .css('width', 'auto')
-      this.h = jsonObject.h
+    if (this.text === '') { // Rectangle -- Text element with no text
+      this.w = jsonObject.w || DEFAULT.RectangleElement.w
+      this.h = jsonObject.h || DEFAULT.RectangleElement.h
+    } else {
+      if (jsonObject.w != null) {
+        this.w = jsonObject.w // undefined => .css('width', 'auto')
+      }
+      if (jsonObject.h != null) {
+        this.h = jsonObject.h
+      }
     }
     if (jsonObject.color != null) {
       this.opacity = (jsonObject.opacity == null) ? 1 : jsonObject.opacity
@@ -391,15 +537,13 @@ export class TextElement extends NodeElement {
 export class VisualizerElement extends NodeElement {
 /*::
     group: XMLGroup
-    URL: string
-   _visualizer: CayleyDiagramView | CycleGraphView | MulttableView
    +viewElement: SheetView.VisualizerView
 */
-  get morphisms () {
+  get morphisms () /*: Array<MorphismElement> */ {
     const morphisms = Array
       .from(sheetElements.values())
       .filter((el) => el instanceof MorphismElement && (el.source === this || el.destination === this))
-    return ((morphisms /*: any */) /*: Array<LinkElement> */)
+    return ((morphisms /*: any */) /*: Array<MorphismElement> */)
   }
 
   updateZ () {
@@ -407,20 +551,22 @@ export class VisualizerElement extends NodeElement {
     this.morphisms.forEach((morphism) => morphism.updateZ())
   }
 
-  toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
-    customKeys.push('group', 'visualizer')
-    const jsonObject = super.toJSON(_, customKeys)
+  toJSON (customKeys /*: Array<string> */ = []) /*: VisualizerElementJSON */ {
+    customKeys.push('group')
+    const jsonObject = ((super.toJSON(customKeys) /*: any */) /*: VisualizerElementJSON */)
     jsonObject.groupURL = this.group.URL
-    jsonObject.visualizer = this.visualizer.toJSON()
 
     return jsonObject
   }
 
-  get visualizer () {
-    return this._visualizer
-  }
+  fromJSON (_jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    if (!['CDElement', 'CGElement', 'MTElement'].includes(_jsonObject.className)) {
+      const typeError = new TypeError('invalid JSON passed to SheetModel.VisualizerElement.fromJSON')
+      Log.err(`${typeError.message}: ` + JSON.stringify(_jsonObject))
+      throw typeError
+    }
 
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: VisualizerElement */ {
+    const jsonObject = ((_jsonObject /*: any */) /*: VisualizerElementJSON */)
     customKeys.push('group', 'visualizer')
     super.fromJSON(jsonObject, customKeys)
 
@@ -434,10 +580,10 @@ export class CDElement extends VisualizerElement {
 /*::
   static activeElement: CDElement
   static visualizer: CayleyDiagramView
-  visualizerJSON: Obj
+  visualizerJSON: CayleyDiagramJSON
   isClean: boolean
 */
-  get visualizer () {
+  get visualizer () /*: CayleyDiagramView */ {
     // find element with visualizer
     if (CDElement.activeElement !== this) {
       // check whether visualizer can be reused
@@ -461,37 +607,50 @@ export class CDElement extends VisualizerElement {
     CDElement.activeElement = this
   }
 
-  toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
-    customKeys.push('visualizerJSON')
-    const jsonObject = super.toJSON(_, customKeys)
+  toJSON (customKeys /*: Array<string> */ = []) /*: CDElementJSON */ {
+    customKeys.push('visualizer', 'visualizerJSON')
+    const jsonObject = ((super.toJSON(customKeys) /*: any */) /*: CDElementJSON */)
+    jsonObject.visualizer = this.visualizer.toJSON()
 
     return jsonObject
   }
 
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: CDElement */ {
+  fromJSON (_jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    if (_jsonObject.className !== 'CDElement') {
+      throw new TypeError('invalid JSON passed to SheetModel.CDElement.fromJSON')
+    }
+    const jsonObject = ((_jsonObject /*: any */) /*: CDElementJSON| VizCreateJSON */)
+
     customKeys.push('arrows', 'arrowColors', 'strategies', 'highlights')
     super.fromJSON(jsonObject, customKeys)
 
-    // find element with visualizer
-    const activeElement = CDElement.activeElement
-
-    this.isClean = (jsonObject.isClean != null) ? jsonObject.isClean : (jsonObject.strategies == null)
-
-    const isVisualizerElementJSON = () => {
-      return jsonObject.visualizer == null
-    }
     const canReuseCayleyDiagramView = () => {
       return activeElement != null &&
         activeElement.isClean &&
         this.isClean &&
         activeElement.visualizerJSON.groupURL === jsonObject.groupURL
     }
+
     const generateCayleyDiagram = () => {
-      const diagramName = (this.group.cayleyDiagrams.length === 0) ? undefined : this.group.cayleyDiagrams[0].name
-      CDElement.visualizer.generateFromJSON(this.group, diagramName, jsonObject)
-      if (jsonObject.visualizer != null) {
-        CDElement.visualizer.fromJSON(jsonObject.visualizer)
+      if (isVizCreateJSON) {
+        const _jsonObject = ((jsonObject /*: any */) /*: { ...VizCreateJSON } */)
+        const diagramName = (this.group.cayleyDiagrams.length === 0) ? undefined : this.group.cayleyDiagrams[0].name
+        CDElement.visualizer.generateFromJSON(this.group, diagramName, _jsonObject)
+      } else {
+        const _jsonObject = ((jsonObject /*: any */) /*: CDElementJSON */)
+        CDElement.visualizer.fromJSON(_jsonObject.visualizer)
       }
+    }
+
+    // find element with visualizer
+    const activeElement = CDElement.activeElement
+
+    const isVizCreateJSON = !('visualizer' in jsonObject)
+
+    if (isVizCreateJSON) {
+      this.isClean = !('strategies' in jsonObject)
+    } else {
+      this.isClean = ((jsonObject /*: any */) /*: CDElementJSON */).isClean
     }
 
     // if a CayleyDiagramView instance hasn't been created yet, create one and associate it with this element
@@ -505,10 +664,12 @@ export class CDElement extends VisualizerElement {
 
     if (canReuseCayleyDiagramView()) { // can this instance reuse the activeElement visualizer state?
       this.moveVisualizerToThis()
-      if (isVisualizerElementJSON()) {
-        CDElement.visualizer.generateHighlights(jsonObject.highlights)
+      if (isVizCreateJSON) {
+        const _jsonObject = ((jsonObject /*: any */) /*: VizCreateJSON */)
+        CDElement.visualizer.generateHighlights(_jsonObject.highlights)
       } else {
-        CDElement.visualizer.setHighlightDefinitions(jsonObject.visualizer)
+        const _jsonObject = ((jsonObject /*: any */) /*: CDElementJSON */)
+        CDElement.visualizer.setHighlightDefinitions(_jsonObject.visualizer)
         CDElement.visualizer.drawAllHighlights()
       }
     } else { // can't reuse CDElement.visualizer state from activeElement; generate CayleyDiagram from scratch
@@ -522,30 +683,50 @@ export class CDElement extends VisualizerElement {
 }
 
 export class CGElement extends VisualizerElement {
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: CGElement */ {
-    super.fromJSON(jsonObject, customKeys)
-    this._visualizer = createLabelledCycleGraphView()
-    this.visualizer.group = this.group
-    this.visualizer.fromJSON(jsonObject)
-    return this
+/*::
+  visualizer: CycleGraphView
+*/
+  toJSON (customKeys /*: Array<string> */ = []) /*: CGElementJSON */ {
+    customKeys.push('visualizer', 'visualizerJSON')
+    const jsonObject = ((super.toJSON(customKeys) /*: any */) /*: CGElementJSON */)
+    Object.assign(jsonObject, this.visualizer.toJSON())
+
+    return jsonObject
   }
 
-  get visualizer () {
-    return ((this._visualizer /*: any */) /*: CycleGraphView */)
+  fromJSON (jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    if (jsonObject.className !== 'CGElement') {
+      throw new TypeError('invalid JSON passed to SheetModel.CGElement.fromJSON')
+    }
+    super.fromJSON(jsonObject, customKeys)
+    this.visualizer = createLabelledCycleGraphView()
+    this.visualizer.fromJSON(((jsonObject /*: any */) /*: CGElementJSON */))
+    return this
   }
 }
 
 export class MTElement extends VisualizerElement {
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: MTElement */ {
-    super.fromJSON(jsonObject, customKeys)
-    this._visualizer = createFullMulttableView()
-    this.visualizer.group = this.group
-    this.visualizer.fromJSON(jsonObject)
-    return this
+/*::
+  visualizer: MulttableView
+*/
+  toJSON (customKeys /*: Array<string> */ = []) /*: MTElementJSON */ {
+    customKeys.push('visualizer', 'visualizerJSON')
+    const jsonObject = ((super.toJSON(customKeys) /*: any */) /*: MTElementJSON */)
+    Object.assign(jsonObject, this.visualizer.toJSON())
+
+    return jsonObject
   }
 
-  get visualizer () {
-    return ((this._visualizer /*: any */) /*: MulttableView */)
+  fromJSON (jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    if (jsonObject.className !== 'MTElement') {
+      throw new TypeError('invalid JSON passed to SheetModel.MTElement.fromJSON')
+    }
+    super.fromJSON(jsonObject, customKeys)
+    this.visualizer = createFullMulttableView()
+    this.visualizer.group = this.group
+    this.visualizer.fromJSON(((jsonObject /*: any */) /*: MTElementJSON */))
+
+    return this
   }
 }
 
@@ -554,24 +735,29 @@ export class LinkElement extends SheetElement {
     source: NodeElement;
     destination: NodeElement;
 */
-  toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
+  toJSON (customKeys /*: Array<string> */ = []) /*: LinkElementJSON */ {
     customKeys.push('source', 'destination')
-    const jsonObject = super.toJSON(_, customKeys)
-    jsonObject.sourceId = (this.source === undefined) ? null : this.source.id
-    jsonObject.destinationId = (this.destination === undefined) ? null : this.destination.id
+    const jsonObject = ((super.toJSON(customKeys) /*: any */) /*: LinkElementJSON */)
+    jsonObject.sourceId = this.source.id
+    jsonObject.destinationId = this.destination.id
 
-    return jsonObject
+    return ((jsonObject /*: any */) /*: LinkElementJSON */)
   }
 
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: LinkElement */ {
+  fromJSON (_jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    if (_jsonObject.className !== 'ConnectingElement' && _jsonObject.className !== 'MorphismElement') {
+      throw new TypeError('invalid JSON passed to SheetModel.LinkElement.fromJSON')
+    }
+    const jsonObject = ((_jsonObject /*: any */) /*: LinkElementJSON */)
+
     customKeys.push('sourceId', 'destinationId')
     super.fromJSON(jsonObject, customKeys)
 
-    if (jsonObject.sourceId !== undefined) {
-      this.source = ((sheetElements.get(jsonObject.sourceId) /*: any */) /*: NodeElement */)
+    if (jsonObject.sourceId != null) {
+      this.source = ((sheetElements.get(jsonObject.sourceId.toString()) /*: any */) /*: NodeElement */)
     }
-    if (jsonObject.destinationId !== undefined) {
-      this.destination = ((sheetElements.get(jsonObject.destinationId) /*: any */) /*: NodeElement */)
+    if (jsonObject.destinationId != null) {
+      this.destination = ((sheetElements.get(jsonObject.destinationId.toString()) /*: any */) /*: NodeElement */)
     }
 
     return this
@@ -614,7 +800,12 @@ export class ConnectingElement extends LinkElement {
     }
   }
 
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: ConnectingElement */ {
+  fromJSON (_jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    if (_jsonObject.className !== 'ConnectingElement') {
+      throw new TypeError('invalid JSON passed to SheetModel.ConnectingElement.fromJSON')
+    }
+    const jsonObject = ((_jsonObject /*: any */) /*: ConnectingElementJSON */)
+
     customKeys.push('source', 'destination')
     super.fromJSON(jsonObject, customKeys)
 
@@ -734,15 +925,20 @@ export class MorphismElement extends LinkElement {
     return $editor
   }
 
-  toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
+  toJSON (customKeys /*: Array<string> */ = []) /*: MorphismElementJSON */ {
     customKeys.push('mapping')
-    const jsonObject = super.toJSON(_, customKeys)
+    const jsonObject = ((super.toJSON(customKeys) /*: any */) /*: MorphismElementJSON */)
     jsonObject.definingPairs = this.mapping.definingPairs
 
     return jsonObject
   }
 
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: MorphismElement */ {
+  fromJSON (_jsonObject /*: SheetCreateJSON */, customKeys /*: Array<string> */ = []) /*: this */ {
+    if (_jsonObject.className !== 'MorphismElement') {
+      throw new TypeError('invalid JSON passed to SheetModel.MorphismElement.fromJSON')
+    }
+    const jsonObject = ((_jsonObject /*: any */) /*: MorphismElementJSON */)
+
     customKeys.push('name', 'source', 'destination', 'definingPairs')
     super.fromJSON(jsonObject, customKeys)
 
@@ -945,7 +1141,7 @@ export class Mapping {
         inverse[codomainElement] = domainElement
         return inverse
       },
-      Array.from/*:: <?groupElement> */({ length: this.codomain.order }, () => undefined))
+      Array.from({ length: this.codomain.order }, () => undefined))
     return !inverse.includes(undefined)
   }
 
@@ -1154,7 +1350,7 @@ export class StoredSheets {
     $('#heading').html(sheetName || 'Group Explorer Sheet')
   }
 
-  static async load (sheetName /*: string */) {
+  static async load (sheetName /*: string */) /*: Promise<void> */ {
     const storedSheets = StoredSheets.getStore()
     const getRequest = storedSheets.get(sheetName)
 
@@ -1164,7 +1360,7 @@ export class StoredSheets {
         if (storedJsonString == null) {
           reject(new Error(`Unable to retrieve sheet ${sheetName} from indexedDB`))
         } else {
-          const jsonObject = JSON.parse(storedJsonString)
+          const jsonObject = ((JSON.parse(storedJsonString) /*: any */) /*: Array<SheetJSON> */)
           fromJSONObject(jsonObject)
           StoredSheets.displaySheetName(sheetName)
           resolve()
@@ -1176,7 +1372,7 @@ export class StoredSheets {
     return getPromise
   }
 
-  static async save (sheetName /*: string */) {
+  static async save (sheetName /*: string */) /*: Promise<IDBObjectStore> */ {
     const storedSheets = StoredSheets.getStore('readwrite')
     const sheetContent = JSON.stringify(toJSON())
     const putRequest = storedSheets.put(sheetContent, sheetName)
@@ -1189,7 +1385,7 @@ export class StoredSheets {
     return putPromise
   }
 
-  static async destroy (sheetName /*: string */) {
+  static async destroy (sheetName /*: string */) /*: Promise<IDBObjectStore> */ {
     const storedSheets = StoredSheets.getStore('readwrite')
     const destroyRequest = storedSheets.delete(sheetName)
 
@@ -1206,7 +1402,7 @@ export class StoredSheets {
     return destroyPromise
   }
 
-  static async list () {
+  static async list () /*: Promise<Array<string>> */ {
     const storedSheets = StoredSheets.getStore('readwrite')
     const getAllKeysRequest = ((storedSheets /*: any */) /*: IDBObjectStore_curr */).getAllKeys()
 
@@ -1219,7 +1415,7 @@ export class StoredSheets {
   }
 }
 
-export function createNewSheet (jsonObjects /*: Array<Obj> */) { // FIXME -- make more specific
+export function createNewSheet (jsonObjects /*: $ReadOnlyArray<SheetCreateJSON> */) /*: Window */ {
   localStorage.setItem('passedSheet', JSON.stringify(jsonObjects))
   return window.open('./Sheet.html?passedSheet')
 }
@@ -1229,7 +1425,7 @@ export function loadPassedSheet () {
   // (don't delete it, just let it get overwritten -- good for debugging, and lets user show it again)
   const jsonString = localStorage.getItem('passedSheet')
   if (typeof jsonString === 'string') {
-    fromJSON(jsonString)
+    fromJSON(((JSON.parse(jsonString) /*: any */) /*: Array<SheetCreateJSON> */))
   }
 }
 
@@ -1246,7 +1442,7 @@ export function loadPassedSheet () {
  *      showDomAndCod -> showDomainAndCodomain
  *      arrowMargin was expressed in pixels, is now a percentage of the center-to-center distance
  */
-export function convertFromOldJSON (oldJSONArray /*: Array<Obj> */) /*: Array<Obj> */ {
+export function convertFromOldJSON (oldJSONArray /*: Array<Obj> */) /*: Array<SheetCreateJSON> */ {
   const pixelsPerModelUnit = Math.min(window.innerWidth, window.innerHeight - 71)
   for (let inx = 0; inx < oldJSONArray.length; inx++) {
     const json = oldJSONArray[inx]
@@ -1363,6 +1559,7 @@ export function convertFromOldJSON (oldJSONArray /*: Array<Obj> */) /*: Array<Ob
     }
   }
 
+  // $FlowFixMe
   return oldJSONArray
 }
 

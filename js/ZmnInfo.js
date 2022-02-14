@@ -14,6 +14,7 @@ export {summary, display, showZmnIsomorphismSheet, showNoZmnIsomorphismSheet};
 import XMLGroup from './XMLGroup.js';
 
 import type {StrategyParameters, Layout, Direction} from './CayleyDiagramView.js';
+import type { VisualizerName, SheetCreateJSON } from './SheetModel.js';
 */
 
 // Load templates
@@ -79,7 +80,7 @@ function showZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement */ 
     const ab = Group.mult( a, b );
     const hmar = 20, vmar = 20, hsep = 20, vsep = 20,
           W = 300, H = W, hdrH = 50, txtH = 100;
-    CreateNewSheet( [
+    SheetModel.createNewSheet( [
         {
             className : 'TextElement',
             text : `Illustration of the isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`,
@@ -166,7 +167,7 @@ function showNoZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement *
     const maxOrd = orders.reduce( ( a, b ) => Math.max( a, b ) );
     const maxOrdElt = available.filter( e => ZmxZn.elementOrders[e] == maxOrd )[0];
     // create a sheet based on that group and those elements
-    CreateNewSheet( [
+    SheetModel.createNewSheet( [
         {
             className : 'TextElement',
           text : `Why there is no isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`,
@@ -220,9 +221,4 @@ function showNoZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement *
             alignment : 'center'
         }
     ] );
-}
-
-function CreateNewSheet (oldJSONArray /*: Array<Obj> */) {
-    const newJSONArray = SheetModel.convertFromOldJSON(oldJSONArray)
-    SheetModel.createNewSheet(newJSONArray)
 }

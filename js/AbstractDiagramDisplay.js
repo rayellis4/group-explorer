@@ -4,14 +4,13 @@
  * Routines to draw 3D ball-and-stick diagrams using three.js
  */
 
-// $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE, TrackballControls, Line2, LineMaterial, LineGeometry} from '../lib/externals.js';
 
 /*::
-export type LineType = THREE.Line | Line2;
+export type LineType = THREE$Line | THREE$Line2;
 
 type SphereData = {
-   position: THREE.Vector3,
+   position: THREE$Vector3,
    color?: css_color,
 } & Obj;
 
@@ -39,10 +38,10 @@ export {DEFAULT_SPHERE_COLOR, DEFAULT_LINE_COLOR};
 
 export class AbstractDiagramDisplay {
 /*::
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
-    renderer: THREE.WebGLRenderer;
-    control: ?TrackballControls;
+    scene: THREE$Scene;
+    camera: THREE$PerspectiveCamera;
+    renderer: THREE$WebGLRenderer;
+    control: ?THREE$TrackballControls;
 
     _fog_level: float;  // in [0,1]
 
@@ -100,7 +99,7 @@ export class AbstractDiagramDisplay {
         return '#' + this.renderer.getClearColor().getHexString();
     }
 
-    set background (background_color /*: THREE.Color | number | string */) {
+    set background (background_color /*: THREE$Color | number | string */) {
         const color = '#' + new THREE.Color(background_color).getHexString();
         this.renderer.setClearColor(color, 1.0);
         this.scene.fog.color.set(color);  // set Fog color to background
@@ -130,7 +129,7 @@ export class AbstractDiagramDisplay {
         }
     }
 
-    get fog_level () {
+    get fog_level () /*: float */ {
         if (this._fog_level == undefined) {
             this._fog_level = 0;
         };
@@ -148,12 +147,12 @@ export class AbstractDiagramDisplay {
         this.scene.fog.far = (fog_level == 0) ? 100 : (cameraDistance + sceneRadius*(5 - 4 * fog_level));
     }
 
-    get light_positions () {
-        const positions = this.getGroup('lights').children.map/*:: <THREE.Vector3> */( (light) => light.position );
+    get light_positions () /*: Array<THREE$Vector3> */ {
+        const positions = this.getGroup('lights').children.map/*:: <THREE$Vector3, void> */((light) => light.position)
         return positions;
     }
 
-    set light_positions (locations /*: Array<THREE.Vector3> */) {
+    set light_positions (locations /*: Array<THREE$Vector3> */) {
         const lights = this.getGroup('lights');
         lights.remove(...lights.children);
         locations.forEach( (location) => {
@@ -168,7 +167,8 @@ export class AbstractDiagramDisplay {
         return {w: size.x, h: size.y};
     }
 
-    set size ({w, h} /*: {w: number, h: number} */) {
+    set size (newSize /*: {w: number, h: number} */) {
+        const {w, h} = newSize
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(w, h);
@@ -192,8 +192,8 @@ export class AbstractDiagramDisplay {
         this.deleteAllObjects();
     }
 
-    getGroup (name /*: string */) /*: THREE.Group */ {
-        return ((this.scene.children.find( (el) => el.name == name ) /*: any */) /*: THREE.Group */);
+    getGroup (name /*: string */) /*: THREE$Group */ {
+        return ((this.scene.children.find( (el) => el.name == name ) /*: any */) /*: THREE$Group */);
     }
 
     deleteAllObjects () {
@@ -206,6 +206,10 @@ export class AbstractDiagramDisplay {
         const image = new Image();
         image.src = this.renderer.domElement.toDataURL();
         return image;
+    }
+
+    showGraphic () {
+        this.render()
     }
 
     // Render graphics, recursing to animate
@@ -243,7 +247,7 @@ export class AbstractDiagramDisplay {
      *     and make cubes look flat; look at origin, and adjust camera
      *     distance so that diagram fills field of view
      */
-    setCamera (sphere_positions /*: Array<THREE.Vector3> */) {
+    setCamera (sphere_positions /*: Array<THREE$Vector3> */) {
         let location, up;
         if (sphere_positions.every( (position) => position.x == 0.0 )) {
             location = new THREE.Vector3(3, 0, 0);
@@ -267,7 +271,7 @@ export class AbstractDiagramDisplay {
         this.camera.lookAt(new THREE.Vector3());
     }
 
-    get zoom_level () {
+    get zoom_level () /*: float */ {
         return this.camera.zoom;
     }
 
@@ -303,9 +307,10 @@ export class AbstractDiagramDisplay {
     createSpheres (sphere_data /*: Array<SphereData> */) {
         const geometry = new THREE.SphereGeometry(1.0, this.sphere_facet_count, this.sphere_facet_count);
         sphere_data.forEach( (sphere_datum) => {
-            sphere_datum.color = (sphere_datum.color == undefined) ? DEFAULT_SPHERE_COLOR : sphere_datum.color;
+            const sphereColor = (sphere_datum.color == undefined) ? DEFAULT_SPHERE_COLOR : sphere_datum.color
+            sphere_datum.color = sphereColor
             const material = new THREE.MeshPhongMaterial();
-            material.color.set(sphere_datum.color);
+            material.color.set(sphereColor)
             const sphere = new THREE.Mesh(geometry, material);
             sphere.userData = {node: sphere_datum};
             sphere.scale.set(this.sphere_radius, this.sphere_radius, this.sphere_radius);
@@ -316,7 +321,7 @@ export class AbstractDiagramDisplay {
     
     deleteAllSpheres () {
         const sphere_group = this.getGroup('spheres');
-        const spheres = ((sphere_group.children /*: any */) /*: Array<THREE.Mesh> */);
+        const spheres = ((sphere_group.children /*: any */) /*: Array<THREE$Mesh> */);
         spheres.forEach( (sphere) => sphere.geometry.dispose() );
         sphere_group.remove(...spheres);
     }
@@ -339,12 +344,12 @@ export class AbstractDiagramDisplay {
         }
     }
 
-    createLine (vertices /*: Array<THREE.Vector3> */) /*: LineType */ {
+    createLine (vertices /*: Array<THREE$Vector3> */) /*: LineType */ {
         const new_line = (this.use_fat_lines) ? this.createFatLine(vertices) : this.createWebglLine(vertices);
         return new_line;
     }
 
-    createWebglLine (vertices /*: Array<THREE.Vector3> */) /*: THREE.Line */ {
+    createWebglLine (vertices /*: Array<THREE$Vector3> */) /*: THREE$Line */ {
         const geometry = new THREE.Geometry();
         geometry.vertices = vertices;
 
@@ -357,7 +362,7 @@ export class AbstractDiagramDisplay {
     }
 
     // Create a fat line from an array of vertices
-    createFatLine (vertices /*: Array<THREE.Vector3> */) /*: LineType */ {
+    createFatLine (vertices /*: Array<THREE$Vector3> */) /*: LineType */ {
         const geometry = new LineGeometry();
         geometry.setPositions( vertices.reduce(
             (positions, vertex) => (positions.push(vertex.x, vertex.y, vertex.z), positions),
