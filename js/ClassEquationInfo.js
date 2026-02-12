@@ -1,0 +1,1 @@
+../docs/ClassEquationInfo.js.md

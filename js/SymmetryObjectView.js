@@ -1,0 +1,1 @@
+../docs/SymmetryObjectView.js.md

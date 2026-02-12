@@ -1,0 +1,1 @@
+../docs/AutoUpgrade.js.md

@@ -1,0 +1,1 @@
+../docs/AutoUpgradeManifest.js.md
