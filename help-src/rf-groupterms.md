@@ -57,7 +57,7 @@ See [multiplication table](#multiplication-table).
 The elements of a group can be partitioned into [conjugacy
 classes](#conjugacy-classes). The class equation is a numerical equation
 describing this partitioning. For instance, the group
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group) has three conjugacy
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group) has three conjugacy
 classes, of sizes 1, 2, and 3 respectively. The [order](#order-of-a-group) of the group
 is 6, and so the class equation is \[1 + 2 + 3 = 6.\]
 
@@ -85,6 +85,9 @@ The conjugacy class of an element \(g\) in a group is the set of all elements \(
 
 See also [class equation](#class-equation).
 
+The term "conjugacy" can also be applied to subgroups: the conjugacy class of a subgroup \(H \le G\), denoted
+\(Cl_{G}(H)\), is the set of all subgroups \(gHg^{-1} = \{ghg^{-1}\,|\,h \in H\}\) for a fixed \(g \in G\).
+
 CITE(VGT-7.5 MM-3.7)
 
 ### Cosets
@@ -109,12 +112,12 @@ Here is an example cycle graph.
 ![Cycle graph of Z_2 times Z_4](z_2_x_z_4_cycle_miniature.png)
 
 The above graph shows the group
-[\(\mathbb{Z}_2\times\mathbb{Z}_4\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Z_2
-x Z_4.group). One can see that there are two four-cycles (in the top half
-of the picture) which share two nodes (the central node and the topmost
-node). In addition to these six elements, there are two other
-[order](#order-of-an-element-in-a-group)\-2 elements that are not in either
-of the two larger four-cycles, shown at the bottom of the picture.
+[\(\mathbb{Z}_2\times\mathbb{Z}_4\)](../../GroupInfo.html?groupURL=groups/Z_2%20x%20Z_4.group).
+One can see that there are two four-cycles (in the top half of the picture) which
+share two nodes (the central node and the topmost node). In addition to these
+six elements, there are two other [order](#order-of-an-element-in-a-group)\-2
+elements that are not in either of the two larger four-cycles, shown at the
+bottom of the picture.
 
 *Group Explorer* has a [visualizer](rf-geterms.md#visualizers) for showing
 you Cycle graphs, documented in full [here](rf-um-cg-options.md).
@@ -151,11 +154,11 @@ generator \(a\) and an [order](#order-of-an-element-in-a-group)\-2 generator
 \(b\) which commute with each other. The last equation \(ab=ba\) describes
 the commutativity of the generators, and therefore implies the commutativity
 of the whole group. This group is thus
-[\(\mathbb{Z}_2\times\mathbb{Z}_4\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Z_2
-x Z_4.group). But if we had written the same definition with a different
-final equation, say \(bab=a^{-1}\), we would have come up with a different
-group
-([\(D_4\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/D_4.group)).
+
+[\(\mathbb{Z}_2\times\mathbb{Z}_4\)](../../GroupInfo.html?groupURL=groups/Z_2%20x%20Z_4.group). But
+if we had written the same definition with a different final equation, say
+\(bab=a^{-1}\), we would have come up with a different group
+([\(D_4\)](../../GroupInfo.html?groupURL=groups/D_4.group)).
 
 One of the columns available for view in [the main page (the group
 library)](rf-um-mainwindow.md) is the definition in this format of every
@@ -202,19 +205,19 @@ multiplications of those elements with one another yields all elements of
 the group.
 
 For instance, the elements \(r\) and \(f\) in
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group)
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group)
 generate the group because the complete list of elements of
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group)
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group)
 is \(r,f,rf,fr,r^2\), plus the identity, which can be written as \(r^3\).
 Thus all elements of \(S_3\) are expressible as products of \(r\)s and
 \(f\)s, so the set \(\{r,f\}\) generates \(S_3\). Sometimes this is written
 \(\left\langle r,f \right\rangle=\)
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group).
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group).
 
 If we consider just the element \(r\) in the same group and ask what set of
 elements it generates, \(\langle r\rangle\), we find only the elements
 \(\{e,r,r^2\}\). Therefore \(r\) does not generate all of
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group),
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group),
 but only a [subgroup](#subgroup).
 
 CITE(VGT-1.4 VGT-2.3)
@@ -364,7 +367,7 @@ you multiplication tables. More information about it appears in its
 *Group Explorer* shows multiplication tables in one of two ways--with or
 without text in the cells of the table. Consider the following
 multiplication table for the group
-[\(D_4\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/D_4.group).
+[\(D_4\)](../../GroupInfo.html?groupURL=groups/D_4.group).
 
 ![Unlabeled multiplication table for D_4](d_4_multtable_miniature_unlabelled.png)
 
@@ -374,10 +377,10 @@ be shown in small sizes (like in [group info pages](rf-um-groupwindow.md) or
 [the group library](rf-um-mainwindow.md)). If you want to see this same
 table with the element names in the cells, [click here to open the group
 info page for
-\(D_4\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/D_4.group)
+\(D_4\)](../../GroupInfo.html?groupURL=groups/D_4.group)
 and then click the multiplication table visualizer shown under the Views
 section. (Or jump to it directly with [this
-link](http://nathancarter.github.io/group-explorer/Multtable.html?groupURL=groups/D_4.group).)
+link](../../Multtable.html?groupURL=groups/D_4.group).)
 
 Upon inspecting the multiplication table with text included, you can see
 that for example the element \(r\) in the leftmost column, second row,
@@ -468,7 +471,7 @@ Each element in a [group](#group) has an
 [order](#order-of-an-element-in-a-group), and thus we can partition the
 elements of the group into classes which all have the same order. For
 instance the elements of the group
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group)
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group)
 are listed in the table below, with their orders.
 
 | Element | Order |
@@ -627,7 +630,7 @@ You can see a short exact sequence illustrated for any [normal
 subgroup](#normal-subgroup) of any group. Go to a [group's info
 page](rf-um-groupwindow.md), to the Subgroups section under Computations,
 and click "tell me more." Any normal subgroup will provide a link to a
-[sheet](rf-geterms.md#sheet) illustrating the [quotient](#quotient-group)
+[sheet](rf-geterms.md#sheets) illustrating the [quotient](#quotient-group)
 via a short exact sequence.
 
 ### Simple group
@@ -636,7 +639,7 @@ A simple group is a non-[trivial](#trivial-groupsubgroup) group with no
 non-[trivial](#trivial-groupsubgroup), [proper](#proper-subgroup), [normal
 subgroups](#normal-subgroup). Among [abelian](#abelian-group) groups, the only simple groups are the
 [cyclic](#cyclic-group) groups of prime order. The smallest non-[abelian](#abelian-group) simple group is
-[\(A_5\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/A_5.group).
+[\(A_5\)](../../GroupInfo.html?groupURL=groups/A_5.group).
 
 CITE(MM-5.7 TJ-10.2)
 
@@ -711,7 +714,7 @@ See [objects of symmetry](#objects-of-symmetry).
 
 The trivial group is the [group](#group) with only one element. [You can see
 its information
-here.](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Trivial.group)
+here.](../../GroupInfo.html?groupURL=groups/Trivial.group)
 
 In every group, the set containing only the identity element is a
 [subgroup](#subgroup) and is called the trivial subgroup.

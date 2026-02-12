@@ -7,14 +7,17 @@ groups. Here we will concentrate on the basic manipulations you might want
 to perform on a group's multiplication table as you investigate that group.
 
 For more introductory information on multiplication tables, refer to [the
-definition of a multiplication table](rf-groupterms.md#multtable) or [a
-quick introduction to multiplication tables](gs-mt-intro.md). For more
+definition of a multiplication table](rf-groupterms.md#multiplication-table) or
+[a quick introduction to multiplication tables](gs-mt-intro.md). For more
 complete information on the multiplication table interface, refer to [the
 relevant section of the user manual](rf-um-mt-options.md).
 
-## Zooming
+## Panning and Zooming
 
-**Use your mouse scroll wheel or a pinch gesture to zoom in and out.**
+**Drag the table with your mouse or finger to move it around the screen.
+Use your mouse scroll wheel or a pinch gesture to zoom in and out.**
+
+You can resize and recenter with a right-click [long tap] anywhere on the screen.
 
 If a group is very large, you may want to view its multiplication table
 shrunk to the point where you can see it comfortably on screen. Conversely,

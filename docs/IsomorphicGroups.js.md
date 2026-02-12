@@ -1,27 +1,19 @@
 // @flow
 
-import BasicGroup from './BasicGroup.js';
 import BitSet from './BitSet.js';
-import GEUtils from './GEUtils.js';
+import * as DefiningRelations from './DefiningRelations.js'
+import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js';
-import Subgroup from './Subgroup.js';
-import XMLGroup from './XMLGroup.js';
 
 export default
 class IsomorphicGroups {
 /*::
-   static map: Array<Array<XMLGroup>>;
+   static map: Array<Array<Group>>;
  */
    static init() {
-      if (IsomorphicGroups.map == undefined) {
-         const maxOrder = Math.max(...Library.getAllLocalGroups().map( (G) => G.order ));
-         IsomorphicGroups.map = Library.getAllLocalGroups()
-                                       .reduce( (map, G) => (map[G.order].push(G), map),
-                                                Array.from({length: maxOrder+1}, () => []) );
-      }
    }
 
-   static findForSubgroup(group /*: BasicGroup */, subgroup /*: Subgroup */) /*: ?BasicGroup */ {
+   static findForSubgroup(group /*: Group */, subgroup /*: Subgroup */) /*: ?Group */ {
       const subgroupAsGroup = group.getSubgroupAsGroup(subgroup);
       const isomorphicGroup = (group.order == subgroup.members.popcount()) ?
                               group :
@@ -29,20 +21,28 @@ class IsomorphicGroups {
       return isomorphicGroup;
    }
 
-   static find(G /*: BasicGroup */) /*: ?XMLGroup */ {
-      IsomorphicGroups.init();
-
+   static find(G /*: Group */) /*: ?Group */ {
       // filter by candidate group properties, isomorphism
-      return IsomorphicGroups.map[G.order]
+      const subgroupOrders = (subgroups) => subgroups.reduce((acc, H) => {
+         acc[H.order] = (acc[H.order] == null) ? 1 : ++acc[H.order]
+         return acc
+      }, []).filter((order) => order != null)
+
+      const isomorphicCandidates = Library.getGroupsByOrder(G.order)
          .filter( H => GEUtils.equals(G.orderClassSizes, H.orderClassSizes) )
-      // .filter( H => GEUtils.equals(G.subgroupOrders, H.subgroupOrders) )
-      // .filter( H => GEUtils.equals(G.conjClassSizes, H.conjClassSizes) )
-         .find( H => IsomorphicGroups.isomorphism(H, G) != undefined );
+         .filter( H => GEUtils.equals(subgroupOrders(G.subgroups), subgroupOrders(H.subgroups)) )
+
+      // we have all groups of order <= 20 in group library, and all non-abelian group <= 40
+      const isomorphicGroup = (isomorphicCandidates.length == 1 && (G.order <= 20 || (!G.isAbelian && G.order <= 40)))
+         ? isomorphicCandidates[0]
+         : isomorphicCandidates.find( H => IsomorphicGroups.isomorphism(H, G) != undefined )
+
+      return isomorphicGroup
    }
 
    // returns isomorphism from G to H, or undefined if none can be found
-   static isomorphism(G /*: BasicGroup */, H /*: BasicGroup */) /*: void | Array<groupElement> */ {
-      if (G.order != H.order) {
+   static isomorphism(G /*: Group */, H /*: Group */) /*: void | Array<groupElement> */ {
+      if (G.order != H.order || G == H) {
          return undefined;
       }
 
@@ -70,7 +70,7 @@ class IsomorphicGroups {
 
       // ToDo: pick the G or H with fewer known generators
       //   or maybe lower gen*orderClassSize product?
-      const G_gens = G.generators[0];
+      const G_gens = G.generators;
       const requiredOrders = G_gens.map(el => G.elementOrders[el]);
       const availableElements = H.elementOrders.reduce(
          (acc, order, el) => {
@@ -102,7 +102,6 @@ class IsomorphicGroups {
             g2h[G.mult(g, s)] = H.mult(g2h[g], g2h[s]);
          }
 
-         let rsltArray = rslt.toArray();
          while (g_gens.length != 0) {
             gensUsed.push(g_gens.pop());
             const prevRslt = rslt.toArray();  // H_{i-1}
@@ -115,7 +114,6 @@ class IsomorphicGroups {
                      coset_reps.push(gXs);
                      for (const h of prevRslt) { // H_{i-1} X (g X s)
                         rslt.set(G.mult(h, gXs));
-                        rsltArray = rslt.toArray();
                         g2h[G.mult(h, gXs)] = H.mult(g2h[h], g2h[gXs]);
                      }
                   }
@@ -151,33 +149,33 @@ class IsomorphicGroups {
    // findEmbedding(G,H), with H a subgroup of G, returns a pair [H',f]
    // such that H' is in the groups library and f is an embedding of H'
    // into G and onto H.  f is stored as an array such that f[i] means f(i),
-   // for all i in H'.  If this computation can't be done, return null.
-   // The most common reason that this might fail is not having sufficient
-   // groups loaded into the Library.  You may want to run a call to
-   // Library.getAllLocalGroups() first.
-   static findEmbedding(G /*: BasicGroup */, H /*: Subgroup */) /*: null | [BasicGroup, Array<groupElement>] */ {
-      const groupH = G.getSubgroupAsGroup( H ),
-            libraryH = IsomorphicGroups.find( groupH );
-      if ( !libraryH ) return null;
+   // for all i in H'.
+   static findEmbedding(G /*: Group */, H /*: Subgroup */) /*: null | [Group, Array<groupElement>] */ {
+      const [groupH, indexInParent] = G.getSubgroupAsGroup( H )
+      let libraryH = IsomorphicGroups.find( groupH )
+      if ( libraryH == null ) {
+         const presentation = DefiningRelations.makePresentation(groupH)
+         libraryH = DefiningRelations.generateGroupFromPresentation(presentation)
+         Library.saveGroup(libraryH)
+      }
       const almostF = IsomorphicGroups.isomorphism( libraryH, groupH );
-      if ( !almostF ) return null;
-      return [ libraryH, almostF.map( elt => groupH._indexInParentGroup[elt] ) ];
+      return [ libraryH, almostF?.map( elt => indexInParent[elt] ) ]
    }
 
    // findQuotient(G,N), with N a normal subgroup of G, returns a pair [Q,q]
    // such that Q is in the groups library and q is an onto map from G to Q
    // with kernel K.  q is stored as an array such that q[i] means q(i),
-   // for all i in G.  If this computation can't be done, return null.
-   // The most common reason for failure would be passing a non-normal subgroup.
-   // Alternatively, this might fail without enough groups loaded into the Library.
-   // You may want to run a call to Library.getAllLocalGroups() first.
-   static findQuotient(G /*: BasicGroup */, N /*: Subgroup */) /*: null | [BasicGroup, Array<groupElement>] */ {
+   // for all i in G.
+   static findQuotient(G /*: Group */, N /*: Subgroup */) /*: null | [Group, Array<groupElement>] */ {
       if ( !G.isNormal( N ) ) return null;
-      const groupQ = G.getQuotientGroup( N.members ),
-            libraryQ = IsomorphicGroups.find( groupQ );
-      if ( !libraryQ ) return null;
+      const [groupQ, cosetIndices] = G.getQuotientGroup( N.members )
+      let libraryQ = IsomorphicGroups.find( groupQ )
+      if ( libraryQ == null ) {
+         const presentation = DefiningRelations.makePresentation(groupQ)
+         libraryQ = DefiningRelations.generateGroupFromPresentation(presentation)
+         Library.saveGroup(libraryQ)
+      }
       const almostMap = IsomorphicGroups.isomorphism( groupQ, libraryQ );
-      if ( !almostMap ) return null;
-      return [ libraryQ, G.elements.map( elt => almostMap[groupQ._cosetIndices[elt]] ) ];
+      return [ libraryQ, G.elements.map( elt => almostMap?.[cosetIndices[elt]] ) ]
    }
 }

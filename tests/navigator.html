@@ -1,0 +1,23 @@
+<!--
+     dev.html page
+-->
+<html>
+   <head>
+      <meta charset="utf-8" />
+      <base href=".."></base>
+      <meta name="GE3-GITVersion" content="3.7rc3">
+
+      <script type="module">
+       const nav = window.navigator
+       document.getElementById('platform').textContent = nav.platform
+       document.getElementById('user-agent').textContent = nav.userAgent
+       document.getElementById('vendor').textContent = nav.vendor
+      </script>
+
+   </head>
+   <body id="body" style="width: 100%; height: 100%; overflow: hidden">
+      <h1 id="platform"></h1>
+      <h1 id="user-agent"></h1>
+      <h1 id="vendor"></h1>
+   </body>
+</html>

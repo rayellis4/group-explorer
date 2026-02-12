@@ -1,0 +1,45 @@
+x<!--
+     dev.html page
+-->
+<html>
+   <head>
+      <meta charset="utf-8" />
+      <base href=".."></base>
+
+      <link rel="stylesheet" href="./style/ge3.css" type="text/css"></link>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+
+      <script type="module">
+       import * as GEUtils from './js/GEUtils.js'
+       import {recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizePinch, isLongTap} from './js/Gestures.js'
+       import * as Log from './js/Log.js'
+
+       window.addEventListener('load', () => load(), {once: true})
+
+       async function load () {
+          Log.setLogLevel('info')
+          const testElement = document.getElementById('test')
+          recognizeSelect(testElement, (_event) => Log.info('select gesture recognized'))
+          recognizeContextMenu(testElement, (_event) => Log.info('contextmenu gesture recognized'))
+          recognizeDragAndDrop(testElement, (_start, _previous, _end, isDrop) => Log.info((isDrop ? 'drop' : 'drag') + ' gesture recognized'))
+          if (GEUtils.isTouchDevice()) {
+             recognizePinch(testElement, (_start, _end, _isLast) => Log.info('pinch/spread gesture recognized'))
+          } else {
+             testElement.addEventListener('wheel', (_wheelEvent) => Log.info('wheel/zoom gesture recognized'))
+          }
+       }
+
+      </script>
+   </head>
+   <body id="body" style="width: 100%; height: 100%">
+      <div id="test" style="position: fixed; left: 100; top: 100; right: 500; bottom: 500; background-color: yellow">
+         <ul><h2>Observe the console log while trying the following gestures:</h2><br>
+            <li>Left click (select)</li>
+            <li>Right click (long tap)</li>
+            <li>Drag-and-drop (move)</li>
+            <li>Zoom (wheel)</li>
+            <li>Pinch</li>
+         </ul>         
+      </div>
+   </body>
+</html>

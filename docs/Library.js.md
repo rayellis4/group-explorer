@@ -3,349 +3,292 @@
 /*
  * Class manages group definitions stored in localStorage
  *
- * Group definitions are stored as JSON strings, keyed by
- *  the URL from which the group was fetched.  (Since there are other
- *  objects in the cache, it is assumed for now that the URL starts
- *  with the characters 'http' -- might have to re-visit this later.)
- *  The group objects created from these JSON strings are cached as
- *  key-value pairs in Library.map.
+ * Group definitions are stored as JSON strings, keyed by the URL from which the
+ * group was fetched, or the URN from which the group was generated.
+ * The group objects created from these JSON strings are cached as key-value pairs
+ * in library.
  *
  * Method overview:
- *   getMapFromLocalStorage -- initialize Library.map from localStorage
+ *   absoluteURL -- get absolute URL from relative
  *   dataToGroup -- make group object from JSON string, XML string
- *   getBaseURL -- base URL from window.location.href
- *   clear -- delete all group definitions from Library.map and localStorage
- *   getAllLocalGroups -- return array of groups from Library.map/localStorage
- *   getAllLocalURLs -- return array of URLs from Library.map/localStorage
- *   getGroupOrDownload -- return Promise for group, resolved from localStorage if there
- *   getLatestGroup -- return Promise for current copy of group from server
- *   getLocalGroup -- return group from localStorage,
- *   isEmpty -- true if localStorage contains no groups
- *   loadFromURL -- get groupURL from window.location.href and return Promise to load it (see getGroupOrDownload)
- *   openWithGroupURL -- utility routine to window.open page with ?groupURL=... search string
- *   resolveURL -- get full URL
- *   saveGroup -- serialize and store group by URL in Libary.map/localStorage
+ *   deleteGroups -- remove groups from Library
+ *   getAllGroups -- return array of groups from Library
+ *   getGroupByURL -- return group from Library
+ *   getStoredGroups -- get group library from local store
+ *   isEmpty -- true if Library contains no groups
+ *   loadFromPageURL -- get groupURL from window.location.href and return Promise to load it
+ *   saveGroup -- store group in Library
+ *   saveLibrary -- save library to local store
+ *   updateAllGroups -- refresh remote groups from server
  */
 
-import * as Migration from './Migration.js' // causes module load-time check whether this page should be reloaded
-import Log from './Log.js'
-import * as MathML from './MathML.js'
-import { LISTENER_READY_MESSAGE, STATE_LOADED_MESSAGE } from './SheetModel.js'
-import XMLGroup from './XMLGroup.js'
+import * as AutoUpgradeManifest from './AutoUpgradeManifest.js'
+import * as DefiningRelations from './DefiningRelations.js'
+import Group from './Group.js'
+import IsomorphicGroups from './IsomorphicGroups.js'
+import * as Log from './Log.js'
+import * as StoredObjects from './StoredObjects.js'
+import * as XMLGroup from './XMLGroup.js'
+
+export {
+   deleteGroups,
+   getAllGroups,
+   getGroupsByOrder,
+   getGroupByURL,
+   isEmpty,
+   loadFromPageURL,
+   loadLibrary,
+   saveGroup,
+   updateAllGroups
+}
 
 /*::
 import type { MSG_loadGroup } from './SheetModel.js'
 import type { XMLGroupJSON, BriefXMLGroupJSON } from './XMLGroup.js'
-import type { BasicGroupJSON } from './BasicGroup.js'
+import type { GroupJSON } from './Group.js'
 */
 
-const map /*: { [key: string]: XMLGroup } */ = getMapFromLocalStorage()
+let library
 
-// If migration is in progress migrate existing library to new format
-// Then read new format from localStorage into map
-function getMapFromLocalStorage () {
-  const groupsString = localStorage.getItem('groups') || migrate3v1To3v2()
-  const groups = JSON.parse(groupsString) || {}
-  for (const [groupURL, groupJSON] of Object.entries(groups)) {
-    groups[groupURL] = XMLGroup.parseJSON(((groupJSON /*: any */) /*: XMLGroupJSON & BasicGroupJSON */))
-  }
-
-  return groups
+async function loadLibrary () {
+   library = await getStoredGroups()
 }
 
-function dataToGroup (data /*: any */, contentType /*: ?string */) /*: void | XMLGroup */ {
-  let group /*: XMLGroup */
+// get absolute URL from relative
+function absoluteURL (url /*: string */) /*: string */ {
+   return new URL(url, window.location.href).href
+}
+
+function dataToGroup (data /*: any */, contentType /*: ?string */) /*: void | Group */ {
+  let group /*: Group */
   if (typeof data === 'string') {
-    group = data.includes('<!DOCTYPE groupexplorerml>') ? new XMLGroup(data) : XMLGroup.parseJSON(JSON.parse(data))
+     if (data.startsWith('{')) {
+        group = Group.fromGroupFileJSON(JSON.parse(data))
+     } else if (data.startsWith('<!DOCTYPE groupexplorerml>')) {
+        group = XMLGroup.fromGroupFileXML(data)
+     } else {
+        throw (new Error('Unrecognizable data passed to Library:dataToGroup'))
+     }
   } else if (contentType != null && contentType.includes('xml')) {
-    group = (new XMLGroup((data /*: Document */)) /*: XMLGroup */)
+     group = XMLGroup.fromGroupFileXML(data)
   } else if (contentType != null && contentType.includes('json')) {
-    group = XMLGroup.parseJSON((data /*: Object */))
+     group = Group.fromGroupFileJSON(JSON.parse(data))
   }
   return group
 }
 
-// get base URL from window.location.href
-//   (maybe we should eliminate the origin field, since all the data in localStorage is common origin?)
-export function getBaseURL () /*: string */ {
-  let baseURL = new URL(window.location.href)
-  baseURL = baseURL.origin + baseURL.pathname // trim off search string
-  baseURL = baseURL.slice(0, baseURL.lastIndexOf('/') + 1) // trim off page
-  return baseURL
+// delete array of groups from library and update local store
+function deleteGroups (groups) {
+   for (const group of groups) {
+      delete library[group.URL]
+   }
+   scheduleLocalStoreUpdate()
 }
 
-// delete all group definitions from map and localStorage
-export function clear () {
-  for (const key in map) {
-    delete map[key]
-  }
-  localStorage.setItem('groups', '{}')
+// return array of groups from library
+function getAllGroups () /*: Array<Group> */ {
+   return ((Object.values(library) /*: any */) /*: Array<Group> */)
 }
 
-// return array of groups from map/localStorage (no server contact)
-export function getAllLocalGroups () /*: Array<XMLGroup> */ {
-  return ((Object.values(map) /*: any */) /*: Array<XMLGroup> */)
+function getGroupsByOrder (order) {
+   return Object.values(library).filter((group) => group.order == order)
 }
 
-// return array of group URLs from map/localStorage
-export function getAllLocalURLs () /*: Array<string> */ {
-  return Object.getOwnPropertyNames(map)
+// returns group from library by URL, generating it if needed
+function getGroupByURL (url /*: string */) /*: void | Group */ {
+   let group = library[absoluteURL(url)]
+   if (group == null && url.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
+      const presentation = new URL(url).search.slice(1)
+      group = DefiningRelations.generateGroupFromPresentation(presentation)
+      saveGroup(group)
+   }
+
+   return group
 }
 
-// returns Promise to get group from localStorage or, if not there, download it from server
-export function getGroupOrDownload (url /*: string */, baseURL /*: ?string */) /*: Promise<XMLGroup> */ {
-  const groupURL = resolveURL(url, baseURL)
-  const localGroup = getLocalGroup(groupURL)
-  return new Promise((resolve, reject) => {
-    if (localGroup === undefined) {
-      $.ajax({
-        url: groupURL,
-        success: (data /*: any */, textStatus /*:: ?: string */, jqXHR /*:: ?: JQueryXHR */) => {
-          try {
-            if (jqXHR != null && jqXHR.status === 200) {
-              const remoteGroup = dataToGroup(data, jqXHR.getResponseHeader('content-type'))
-              if (remoteGroup == null) {
-                reject(new Error(`Error reading ${groupURL}: unknown data type`))
-              } else {
-                remoteGroup.lastModifiedOnServer = jqXHR.getResponseHeader('last-modified')
-                remoteGroup.URL = groupURL
-                saveGroup(remoteGroup)
-                resolve(remoteGroup)
-              }
-            } else {
-              const errorMsg = `Error fetching ${groupURL}: ${textStatus || 'N/A'} ` +
-                    `(HTTP status code ${jqXHR != null && jqXHR.status != null ? jqXHR.status : 'N/A'})`
-              reject(new Error(errorMsg))
-            }
-          } catch (err) {
-            const errorMsg = `Error parsing ${groupURL}: ${textStatus || 'N/A'} ` +
-                  `(HTTP status code ${jqXHR != null && jqXHR.status != null ? jqXHR.status : 'N/A'}, ` +
-                  `${err || 'N/A'}`
-            reject(new Error(errorMsg))
-          }
-        },
-        error: (jqXHR, textStatus, err) => {
-          const errorMsg = `Error loading ${groupURL}: ${textStatus || 'N/A'} ` +
-                `(HTTP status code ${jqXHR != null && jqXHR.status != null ? jqXHR.status : 'N/A'}), ` +
-                `${err || 'N/A'}`
-          reject(new Error(errorMsg))
-        }
-      })
-    } else {
-      resolve(localGroup)
-    }
-  })
+// Read group library from local store
+async function getStoredGroups () {
+   const storedGroups = (await StoredObjects.getGroupLibrary()) || {}
+   Object.entries(storedGroups).forEach(([key, value]) => storedGroups[key] = Group.fromLocalCopyJSON(value))
+
+   return storedGroups
 }
 
-// replace latest group definition from server in local store and return group
-//   if a local copy exists, download only occurs if server last-modified time
-//   is more recent than that of local copy
-//   returns Promise to load group
-export function getLatestGroup (url /*: string */, baseURL /*: ?string */) /*: Promise<XMLGroup> */ {
-  const groupURL = resolveURL(url, baseURL)
-  const localGroup = getLocalGroup(groupURL)
-  return new Promise((resolve, reject) => {
-    $.ajax({
-      url: groupURL,
-      headers: (localGroup == null) ? {} : { 'if-modified-since': localGroup.lastModifiedOnServer },
-      success: (data /*: any */, textStatus /*:: ?: string */, jqXHR /*:: ?: JQueryXHR */) => {
-        try {
-          if (jqXHR != null && jqXHR.status === 200) {
-            const remoteGroup = dataToGroup(data, jqXHR.getResponseHeader('content-type'))
-            if (remoteGroup == null) {
-              reject(new Error(`Error reading ${groupURL}: unknown data type`))
-            } else {
-              remoteGroup.lastModifiedOnServer = jqXHR.getResponseHeader('last-modified')
-              remoteGroup.URL = groupURL
-              // copy notes, user-defined representations and representation preferences from localGroup
-              if (localGroup != null) {
-                remoteGroup.userNotes = localGroup.userNotes
-                remoteGroup.representationIndex = localGroup.representationIndex
-                if (localGroup.userRepresentations.length !== 0) {
-                  remoteGroup.userRepresentations = localGroup.userRepresentations
-                }
-              }
-              saveGroup(remoteGroup)
-              resolve(remoteGroup)
-            }
-          } else if (jqXHR != null && jqXHR.status === 304 && localGroup != null) {
-            resolve(localGroup)
-          } else {
-            const errorMsg = `Error fetching ${groupURL}: ${textStatus || 'N/A'} ` +
-                  `(HTTP status code ${jqXHR != null && jqXHR.status != null ? jqXHR.status : 'N/A'})`
-            errorUseLocalCopy(errorMsg)
-          }
-        } catch (err) {
-          const errorMsg = `Error parsing ${groupURL}: ${textStatus || 'N/A'} ` +
-                `(HTTP status code ${jqXHR != null && jqXHR.status != null ? jqXHR.status : 'N/A'}, ${err || 'N/A'}`
-          errorUseLocalCopy(errorMsg)
-        }
-      },
-      error: (jqXHR, textStatus, err) => {
-        const errorMsg = `Error loading ${groupURL}: ${textStatus || 'N/A'} ` +
-              `(HTTP status code ${jqXHR != null && jqXHR.status != null ? jqXHR.status : 'N/A'}), ${err || 'N/A'}`
-        errorUseLocalCopy(errorMsg)
-      }
-    })
-
-    // if there's a local copy available, just log error and satisfy call with local copy
-    const errorUseLocalCopy = (errorMsg) => {
-      if (localGroup == null) {
-        reject(new Error(errorMsg))
-      } else {
-        Log.err(errorMsg)
-        resolve(localGroup)
-      }
-    }
-  })
-}
-
-// return locally stored copy of group from map/localStorage
-export function getLocalGroup (url /*: string */, baseURL /*: void | string */) /*: void | XMLGroup */ {
-  return map[resolveURL(url, baseURL)]
-}
-
-// return 'true' if map/localStorage contains no groups
-export function isEmpty () /*: boolean */ {
-  return Object.keys(map).length === 0
+// return 'true' if library is empty
+function isEmpty () /*: boolean */ {
+   return Object.keys(library).length === 0
 }
 
 // get groupURL from page invocation and return promise for resolution from cache or download
-export function loadFromURL () /*: Promise<XMLGroup> */ {
-  const hrefURL = new URL(window.location.href)
-  const groupURL = hrefURL.searchParams.get('groupURL')
-  if (groupURL != null) {
-    return getGroupOrDownload(groupURL)
-  } else if (hrefURL.searchParams.get('waitForMessage') !== null) {
-    return new Promise((resolve, reject) => {
-      /*
-       * When this page is loaded in an iframe, the parent window can
-       * indicate which group to load by passing the full JSON
-       * definition of the group in a postMessage() call to this
-       * window, with the format { type: 'load group', group: G },
-       * where G is the JSON data in question.
-       */
-      window.addEventListener('message', function (event /*: MessageEvent */) {
-        const eventData = (event.data /*: any */)
-        if (typeof eventData === 'undefined') {
-          Log.err('empty message received in Library.js:')
-          Log.err(eventData)
-          reject(new Error('empty message received in Library.js'))
-        } else if (eventData.source === 'editor' ||
-                   eventData.source === 'external' ||
-                   eventData === LISTENER_READY_MESSAGE ||
-                   eventData === STATE_LOADED_MESSAGE
-        ) {
-          // Sheet editor messages -- ignore them, they belong to CayleyDiagram.js : receiveInitialSetup
-        } else if (eventData.type === 'load group') {
-          const loadGroupMessage /*: MSG_loadGroup */ = eventData
-          try {
-            if (typeof loadGroupMessage.group === 'object') {
-              const group = dataToGroup(loadGroupMessage.group, 'json')
-              if (group != null) {
-                map[group.shortName] = group
-                resolve(group)
-              }
-            }
-            reject(new Error('unable to understand loadGroupMessage'))
-          } catch (error) {
-            reject(error)
-          }
-        } else {
-          Log.err('unknown message received in Library.js:')
-          Log.err(eventData)
-          reject(new Error('unknown message received in Library.js'))
-        }
-      }, false)
-    })
-  } else {
-    return new Promise((resolve, reject) => {
-      reject(new Error("error in URL: can't find groupURL query parameter"))
-    })
-  }
-}
-
-// utility routine to open web page with "...?groupURL=..." with search string containing groupURL
-//   and options from {a: b, ...} included as '&a=b...',
-export function openWithGroupURL (pageURL /*: string */, groupURL /*: string */, options /*: {[key: string]: string} */ = {}) {
-  const url = `./${pageURL}?groupURL=${groupURL}` +
-        Object.keys(options).reduce((url, key /*: string */) => url + `&${key}=${options[key]}`, '')
-  window.open(url)
-}
-
-// get resolved URL from part (e.g., if called from page invoked as
-//   resolveURL(../group-explorer/groups/Z_2.group) from page invoked as
-//   http://localhost/group-explorer/GroupInfo.html?groupURL=../group-explorer/groups/Z_2.group
-//   it returns http://localhost/group-explorer/groups/Z_2.group)
-export function resolveURL (url /*: string */, baseURL /*: ?string */) /*: string */ {
-  return new URL(url, (baseURL == null) ? getBaseURL() : baseURL).href
-}
-
-// serializes and stores group definition in map/localStorage
-//   throws exception if storage quota is exceeded
-export function saveGroup (group /*: XMLGroup */, key /*: string */ = group.URL) {
-  try {
-    map[key] = group
-    localStorage.setItem('groups', JSON.stringify(map))
-  } catch (err) {
-    Log.err(err)
-  }
-}
-
-// Convert v3.1 groups to v3.2 format:
-//   convert MathML fields to html: name, other_names, definition, representations, userRepresentations
-//   save user-defined fields: notes, user-defined representations, representationIndex preference
-//   replace MathML-generated columns in rowHTML with plain HTML
-//   delete http*, mathjax_stylesheet entries
-//   write new group definitions to 'groups' entry in localStorage
-function migrate3v1To3v2 () /*: string */ {
-  // gather all the keys we're going to migrate
-  const keys = []
-  for (let inx = 0; inx < localStorage.length; inx++) {
-    const key = localStorage.key(inx)
-    if (key != null && (key.startsWith('http') || key === 'mathjax_stylesheet')) {
-      keys.push(key)
-    }
-  }
-
-  // migrate and store groups in groups
-  const groups = {}
-  for (const key of keys) {
-    if (key.startsWith('http')) {
-      const value = localStorage.getItem(key)
-
-      // migrate previous group definitions
-      if (value != null) {
-        // convert name, other_names, definition, representations, userRepresentations to html
-        const group = XMLGroup.parseJSON(JSON.parse(value).object)
-        group.name = MathML.toHTML(group.name)
-        group.other_names =
-          (group.other_names == null) ? [] : group.other_names.map((name) => MathML.toHTML(name))
-        group.definition = MathML.toHTML(group.definition)
-        group.representations = group.representations.map((rep) => rep.map((el) => MathML.toHTML(el)))
-        group.userRepresentations = group.userRepresentations.map((rep) => rep.map((el) => MathML.toHTML(el)))
-        if (group.representationIndex >= group.representations.length) {
-          group.representationIndex = -(group.representationIndex - group.representations.length + 1)
-        }
-
-        // replace group.rowHTML MathML-generated name and definition columns with HTML
-        const rowHTML = group.rowHTML
-        if (rowHTML != null) {
-          const $row = $('<div>').html(rowHTML)
-          $row.find('tr > td:nth-of-type(1) > a > div').html(group.name)
-          $row.find('tr > td:nth-of-type(3) > a > div').html(group.definition)
-          group.rowHTML = $row.html()
-        }
-
-        // add group to groups object
-        groups[key] = group
+function loadFromPageURL () /*: Promise<Group> */ {
+   const hrefURL = new URL(window.location.href)
+   const groupURL = hrefURL.searchParams.get('groupURL')
+   if (groupURL != null) {
+      const group = getGroupByURL(groupURL)
+      if (groupURL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
+         const maybeIsomorphicGroup = IsomorphicGroups.find(group)
+         if (maybeIsomorphicGroup != null) {
+            deleteGroups([group])
+            return maybeIsomorphicGroup
+         }
       }
-    }
+      if (group == null) {
+         return downloadGroup(groupURL)
+      } else {
+         return group
+      }
+   } else if (hrefURL.searchParams.get('waitForMessage') !== null) {
+      return waitForGroupInMessage()
+   } else {
+      return new Promise((_resolve, reject) => {
+         reject(new Error("error in URL: can't find groupURL query parameter"))
+      })
+   }
 
-    localStorage.removeItem(key)
-  }
+   async function downloadGroup (url) {
+      const groupURL = absoluteURL(url)
+      const result = new Promise((resolve, reject) => {
+         window.fetch(groupURL)
+            .then(async (response) => {
+               try {
+                  if (response.ok) {
+                     const data = await response.text()
+                     const contentType = response.headers.get('content-type')
+                     const remoteGroup = dataToGroup(data, contentType)
+                     if (remoteGroup == null) {
+                        reject(new Error(
+                           `Error reading ${groupURL}: unknown content type ${contentType}`,
+                           {cause: response}))
+                     } else {
+                        remoteGroup.lastModifiedOnServer = response.headers.get('last-modified')
+                        remoteGroup.URL = groupURL
+                        saveGroup(remoteGroup)
+                        resolve(remoteGroup)
+                     }
+                  } else {
+                     const errorMsg = `\nError fetching ${groupURL}` +
+                        `\nReason: ${response.statusText || 'N/A'}` +
+                        `\nHTTP status code: ${response.status || 'N/A'}`
+                     reject(new Error(errorMsg, {cause: response}))
+                  }
+               } catch (parseError) {
+                  reject(new Error(`Error parsing ${groupURL}`, {cause: parseError}))
+               }
+            })
+            .catch((error) => {
+               throw new Error(`${error.name} on fetch from ${groupURL}`, {cause: error})
+            })
+      })
 
-  const groupsJSON = JSON.stringify(groups)
-  localStorage.setItem('groups', groupsJSON)
-  return groupsJSON
+      return result
+   }
+
+   function waitForGroupInMessage () {
+      return new Promise((resolve, reject) => {
+         /*
+          * When this page is loaded in an iframe, the parent window can
+          * indicate which group to load by passing the full JSON
+          * definition of the group in a postMessage() call to this
+          * window, with the format { type: 'load group', group: G },
+          * where G is the JSON data in question.
+          */
+         window.addEventListener('message', function (event /*: MessageEvent */) {
+            const eventData = (event.data /*: any */)
+            if (typeof eventData === 'undefined') {
+               Log.err('empty message received in Library.js:')
+               Log.err(eventData)
+               reject(new Error('empty message received in Library.js'))
+            } else if (eventData.type === 'load group') {
+               const loadGroupMessage /*: MSG_loadGroup */ = eventData
+               try {
+                  if (typeof loadGroupMessage.group === 'object') {
+                     const group = dataToGroup(loadGroupMessage.group, 'json')
+                     if (group != null) {
+                        library[group.shortName] = group
+                        resolve(group)
+                     }
+                  }
+                  reject(new Error('unable to understand loadGroupMessage'))
+               } catch (error) {
+                  reject(error)
+               }
+            } else {
+               Log.err('unknown message received in Library.js:')
+               Log.err(eventData)
+               reject(new Error('unknown message received in Library.js'))
+            }
+         }, false)
+      })
+   }
+}
+
+// updates library group definitions and schedules local store update
+function saveGroup (...groups /*: Group */) {
+   for (const group of groups) {
+      if (group != null) {
+         library[group.URL] = group
+      }
+   }
+   scheduleLocalStoreUpdate()
+}
+
+// schedule local store group library update
+let savedTimeoutID = null
+function scheduleLocalStoreUpdate () {
+   if (savedTimeoutID != null) {
+      window.clearTimeout(savedTimeoutID)
+   }
+   savedTimeoutID = window.setTimeout(async () => {
+      savedTimeoutID = null
+      await StoredObjects.saveGroupLibrary(library)  // wait for store to complete before exiting
+   })
+}
+
+// Update all groups in library and from AutoUpgrade manifest
+async function updateAllGroups () {
+   // replace latest group definitions from server in library
+   const updateGroup = async (groupURL /*: string */) /*: Promise<void> */ => {
+      const localGroup = getGroupByURL(groupURL)
+
+      const options = { cache: 'no-cache', mode: 'no-cors' }
+      if (localGroup != null) {
+         options.headers = { 'If-Modified-Since': localGroup.lastModifiedOnServer }
+      }
+
+      const response = await window.fetch(groupURL, options)
+
+      if (response.status == 200) {  // response status == 304 if not modified
+         const text = await response.text()
+         const freshGroup = dataToGroup(text)
+         freshGroup.lastModifiedOnServer = response.headers.get('last-modified')
+         freshGroup.URL = groupURL
+
+         // preserve user customization
+         if (localGroup != null) {
+            freshGroup.userNotes = localGroup.userNotes
+            freshGroup.representationIndex = localGroup.representationIndex
+            if (localGroup.userRepresentations.length != 0) {
+               freshGroup.userRepresentations = localGroup.userRepresentations
+            }
+         }
+
+         library[groupURL] = freshGroup
+      }
+   }
+
+   // Collect URLs from the current library and the AutoUpgradeManifest and update them
+   await loadLibrary()
+   const url = new URL(window.location.href)
+   const urlString = url.origin + url.pathname // trim off query string
+   const baseURL = urlString.slice(0, urlString.lastIndexOf('/') + 1) // baseURL is part up to last '/'
+
+   const allURLs = new Set()
+   Object.values(library || {}).filter((group) => !group.isGenerated).forEach((group) => allURLs.add(group.URL))
+   AutoUpgradeManifest.groupFiles.forEach((url) => allURLs.add(baseURL + url))
+
+   // complete updates
+   await Promise.all(Array.from(allURLs).map((url) => updateGroup(url)))
+
+   // and save library
+   await StoredObjects.saveGroupLibrary(library)
 }

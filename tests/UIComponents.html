@@ -1,0 +1,206 @@
+<!--
+     Visual test of UIComponents
+-->
+<html>
+   <head>
+      <meta charset="utf-8" />
+      <base href=".."></base>
+
+      <link rel="stylesheet" href="./style/ge3.css" type="text/css"></link>
+
+      <style>
+       body {
+          padding-top: 1cm;
+       }
+       body > * + * {
+          margin-top: 1cm;
+       }
+       .test {
+          background-color: yellow;
+          margin-left: 1cm;
+          width: 20em;
+          padding: 2em;
+       }
+      </style>
+
+      <script type="module">
+       import {makeFixedMenu, makeDetachedMenu, makeTooltip, makeMockSelect, makeDialog} from './js/UIComponents.js'
+
+       window.addEventListener('load', () => load(), {once: true})
+
+       function load () {
+          showFixedMenu(document.getElementById('test-fixed-menu').querySelector('ul'))
+          document.getElementById('test-multilevel-menu').addEventListener('click', showMultilevelMenu)
+          document.getElementById('test-tooltip').addEventListener('click', showTooltip)
+          document.getElementById('test-mock-select').addEventListener('click', showMockSelect)
+          document.getElementById('test-dialog').addEventListener('click', showDialog)
+       }
+
+       function showFixedMenu (element) {
+          makeFixedMenu(element, (action) => eval(action))
+       }
+
+       function showMultilevelMenu (location) {
+          const menuHTML = `
+             <ul>
+                <li data-action="console.log('Item 1')">Item 1</li>
+                <hr>
+                <li class="inline-submenu">Inline submenu 2
+                   <ul>
+                      <li data-action="console.log('Item 2.1')">Item 2.1</li>
+                      <li data-action="console.log('Item 2.2')">Item 2.2</li>
+                      <li data-action="console.log('Item 2.3')">Item 2.3</li>
+                      <li class="detached-submenu">Detached submenu 2.4
+                         <ul>
+                            <li data-action="console.log('Item 2.4.1')">Item 2.4.1</li>
+                            <li data-action="console.log('Item 2.4.2')">Item 2.4.2</li>
+                         </ul>
+                      </li>
+                      <li class="detached-submenu">Detached submenu 2.5
+                         <ul>
+                            <li data-action="console.log('Item 2.5.1')">Item 2.5.1</li>
+                            <li data-action="console.log('Item 2.5.2')">Item 2.5.2</li>
+                         </ul>
+                      </li>
+                      <li class="inline-submenu">Inline submenu 2.6
+                         <ul>
+                            <li data-action="console.log('Item 2.6.1')">Item 2.6.1</li>
+                            <li data-action="console.log('Item 2.6.2')">Item 2.6.2</li>
+                            <li data-action="console.log('Item 2.6.3')">Item 2.6.3</li>
+                         </ul>
+                      </li>
+                   </ul>
+                </li>
+                <li class="detached-submenu">Detached submenu 3
+                   <ul id="detached-ul">
+                      <li data-action="console.log('Item 3.1')">Item 3.1</li>
+                      <li data-action="console.log('Item 3.2')">Item 3.2</li>
+                      <li class="detached-submenu">Detached submenu 3.3
+                         <ul>
+                            <li data-action="console.log('Item 3.3.1')">Item 3.3.1</li>
+                            <li data-action="console.log('Item 3.3.2')">Item 3.3.2</li>
+                         </ul>
+                      </li>
+                      <li data-action="console.log('Item 3.4')">Item 3.4</li>
+                   </ul>
+                </li>
+                <li data-action="console.log('Item 4')">Item 4</li>
+             </ul>`
+          makeDetachedMenu(menuHTML, location)
+             .then( (action) => eval(action) )
+       }
+
+       function showTooltip (location) {
+          const tooltipHTML =`
+             <div>
+                Hi there!
+             </div>`
+          makeTooltip(tooltipHTML, location)
+       }
+
+       function showMockSelect (location) {
+          const choices = [
+             'First',
+             ['Second', 'Choice<sub>two</sub>']
+          ]
+          makeMockSelect(document.getElementById('test-mock-select'), choices)
+             .then( (choice) => console.log(choice),
+                    () => console.log('no choice') )
+       }
+
+       function showDialog (location) {
+          const getInput = () => {
+             console.log('getInput')
+          }
+          const stay = () => {
+             console.log('stay')
+          }
+          const leave = () => {
+             const textarea = document.getElementById('dialog-textarea')
+             const text = document.getElementById('dialog-text')
+             const slider = document.getElementById('dialog-slider')
+             console.log(`leave with textarea="${textarea.value}", text="${text.value}" slider=${slider.value}`)
+             dialog.remove()
+          }
+          const onClick = (event) => {
+             const action = event.target.closest('[data-action]')?.getAttribute('data-action')
+             eval(action)
+          }
+
+          const dialogHTML =`
+             <div class="flex-v stack-03em" style="overflow: auto; width: 40ch; height: 20em">
+                Hi there!
+                <br>
+                <textarea id="dialog-textarea" class="fill-h stretch" style="resize: none"></textarea>
+                <br>
+                <input id="dialog-text" class="fill-h">
+                <br>
+                <input id="dialog-slider" type="range" data-action="getInput()">
+                <br>
+                <div id="buttons" class="flex-h" style="justify-content: space-around">
+                   <button data-action="leave()">Leave</button>
+                   <button data-action="stay()">Stay</button>
+                </div>
+             </div>`
+          const dialog = makeDialog(dialogHTML, location)
+          dialog.querySelector('.dialog').addEventListener('click', onClick)
+       }
+
+      </script>
+   </head>
+   <body id="body" style="width: 100%; height: 100%">
+      <div id="test-fixed-menu" class="test">
+         Fixed menu:
+         <ul>
+            <li data-action="console.log('Item 1')">Item 1</li>
+            <hr>
+            <li class="inline-submenu">Submenu 2
+               <ul>
+                  <li data-action="console.log('Item 2.1')">Item 2.1</li>
+                  <li data-action="console.log('Item 2.2')">Item 2.2</li>
+                  <li data-action="console.log('Item 2.3')">Item 2.3</li>
+                  <li class="inline-submenu hidden">Submenu 2.4
+                     <ul>
+                        <li data-action="console.log('Item 2.4.1')">Item 2.4.1</li>
+                        <li data-action="console.log('Item 2.4.2')">Item 2.4.2</li>
+                     </ul>
+                  </li>
+                  <li class="inline-submenu">Submenu 2.5
+                     <ul>
+                        <li data-action="console.log('Item 2.5.1')">Item 2.5.1</li>
+                        <li data-action="console.log('Item 2.5.2')">Item 2.5.2</li>
+                     </ul>
+                  </li>
+                  <li class="inline-submenu hidden">Submenu 2.6
+                     <ul>
+                        <li data-action="console.log('Item 2.6.1')">Item 2.6.1</li>
+                        <li data-action="console.log('Item 2.6.2')">Item 2.6.2</li>
+                        <li data-action="console.log('Item 2.6.3')">Item 2.6.3</li>
+                     </ul>
+                  </li>
+               </ul>
+            </li>
+            <li class="inline-submenu hidden">Submenu 3
+               <ul id="inline-ul">
+                  <li data-action="console.log('Item 3.1')">Item 3.1</li>
+                  <li data-action="console.log('Item 3.2')">Item 3.2</li>
+                  <li data-action="console.log('Item 3.3')">Item 3.3</li>
+               </ul>
+            </li>
+            <li data-action="console.log('Item 4')">Item 4</li>
+         </ul>
+      </div>
+      <div id="test-multilevel-menu" class="test">
+         Click here to see multilevel menu
+      </div>
+      <div id="test-tooltip" class="test">
+         Click here to see tooltip
+      </div>
+      <div id="test-mock-select" class="test">
+         Click here to see mock select
+      </div>
+      <div id="test-dialog" class="test">
+         Click here to see dialog
+      </div>
+   </body>
+</html>

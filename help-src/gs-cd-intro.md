@@ -23,16 +23,16 @@ following two useful properties.
 
 [Cycle graphs](rf-groupterms.md#cycle-graph) also satisfy the first of these
 requirements but not the second. [Multiplication
-tables](rf-groupterms.md#multtable) satisfy the second but not the first.
+tables](rf-groupterms.md#multiplication-table) satisfy the second but not the first.
 
 Consider the Cayley diagram of
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group)
+[\(S_3\)](../../group-explorer/GroupInfo.html?groupURL=groups/S_3.group)
 shown below. There is a node in the diagram for each element of the group
 and all information for determining the structure of the group can be
 immediately seen (or sometimes inferred) from the arrows connecting the
 nodes.
 
-[![Cayley diagram for the group S_3](s_3_cayley_miniature.png)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group)
+[![Cayley diagram for the group S_3](s_3_cayley_miniature.png)](../../GroupInfo.html?groupURL=groups/S_3.group)
 
 The fact that a red arrow goes from \(f\) to \(fr\) indicates that the red
 arrows signify right-multiplication by the generator \(r\). So one can
@@ -41,7 +41,7 @@ arcs meaning \(f\)) combine to create all the structure of the group.
 Following a red arrow and then a blue-green one will lead you to a different
 location than following a blue-green arrow and then a red one; in this way
 one can see that
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group)
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group)
 is not abelian.
 
 Some groups in *Group Explorer* come with a human-designed Cayley diagram
@@ -51,16 +51,16 @@ algorithms *Group Explorer* uses for auto-generating Cayley diagrams do not
 yield aesthetically good results for that group.  Here are two particularly
 pleasing Cayley diagrams.
 
-## A Cayley diagram for the group [\(S_4\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_4.group)
+## A Cayley diagram for the group [\(S_4\)](../../GroupInfo.html?groupURL=groups/S_4.group)
 
-[![A Cayley diagram for the group S_4](illustration-cds4.png)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_4.group)
+[![A Cayley diagram for the group S_4](illustration-cds4.png)](../../GroupInfo.html?groupURL=groups/S_4.group)
 
 Node color is highlighted to indicate membership in cosets of the subgroup
 \(\langle(1~2~3)\rangle\).
 
-## A Cayley diagram for the group [\(A_5\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/A_5.group)
+## A Cayley diagram for the group [\(A_5\)](../../GroupInfo.html?groupURL=groups/A_5.group)
 
-[![A Cayley diagram for the group A_5](illustration-cda5.png)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/A_5.group)
+[![A Cayley diagram for the group A_5](illustration-cda5.png)](../../GroupInfo.html?groupURL=groups/A_5.group)
 
 Node color is highlighted to indicate membership in cosets of the subgroup
 \(\langle(0~1~2~3~4)\rangle\).

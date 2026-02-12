@@ -1,44 +1,45 @@
-// @flow
+/* @flow
 
-import GEUtils from './GEUtils.js'
-import Log from './Log.js';
-import Template from './Template.js';
+# CyclicInfo
 
-export {summary, display};
+A [GroupInfo](./GroupInfo.html.md) component that displays whether a group is cyclic.
 
-/*::
-import XMLGroup from './XMLGroup.js';
-*/
+```javascript
+ */
+export {display}
 
-// Load templates
-const CYCLIC_INFO_URL = './html/CyclicInfo.html'
-const LoadPromise = GEUtils.ajaxLoad(CYCLIC_INFO_URL)
-
-let group /*: XMLGroup */;
-
-function summary (Group /*: XMLGroup */) /*: string */ {
-    return Group.isCyclic ? 'yes' : 'no';
+function display (cyclicInfoElementId, group) {
+   const cyclicInfoElement = document.getElementById(cyclicInfoElementId)
+   cyclicInfoElement.innerHTML = makeCyclicInfoContent(group)
+   
+   // rebuild content on representation change
+   cyclicInfoElement.closest('.all-info')
+      .addEventListener('representationChange', () => cyclicInfoElement.innerHTML = makeCyclicInfoContent(group))
 }
 
-async function display (Group /*: XMLGroup */, $wrapper /*: JQuery */) {
-  const templates = await LoadPromise
+function makeCyclicInfoContent (group) {
+   const htmlFragments = [
+      `<details>
+          <summary>
+             <span class="title">Cyclic group</span>
+             <span class="summary">${group.isCyclic ? 'yes' : 'no'}</span>
+          </summary>`
+   ]
 
-  if ($('template[id|="cyclic"]').length == 0) {
-    $('body').append(templates);
-  }
+   if (group.isCyclic) {
+      const generator = group.generators[0];
+      htmlFragments.push(
+         `<div>${group.name} is <a href="./help/rf-groupterms/index.html#cyclic-group">cyclic</a>;
+            an element that generates the group is ${group.representation[generator]}.</div>`)
+   } else {
+      htmlFragments.push(
+         `<div>${group.name} is not <a href="./help/rf-groupterms/index.html#cyclic-group">cyclic</a>;
+            no element generates the whole group.</div>`)
+   }
 
-  $wrapper.html(formatCyclicInfo(Group));
-}
+   htmlFragments.push(
+      `<button class="gap-compute" data-GAP="checking if a group is cyclic">Compute this in GAP</button>
+      </details>`)
 
-function formatCyclicInfo (Group /*: XMLGroup */) /*: DocumentFragment */ {
-    const $frag = $(document.createDocumentFragment());
-    if (Group.isCyclic) {
-        const generator = Group.generators[0][0];
-        $frag.append(eval(Template.HTML('cyclic-isCyclic-template')));
-    } else {
-        $frag.append(eval(Template.HTML('cyclic-nonCyclic-template')));
-    }
-    $frag.append(eval(Template.HTML('cyclic-trailer-template')));
-
-    return (($frag[0] /*: any */) /*: DocumentFragment */);
+   return htmlFragments.join('')
 }

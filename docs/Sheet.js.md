@@ -1,141 +1,101 @@
 // @flow
 
-import * as VC from './visualizerFramework/visualizer.js'
+import * as ControlPanel from './ControlPanel.js'
+import * as Heading from './Heading.js'
+import * as SheetModel from './SheetModel.js'
+import * as SheetView from './SheetView.js'
+import * as SheetViewUI from './SheetViewUI.js'
+import * as SheetControl from './SheetControl.js'
 
-import * as SheetModel from './js/SheetModel.js'
-import * as SheetView from './js/SheetView.js'
-import * as SheetController from './js/SheetController.js'
-
-export { load }
-
-// Globals
-const HELP_PAGE /*: string */ = 'help/rf-um-sheetwindow/index.html'
+export {load}
 
 async function load () {
-  // load upper-right corner buttons
-  await VC.load(null, HELP_PAGE)
-  $('#find-group').remove()
-  $('#hide-controls').attr('onclick', 'VC.hideControls("#control-panel")')
-  $('#show-controls').attr('onclick', 'VC.showControls("#control-panel")')
+   insertHTML()
 
-  // initialize Sheet components
-  SheetView.init()
-  await SheetModel.init()
-  SheetController.init()
+   document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
-  // check for passedSheet in URL, load it if present
-  const invokeParameters = new URL(window.location.href).searchParams
-  if (invokeParameters.get('passedSheet') != null) {
-    SheetModel.loadPassedSheet()
-  } else if (invokeParameters.get('demo') != null) {
-    demo()
-  }
+   // Create Header
+   Heading.display(
+      document.getElementById('heading'),
+      'Group Explorer Sheet',
+      () => [
+         {label: 'Group Library', action: () => window.open('GroupExplorer.html')},
+         {label: 'New Sheet', action: () => window.open('Sheet.html')},
+         {label: '<hr>', action: () => {}},
+         {label: 'Sheet Help', action: () => window.open('help/rf-um-sheetwindow/index.html')}
+      ]
+   )
+
+   // initialize Sheet components
+   SheetView.init()
+   SheetViewUI.init()
+
+   // Create Control Panel
+   const controlPanelElement = document.getElementById('control-panel')
+   ControlPanel.addPanel(controlPanelElement)
+
+   // Initialize Sheet Control
+   const sheetControlElement = document.getElementById('sheet-control')
+   SheetControl.addControl(sheetControlElement)
+
+   // check for passedSheet in URL, load it if present
+   const invokeParameters = new URL(window.location.href).searchParams
+   if (invokeParameters.get('passedSheet') != null) {
+      SheetModel.loadPassedSheet()
+   }
 }
 
-function demo () {
-  const rect = $('#graphic')[0].getBoundingClientRect()
-  const scale = Math.min(rect.width, rect.height)
+function insertHTML () {
+   document.body.classList.add('flex-v')
+   document.body.insertAdjacentHTML('beforeend',
+     `<style>
+       button {
+          background-image: var(--light-gradient);
+       }
 
-  const jsonObject = [
-/*
-    {
-      id: 'Rectangle',
-      className: 'RectangleElement',
-      x: 0.1 * scale,
-      y: 0.3 * scale,
-      w: 0.05 * scale,
-      h: 0.1 * scale,
-      color: 'red'
-    },
-*/
-    {
-      id: 'Rectangle 1',
-      className: 'TextElement',
-      x: 0.1 * scale,
-      y: 0.3 * scale,
-      w: 0.05 * scale,
-      h: 0.1 * scale,
-      color: 'red'
-    },
+       .highlighted, .choice:hover {
+          background-color: var(--list-highlight);
+       }
 
-    {
-      id: 'Rectangle 2',
-      className: 'TextElement',
-      x: 0.5 * scale,
-      y: 0.2 * scale,
-      w: 0.05 * scale,
-      h: 0.1 * scale,
-      color: 'blue'
-    },
+       #graphic {
+          z-index: 0;
+          background-color: var(--sheet-background);
+       }
 
-    {
-      id: 'TextBox',
-      className: 'TextElement',
-      x: 0.4 * scale,
-      y: 0.4 * scale,
-      w: 0.25 * scale,
-      fontSize: '32pt',
-      fontColor: 'blue',
-      text: 'HTML displayed on semi-transparent background:<br><i>H</i><sub>2</sub> = a<sup>2</sup>',
-      alignment: 'center',
-      color: 'aqua',
-      opacity: 0.2 // semi-transparent
-    },
+       .editor {
+          display: none;
+          position: fixed;
+          background-color: white;
+       }
 
-    {
-      id: 'CycleGraph',
-      className: 'CGElement',
-      x: 0.2 * scale,
-      y: 0.6 * scale,
-      w: 0.1 * scale,
-      h: 0.1 * scale,
-      groupURL: './groups/S_3.group'
-    },
+       #linking-dialog {
+          background-color: white;
+          z-index: 1000;
+          width: 8em;
+          padding: 0.5em;
+          font-size: x-large;
+          box-shadow: var(--large-shadow);
+       }
 
-    {
-      id: 'Multtable',
-      className: 'MTElement',
-      x: 0.5 * scale,
-      y: 0.8 * scale,
-      w: 0.15 * scale,
-      h: 0.15 * scale,
-      groupURL: './groups/S_3.group'
-    },
+       #linking-indicator > button {
+          font-size: large;
+          height: auto;
+          display: block;
+          margin:1em auto 0;
+          width: 7em;
+       }
 
-    {
-      id: 'CayleyDiagram',
-      className: 'CDElement',
-      x: 0.75 * scale,
-      y: 0.5 * scale,
-      w: 0.2 * scale,
-      h: 0.2 * scale,
-      groupURL: './groups/S_3.group'
-    },
-
-    {
-      id: 'Connector',
-      className: 'ConnectingElement',
-      sourceId: 'Rectangle 1',
-      destinationId: 'Rectangle 2',
-      color: 'black',
-      thickness: 5,
-      hasArrowhead: true
-    },
-
-    {
-      id: 'Morphism',
-      className: 'MorphismElement',
-      name: 'g',
-      sourceId: 'Multtable',
-      destinationId: 'CayleyDiagram',
-      definingPairs: [[1, 2], [3, 5]],
-      showDefiningPairs: true,
-      showDomainAndCodomain: true,
-      showInjectionSurjection: false,
-      showManyArrows: true
-    }
-
-  ]
-
-  SheetModel.fromJSONObject(jsonObject)
+       .outlined {
+          outline: 2px dotted #AA0000;
+          outline-offset: 10px;
+       }
+      </style>`)
+   document.body.insertAdjacentHTML('beforeend',
+     `<div id="heading"></div>
+      <div id="display" class="position:relative stretch">
+         <div id="graphic" class="position:absolute fill-v fill-h"></div>
+         <div id="control-panel" class="position:absolute flex-h">
+            <div id="sheet-control" class="box stack-15em"></div>
+         </div>
+      </div>`)
 }

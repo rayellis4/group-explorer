@@ -1,17 +1,18 @@
-// @flow
+/* @flow
 
-/* global DOMRect TouchEvent */
+# ShowGAPCode
 
-/*
- * The functions in this script file define how Group Explorer
- * displays and lets users interact with GAP code throughout
- * the application.
+The functions in this script file define how Group Explorer displays and lets users interact with
+GAP code in the [GroupInfo](./GroupInfo.html.md) page.
+
+```javascript
  */
-
 import * as Library from './Library.js'
 
+export {setup, executeCommands}
+
 /*::
-import XMLGroup from './XMLGroup.js'
+import Group from './Group.js'
 */
 
 /*
@@ -97,17 +98,14 @@ const codeForPurpose = new Map/*:: <string, string> */([
 ])
 
 // executed in parent context: setup iframe in wrapper, invoke iframe routine to show code
-export async function setup (purpose /*: string */, group /*: XMLGroup */) {
-  const iframeElement = (($('#gap-iframe')[0] /*: any */) /*: HTMLIFrameElement */)
+async function setup (purpose /*: string */, group /*: Group */) {
+  const iframeElement = document.getElementById('gap-iframe')
 
   // load iframe on first time through
   if (iframeElement.contentWindow.GAPCell == null) {
-    $(iframeElement)
-      .attr('src', Library.getBaseURL() + 'html/ShowGAPCode.html')
-      .css({
-        'max-width': window.innerWidth,
-        'max-height': window.innerHeight
-      })
+    iframeElement.setAttribute('src', new URL('html/ShowGAPCode.html', window.location.href).href)
+    iframeElement.style.maxWidth = window.innerWidth
+    iframeElement.style.maxHeight = window.innerHeight
 
     await new Promise((resolve, reject) => {
       iframeElement.addEventListener('load', () => resolve(), { once: true })
@@ -119,7 +117,7 @@ export async function setup (purpose /*: string */, group /*: XMLGroup */) {
   iframeElement.contentWindow.GAPCell.show(purpose, code)
 }
 
-function getCode (purpose /*: string */, group /*: XMLGroup */) /*: string */ {
+function getCode (purpose /*: string */, group /*: Group */) /*: string */ {
   // converting an arbitrary string to a JS identifier (not injective)
   function toIdent (str) {
     if (!/^[a-zA-Z_]/.test(str)) str = '_' + str
@@ -134,4 +132,81 @@ function getCode (purpose /*: string */, group /*: XMLGroup */) /*: string */ {
   const newCode = eval('`' + code.split('\n').map((line) => line.trim()).join('\n') + '`')
 
   return newCode
+}
+
+function executeCommands (gapCommands) {
+   return new Promise((resolve, reject) => {
+      const iframeElement = document.body.appendChild(document.createElement('iframe'))
+      iframeElement.style.display = 'none'
+
+      window.addEventListener('message', (event) => {
+         if (new URL(window.location.href).origin != event.origin) {
+            return
+         }
+         if (event.data.input == gapCommands) {
+            iframeElement.remove()
+            if ('output' in event.data) {
+               resolve(event.data.output)
+            } else {
+               reject(event.data.error)
+            }
+         }
+      })
+
+      iframeElement.setAttribute('src', `./html/ExecuteGAPCommands.html?${encodeURIComponent(gapCommands)}`)
+   })
+}
+
+export async function getGAPInfo (groupURL) {
+   const checkGroup = () => Library.getAllGroups().find((G) => G.URL == groupURL)
+   if (checkGroup() != null) {
+      const presentation = new URL(groupURL).search.slice(1)
+      const gapid = await getGAPId(presentation)
+
+      if (gapid != null) {
+         try {
+            const printGAPNameCommand = `Print(StructureDescription(SmallGroup(${gapid})))`
+            const gapName = await executeCommands(printGAPNameCommand)
+            const group = checkGroup()
+            if (group != null) {
+               group.gapid = gapid
+               group.gapname = gapName
+               Library.saveGroup(group)
+            }
+         } catch (_error) { }
+      }
+   }
+}
+
+export async function getGAPId (presentation) {
+   const relators = presentation.split(':')[1].split(',')
+   const generators = Array.from(
+      relators.reduce(
+         (generatorSet, relator) => {
+            for (const char of relator) {
+               generatorSet.add(char.toLowerCase())
+            }
+            return generatorSet
+         }, new Set()))
+      .sort()
+
+   let printGAPIdCommand = 'F := FreeGroup(' + generators.map((char) => `"${char}"`).join(',') + ');'
+   printGAPIdCommand += ' G := F / ['
+      + relators.map((relator) =>
+         relator.split('')
+            .map((char) => `F.${generators.indexOf(char.toLowerCase()) + 1}` + ((char == char.toUpperCase()) ? '^-1' : ''))
+            .join('*'))
+         .join(', ')
+      + '];'
+   printGAPIdCommand += ' Print(IdSmallGroup(G));'
+
+   let result = null
+   try {
+      const gapIdOutput = await executeCommands(printGAPIdCommand)
+      if (gapIdOutput != null) {
+         result = gapIdOutput.match(/(\d+)/g).join(',')
+      }
+   } catch (_error) { }
+
+   return result      
 }

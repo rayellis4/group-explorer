@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <title>GE3 Unit Tests</title>
+      <meta charset="UTF-8">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mocha/10.2.0/mocha.min.css">
+      <style>
+       body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+          color: #333;
+          margin: 0;
+          padding: 20px;
+          min-height: 100vh;
+       }
+       .container {
+          max-width: 1200px;
+          margin: 0 auto;
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 15px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+          overflow: hidden;
+       }
+       header {
+          background: #2c3e50;
+          color: white;
+          padding: 20px;
+          text-align: center;
+          border-bottom: 5px solid #3498db;
+       }
+       h1 {
+          margin: 0;
+          font-size: 2.5rem;
+          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+       }
+       .subtitle {
+          font-size: 1.2rem;
+          opacity: 0.9;
+          margin-top: 10px;
+       }
+       .stats {
+          display: flex;
+          justify-content: space-around;
+          background: #ecf0f1;
+          padding: 15px;
+          font-weight: bold;
+          border-bottom: 1px solid #bdc3c7;
+       }
+       .stat-box {
+          background: white;
+          padding: 10px 20px;
+          border-radius: 8px;
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+          text-align: center;
+          min-width: 150px;
+       }
+       .stat-value {
+          font-size: 1.8rem;
+          color: #2c3e50;
+       }
+       .stat-label {
+          font-size: 0.9rem;
+          color: #7f8c8d;
+       }
+       #mocha {
+          padding: 20px;
+          background: white;
+       }
+       .coverage-section {
+          padding: 20px;
+          background: #f9f9f9;
+          border-top: 1px solid #eee;
+       }
+       .coverage-bar {
+          height: 30px;
+          background: #ecf0f1;
+          border-radius: 15px;
+          overflow: hidden;
+          margin: 10px 0;
+          position: relative;
+       }
+       .coverage-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #2ecc71, #27ae60);
+          border-radius: 15px;
+          transition: width 1s ease-in-out;
+       }
+       .coverage-text {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-weight: bold;
+          color: #2c3e50;
+       }
+       .coverage-info {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 15px;
+       }
+       .coverage-item {
+          flex: 1;
+          text-align: center;
+          padding: 10px;
+          background: white;
+          margin: 0 5px;
+          border-radius: 8px;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+       }
+       .coverage-value {
+          font-size: 1.5rem;
+          font-weight: bold;
+          color: #27ae60;
+       }
+       footer {
+          text-align: center;
+          padding: 20px;
+          background: #2c3e50;
+          color: #ecf0f1;
+          font-size: 0.9rem;
+       }
+       .test-progress {
+          display: flex;
+          justify-content: center;
+          margin: 20px 0;
+       }
+       .progress-dot {
+          width: 12px;
+          height: 12px;
+          background: #ecf0f1;
+          border-radius: 50%;
+          margin: 0 5px;
+          transition: background 0.3s ease;
+       }
+       .progress-dot.active {
+          background: #2ecc71;
+       }
+      </style>
+   </head>
+   <body>
+      <div class="container">
+         <header>
+            <h1>GE3 Unit Tests</h1>
+            <div class="subtitle">Test suite with Mocha and Chai</div>
+         </header>
+         
+         <div id="mocha"></div>
+         
+         <footer>
+         </footer>
+      </div>
+
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.7/chai.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/mocha/10.2.0/mocha.min.js"></script>
+
+      <script>
+       // define utility routine
+       function obj2string (arg) {
+          switch(typeof(arg)) {
+             case 'boolean':
+                return arg.toString()
+             case 'number':
+                return arg.toString()
+             case 'string':
+                return arg
+             case 'object':
+                if (Array.isArray(arg)) {
+                   return '[' + arg.map((n) => n.toString()).join(', ') + ']'
+                } else {
+                   if (Array.isArray(arg.arr)) {
+                      return `{len: ${arg.len}, arr: [${arg.arr.map((n) => n.toString(16)).join(', ')}]}`
+                   } else {
+                      // typed array -- Uint32Array
+                      return `{len: ${arg.len}, arr: [${Array.from(arg.arr).map((n) => n.toString(16)).join(', ')}]}`
+                   }
+                }
+          }
+       }
+
+       // Initialize Mocha
+       mocha.setup('bdd')
+       const expect = chai.expect;
+
+      </script>
+      
+      <script type="module">
+       // Unit Tests
+       //   Run GE3 first to load javascript, group definitions into browser
+       import * as BitSet_Tests from './BitSet_Tests.js'  // Deepseek
+       import * as GEUtils_Tests from './GEUtils_Tests.js'
+       import * as MathUtils_Tests from './MathUtils_Tests.js'
+       import * as DefiningRelations_Tests from './DefiningRelations_Tests.js'
+       import * as BitSet_Tests2 from './BitSet_Tests_2.js'  // Claude Sonnet 4.5
+       import * as Group_Tests from './Group_Tests.js'  // Claude Sonnet 4.5
+       import * as Subgroup_Tests from './Subgroup_Tests.js'  // Claude Sonnet 4.5
+
+       mocha.run()
+      </script>
+   </body>
+</html>

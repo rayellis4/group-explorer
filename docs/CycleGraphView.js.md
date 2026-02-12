@@ -1,13 +1,26 @@
-// @flow
+/* @flow
 
-import {broadcastChange} from '../CycleGraph.js';
+# CycleGraphView
+
+This component draws a 2D cycle graph group visualization using HTML canvas 2D graphics.
+
+It is the 'view' part of the general model ([Group](./Group.js.md)) - view - controller
+([CycleGraphDisplay](./CycleGraphDisplay.js.md), [HighlightControl](./HighlightControl.js.md))
+structure of the [CycleGraph](./CycleGraph.html.md) page.
+
+It is used to draw the main cycle graph in the [CycleGraph](./CycleGraph.html.md) page, as
+well as thumbnails in the main [GroupExplorer](./GroupExplorer.html.md) and
+[GroupInfo](./GroupInfo.html.md) pages.
+
+```javascript
+ */
+import * as SheetEditor from './SheetEditor.js'
 import * as GEUtils from './GEUtils.js'
-import Log from './Log.js';
-import XMLGroup from './XMLGroup.js';
 
 // $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from '../lib/externals.js';
 
+export {CycleGraphView, createUnlabelledCycleGraphView, createLabelledCycleGraphView}
 /*::
 import {VizDisplay} from './SheetModel.js';
 
@@ -40,14 +53,21 @@ type Path = {
 
 const DEFAULT_MIN_CANVAS_HEIGHT = 200;
 const DEFAULT_MIN_CANVAS_WIDTH = 200;
-const DEFAULT_MIN_RADIUS = 30; 
+const DEFAULT_MIN_RADIUS = 30;
 const DEFAULT_ZOOM_STEP = 0.002
 const DEFAULT_CANVAS_WIDTH = 50;
 const DEFAULT_CANVAS_HEIGHT = 50;
 
-const SOME_SETTING_NAME = 'its default value';
+const HIGHLIGHT_BACKGROUND = 0
+const HIGHLIGHT_BORDER = 1
+const HIGHLIGHT_TOP = 2
+const highlightNames = {
+   HIGHLIGHT_BACKGROUND: 'background',
+   HIGHLIGHT_BORDER: 'border',
+   HIGHLIGHT_TOP: 'top'
+}
 
-export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
+class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
 /*::
     displays_labels: boolean;
     canvas: HTMLCanvasElement;
@@ -58,8 +78,7 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     transform: THREE.Matrix3;
     radius: number;
 
-    _group: XMLGroup;
-    SOME_SETTING_NAME: string;
+    _group: Group;
     elements: Array<groupElement>;
     cycles: Array<Array<groupElement>>;
     positions: Array<Coordinate>;
@@ -73,24 +92,24 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     show_request: boolean;
 */
     constructor(options /*: CycleGraphOptions */ = {}) {
-        this.canvas = (($(`<canvas/>`)[0] /*: any */) /*: HTMLCanvasElement */);
-        let width = (options.width === undefined) ? DEFAULT_CANVAS_WIDTH : options.width;
-        let height = (options.height === undefined) ? DEFAULT_CANVAS_HEIGHT : options.height;
-        const container = options.container;
-        if (container != null) {
-            // take canvas dimensions from container (if specified), option, or default
-            width = container.width();
-            height = container.height();
-            container.append(this.canvas);
-        }
+        this.canvas = ((document.createElement(`canvas`) /*: any */) /*: HTMLCanvasElement */)
+        const container = options.container  || document.createElement('div')
+        if (!(container instanceof HTMLElement))  // container must be JQuery
+            container = container[0]              // convert to HTMlElement
+        container.appendChild(this.canvas)
+        let width = options.width || container.offsetWidth || DEFAULT_CANVAS_WIDTH
+        let height = options.height || container.offsetHeight || DEFAULT_CANVAS_HEIGHT
         this.setSize( width, height );
         this.context = this.canvas.getContext('2d');
         this.options = options;
         this.zoomFactor = 1;  // user-supplied scale factor multiplier
         this.translate = {dx: 0, dy: 0};  // user-supplied translation, in screen coordinates
         this.transform = new THREE.Matrix3();  // current cycleGraph -> screen transformation
-
+        this.highlightColors = [[], [], []]
         this.show_request = false;
+
+        if (options.group != null)
+          this.group = options.group
     }
 
     get size () /*: {w: number, h: number} */ {
@@ -99,12 +118,12 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
 
     set size ({w, h} /*: {w: number, h: number} */) {
         if (this.canvas.width != w || this.canvas.height != h) {
-            this.canvas.width = w;
-            this.canvas.height = h;
+            this.canvas.width = Math.round(w)
+            this.canvas.height = Math.round(h)
             this.showGraphic();
         }
     }
-    
+
     getSize () /*: {w: number, h: number} */ {
         return this.size;
     }
@@ -114,9 +133,9 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     }
 
     resize () {
-        if (this.canvas.parentElement != undefined) {
-            const $container = $(this.canvas.parentElement);
-            this.size = {w: $container.width(), h: $container.height()};
+        if (this.canvas.parentNode != null) {
+           const {width, height} = this.canvas.parentNode.getBoundingClientRect()
+           this.size = {w: width, h: height};
         }
     }
 
@@ -139,10 +158,10 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
 
         if (this.group != undefined) {
             this.drawGraphic();
-            broadcastChange();
+            SheetEditor.broadcastChange()
         }
     }
-        
+
     // This routine draws the cycle graph from the data generated
     // by the layoutElementsAndPaths method.
     // Displaying labels within the cycle graph nodes is controlled by
@@ -243,9 +262,8 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
             // highlighting information for backgrounds is in the cycleGraph
             this.context.beginPath();
             this.context.arc( pos.x, pos.y, this.radius, 0, 2 * Math.PI );
-            if ( this.highlights && this.highlights.background
-                 && this.highlights.background[elt] ) {
-                this.context.fillStyle = this.highlights.background[elt].toString();
+            if (this.highlightColors[HIGHLIGHT_BACKGROUND]?.[elt]) {
+                this.context.fillStyle = this.highlightColors[HIGHLIGHT_BACKGROUND][elt].toString();
             } else {
                 this.context.fillStyle = '#fff';
             }
@@ -253,11 +271,10 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
 
             // over the background, only if there is "top"-style highlighting,
             // draw a little cap on the top of the vertex's circle
-            if ( this.highlights && this.highlights.top
-                 && this.highlights.top[elt] ) {
+            if (this.highlightColors[HIGHLIGHT_TOP]?.[elt]) {
                 this.context.beginPath();
                 this.context.arc( pos.x, pos.y, this.radius, -3*Math.PI/4, -Math.PI/4 );
-                this.context.fillStyle = this.highlights.top[elt].toString();
+                this.context.fillStyle = this.highlightColors[HIGHLIGHT_TOP][elt].toString();
                 this.context.fill();
             }
 
@@ -266,9 +283,8 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
             // in the cycleGraph, and if it's there, making it thick
             this.context.beginPath();
             this.context.arc( pos.x, pos.y, this.radius, 0, 2 * Math.PI );
-            if ( this.highlights && this.highlights.border
-                 && this.highlights.border[elt] ) {
-                this.context.strokeStyle = this.highlights.border[elt].toString();
+            if (this.highlightColors[HIGHLIGHT_BORDER]?.[elt]) {
+                this.context.strokeStyle = this.highlightColors[HIGHLIGHT_BORDER][elt].toString();
                 this.context.lineWidth = 5/scale;
             } else {
                 this.context.strokeStyle = '#000';
@@ -289,7 +305,7 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         // scale font size so that label diameter ~ 0.8 * scaled diameter
         const maxLabelLength = this.group.longestHTMLLabel // longest label in 1px font
         const fontScale = Math.min(150, 1.6 * scale * this.radius / Math.sqrt(1 + maxLabelLength * maxLabelLength))
-        
+
         // skip out if this font would be too read
         if (fontScale < 6) {
             return;
@@ -300,14 +316,9 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         this.context.textBaseline = 'middle';
         this.context.fillStyle = '#000';
 
-        const $scratch = $('<div>')
-              .css({
-                  position: 'relative',
-                  textAlign: 'center',
-                  top: '-2em',
-                  'z-index': -1,
-                  'font-size': fontScale,
-              }).appendTo('#graphic')
+        document.body.insertAdjacentHTML('beforeend', `<div id="scratchId" style="position: fixed; textAlign:
+            center; z-index: -1; font-size: ${fontScale}px"></div>`)
+        const scratch = document.getElementById('scratchId')
 
         const pos_vector = new THREE.Vector2();
         this.positions.forEach( ( pos, elt ) => {
@@ -321,11 +332,11 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
             const loc = pos_vector.set(pos.x, pos.y).applyMatrix3(this.transform);
 
             // element has nodes, (stroke) color, font-style, font-weight, font-size, font-family
-            const label = $scratch.html(this.group.representation[elt])[0]
-            GEUtils.htmlToContext(label, this.context, loc)
+            scratch.innerHTML = this.group.representation[elt]
+            GEUtils.htmlToContext(scratch, this.context, loc)
         } );
 
-        $scratch.remove()
+        scratch.remove()
     }
 
     // interface for zoom-to-fit GUI command
@@ -335,31 +346,16 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         this.translate = {dx: 0, dy: 0};
     }
 
-    // increase magnification proportional to its current value,
-    zoomIn (deltaY /*: number */) {
-        this._centeredZoom((1 - deltaY * DEFAULT_ZOOM_STEP) - 1);
-    }
-
-    // decrease magnification so that you can to zoom in and out and return to its original value
-    zoomOut (deltaY /*: number */) {
-        this._centeredZoom(1/(1 + deltaY * DEFAULT_ZOOM_STEP) - 1);
-    }
-
     zoom(factor /*: number */) {
-        this._centeredZoom(factor -  1);
-        return this;
-    }
-
-    // changing the translation keeps the center of the model centered in the canvas
-    _centeredZoom(dZoom /*: float */) {
         this.queueShowGraphic();
-        this.zoomFactor = this.zoomFactor * (1 + dZoom);
-        this.move(this.translate.dx * dZoom, this.translate.dy * dZoom);
+        this.zoomFactor = this.zoomFactor * factor;
+        this.move(this.translate.dx * (factor - 1), this.translate.dy * (factor - 1));  // keep model centered in canvas
+
+        return this;
     }
 
     // deltaX, deltaY are in screen coordinates
     move(deltaX /*: float */, deltaY /*: float */) {
-        this.queueShowGraphic();
         this.translate.dx += deltaX;
         this.translate.dy += deltaY;
         return this;
@@ -388,7 +384,7 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
                   x: this.transform.elements[6] + untranslatedCanvasCoords.x,
                   y: this.transform.elements[7] + untranslatedCanvasCoords.y
               };
-        
+
         return { x: translatedCanvasCoords.x / this.canvas.width,
                  y: translatedCanvasCoords.y / this.canvas.height };
     }
@@ -408,28 +404,43 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     }
 
     // two serialization functions
-    toJSON() /*: CycleGraphJSON */ {
-        return {
-            groupURL: this.group.URL,
-            highlights: this.highlights,
-        };
-    }
-    fromJSON(json /*: CycleGraphJSON */) {
-        if (json.highlights != undefined)
-            this.highlights = json.highlights;
+    toJSON () /*: CycleGraphJSON */ {
+       const jsonObject = {
+           groupURL: this.group.URL,
+           highlightColors: this.highlightColors,
+           highlightControl: this.highlightControl
+       }
+       return jsonObject
     }
 
-    
+    fromJSON (json /*: CycleGraphJSON */) {
+       if (json != null) {
+          ;['highlightColors', 'highlightControl']
+             .forEach((field) => {
+                switch (field) {
+                case 'highlightColors':
+                   this[field] = json[field] || [[], [], []]
+                   this.queueShowGraphic()
+                   break
+                case 'highlightControl':
+                   this[field] = json[field] || null
+                   break
+                }
+             })
+       }
+    }
+
+
     get group () {
         return this._group;
     }
 
-    set group (group /*: XMLGroup */) {
+    set group (group /*: Group */) {
         this._group = group;
         this.layoutElementsAndPaths();
         this.findClosestTwoPositions();
-        this.SOME_SETTING_NAME = SOME_SETTING_NAME;
-        this.queueShowGraphic() // showGraphic() at this point causes problem with Chrome v90
+       // this.queueShowGraphic() // showGraphic() at this point causes problem with Chrome v90
+        this.showGraphic()
     }
 
     // orbit of an element in the group, but skipping the identity
@@ -692,23 +703,6 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         } );
     }
 
-    // convenience function used to convert a partition of the group
-    // into color data for highlighting, used by all three highlight
-    // functions, below.
-    _partitionToColorArray(partition /*: Array<Array<groupElement>> */, start /*: groupElement */) /*: Array<color> */ {
-        var result = Array(this.group.order);
-        if ( typeof( start ) == 'undefined' ) start = 0;
-        partition.forEach( ( part, partIndex ) => {
-            var colorFraction = Math.round(
-                start + 360 * partIndex / partition.length );
-            var color = `hsl(${colorFraction},100%,80%)`;
-            part.forEach( ( element, eltIndex ) => {
-                result[element] = color;
-            } );
-        } );
-        return result;
-    }
-
     // Shortest distance between two vertices in the diagram
     findClosestTwoPositions() {
         this.closestTwoPositions = Infinity;
@@ -724,30 +718,22 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         }
     }
 
-    highlightByBackground(partition /*: Array<Array<groupElement>> */) {
-        this.queueShowGraphic();
-        if ( !this.highlights ) this.highlights = { };
-        this.highlights.background =
-            this._partitionToColorArray( partition, 0 );
-    }
-
-    highlightByBorder(partition /*: Array<Array<groupElement>> */) {
-        this.queueShowGraphic();
-        if ( !this.highlights ) this.highlights = { };
-        this.highlights.border =
-            this._partitionToColorArray( partition, 120 );
-    }
-
-    highlightByTop(partition /*: Array<Array<groupElement>> */) {
-        this.queueShowGraphic();
-        if ( !this.highlights ) this.highlights = { };
-        this.highlights.top =
-            this._partitionToColorArray( partition, 240 );
+    getAllHighlighters() {
+       const highlighters = Object.entries(highlightNames)
+          .map(([typeString, name]) => {
+             const highlighter = (elementColors) => {
+                this.queueShowGraphic()
+                this.highlightColors[eval(typeString)] = elementColors
+             }
+             highlighter.label = name
+             return highlighter
+          })
+       return highlighters
     }
 
     clearHighlights() {
         this.queueShowGraphic();
-        this.highlights = { };
+        this.highlightColors = [[], [], []]
     }
 }
 
@@ -784,14 +770,17 @@ function mutate(x /*: float */, y /*: float */, alpha /*: float */, beta /*: flo
 }
 
 
-export function createUnlabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) {
+function createUnlabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) {
     const view = new CycleGraphView(options);
     view.displays_labels = false;
     return view;
 }
 
-export function createLabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) {
+function createLabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) {
     const view = new CycleGraphView(options);
     view.displays_labels = true;
+    if (options.json != null) {
+        view.fromJSON(options.json)
+    }
     return view;
 }

@@ -2,12 +2,10 @@
 The Group Info page is the presentation to the user of all information *Group
 Explorer* has about a given group. 
 
-It consists of several sections, each with a heading and a body.  On first
-visiting the page most of the bodies are hidden, as indicated by a '▶' sign to
-the left of the heading. Clicking the '▶' sign expands the body, and changes the
-'▶' sign to a '▼'. Clicking the '▼' sign hides the body again. You can also
-hide/expose all the section together by clicking on the 'v' and '^' icons in the
-upper right-hand corner of the page.
+It consists of several [collapsible sections](rf-geterms.md#collapsible-sections),
+each with a heading and a body. In addition to being able to expand and collapse
+the sections individually, the [page menu](rf-geterms.md#page-menu) offers
+`Expand all` and `Collapse all` options.
 
 Let us consider each section that appears in a Group Info page separately.  It
 may help you to open [an example group info page
@@ -18,7 +16,7 @@ help page.
 
 The section presents basic facts about a group such as its
 [definition](rf-groupterms.md#definition-of-a-group-via-generators-and-relations),
-[order](rf-groupterms.md#order), and any other names it has besides its primary
+[order](rf-groupterms.md#order-of-a-group), and any other names it has besides its primary
 name (which is the title of each Group Info page).  Some (but not all) groups
 contain notes with a description of the group, which appears in this
 section.
@@ -27,11 +25,10 @@ section.
 
 *Group Explorer* is all about visualization, and thus the Views section receives
 high priority. To the right of the heading a row of small thumbnails shows a
-sample of the various ways to visualize the group. Expanding this section by
-clicking the '▶' sign to the left of the heading exposes larger previews of
-every way to visualize the group, including all the [Cayley
-diagrams](rf-groupterms.md#cayley-diagrams), a [multiplication
-table](rf-groupterms.md#multtable), a [cycle
+sample of the various ways to visualize the group. Expanding this section
+exposes larger previews of every way to visualize the group, including all the
+[Cayley diagrams](rf-groupterms.md#cayley-diagrams), a [multiplication
+table](rf-groupterms.md#multiplication-table), a [cycle
 graph](rf-groupterms.md#cycle-graph), and any [objects of
 symmetry](rf-groupterms.md#objects-of-symmetry) the group has.
 
@@ -71,30 +68,29 @@ naming schemes; this information is stored in the user's web browser so that
 it will be preserved even when they leave the site.
 
 The section contains a link that reads "Click here to add a new
-[representation](rf-geterms.md#representation) for this group" and possibly
+[representation](rf-geterms.md#representation-of-a-group) for this group" and possibly
 also links that read "Click here to edit this representation." (Note that
-"[naming scheme](rf-geterms.md#namingscheme)" and
-"[representation](rf-geterms.md#representation)" are interchangeable terms.)
+"[naming scheme](rf-geterms.md#naming-scheme-for-group-elements)" and
+"[representation](rf-geterms.md#representation-of-a-group)" are interchangeable terms.)
 In both cases, if you click the link, an interface like the following one
 appears, allowing you to custom-define a naming scheme for the elements of
 the group.
 
 ![Group element naming scheme interface](illustration-namescheme.png)
 
-The left column lists the default element names, the center column shows
-the current naming as it will be rendered elsewhere, and the right
-column contains a text area in which you can enter your own representation.
-The text area will display your entry as plain text, but elsewhere
-it will be displayed as HTML, so if you would like the permutation (0 1 2)
-to be shown as <i>r</i><sup>-1</sup> in a Cayley diagram,
-enter "&lt;i&gt;r&lt;/i&gt;&lt;sup&gt;-1&lt;/sup&gt;" into the text area, as
-shown in the illustration above. You can preview the HTML by clicking 
+The left column lists the default element names, the center column shows the
+current naming as it will be rendered elsewhere, and the right column contains a
+text area in which you can enter your own representation.  The text area will
+display your entry as plain text, but elsewhere it will be displayed as HTML, so
+if you would like the permutation (0 1 2) to be shown as \(r^{-1}\) in a Cayley
+diagram, enter "&lt;i&gt;r&lt;/i&gt;&lt;sup&gt;-1&lt;/sup&gt;" into the text
+area, as shown in the illustration above. You can preview the HTML by clicking
 "<span style='color: blue'>Display changes</span> as they would appear, without
-saving them.", and they will appear formatted in HTML in the center column. 
-When you are done, if you choose 
-"<span style='color: blue'>Save changes</span> and close editor.", your
-changes will be committed and you will have defined a new representation (or
-changed an old representation) of the elements of the group.
+saving them.", and they will appear formatted in HTML in the center column.
+When you are done, if you choose "<span style='color: blue'>Save changes</span>
+and close editor.", your changes will be committed and you will have defined a
+new representation (or changed an old representation) of the elements of the
+group.
 
 A few notes about entering HTML in the text area:
 

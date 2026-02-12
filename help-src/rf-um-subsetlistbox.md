@@ -1,22 +1,32 @@
 
 Every [visualizer](rf-geterms.md#visualizers) in *Group Explorer* except
-[objects of symmetry](rf-groupterms.md#objects-of-symmetry) have a panel
-like the one shown below for examining subgroups of the group under study.
+[objects of symmetry](rf-groupterms.md#objects-of-symmetry) have a panel like
+the one shown below for examining subgroups of the group under study. (Note that
+some of the normally collapsed entries in this example have been expanded to
+show their contents.)
 
 ![A screenshot of the user interface for subsets and partitions](illustration-subsetlistbox.png)
 
-The particular subsets panel shown above is for [the eight-element
-quaternion
-group](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Q_4.group).
+The particular subsets panel shown above is for [\(S_3\), the symmetric group on
+three elements](../../GroupInfo.html?groupURL=groups/S_3.group).
 
 ## Tour of the subsets pane
 
-The topmost portion of the interface lists all the subgroups of the group
-shown in the main portion of the view, beginning with \(H_0\), the trivial
-(one-element) subgroup, and ending with \(H_n\), the whole group, for a
-group with \(n+1\) subgroups. *Group Explorer* computes all subgroups of
-each group when loading it; the user cannot add or remove any entries from
-this section.
+The topmost portion of the interface lists all the subgroups of the group shown
+in the main portion of the view, beginning with \(H_0\), the trivial
+(one-element) subgroup, and ending with \(H_n\), the whole group, for a group
+with \(n+1\) subgroups. *Group Explorer* computes all subgroups of each group
+and their properties when loading; the user cannot add or remove any entries
+from this section.
+
+The information exposed by expanding an individual subgroup's [collapsible
+section](rf-geterms.md#collapsible-sections) depends on the nature of the
+subgroup.  All subgroups show the library group isomorphic to the subgroup, and
+a list of the elements in the subgroup. In addition, [normal
+subgroups](rf-groupterms.md#normal-subgroup), distinguised by their blue
+font, show the library group isomorphic to the subgroup's [quotient
+group](rf-groupterms.md#quotient-group). \(H_3\) and \(H_4\) in the above
+snapshot show examples of each.
 
 The next portion of the window lists user-defined subsets, which is empty by
 default. You can add and delete subsets relevant to your study of the group;
@@ -26,21 +36,21 @@ The last portion of the window lists partitions of the group (e.g. conjugacy
 classes, cosets of a particular subgroup, etc.) and is particularly useful
 for creating informative highlightings of the visualizer. Partitions can be
 added to this section via various computations; [see
-below](#the-compute-submenu).
+below](#compute-options).
 
 The subsets panel allows computations and highlighting with respect to both
 subsets and subgroups of whatever group is being visualized. It has many
 features, covered one at a time below.
 
-For any subset listed in the pane, you can find out its list of elements by
-double-clicking [touch and holding] the subset you're interested in.
+Clicking [tapping] any subset listed in the pane will highlight its elements in
+the associated visualizer by setting their background color; clicking again
+clears the highlighting. More sophisticated highlighting options are also
+available.
 
-Right-clicking [tapping] on the subsets pane brings up a menu from which you can
-take several important actions, some of which are visible in the following
-screenshot. You can pin a submenu to keep it from disappearing by clicking [tapping]
-on its parent menu item (the line in the parent menu with a right-pointing triangle,
-like "Compute ►" in the following screenshot); you can clear it by clicking [tapping]
-on the line again.
+Right-clicking [tap-hold] on the subsets pane brings up a menu from which you
+can take several important actions, some of which are visible in the following
+screenshot. You can move the menu or its submenus by dragging them to the
+desired location, and you can dismiss them by clicking elsewhere on the screen.
 
 ![A screenshot of several subitems on the subset list box context menu](illustration-slbmenu.png)
 
@@ -58,10 +68,10 @@ If you choose it, a window like the one pictured here opens.
 ![A dialog box for editing the contents of a user-defined subset](illustration-subsetedit.png)
 
 The left pane shows the elements in your subset and the right pane shows the
-other elements of the group. To add elements to your subset, drag them in
-from right to left. Dragging from the left pane to the right pane takes
-elements out of your subset. OK approves your changes and Cancel discards
-them.
+remaining elements of the group. To add elements to your subset, click on them
+in the right pane; to remove them, click on them in the left pane. OK approves
+your changes and creates a new subset; Cancel discards them and closes the
+window.
 
 ### Delete \(S_i\)
 
@@ -83,23 +93,23 @@ This menu item creates a new subset under the "User-defined subsets"
 heading. The subset will be empty, and you can [add elements to it as
 described above](#topmost-items-on-the-popup-menu).
 
-## The Compute &gt; submenu
+## Compute options
 
-### Compute &gt; all conjugacy classes \(CC_i\)
+### All conjugacy classes \(CC_i\)
 
 This submenu item appears only if the conjugacy class partition does not
 already exist. It adds the set of [conjugacy
 classes](rf-groupterms.md#conjugacy-classes) as a new partition under the
 "Partitions" heading.
 
-### Compute &gt; all order classes \(OC_i\)
+### All order classes \(OC_i\)
 
 This submenu item appears only if the order class partition does not
 already exist. It adds the set of [order
 classes](rf-groupterms.md#order-classes) as a new partition under the
 "Partitions" heading.
 
-### Compute &gt; normalizer of \(H_i\), \(\text{Norm}(H_i)\)
+### The normalizer of \(H_i\), \(\text{Norm}(H_i)\)
 
 This submenu item appears when you select the subgroup \(H_i\).
 It adds the [normalizer](rf-groupterms.md#normalizer-of-a-subgroupsubset) of
@@ -109,7 +119,7 @@ Note that whenever you add a new subset, *Group Explorer* always checks
 whether it exists under another name, and gives you the option to cancel
 your addition if so.
 
-### Compute &gt; closure of \(X\), \(\langle X \rangle\)
+### The closure of \(X\), \(\langle X \rangle\)
 
 This submenu item appears when you select the subset \(X\), but only
 if the subset you selected is not a subgroup. It adds the
@@ -120,7 +130,7 @@ Note that whenever you add a new subset, *Group Explorer* always checks
 whether it exists under another name, and gives you the option to cancel
 your addition if so.
 
-### Compute &gt; left cosets \(gH_i\)
+### All left cosets \(gH_i\)
 
 This submenu item appears when you select the subgroup \(H_i\), but only
 if the partition by left cosets of that subgroup does not already exist.
@@ -128,7 +138,7 @@ It adds the set of
 left [cosets](rf-groupterms.md#cosets) as a new partition under the
 "Partitions" heading.
 
-### Compute &gt; right cosets \(H_ig\)
+### All right cosets \(H_ig\)
 
 This submenu item appears when you select the subgroup \(H_i\), but only
 if the partition by right cosets of that subgroup does not already exist.
@@ -136,7 +146,7 @@ It adds the set of
 right [cosets](rf-groupterms.md#cosets) as a new partition under the
 "Partitions" heading.
 
-### Compute &gt; an intersection &gt; subsubmenu
+### An intersection &gt; submenu
 
 This submenu appears when you select the subset \(X\), and it
 contains items allowing you to perform an intersection of \(X\) with any
@@ -149,7 +159,7 @@ Note that whenever you add a new subset, *Group Explorer* always checks
 whether it exists under another name, and gives you the option to cancel
 your addition if so.
 
-### Compute &gt; a union &gt; subsubmenu
+### A union &gt; submenu
 
 This submenu appears when you select the subset \(X\), and it
 contains items allowing you to perform a union of \(X\) with any other
@@ -162,7 +172,7 @@ Note that whenever you add a new subset, *Group Explorer* always checks
 whether it exists under another name, and gives you the option to cancel
 your addition if so.
 
-### Compute &gt; an elementwise product &gt; subsubmenu
+### An elementwise product &gt; submenu
 
 This submenu appears when you select the subset \(X\), and it
 contains items allowing you to perform an [elementwise
@@ -221,10 +231,10 @@ looking at the pane into which the new subset is being introduced.
 
 -->
 
-## Highlight subset by &gt; submenu
+## Highlight item
 
-This submenu appears only if you select a subset (as opposed to a
-heading). Its items depend on the visualizer as follows.
+This option appears only if you select a subset (as opposed to a
+heading). Its choices depend on the visualizer as follows.
 
 *   For Cayley diagrams, highlighting options are  
     ![Highlight node icon](hightype-sphere-node.jpg)
@@ -264,11 +274,11 @@ grayscale).
 You can undo this highlighting using the "Clear all highlighting" option on
 this same menu ([see below](#clear-all-highlighting)).
 
-## Highlight partition by &gt; submenu
+## Highlight partition
 
-This submenu appears only if you select a partition (i.e. on one of its
-sets). Its items depend on the visualizer in the same way [described
-above](#highlight-subset-by-submenu).
+This option appears only if you select a partition (i.e. on one of its
+sets). Its choices depend on the visualizer in the same way [as described
+above](#highlight-item).
 
 Choosing one of its items causes the partition you selected to
 be highlighted in the visualizer (both its large and small incarnations)
@@ -292,4 +302,4 @@ documented immediately below.
 ## Clear all highlighting
 
 Removes all highlighting of any type from the visualizer. (Types are listed
-[above](#highlight-subset-by-submenu).)
+[above](#highlight-item).)

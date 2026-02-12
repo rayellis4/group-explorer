@@ -1,11 +1,17 @@
-// @flow
+/* @flow
 
+# SheetView
+
+The View part of the Sheet Model-View-Controller structure.
+
+```javascript
+ */
 /* global DOMRect MouseEvent ResizeObserver TouchEvent Touch */
 
 import { THREE } from '../lib/externals.js'
 import * as SheetModel from './SheetModel.js'
 
-export const Graphic /*: HTMLElement */ = $('#graphic')[0]
+export let Graphic /*: HTMLElement */ = null
 export let graphicRect /*: DOMRect */ = new DOMRect(0, 0, 0, 0)
 export let PixelsPerModelUnit /*: float */ = 0
 export let zoomFactor /*: float */ = 1
@@ -51,9 +57,11 @@ export class WindowUnits extends PhysicalUnits {
     (typeof arg1 === 'number' && typeof y === 'number') ? super(arg1, y) : super()
     if (arg1 != null) {
       if (y == null) {
-        if (arg1 instanceof MouseEvent || arg1 instanceof Touch) {
+        if (   arg1 instanceof MouseEvent
+            || (typeof Touch !== 'undefined' && arg1 instanceof Touch)
+        ) {
           this.set(arg1.clientX, arg1.clientY)
-        } else if (arg1 instanceof TouchEvent) {
+        } else if (typeof TouchEvent !== 'undefined' && arg1 instanceof TouchEvent) {
           if (arg1.type === 'touchend') {
             this.set(arg1.changedTouches[0].clientX, arg1.changedTouches[0].clientY)
           } else if (arg1.touches.length === 1) {
@@ -143,6 +151,7 @@ export class SheetUnits extends LogicalUnits {
 }
 
 export function init () {
+  Graphic = document.getElementById('graphic')
   graphicRect = ((Graphic.getBoundingClientRect() /*: any */) /*: DOMRect */)
   PixelsPerModelUnit = Math.min(graphicRect.width, graphicRect.height)
   panVector = new PhysicalUnits()
@@ -151,7 +160,7 @@ export function init () {
     if (entries.findIndex((entry) => entry.target.id === 'graphic') !== -1) {
       graphicRect = ((Graphic.getBoundingClientRect() /*: any */) /*: DOMRect */)
     }
-  }).observe($('#graphic')[0])
+  }).observe(document.getElementById('graphic'))
 }
 
 function graphicPOV () /*: GraphicUnits */ {
@@ -198,8 +207,7 @@ function updateTransforms () {
 }
 
 export function redrawNodes () {
-  $('.NodeElement').each((_inx, el) => {
-    const htmlElement = ((el /*: any */) /*: HTMLElement */)
+  document.querySelectorAll('.NodeElement').forEach((htmlElement) => {
     const modelElement = ((SheetModel.sheetElements.get(htmlElement.id) /*: any */) /*: SheetModel.SheetElement */)
     modelElement.viewElement.redraw()
   })
@@ -221,20 +229,18 @@ export class SheetView {
     +modelElement: SheetModel.SheetElement
     +domElement: HTMLElement
   */
-  constructor (modelElement /*: SheetModel.SheetElement */, domElement /*: HTMLElement */ = $('<div>')[0]) {
+  constructor (modelElement /*: SheetModel.SheetElement */, domElement /*: HTMLElement */) {
     this.modelElement = modelElement
 
-    this.domElement = $(domElement)
-      .attr('id', this.modelElement.id)
-      .addClass(this.modelElement.className)
-      .css({
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        'z-index': modelElement.z,
-        'transform-origin': 'top left'
-      })
-      .appendTo(Graphic)[0]
+    this.domElement = domElement || document.createElement('div')
+    this.domElement.setAttribute('id', this.modelElement.id)
+    this.domElement.classList.add(this.modelElement.className)
+    this.domElement.style.position = 'absolute'
+    this.domElement.style.left = 0
+    this.domElement.style.top = 0
+    this.domElement.style.zIndex = modelElement.z
+    this.domElement.style.transformOrigin = 'top left'
+    Graphic.append(this.domElement)
   }
 
   // redraw element
@@ -244,13 +250,11 @@ export class SheetView {
   updateTransform () { /* implemented by subclass */ }
 
   destroy () {
-    $(this.domElement).remove()
+    this.domElement.remove()
   }
 
   updateZ () {
-    if (parseInt($(this.domElement).css('z-index')) !== this.modelElement.z) {
-      $(this.domElement).css('z-index', this.modelElement.z)
-    }
+    this.domElement.style.zIndex = this.modelElement.z
   }
 }
 
@@ -261,8 +265,8 @@ export class NodeView extends SheetView {
   constructor (modelElement /*: SheetModel.NodeElement */, domElement /*: HTMLElement */) {
     super(modelElement, domElement)
 
-    $(this.domElement)
-      .addClass('draggable NodeElement')
+    this.domElement.classList.add('draggable')
+    this.domElement.classList.add('NodeElement')
   }
 
   get center () /*: SheetUnits */ {
@@ -294,109 +298,112 @@ export class RectangleView extends NodeView {
   }
 
   updateTransform () {
-    $(this.domElement).css('transform', makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits()))
+    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits())
   }
 
   redraw () {
     this.color = this.modelElement.color
-    $(this.domElement)
-      .css({
-        width: this.size.x,
-        height: this.size.y,
-        'background-color': this.modelElement.color
-      })
+    this.domElement.style.width = this.size.x
+    this.domElement.style.height = this.size.y
+    this.domElement.style.backgroundColor = this.modelElement.color
 
     this.updateTransform()
   }
 }
 
-const TEXT_PADDING = 10
 export class TextView extends NodeView {
   /*::
     +modelElement: SheetModel.TextElement
   */
   constructor (modelElement /*: SheetModel.TextElement */, domElement /*: HTMLElement */) {
     super(modelElement, domElement)
+    this.domElement.style.display = 'flex'
+    this.domElement.style.flexDirection = 'column'
+    this.domElement.style.justifyContent = 'center'
+    this.domElement.insertAdjacentHTML('afterbegin', '<div class="content" style="padding: 0 0.5em">')
     this.redraw()
     this.updateZ()
   }
 
   updateTransform () {
-    $(this.domElement).css('transform', makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits()))
+    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits())
   }
 
   redraw () {
     // combine color and opacity into an rgba color for transparent/translucent colors
-    const background = new THREE.Color(this.modelElement.color)
+    const background = new THREE.Color(this.modelElement.color).convertLinearToSRGB().multiplyScalar(256)
     const backgroundCss = (this.modelElement.opacity === 1)
-      ? '#' + background.getHexString()
-      : `rgba(${background.r * 100}%, ${background.g * 100}%, ${background.b * 100}%, ${this.modelElement.opacity * 100}%)`
+      ? `rgb(${background.r}, ${background.g}, ${background.b})`
+      : `rgba(${background.r}, ${background.g}, ${background.b}, ${this.modelElement.opacity})`
+
+    const contentElement = this.domElement.querySelector('div.content')
 
     // simple case: just a rectangle
     if (this.modelElement.text === '') {
-      $(this.domElement)
-        .css({
-          width: this.modelElement.w,
-          height: this.modelElement.h,
-          'background-color': backgroundCss,
-          padding: 0,
-          'min-height': ''
-        })
-        .text('')
+      this.domElement.style.width = `${this.modelElement.w}px`
+      this.domElement.style.height = `${this.modelElement.h}px`
+      this.domElement.style.backgroundColor = backgroundCss
+      this.domElement.style.padding = 0
+      this.domElement.style.minHeight = ''
+      contentElement.textContent = ''
 
       this.updateTransform()
 
       return
     }
 
-    $(this.domElement)
-      .css({
-        width: (this.modelElement.w == null) ? 'auto' : this.modelElement.w - 2 * TEXT_PADDING,
-        height: (this.modelElement.h == null) ? 'auto' : this.modelElement.h,
-        'background-color': backgroundCss,
-        color: this.modelElement.fontColor,
-        'font-size': this.modelElement.fontSize,
-        'text-align': this.modelElement.alignment,
-        padding: `0 ${TEXT_PADDING}px`
-      })
+     // update style from possible edits
+     this.domElement.style.backgroundColor = backgroundCss
+     this.domElement.style.color = this.modelElement.fontColor
+     this.domElement.style.fontSize = this.modelElement.fontSize
+     this.domElement.style.lineHeight = 1.2
+     this.domElement.style.zIndex = this.modelElement.z
+     contentElement.style.textAlign = this.modelElement.alignment
+     contentElement.style.marginLeft = (this.modelElement.alignment == 'left') ? '0' : 'auto'
+     contentElement.style.marginRight = (this.modelElement.alignment == 'right') ? '0' : 'auto'
 
-    if (this.modelElement.isPlainText) {
-      $(this.domElement).text(this.modelElement.text)
-    } else {
-      $(this.domElement).html(this.modelElement.text)
-    }
+     // avoid drawing original (closed) details over an opened element (cf. SheetViewUI.init)
+     if (this.modelElement.displayNeedsTextUpdate) {
+        if (this.modelElement.isPlainText) {
+           contentElement.textContent = this.modelElement.text
+        } else {
+           contentElement.innerHTML = this.modelElement.text
+        }
+        this.modelElement.displayNeedsTextUpdate = false
+     }
 
-    // Ensure that element background is at least big enough to cover text
-    const range = document.createRange()
-    range.selectNodeContents(this.domElement)
-    const clientRects = Array.from(range.getClientRects())
-    const [xMin, xMax, yMin, yMax] = clientRects.reduce(
-      ([xMin, xMax, yMin, yMax], { left, right, top, bottom }) =>
-        [Math.min(xMin, left), Math.max(xMax, right), Math.min(yMin, top), Math.max(yMax, bottom)],
-      [Number.MAX_VALUE, Number.MIN_VALUE, Number.MAX_VALUE, Number.MIN_VALUE])
-    const textWidth = xMax - xMin
-    const textHeight = yMax - yMin
+     // create scratch element to determine text content size
+     const scratch = this.domElement.cloneNode(true)
+     scratch.style.zIndex = '-1'
+     scratch.style.transform = 'none'
+     scratch.style.width = (this.modelElement.w) ? `${this.modelElement.w}px` : 'max-content'
+     scratch.style.height = 'max-content'
+     scratch.style.padding = '0'
+     document.body.appendChild(scratch)
+     const scratchContentElement = scratch.querySelector('.content')
+     const {height: scratchHeight, width: scratchWidth} = scratchContentElement.getBoundingClientRect()
+     scratch.remove()
 
-    this.modelElement.w = Math.max(this.modelElement.w || 0, textWidth + 2 * TEXT_PADDING)
+     // apply results from scratch element to model, domElement
+     // adjust modelElement location so modelElement zoom doesn't move the center of the element
+     if (!this.modelElement.w) {
+        this.modelElement.w = scratchWidth
+     } else if (scratchWidth > this.modelElement.w) {
+        this.modelElement.x -= 0.5 * (scratchWidth - this.modelElement.w)
+        this.modelElement.w = scratchWidth
+     }
 
-    let verticalPadding = TEXT_PADDING
-    if (this.modelElement.h == null) {
-      this.modelElement.h = textHeight + 2 * TEXT_PADDING
-    } else {
-      if ((this.modelElement.h - 2 * TEXT_PADDING) * zoomFactor <= textHeight) {
-        this.modelElement.h = (textHeight + 2 * TEXT_PADDING) / zoomFactor
-      } else {
-        verticalPadding = (this.modelElement.h - textHeight / zoomFactor) / 2
-      }
-    }
-    $(this.domElement).css({
-      width: this.modelElement.w - 2 * TEXT_PADDING,
-      height: this.modelElement.h - 2 * verticalPadding,
-      'min-height': textHeight,
-      padding: `${verticalPadding}px ${TEXT_PADDING}px`
-    })
+     if (this.modelElement.h == null) {
+        this.modelElement.h = scratchHeight
+     } else if (scratchHeight > this.modelElement.h) {
+        this.modelElement.y -= 0.5 * (scratchHeight - this.modelElement.h)
+        this.modelElement.h = scratchHeight
+     }
 
-    this.updateTransform()
+     this.domElement.style.width = `${Math.max(this.modelElement.w, Math.floor(scratchWidth))}px`
+     this.domElement.style.height = `${this.modelElement.h}px`
+
+     this.updateTransform()
   }
 }
 
@@ -410,13 +417,12 @@ export class VisualizerView extends NodeView {
   constructor (modelElement /*: SheetModel.VisualizerElement */, domElement /*: HTMLElement */) {
     super(modelElement, domElement)
 
-    $(this.domElement)
-      .addClass('VisualizerElement')
+    this.domElement.classList.add('VisualizerElement')
   }
 
   updateTransform () {
     const transformZoom = zoomFactor / this.lastZoom
-    $(this.domElement).css('transform', makeCssTransform(transformZoom, undefined, this.position.toGraphicUnits()))
+    this.domElement.style.transform =  makeCssTransform(transformZoom, undefined, this.position.toGraphicUnits())
   }
 
   redraw () {
@@ -441,7 +447,7 @@ export class CGView extends VisualizerView {
     this.modelElement.visualizer.showGraphic()
 
     this.unitSquarePositions = this.modelElement.visualizer.unitSquarePositions()
-  }    
+  }
 }
 
 export class MTView extends VisualizerView {
@@ -468,7 +474,7 @@ export class CDView extends VisualizerView {
     +modelElement: SheetModel.CDElement
   */
   constructor (modelElement /*: SheetModel.CDElement */) {
-    super(modelElement, $('<canvas>')[0])
+    super(modelElement, document.createElement('canvas'))
     this.redraw()
   }
 
@@ -477,20 +483,21 @@ export class CDView extends VisualizerView {
 
     const size = this.size.clone().multiplyScalar(zoomFactor)
 
-    $(this.domElement)
-      .attr({ width: size.width, height: size.height })
+    this.domElement.setAttribute('width', size.width)
+    this.domElement.setAttribute('height', size.height)
 
     const context = this.domElement.getContext('2d')
-    const visualizer = this.modelElement.visualizer
+    const visualizer = this.modelElement.visualizer.cayleyDiagramView
     visualizer.setSize(size.width, size.height)
+    visualizer.rescaleLines()
     visualizer.render()
     context.drawImage(visualizer.renderer.domElement, 0, 0)
 
-    this.unitSquarePositions = this.modelElement.visualizer.unitSquarePositions()
+    this.unitSquarePositions = visualizer.unitSquarePositions()
   }
 }
 
-const LINE_LEN = 4 // 2 causes problems with Chrome zooming, don't know why
+const LINE_LEN = 40
 
 class Arrow {
   /*::
@@ -499,64 +506,56 @@ class Arrow {
     head: HTMLCanvasElement
     lineWidth: float
     color: color
+    highlightColor: color
   */
   constructor (container /*: HTMLElement */, lineWidth /*: number */ = 1, color /*: color */ = 'black') {
-    this.line = (($('<canvas>')
-      .attr({ width: `${LINE_LEN}px` })
-      .css({
-        position: 'absolute',
-        left: `-${LINE_LEN / 2}px`,
-        width: `${LINE_LEN}px`,
-        'pointer-events': 'auto'
-      })
-      .appendTo(container)[0] /*: any */) /*: HTMLCanvasElement */)
+    this.line = document.createElement('canvas')
+    this.line.setAttribute('width', `${LINE_LEN}px`)
+    this.line.style.position = 'absolute'
+    this.line.style.left = `-${LINE_LEN / 2}px`
+    this.line.style.width = `${LINE_LEN}px`
+    this.line.style.pointerEvents = 'auto'
+    container.append(this.line)
 
-    this.head = (($('<canvas>')
-      .attr({
-        width: '90px',
-        height: '31px'
-      })
-      .css({
-        position: 'absolute',
-        width: '90px',
-        height: '31px',
-        left: '-30px',
-        top: '-16px',
-        'transform-origin': '30px 16px',
-        'pointer-events': 'auto'
-      })
-      .appendTo(container)[0] /*: any */) /*: HTMLCanvasElement */)
+    this.head = document.createElement('canvas')
+    this.head.setAttribute('width', '90px')
+    this.head.setAttribute('height', '31px')
+    this.head.style.position = 'absolute'
+    this.head.style.width = '90px'
+    this.head.style.height = '31px'
+    this.head.style.left = '-30px'
+    this.head.style.top = '-16px'
+    this.head.style.transformOrigin = '30px 16px'
+    this.head.style.pointerEvents = 'auto'
+    container.append(this.head)
 
     if (Arrow.PIXELS_PER_INCH == null) {
-      $(this.line).css('height', '1in')
-      Arrow.PIXELS_PER_INCH = $(this.line)[0].getBoundingClientRect().height
+      this.line.style.height= '1in'
+      Arrow.PIXELS_PER_INCH = this.line.getBoundingClientRect().height
     }
 
     this.drawBase(lineWidth, color)
   }
 
   drawBase (lineWidth /*: float */, color /*: color */) {
-    if (this.lineWidth === lineWidth && this.color === color) {
+    if (this.lineWidth === lineWidth && this.line.getContext('2d').strokeStyle == color && this.highlightColor == null) {
       return
     }
 
     const ACTIVE_WIDTH = Math.ceil(Arrow.PIXELS_PER_INCH / 20) * 2
     const contextHeight = Math.max(ACTIVE_WIDTH, lineWidth)
 
-    $(this.line)
-      .attr({ height: `${contextHeight}px` })
-      .css({
-        height: `${contextHeight}px`,
-        top: `${-contextHeight / 2}px`,
-        'transform-origin': `${LINE_LEN / 2}px ${contextHeight / 2}px)`
-      })
+    this.line.setAttribute('height', `${contextHeight}px`)
+    this.line.style.height = `${contextHeight}px`
+    this.line.style.top = `${-contextHeight / 2}px`
+    this.line.style.transformOrigin = `${LINE_LEN / 2}px ${contextHeight / 2}px)`
 
     this.lineWidth = lineWidth
     this.color = color
 
     const lineContext = this.line.getContext('2d')
     lineContext.clearRect(0, 0, LINE_LEN, contextHeight)
-    lineContext.strokeStyle = color
+    lineContext.strokeStyle = this.highlightColor || this.color
     lineContext.lineWidth = lineWidth
     lineContext.beginPath()
     lineContext.moveTo(0, Math.ceil(contextHeight / 2))
@@ -565,7 +564,7 @@ class Arrow {
 
     const headContext = this.head.getContext('2d')
     headContext.clearRect(0, 0, 90, 31)
-    headContext.fillStyle = color
+    headContext.fillStyle = this.highlightColor || this.color
     headContext.beginPath()
     headContext.moveTo(0, 0)
     headContext.lineTo(90, 16)
@@ -574,10 +573,17 @@ class Arrow {
     headContext.fill()
   }
 
-  update (start /*: SheetUnits */, end /*: SheetUnits */, lineWidth /*: number */ = 1, headOffset /*: float */ = 1, color /*: color */ = 'black') {
-    this.drawBase(lineWidth, color)
+  update (
+    start /*: SheetUnits */,
+    end /*: SheetUnits */,
+    lineWidth /*: number */ = 1,
+    headOffset /*: float */ = 1,
+    color /*: color */ = 'black'
+  ) {
+    const FOUR = 4
+    this.drawBase(lineWidth * FOUR, color)
 
-    const hasArrowhead = $(this.head).css('display') !== 'none'
+    const hasArrowhead = (this.head.style.display !== 'none')
     const direction = end.clone().sub(start).normalize()
 
     // draw arrowhead halfway between source and destination edges, not halfway between centers
@@ -595,13 +601,16 @@ class Arrow {
       const headScale = new THREE.Vector2(headLength / 90, headWidth / 31)
       const headCenter = new SheetUnits().lerpVectors(start, end, headOffset)
 
-      $(this.head).css('transform', makeCssTransform(headScale, direction, headCenter))
+      this.head.style.transform = makeCssTransform(headScale, direction, headCenter)
     }
 
     const lineLength = start.distanceTo(end)
     const lineCenter = new SheetUnits().addVectors(start, end).multiplyScalar(0.5)
     const lineScale = new THREE.Vector2(lineLength / LINE_LEN, 1)
-    $(this.line).css('transform', makeCssTransform(lineScale, direction, lineCenter))
+    this.line.style.transform =
+        `matrix(${lineScale.x * direction.x}, ${lineScale.x * direction.y},
+                ${-lineScale.y * direction.y / FOUR}, ${lineScale.y * direction.x / FOUR},
+                ${lineCenter.x}, ${lineCenter.y})`
   }
 }
 
@@ -611,7 +620,7 @@ export class LinkView extends SheetView {
   */
   constructor (modelElement /*: SheetModel.LinkElement */) {
     super(modelElement)
-    $(this.domElement).addClass('LinkElement')
+    this.domElement.classList.add('LinkElement')
   }
 
   get destination () {
@@ -662,16 +671,17 @@ export class ConnectingView extends LinkView {
   constructor (modelElement /*: SheetModel.ConnectingElement */) {
     super(modelElement)
 
-    $(this.domElement)
-      .appendTo(Graphic)
+    Graphic.append(this.domElement)
 
     this.arrow = new Arrow(this.domElement, modelElement.thickness, modelElement.color)
 
     this.redraw()
+
+    this.updateTransform()
   }
 
   updateTransform () {
-    $(this.domElement).css('transform', makeCssTransform(zoomFactor, undefined, new SheetUnits().toGraphicUnits()))
+    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, new SheetUnits().toGraphicUnits())
   }
 
   redraw () {
@@ -679,13 +689,13 @@ export class ConnectingView extends LinkView {
     const end = this.destinationView.center
 
     if (this.modelElement.hasArrowhead) {
-      $(this.arrow.head).show()
+      this.arrow.head.style.display = 'block'
 
       const headLocation = new SheetUnits().addVectors(...this.getCrossingEndpoints()).multiplyScalar(0.5)
       const headOffset = start.distanceTo(headLocation) / start.distanceTo(end)
       this.arrow.update(start, end, this.modelElement.thickness, headOffset, this.modelElement.color)
     } else {
-      $(this.arrow.head).hide()
+      this.arrow.head.style.display = 'none'
 
       this.arrow.update(start, end, this.modelElement.thickness, undefined, this.modelElement.color)
     }
@@ -709,25 +719,23 @@ export class MorphismView extends LinkView {
   constructor (modelElement /*: SheetModel.MorphismElement */) {
     super(modelElement)
 
-    $(this.domElement).css({
-      'pointer-events': 'none'
-    })
+    this.domElement.style.pointerEvents = 'none'
 
-    this.label = $('<div>')
-      .css('width', 'auto')
-      .css('height', 'auto')
-      .css('background-color', 'white')
-      .css('border', '2px solid black')
-      .css('padding', '5px 10px')
-      .css('color', 'black')
-      .css('font-size', '16px')
-      .css('text-align', 'center')
-      .css('white-space', 'nowrap')
-      .css('position', 'absolute')
-      .css('pointer-events', 'auto')
-      .css('transform-origin', 'top left')
-      .css('z-index', 1)
-      .appendTo(this.domElement)[0]
+    this.label = document.createElement('div')
+    this.label.style.width = 'auto'
+    this.label.style.height = 'auto'
+    this.label.style.backgroundColor = 'white'
+    this.label.style.border = '2px solid black'
+    this.label.style.padding = '5px 10px'
+    this.label.style.color = 'black'
+    this.label.style.fontSize = '16px'
+    this.label.style.textAlign = 'center'
+    this.label.style.whiteSpace = 'nowrap'
+    this.label.style.position = 'absolute'
+    this.label.style.pointerEvents = 'auto'
+    this.label.style.transformOrigin = 'top left'
+    this.label.style.zIndex = 1
+    this.domElement.append(this.label)
 
     this.redraw()
   }
@@ -737,7 +745,7 @@ export class MorphismView extends LinkView {
     const destination = this.destination
     this.position = new SheetUnits(Math.min(source.x, destination.x), Math.min(source.y, destination.y))
 
-    $(this.domElement).css('transform', makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits()))
+    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits())
   }
 
   redraw () {
@@ -756,7 +764,7 @@ export class MorphismView extends LinkView {
     const modelLabel = this.modelElement.getLabel()
     if (this.labelContent !== modelLabel) {
       this.labelContent = modelLabel
-      $(this.label).html(modelLabel)
+      this.label.innerHTML = modelLabel
     }
 
     const [entry, exit] = this.getCrossingEndpoints().map((v) => v.sub(this.position))
@@ -764,8 +772,7 @@ export class MorphismView extends LinkView {
     const labelSize = new LogicalUnits(this.label.offsetWidth, this.label.offsetHeight) // note label size is as zoomed
     const topLeftCorner = center.clone().addScaledVector(labelSize, -0.5)
 
-    $(this.label)
-      .css('transform', makeCssTransform(1, undefined, topLeftCorner))
+    this.label.style.transform = makeCssTransform(1, undefined, topLeftCorner)
   }
 
   drawSingleLine () {
@@ -778,21 +785,19 @@ export class MorphismView extends LinkView {
     }
 
     // make sure to display arrow
-    $(this.arrow.line).show()
-    $(this.arrow.head).show()
+    this.arrow.line.style.display = 'block'
+    this.arrow.head.style.display = 'block'
 
     // hide mapping arrows, if they exist and aren't hidden
-    if (this.arrows !== undefined && $(this.arrows[0].line).css('display') !== 'none') {
+    if (this.arrows !== undefined && this.arrows[0].line.style.display !== 'none') {
       for (const { line, head } of this.arrows.values()) {
-        $(line).hide()
-        $(head).hide()
+        line.style.display = 'none'
+        head.style.display = 'none'
       }
     }
 
     // make sure z-index of main arrow is under starting visualizer to terminate it cleanly
-    if (parseInt($(this.domElement).css('z-index')) !== this.modelElement.z) {
-      $(this.domElement).css('z-index', this.modelElement.z)
-    }
+    this.domElement.style.zIndex = this.modelElement.z
 
     const [enter, exit] = this.getCrossingEndpoints().map((v) => v.sub(this.position))
     const lineLength = enter.distanceTo(exit)
@@ -803,11 +808,12 @@ export class MorphismView extends LinkView {
   }
 
   drawManyLines () {
-    const LINE_WIDTH = 1
     const LINE_COLOR = 'black'
 
     const source = ((this.source /*: any */) /*: SheetModel.VisualizerElement */)
     const destination = ((this.destination /*: any */) /*: SheetModel.VisualizerElement */)
+
+    const LINE_WIDTH = Math.max(Math.min(Math.min(source.w, destination.w) / 200, 2), 1)
 
     // create mapping arrows if they don't exist
     if (this.arrows === undefined) {
@@ -818,30 +824,35 @@ export class MorphismView extends LinkView {
     }
 
     // display mapping arrows if they're hidden
-    if ($(this.arrows[0].line).css('display') === 'none') {
+    if (this.arrows[0].line.style.display === 'none') {
       this.arrows.forEach((arrow) => {
-        $(arrow.line).show()
-        $(arrow.head).show()
+        arrow.line.style.display = 'block'
+        arrow.head.style.display = 'block'
       })
     }
 
     // hide main arrow, if it exists
     if (this.arrow != null) {
-      $(this.arrow.line).hide()
-      $(this.arrow.head).hide()
+      this.arrow.line.style.display = 'none'
+      this.arrow.head.style.display = 'none'
     }
 
     // make sure z-index of arrows displays them on top of the visualizers
-    if (parseInt($(this.domElement).css('z-index')) !== this.modelElement.z) {
-      $(this.domElement).css('z-index', this.modelElement.z)
-    }
+    this.domElement.style.zIndex = this.modelElement.z
 
     // get mapping
     const mapping = this.modelElement.getMapping()
 
     // get unitSquarePosition for source and destination visualizers
-    const sources = source.viewElement.unitSquarePositions
-    const destinations = destination.viewElement.unitSquarePositions
+    // (adjust for using top row of source, destination multtables)
+    const sources = (this.modelElement.useMulttableSourceTopRow)
+      ? source.viewElement.unitSquarePositions
+          .map((pos, _inx, arr) => new THREE.Vector2(arr[0].x + pos.y - arr[0].y, arr[0].y))
+      : source.viewElement.unitSquarePositions
+    const destinations = (this.modelElement.useMulttableDestinationTopRow)
+      ? destination.viewElement.unitSquarePositions
+          .map((pos, _inx, arr) => new THREE.Vector2(arr[0].x + pos.y - arr[0].y, arr[0].y))
+      : destination.viewElement.unitSquarePositions
 
     // get transforms from visualizer unit squares to sheet
     const sourceRect = this.sourceView.rect
@@ -881,8 +892,29 @@ export class MorphismView extends LinkView {
         ]
       }
 
-      // update arrow
-      this.arrows[inx].update(start, end, LINE_WIDTH, undefined, LINE_COLOR)
+      // color arrows as needed
+      let arrowColor
+      if (this.modelElement.arrowColor != 'none') {
+         let highlightColor
+         if (this.modelElement.arrowColor == 'source') {
+            highlightColor = this.modelElement.source.visualizer.toJSON()?.highlightColors?.[0]?.[inx]
+         } else {
+            const destinationIndex = this.modelElement.mapping.image[inx]
+            highlightColor = this.modelElement.destination.visualizer.toJSON()?.highlightColors?.[0]?.[destinationIndex]
+         }
+
+         if (highlightColor == null) {
+            arrowColor = LINE_COLOR
+         } else {
+            // if element is highlighted, make sure the color isn't too light
+            let color = new THREE.Color(highlightColor)
+            const hsl = color.getHSL({})
+            arrowColor = '#' + color.setHSL(hsl.h, hsl.s, .15).getHexString()
+         }
+      }
+
+      // update arrows
+      this.arrows[inx].update(start, end, LINE_WIDTH, undefined, arrowColor)
     }
   }
 }
@@ -894,17 +926,18 @@ export function testCross (
   domElement /*: HTMLElement */ = Graphic,
   color /*: color */ = 'black'
 ) /*: HTMLCanvasElement */ {
-  const canvas = (($('<canvas class="TestCross">')
-    .css('position', 'absolute')
-    .css('pointer-events', 'none')
-    .css('left', 0)
-    .css('top', 0)
-    .attr('width', '200px')
-    .attr('height', '200px')
-    .css('transform', `translate(${x - 100}px, ${y - 100}px)`)
-    .css('z-index', 10000)
-    .css('background-color', 'rgba(0,0,0,0)')
-    .appendTo(domElement)[0] /*: any */) /*: HTMLCanvasElement */)
+  const canvas = document.createElement('canvas')
+  canvas.classList.add('TestCross')
+  canvas.style.position = 'absolute'
+  canvas.style.pointerEvents = 'none'
+  canvas.style.left = 0
+  canvas.style.top = 0
+  canvas.setAttribute('width', '200px')
+  canvas.setAttribute('height', '200px')
+  canvas.style.transform = `translate(${x - 100}px, ${y - 100}px)`
+  canvas.style.zIndex = 10000
+  canvas.style.backgroundColor = 'rgba(0,0,0,0)'
+  domElement.append(canvas)
 
   const context = canvas.getContext('2d')
   context.lineWidth = 1

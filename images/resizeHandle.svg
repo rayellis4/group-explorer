@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+<!-- Create GE3-favicon.ico with ImageMagick convert:
+         convert -format ico -transparent white -resize 8x8 resizeHandle.svg resizeHandle.ico -->
+<svg
+    width="8"
+    height="8"
+    viewBox="0 0 8 8"
+    xmlns="http://www.w3.org/2000/svg">
+  <rect
+      width="8" height="8"
+      x="0" y="0"
+      fill="white"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="0" y="7"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="1" y="6"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="2" y="5"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="3" y="4"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="4" y="3"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="5" y="2"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="6" y="1"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="7" y="0"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="4" y="7"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="5" y="6"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="6" y="5"/>
+  <rect
+      width="1" height="1" fill="black"
+      x="7" y="4"/>
+</svg>

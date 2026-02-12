@@ -1,0 +1,66 @@
+<html>
+    <head>
+        <script src="https://sagecell.sagemath.org/static/embedded_sagecell.js"></script>
+        <script type="module">
+         import * as Log from '../js/Log.js'
+
+         function executeCommands (gapCommands) {
+            return new Promise((resolve, reject) => {
+               // Use sagecell-div
+               const container = document.getElementById('sagecell-div')
+
+               // Create, configure the cell
+               sagecell.makeSagecell({
+                  inputLocation: container,
+                  editor: 'textarea',
+                  hide: true,
+                  linked: false,
+                  autoeval: true,
+                  languages: ['gap'],
+                  code: gapCommands,
+               });
+
+               // Set the GAP code
+               container.innerHTML = `<pre data-executable="true" data-language="gap">${gapCommands}</pre>`;
+
+               // Wait for execution and capture output
+               const checkOutput = setInterval(() => {
+                  const outputElement =
+                     container.querySelector('.sagecell_output .sagecell_sessionOutput:not(.sagecell_active)')
+                  if (outputElement != null) {
+                     // Stop polling
+                     clearInterval(checkOutput);
+
+                     // Extract the output
+                     const outputText = outputElement.textContent
+                     const isError = outputElement.querySelector('.sagecell_pyerr') != null
+                     if (isError) {
+                        console.log(gapCommands)
+                        console.log(outputText)
+                        Log.warn(`ExecuteGAPCommands error: ${outputText}\ninput: ${gapCommands}`)
+                        window.parent.postMessage({input: gapCommands, error: outputText})
+                     } else {
+                        window.parent.postMessage({input: gapCommands, output: outputText})
+                     }
+                  }
+               }, 100);
+
+               // Timeout after 30 seconds
+               setTimeout(() => {
+                  clearInterval(checkOutput);
+                  Log.warn(`ExecuteGAPCommands timeout on input: ${gapCommands}`)
+                  window.parent.postMessage({input: gapCommands, error: 'Execution timeout'})
+               }, 30000);
+            });
+         }
+
+         window.addEventListener(
+            'load',
+            () => executeCommands(decodeURIComponent(new URL(window.location.href).search.slice(1)))
+         )
+        </script>
+    </head>
+    <body>
+       <div id="sagecell-div"></div>
+    </body>
+</html>

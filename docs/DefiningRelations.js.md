@@ -6,38 +6,64 @@
  * Used in Sheet to check that a set mapping is a homomorphism
  */
 
-import BitSet from './BitSet.js';
-import BasicGroup from './BasicGroup.js';
+import BitSet from './BitSet.js'
+import Group from './Group.js'
+import * as Library from './Library.js'
+import * as Log from './Log.js'
+import * as ShowGAPCode from './ShowGAPCode.js'
 
-let G /*: BasicGroup */;
-let words /*: Array<Array<groupElement>> */;
-let colored /*: Array<BitSet> */;		// colored[generator element] = BitSet for colored edges in Cayley diagram
-let relators /*: Array<Array<groupElement>> */;
+export {findRelations, makePresentation, generateGroupFromPresentation, GENERATED_GROUP_PREFIX}
+
+const GENERATED_GROUP_PREFIX = "data:,//GE3/generated"
 
 // Returns an array of relationships as an Array<Array<integer>>, in which, for example,
 //   [[1,1], [2,2,2], [1,2,1,2]] means
 //     1) el[1]*el[1] = e
 //     2) el[2]*el[2]*el[2] = e
 //     3) el[1]*el[2]*el[1]*el[2] = e
-export function findRelations (group /*: BasicGroup */, generators /*: Array<groupElement> */ = group.generators[0]) /*: Array<Array<groupElement>> */ {
-    G = group;
+function findRelations (group /*: Group */, generators /*: Array<groupElement> */ = group.generators) /*: Array<Array<groupElement>> */ {
+   const relators = findRawRelations(group, generators)
+   relators.forEach( (relator, inx) => relators[inx] = relator.map( (el) => (el < 0) ? group.inverses[-el] : el ) );
 
-    words = [[]];
+   return relators
+}
+
+function findRawRelations (group /*: Group */, generators /*: Array<groupElement> */ = group.generators) /*: Array<Array<groupElement>> */ {
+    let G /*: Group */ = group;
+
+    let words /*: Array<Array<groupElement>> */ = [[]];
     generators.forEach( (gen) => words[gen] = [gen] );
 
-    colored = [];
+    let colored /*: Array<BitSet> */ = [];
     generators.forEach( (gen) => colored[gen] = new BitSet(G.order) );
 
-    relators = [];
+    const relators /*: Array<Array<groupElement>> */ = [];
 
-    makeSpanningTree();
+    // make spanning tree
+    const spanning_tree = [0];
+    const in_tree = new BitSet(G.order, spanning_tree);
+    for (let inx = 0; inx < spanning_tree.length; inx++) {
+        const element = spanning_tree[inx];
+        colored.forEach( (_, generator) => {
+            const next = G.mult(element, generator);
+            if (!in_tree.isSet(next)) {
+                in_tree.set(next);
+                spanning_tree.push(next);
+                words[next] = (element == 0) ? [generator] : [...words[element], generator]
+                colored[generator].set(element);
+            }
+        } )
+    }
 
-    const uncolored = colored.reduce( (edges, marks, generator) => {
-        edges.push(...marks.clone().complement().toArray().map( (src) => [src, generator] ));
-        return edges;
-    }, []).sort( ([src1, gen1], [src2, gen2]) => {
-        return (words[src2].length + words[G.mult(src2, gen2)].length) - (words[src1].length + words[G.mult(src1, gen1)].length);
-    } );
+    const uncolored = colored
+        .reduce( (edges, marks, generator) => {
+            edges.push(...marks.clone().complement().toArray().map( (src) => [src, generator] ));
+            return edges;
+        }, [])
+       .sort( ([src1, gen1], [src2, gen2]) => {
+            return (words[src2].length + words[G.mult(src2, gen2)].length)
+                - (words[src1].length + words[G.mult(src1, gen1)].length)
+       } )
 
     while (uncolored.length > 0) {
         const [source, generator] = uncolored.pop();
@@ -71,24 +97,422 @@ export function findRelations (group /*: BasicGroup */, generators /*: Array<gro
         }
     }
 
-    relators.forEach( (relator, inx) => relators[inx] = relator.map( (el) => (el < 0) ? G.inverses[-el] : el ) );
- 
-    return relators;
+    return relators
 }
 
-function makeSpanningTree () {
-    const spanning_tree = [0];
-    const in_tree = new BitSet(G.order, spanning_tree);
-    for (let inx = 0; inx < spanning_tree.length; inx++) {
-        const element = spanning_tree[inx];
-        colored.forEach( (_, generator) => {
-            const next = G.mult(element, generator);
-            if (!in_tree.isSet(next)) {
-                in_tree.set(next);
-                spanning_tree.push(next);
-                words[next] = (element == 0) ? [generator] : [...words[element], generator]
-                colored[generator].set(element);
+function makePresentation (group) /*: string */ {
+   const relations = findRawRelations(group)
+
+   const characterMap = relations.reduce(
+      (characterMap, relator) => {
+         relator.forEach((char) => {
+            if (!characterMap.has(Math.abs(char))) {
+               const offset = characterMap.size / 2
+               characterMap.set(char, String.fromCharCode('a'.charCodeAt(0) + offset))
+               characterMap.set(-char, String.fromCharCode('A'.charCodeAt(0) + offset))
             }
-        } )
-    }
+         })
+         return characterMap
+      }, new Map())
+
+   const generatorString = Array
+      .from(characterMap.values())
+      .filter((char) => (char >= 'a') && (char <= 'z'))
+      .sort()
+      .join(',')
+
+   const relatorString = relations
+      .map((relation) => relation.map((el) => characterMap.get(el)).join(''))
+      .join(',')
+
+   return generatorString + ':' + relatorString
+}
+
+/*
+relationKeys -- index of generator associated with each column of relationTable
+relationTable -- group element X relator character count
+cosetTable -- group element X [generator, generator inverse]; g_i * (g_j | g_j^-1), ~ coset table
+ */
+function generateGroupFromPresentation (presentation /*: string */) /*: Group */ {
+   const relators = presentation.split(':')[1].split(',')
+   const generators = Array.from(
+      relators.reduce(
+         (generatorSet, relator) => {
+            for (const char of relator) {
+               generatorSet.add(char.toLowerCase())
+            }
+            return generatorSet
+         }, new Set()))
+      .sort()
+
+   const cosetTable /*: Array<Array<element>> */ = [Array(2 * generators.length).fill(null)]
+
+   const relationKeys = []
+   for (let relatorIndex = 0; relatorIndex < relators.length; relatorIndex++) {
+      for (let generatorIndex = 0; generatorIndex < relators[relatorIndex].length; generatorIndex++) {
+         const char = relators[relatorIndex][generatorIndex]
+         const index = 2 * generators.indexOf(char.toLowerCase()) + (isUpperCase(char) ? 1 : 0)
+         relationKeys.push(index)
+      }
+   }
+
+   const newRelation = (groupElement) => {
+      const result = Array(relationKeys.length).fill(null)
+      for (let relatorIndex = 0, charIndex = 0;
+         relatorIndex < relators.length;
+         charIndex += relators[relatorIndex++].length
+      ) {
+         result[charIndex] = groupElement
+      }
+      result.push(groupElement)
+      return result
+   }
+   const relationTable = [newRelation(0)]
+
+   function isUpperCase (char) {
+      return char.toUpperCase() == char
+   }
+
+   function inverseIndex (index) {
+      return index + ((index % 2 == 0) ? 1 : -1)
+   }
+
+   function setRule (prevElement, prevGeneratorIndex, currElement, nextGeneratorIndex, nextElement) {
+      const prevGeneratorInverse = inverseIndex(prevGeneratorIndex)
+      const nextGeneratorInverse = inverseIndex(nextGeneratorIndex)
+
+      if (prevElement != null && cosetTable[prevElement][prevGeneratorIndex] == null) {
+         cosetTable[prevElement][prevGeneratorIndex] = currElement
+         cosetTable[currElement][prevGeneratorInverse] = prevElement
+      }
+      if (nextElement != null && cosetTable[nextElement][nextGeneratorInverse] == null) {
+         cosetTable[nextElement][nextGeneratorInverse] = currElement
+         cosetTable[currElement][nextGeneratorIndex] = nextElement
+      }
+   }
+
+   function *cosetTableIterator() {
+      for (let rowIndex = 0; rowIndex < cosetTable.length; rowIndex++) {
+         for (let columnIndex = 0; columnIndex < cosetTable[0].length; columnIndex++) {
+            if (cosetTable[rowIndex].isDead)
+               continue
+            yield [rowIndex, columnIndex]
+         }
+      }
+   }
+
+   function *relationTableIterator() {
+      for (let rowIndex = 0; rowIndex < relationTable.length; rowIndex++) {
+         for (let columnIndex = 0; columnIndex < relationTable[0].length; columnIndex++) {
+            if (relationTable[rowIndex].isDead)
+               continue
+            yield [rowIndex, columnIndex]
+         }
+      }
+   }
+
+   function *relationTableNullIterator() {
+      for (let rowIndex = 0; rowIndex < relationTable.length; rowIndex++) {
+         const relation = relationTable[rowIndex]
+         if (relation.isFilled || relation.isDead) {
+            continue
+         }
+         for (let columnIndex = relation.indexOf(null); columnIndex < relation.length; columnIndex++) {
+            if (relation[columnIndex] == null) {
+               yield [rowIndex, columnIndex]
+            }
+         }
+      }
+   }
+
+   function updateRelationTable () {
+      for (let updateMade = true; updateMade;) {
+         updateMade = false
+         for (const [rowIndex, columnIndex] of relationTableNullIterator()) {
+            const relation = relationTable[rowIndex]
+            const prevElement = relation[columnIndex - 1]
+            const prevIndex = relationKeys[columnIndex - 1]
+            const nextElement = relation[columnIndex + 1]
+            const nextIndex = relationKeys[columnIndex]
+            const fromPrev = cosetTable[prevElement]?.[prevIndex]
+            const fromNext = cosetTable[nextElement]?.[inverseIndex(nextIndex)]
+
+            if (fromPrev == null) {
+               if (fromNext == null) {
+                  continue
+               } else {
+                  relation[columnIndex] = fromNext
+                  if (prevElement != null) {
+                     const expectedPrevElement = cosetTable[fromNext][inverseIndex(prevIndex)]
+                     if (expectedPrevElement != null && expectedPrevElement != prevElement) {
+                        mergeReferences(prevElement, expectedPrevElement)
+                        break
+                     }
+                     cosetTable[prevElement][prevIndex] = fromNext
+                     cosetTable[fromNext][inverseIndex(prevIndex)] = prevElement
+                  }
+               }
+            } else {
+               if (fromNext == null) {
+                  relation[columnIndex] = fromPrev
+                  if (nextElement != null) {
+                     const expectedNextElement = cosetTable[fromPrev][nextIndex]
+                     if (expectedNextElement != null && expectedNextElement != nextElement) {
+                        mergeReferences(nextElement, expectedNextElement)
+                        break
+                     }
+                     cosetTable[nextElement][inverseIndex(nextIndex)] = fromPrev
+                     cosetTable[fromPrev][nextIndex] = nextElement
+                  }
+               } else {
+                  if (fromPrev == fromNext) {
+                     relation[columnIndex] = fromPrev
+                  } else {
+                     mergeReferences(fromPrev, fromNext)
+                     break
+                  }
+               }
+            }
+
+            updateMade ||= fromPrev != null || fromNext != null
+         }
+      }
+      // check for dead rows
+      if (relationTable.some((row) => row.isDead)) {
+         garbageCollect()
+      }
+   }
+
+   function checkCosetTable () {
+      for (let inx = 0; inx < cosetTable.length; inx++) {
+         for (let jnx = 0; jnx < cosetTable[0].length; jnx++) {
+            if (cosetTable[inx][jnx] != null
+               && cosetTable[cosetTable[inx][jnx]][inverseIndex(jnx)] != inx
+            ) {
+               Log.err(
+                  `Error in DefiningRelations.generateGroupFromPresentation processing relators ${relatorString}:\n` +
+                  `coset table error at row ${inx}, column ${jnx}`)
+            }
+         }
+      }
+   }
+
+   // replace all references of larger el in relations, cosetTable with reference to lower
+   // mark larger el row dead, to be garbage collected at end of update
+   const mergeReferences = (el1, el2) => {
+      const mergeQueue = []
+      mergeQueue.push((el1 < el2) ? [el1, el2] : [el2, el1])
+
+      while (mergeQueue.length > 0) {
+         const [low, high] = mergeQueue.pop()
+         if (low == high) {
+            continue
+         }
+
+         // kill high rows in both tables
+         relationTable[high].isDead = true
+         cosetTable[high].isDead = true
+
+         // replace all high references with low in relations, cosetTable, mergeQueue
+         for (const [rowIndex, columnIndex] of relationTableIterator()) {
+            if (relationTable[rowIndex][columnIndex] == high) {
+               relationTable[rowIndex][columnIndex] = low
+            }
+         }
+         for (const [rowIndex, columnIndex] of cosetTableIterator()) {
+            if (cosetTable[rowIndex][columnIndex] == high) {
+               cosetTable[rowIndex][columnIndex] = low
+            }
+         }
+         for (const qElement of mergeQueue.values()) {
+            qElement[0] = (qElement[0] == high) ? low : qElement[0]
+            qElement[1] = (qElement[1] == high) ? low : qElement[1]
+            ;[qElement[0], qElement[1]] = (qElement[0] < qElement[1]) ? qElement : [qElement[1], qElement[0]]
+         }
+
+         // migrate data from old high row to low row (and maybe add new coincidence to coincidences)
+         for (let columnIndex = 0; columnIndex < cosetTable[0].length; columnIndex++) {
+            if (cosetTable[low][columnIndex] != null && cosetTable[high][columnIndex] != null) {
+               if (cosetTable[low][columnIndex] != cosetTable[high][columnIndex]) {
+                  const el1_ = cosetTable[low][columnIndex]
+                  const el2_ = cosetTable[high][columnIndex]
+                  mergeQueue.push((el1_ < el2_) ? [el1_, el2_] : [el2_, el1_])
+               }
+            } else if (cosetTable[low][columnIndex] == null) {
+               cosetTable[low][columnIndex] = cosetTable[high][columnIndex]
+            }
+         }
+      }
+   }
+
+   // look for dead rows, and if it's not the last row copy the last row into it and delete the last row
+   const garbageCollect = () => {
+      while (relationTable.some((row) => row.isDead)) {
+         const deadRowIndex = relationTable.findIndex((row) => row.isDead)
+         const lastRowIndex = relationTable.length - 1
+         if (deadRowIndex < lastRowIndex) {
+            for (const [rowIndex, columnIndex] of relationTableIterator()) {
+               if (relationTable[rowIndex][columnIndex] == lastRowIndex) {
+                  relationTable[rowIndex][columnIndex] = deadRowIndex
+               }
+            }
+            relationTable[deadRowIndex] = relationTable[lastRowIndex]
+
+            for (const [rowIndex, columnIndex] of cosetTableIterator()) {
+               if (cosetTable[rowIndex][columnIndex] == lastRowIndex) {
+                  cosetTable[rowIndex][columnIndex] = deadRowIndex
+               }
+            }
+            cosetTable[deadRowIndex] = cosetTable[lastRowIndex]
+         }
+         relationTable.pop()
+         cosetTable.pop()
+      }
+   }
+
+   const createMulttable = () => {
+      const order = cosetTable.length
+
+      const multtable = Array.from({length: order}, () => Array.from({length: order}, () => null))
+      for (let inx = 0; inx < order; inx++) {
+         multtable[inx][0] = inx
+      }
+
+      const todo = new BitSet(order).setAll().clear(0)
+      const previous = new BitSet(order, [0])
+      const current = new BitSet(order)
+      while (!todo.isEmpty()) {
+         current.clearAll()
+         for (const inx of previous.toArray()) {  // for every newly-created column
+            const previousColumn = multtable.map((row) => row[inx])
+            for (let jnx = 0; jnx < generators.length; jnx++) { // for every generator g_i
+               const maybeNewColumnIndex = cosetTable[previousColumn[0]][2 * jnx]
+               if (todo.isSet(maybeNewColumnIndex)) { // if previousColumn[0] * g_i hasn't been done
+                  todo.clear(maybeNewColumnIndex)
+                  current.set(maybeNewColumnIndex)
+                  for (let knx = 0; knx < order; knx++) {  // multiply old column by generator and insert in multtable
+                     multtable[knx][maybeNewColumnIndex] = cosetTable[previousColumn[knx]][2 * jnx]
+                  }
+               }
+            }
+         }
+         previous.setFrom(current)
+      }
+
+      return multtable
+   }
+
+   for (var iteration = 1; iteration < 1000; iteration++) {
+      // find next null in relationTable; exit loop if there isn't one
+      const relation = relationTable.find((relation) => !relation.isFilled)
+      if (relation == null) {
+         break
+      }
+      // mark row 'isFilled' so we don't iterate over it again
+      const columnIndex = relation.indexOf(null)
+      if (columnIndex == -1) {
+         relation.isFilled = true
+         continue
+      }
+
+      // add new row to each element of the rules, relationTable
+      const newElement = cosetTable.length
+      cosetTable.push(Array(2 * generators.length).fill(null))
+      relationTable.push(newRelation(newElement))
+
+      // add new data to rules table
+      setRule(
+         relation[columnIndex - 1],
+         relationKeys[columnIndex - 1],
+         newElement,
+         relationKeys[columnIndex],
+         relation[columnIndex + 1]
+      )
+
+      updateRelationTable ()
+   }
+
+   Log.info(`Iteration count in DefiningRelations.getGroupFromPresentation: ${iteration}`)
+
+   // convert rules to multtable, then into group
+   if (relationTable.some((relation) => !relation.isFilled)) {
+      checkCosetTable()
+      Log.info(`generateGroupFromPresentation failed on ${relatorString}`)
+      return null
+   }
+
+   const multtable = createMulttable()
+
+   const group = Group.fromMulttable(multtable)
+   decorateGeneratedGroup(group, presentation)
+   group.declaredGenerators = [generators.map((_, inx) => cosetTable[0][2 * inx])]
+
+   return group
+}
+
+// fill in Definition
+function decorateGeneratedGroup (group, presentation) {
+   const relators = presentation.split(':')[1].split(',')
+   const generators = Array.from(
+      relators.reduce(
+         (generatorSet, relator) => {
+            for (const char of relator) {
+               generatorSet.add(char.toLowerCase())
+            }
+            return generatorSet
+         }, new Set()))
+      .sort()
+
+   const namePrefix = `A Generated Group of Order ${group.order}`
+   const nameSuffix = Math.max(
+      ...Library.getGroupsByOrder(group.order)
+         .filter((G) => G.name.startsWith(namePrefix))
+         .map((G) => G.name.slice(namePrefix.length).match(/\d/))
+   )
+   group.names[0] = namePrefix + ((nameSuffix < 0) ? '' : ` (${nameSuffix + 1})`)
+   group.shortName = `Generated_${group.order}`
+   group.gapid = `${group.order},??`
+   group.library = 'generated'
+   group.Notes = `Generated from ⟨${generators.join(', ')} : ${relators.join(', ')}⟩`
+   group.URL = `${GENERATED_GROUP_PREFIX}?${generators.join(',')}:${relators.join(',')}`
+
+   window.setTimeout(() => ShowGAPCode.getGAPInfo(group.URL), 0)
+
+   const formattedGenerators = generators
+      .map((gen) => `<i>${gen}</i>`)
+      .join(', ')
+   const formattedRelators = relators
+      .map((relator) => {
+         let translatedRelator = []
+         let currentChar = relator.charAt(0)
+         let currentCount = 1
+         for (let inx = 1; inx <= relator.length; inx++) {
+            const char = relator.charAt(inx)
+            if (char == currentChar) {
+               currentCount++
+            } else {
+               translatedRelator.push(`<i>${currentChar.toLowerCase()}</i>`)
+               if (currentChar == currentChar.toUpperCase()) {
+                  translatedRelator.push(`<sup>-${currentCount}</sup>`)
+               } else if (currentCount > 1) {
+                  translatedRelator.push(`<sup>${currentCount}</sup>`)
+               }
+               currentChar = char
+               currentCount = 1
+            }
+         }
+         translatedRelator.push('=<wbr>')
+
+         return translatedRelator.join('')
+      })
+      .join('') + '1'
+   group.definition = `⟨${formattedGenerators} : ${formattedRelators}⟩`
+
+   group.representations = [Array.from({length: group.order}, (_, inx) => '' + inx)]
+   group.representationIndex = 0
+   group.userRepresentations = []
+   group.cayleyDiagrams = []
+   group.symmetryObjects = []
+
+   return group
 }

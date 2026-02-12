@@ -18,9 +18,9 @@ look like?"  This is its primary aim and the reason for its creation.
 The multiplication table is the simplest way to picture a group, and
 explicitly shows *the group operation.*
 
-[![Multiplication table for S_3](s_3_multtable_unlabelled.png)](http://nathancarter.github.io/group-explorer/Multtable.html?groupURL=groups/S_3.group)
+[![Multiplication table for S_3](s_3_multtable_unlabelled.png)](../../Multtable.html?groupURL=groups/S_3.group)
 &nbsp; &nbsp; &nbsp;
-[![Multiplication table for A_4](a_4_multtable_thumbnail.png)](http://nathancarter.github.io/group-explorer/Multtable.html?groupURL=groups/A_4.group)
+[![Multiplication table for A_4](a_4_multtable_thumbnail.png)](../../Multtable.html?groupURL=groups/A_4.group)
 
  * [Definition of a multiplication table](rf-groupterms.md#multiplication-table)
  * [Introduction to multiplication tables](gs-mt-intro.md) (Getting Started pages)
@@ -32,9 +32,9 @@ CITE(VGT-4.3 MM-1.5 DE-5.3)
 Groups describe symmetry, sometimes the symmetry of three-dimensional
 objects.  Thus these objects have *the symmetry the group describes.*
 
-[![Cycle described by Z_9](z_9_symmetry.png)](http://nathancarter.github.io/group-explorer/SymmetryObject.html?groupURL=groups/Z_9.group)
+[![Cycle described by Z_9](z_9_symmetry.png)](../../SymmetryObject.html?groupURL=groups/Z_9.group)
 &nbsp; &nbsp; &nbsp;
-[![Platonic solid described by A_5](a_5_symmetry.png)](http://nathancarter.github.io/group-explorer/SymmetryObject.html?groupURL=groups/A_5.group)
+[![Platonic solid described by A_5](a_5_symmetry.png)](../../SymmetryObject.html?groupURL=groups/A_5.group)
 
  * [Definition of an object of symmetry](rf-groupterms.md#objects-of-symmetry)
  * [Complete information about the object of symmetry interface](rf-um-os-options.md) (User Manual)
@@ -45,9 +45,9 @@ Cayley diagrams show the group as a graph of elements interacting with each
 other.  They show the group's *structure* very well, exemplifying Cayley's
 theorem by showing *how the group acts on itself.*
 
-[![Cayley diagram of Z_3](z_3_cayley_unlabelled.png)](http://nathancarter.github.io/group-explorer/CayleyDiagram.html?groupURL=groups/Z_3.group)
+[![Cayley diagram of Z_3](z_3_cayley_unlabelled.png)](../../CayleyDiagram.html?groupURL=groups/Z_3.group)
 &nbsp; &nbsp; &nbsp;
-[![Cayley diagram of A_4](a_4_cayley_unlabelled.png)](http://nathancarter.github.io/group-explorer/CayleyDiagram.html?groupURL=groups/A_4.group)
+[![Cayley diagram of A_4](a_4_cayley_unlabelled.png)](../../CayleyDiagram.html?groupURL=groups/A_4.group)
 
  * [Definition of a Cayley diagram](rf-groupterms.md#cayley-diagrams)
  * [Introduction to Cayley diagrams](gs-cd-intro.md) (Getting Started pages)
@@ -59,9 +59,9 @@ CITE(VGT-2.4 MM-1.2 DE-3)
 Cycle graphs show an important relationship among the elements of the group
 by exhibiting *the group's orbits.*
 
-[![Cycle graph of V_4](v_4_cycle_unlabelled.png)](http://nathancarter.github.io/group-explorer/CycleGraph.html?groupURL=groups/V_4.group)
+[![Cycle graph of V_4](v_4_cycle_unlabelled.png)](../../CycleGraph.html?groupURL=groups/V_4.group)
 &nbsp; &nbsp; &nbsp;
-[![Cycle graph of Z_16](z_16_cycle_unlabelled.png)](http://nathancarter.github.io/group-explorer/CycleGraph.html?groupURL=groups/Z_16.group)
+[![Cycle graph of Z_16](z_16_cycle_unlabelled.png)](../../CycleGraph.html?groupURL=groups/Z_16.group)
 
  * [Definition of a cycle graph](rf-groupterms.md#cycle-graph)
  * [Complete information about the cycle graph interface](rf-um-cg-options.md) (User Manual)
@@ -78,7 +78,7 @@ Explorer* makes gropu theory more accessible and intuitive.
 ![A cycle graph with highlights](illustration-cychigh1.png)
 
 [Study](tu-discovery.md) properties of the group by reorganizing a diagram
-or [highlighting it in different ways](rf-um-subsetlistbox.md#highlight-subset-by-submenu).  Save useful
+or [highlighting it in different ways](rf-um-subsetlistbox.md#highlight-item).  Save useful
 views as images to use in a document, email, or website.
 
 ### *Group Explorer* has a large library of groups
@@ -86,7 +86,7 @@ views as images to use in a document, email, or website.
 ![A screenshot of the group library](illustration-grouptable.png)
 
 [The main page of the
-application](http://nathancarter.github.io/group-explorer/GroupExplorer.html)
+application](../../GroupExplorer.html)
 is a list of groups known to the software.  It is very handy for learning by
 example, for testing conjectures, and getting one's hands dirty in the real
 subject matter of group theory.  Each group in the library, when clicked,

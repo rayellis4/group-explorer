@@ -1,4 +1,20 @@
-// @flow
+/* @flow
+
+# MulttableView
+
+This component draws a 2D multiplication table of the group using HTML canvas 2D graphics.
+
+It is the 'view' part of the general model ([Group](./Group.js.md)) - view - controller
+([MulttableDisplay](./MulttableDisplay.js.md), [HighlightControl](./HighlightControl.js.md),
+[MulttableControl](./MulttableControl.js.md)) structure of the [Multtable](./Multtable.html.md)
+page.
+
+It is used to draw the main cycle graph in the [Multtable](./Multtable.html.md) page, as
+well as thumbnails in the main [GroupExplorer](./GroupExplorer.html.md) and
+[GroupInfo](./GroupInfo.html.md) pages.
+
+```javascript
+ */
 
 /*
 Flavors:
@@ -20,16 +36,14 @@ Sheet functions:
     toJSON/fromJSON (putToJSON/setFromJSON)
 */
 
-import GEUtils from './GEUtils.js';
-import * as GEUtilz from './GEUtils.js'
-import Log from './Log.js';
-import {broadcastChange} from '../Multtable.js';
-import Subgroup from './Subgroup.js';
-import XMLGroup from './XMLGroup.js';
+import BitSet from './BitSet.js'
+import * as GEUtils from './GEUtils.js';
+import * as SheetEditor from './SheetEditor.js'
 
 // $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from '../lib/externals.js';
 
+export {MulttableView, createMinimalMulttableView, createFullMulttableView}
 /*::
 import type {Tree} from './GEUtils.js';
 import {VizDisplay} from './SheetModel.js';
@@ -64,7 +78,16 @@ const ZOOM_STEP = 0.002
 const MINIMUM_FONT = 6
 const DEFAULT_BACKGROUND = '#E5E5E5';
 
-export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
+const HIGHLIGHT_BACKGROUND = 0
+const HIGHLIGHT_BORDER = 1
+const HIGHLIGHT_CORNER = 2
+const highlightNames = {
+   HIGHLIGHT_BACKGROUND: 'background',
+   HIGHLIGHT_BORDER: 'border',
+   HIGHLIGHT_CORNER: 'corner'
+}
+
+class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 /*::
     is_minimal_view: boolean;
 
@@ -75,7 +98,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     transform: THREE.Matrix3;
     permutationLabels: void | Array<void | Array<string>>;
 
-    _group: XMLGroup;
+    _group: Group;
     elements: Array<groupElement>;
     _separation: number;
     organizingSubgroup: number;
@@ -90,31 +113,28 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     labelCache: Array<HTMLCanvasElement>
  */
-    constructor (options /*: MulttableViewOptions */ = {}) {
-        // take canvas dimensions from container (if specified), option, or default
-        let width, height;
-        const $container = options.container || $('<div>')
-        if (options.container == null) {
-            width = options.width || DEFAULT_CANVAS_WIDTH
-            height = options.height || DEFAULT_CANVAS_HEIGHT
-        } else {
-            width = $container.width();
-            height = $container.height();
-        }
-
-        this.canvas = (($(`<canvas/>`)[0] /*: any */) /*: HTMLCanvasElement */);  // Narrowing for Flow
+   constructor (options /*: MulttableViewOptions */ = {}) {
+        this.canvas = ((document.createElement(`canvas`) /*: any */) /*: HTMLCanvasElement */)
+        const container = options.container  || document.createElement('div')
+        if (!(container instanceof HTMLElement))  // container must be JQuery
+            container = container[0]              // convert to HTMlElement
+        container.appendChild(this.canvas)
+        let width = options.width || container.offsetWidth || DEFAULT_CANVAS_WIDTH
+        let height = options.height || container.offsetHeight || DEFAULT_CANVAS_HEIGHT
         this.setSize( width, height );
         this.context = this.canvas.getContext('2d');
-
-        $container.append(this.canvas);
-
+        this.options = options;
         this.zoomFactor = 1;  // user-supplied scale factor multiplier
         this.translate = {dx: 0, dy: 0};  // user-supplied translation, in screen coordinates
-        this.transform = new THREE.Matrix3();  // current multtable -> screen transformation
+        this.transform = new THREE.Matrix3();  // current cycleGraph -> screen transformation
+        this.highlightColors = [[], [], []]
 
         this.show_request = false;
 
         this.labelCache = []
+
+        if (options.group != null)
+           this.group = options.group
     }
 
     get size () /*: {w: number, h: number} */ {
@@ -123,8 +143,8 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     set size ({w, h} /*: {w: number, h: number} */) {
         if (this.canvas.width != w || this.canvas.height != h) {
-            this.canvas.width = w;
-            this.canvas.height = h;
+            this.canvas.width = Math.round(w)
+            this.canvas.height = Math.round(h)
             this.queueShowGraphic();
         }
     }
@@ -138,9 +158,9 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     }
 
     resize () {
-        if (this.canvas.parentElement != undefined) {
-            const $container = $(this.canvas.parentElement);
-            this.size = {w: $container.width(), h: $container.height()};
+        if (this.canvas.parentNode != null) {
+           const {width, height} = this.canvas.parentNode.getBoundingClientRect()
+           this.size = {w: width, h: height};
         }
     }
 
@@ -163,7 +183,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
             this.drawFullView();
         }
 
-        broadcastChange();
+        SheetEditor.broadcastChange()
     }
 
     queueShowGraphic () {
@@ -239,13 +259,13 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
                 this.context.fillRect(x, y, 1, 1);
 
                 // draw borders if cell has border highlighting
-                if (this.borders != undefined && this.borders[product] != undefined) {
-                    this._drawBorder(x, y, scale, this.borders[product]);
+                if (this.highlightColors[HIGHLIGHT_BORDER]?.[product] != null) {
+                    this._drawBorder(x, y, scale, this.highlightColors[HIGHLIGHT_BORDER][product])
                 }
 
                 // draw corner if cell has corner highlighting
-                if (this.corners !== undefined && this.corners[product] != undefined) {
-                    this._drawCorner(x, y, scale, this.corners[product]);
+                if (this.highlightColors[HIGHLIGHT_CORNER]?.[product] != null) {
+                    this._drawCorner(x, y, scale, this.highlightColors[HIGHLIGHT_CORNER][product])
                 }
             }
         }
@@ -282,7 +302,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
             // fontSize ~ 80% width
             fontSize = Math.min(fontSize, 0.8 * scale / this.group.longestHTMLLabel)
         }
-        
+
 
         // don't render labels if font is too small
         if (fontSize < MINIMUM_FONT) {
@@ -292,26 +312,17 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.context.textAlign = (this.permutationLabels === undefined) ? 'center' : 'left';
         this.context.fillStyle = 'black';
         this.context.textBaseline = 'middle';  // fillText y coordinate is center of upper-case letter
-        this.context.font = `${fontSize}px ${$(this.canvas).css('font-family')}`
+        this.context.font = `${fontSize}px ${window.getComputedStyle(this.canvas).fontFamily}`
 
-        let $scratch
+        let scratch
         if (this.permutationLabels == null) {
-            if (this.labelCache.length != 0 &&
-                parseInt($(this.labelCache.filter(() => true)[0]).css('font-size')) != fontSize) {
+            if (this.labelCache.length != 0 && parseInt(this.labelCache[0].style.fontSize) != fontSize) {
                 this.labelCache = []
             }
 
-            $scratch = $('<div>')
-                .css({
-                    position: 'absolute',
-                    textAlign: 'center',
-                    width: 'auto',
-                    height: 'auto',
-                    top: 0,
-                    'z-index': -1,
-                    'font-size': fontSize
-                })
-                .appendTo(((this.canvas.parentElement /*: any */) /*: HTMLElement */))
+           this.canvas.parentElement.insertAdjacentHTML('beforeend', `<div id="scratchId" style="position: absolute;
+               textAlign: center; width: auto; height: auto; top: 0; z-index: -1; font-size: ${fontSize}px"></div>`)
+           scratch = this.canvas.parentElement.querySelector('#scratchId')
         }
 
         for (let inx = minX; inx < maxX; inx++) {
@@ -320,15 +331,15 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
                 const y = this.position(jnx);
                 const product = this.group.mult(this.elements[jnx], this.elements[inx]);
                 if (this.permutationLabels == null) {
-                    this._drawLabel(x, y, product, scale, fontSize, (($scratch /*: any */) /*: JQuery */));
+                    this._drawLabel(x, y, product, scale, fontSize, scratch)
                 } else {
                     this._drawPermutationLabel(x, y, product, scale, fontSize);
                 }
             }
         }
 
-        if ($scratch != null) {
-            $scratch.remove()
+        if (scratch != null) {
+            scratch.remove()
         }
     }
 
@@ -362,33 +373,22 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.context.fill();
     }
 
-    _drawLabel (x /*: number */, y /*: number */, element /*: number */, scale /*: number */, fontScale /*: number */, $scratch /*: JQuery */) {
+    _drawLabel (x /*: number */, y /*: number */, element /*: number */, scale /*: number */, fontScale /*: number */, scratch) {
         const label = this.group.representation[element];
 
         if (this.labelCache[element] == null) {
-            $scratch.html(label)
+            scratch.innerHTML = label
 
-            const canvas = ((
-                $('<canvas>')
-                  .attr({
-                      width: scale,
-                      height: scale,
-                  })
-                  .css({
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: scale,
-                      height: scale,
-                      'z-index': -1,
-                  })
-                  .appendTo(((this.canvas.parentElement /*: any */) /*: HTMLElement */))[0]
-                /*: any */) /*: HTMLCanvasElement */)
+            this.canvas.parentElement.insertAdjacentHTML('beforeend',
+                `<canvas id="dummy-canvas" width=${scale} height=${scale} style="position: absolute; top: 0;
+                left: 0; width: ${scale}; height: ${scale}; z-index: -1"></canvas>`)
+            const canvas = this.canvas.parentElement.querySelector('#dummy-canvas')
 
             const labelCenter = new THREE.Vector2(scale / 2, scale / 2)
-            GEUtilz.htmlToContext($scratch[0], canvas.getContext('2d'), labelCenter)
+            GEUtils.htmlToContext(scratch, canvas.getContext('2d'), labelCenter)
 
-            this.labelCache[element] = (($(canvas).remove()[0] /*: any */) /*: HTMLCanvasElement */)
+            this.labelCache[element] = canvas
+            canvas.remove()
         }
 
         const source = this.labelCache[element]
@@ -455,33 +455,16 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.translate = {dx: 0, dy: 0};
     }
 
-    // increase magnification proportional to its current value,
-    zoomIn (deltaY /*: number */) { // called with deltaY < 0
-        this.queueShowGraphic();
-        this._centeredZoom((1 - deltaY * ZOOM_STEP) - 1);
-    }
-
-    // decrease magnification in a way that allows you to zoom in and out and return to its original value
-    zoomOut (deltaY /*: number */) {
-        this.queueShowGraphic();
-        this._centeredZoom(1/(1 + deltaY * ZOOM_STEP) - 1);
-    }
-
     zoom (factor /*: number */) {
         this.queueShowGraphic();
-        this._centeredZoom(factor -  1);
-        return this;
-    }
+        this.zoomFactor = this.zoomFactor * factor;
+        this.move(this.translate.dx * (factor - 1), this.translate.dy * (factor - 1));  // keep model centered in canvas
 
-    // changing the translation keeps the center of the model centered in the canvas
-    _centeredZoom (dZoom /*: number */) {
-        this.zoomFactor = this.zoomFactor * (1 + dZoom);
-        this.move(this.translate.dx * dZoom, this.translate.dy * dZoom);
+        return this;
     }
 
     // deltaX, deltaY are in screen coordinates
     move (deltaX /*: number */, deltaY /*: number */) {
-        this.queueShowGraphic();
         this.translate.dx += deltaX;
         this.translate.dy += deltaY;
         return this;
@@ -511,7 +494,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
             const index = this.elements.indexOf( element );
             return new THREE.Vector2(0.5 / max, ( this.position( index ) + 0.5 ) / max);
         } );
-        
+
         return unit_square_positions;
     }
 
@@ -520,8 +503,8 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     get group () {
         return this._group;
     }
-    
-    set group (group /*: XMLGroup */) {
+
+    set group (group /*: Group */) {
         if (this._group != group) {
             this._group = group;
             this.elements = [...this.group.elements];
@@ -535,14 +518,38 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.separation = 0;
         this.organizeBySubgroup(this.group.subgroups.length - 1);
         this.coloration = 'rainbow';
+        this.colorReordering = 'topRowFixed'
         this.clearHighlights();
     }
 
     organizeBySubgroup (subgroupIndex /*: number */) {
+        subgroupIndex = (subgroupIndex === 0) ? this.group.subgroups.length - 1 : subgroupIndex
         this.queueShowGraphic();
-        const subgroup = this.group.subgroups[subgroupIndex];
-        this.elements = GEUtils.flatten(
-            this.group.cosetsArray(GEUtils.flatten(this.group.closureArray(subgroup.generators)), false) );
+
+        // returns an Array of the group elements organized by subgroup cosets
+        function org (group, subgroup) {
+            // find the largest proper subgroup of subgroup that is normal in subgroup
+            const subSubGroups = subgroup.isomorphicGroup.subgroups
+            const largestNormalSubgroup = subSubGroups
+                .reduce((N, H, inx) => (H.isNormal && inx != subSubGroups.length - 1) ? H : N)
+
+            // recursively order subgroup by its largestNormalSubgroup
+            const subgroupElementArray = (largestNormalSubgroup.order == 1)
+                ? subgroup.members.toArray()
+                : org(subgroup.isomorphicGroup, largestNormalSubgroup)
+                    .map((el) => subgroup.isomorphicGroupEmbedding[el])
+
+            // order group by subgroup
+            const result = group
+                .getCosets(new BitSet(group.order, subgroupElementArray), false)
+                .map((coset) => coset.first())
+                .map((rep) => subgroupElementArray.map((el) => group.mult(el, rep)))
+                .flat()
+
+            return result
+        }
+        this.elements = org(this.group, this.group.subgroups[subgroupIndex])
+
         this.organizingSubgroup = subgroupIndex;
         this._colors = null;
     }
@@ -561,8 +568,8 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     get colors () /*: Array<color> */ {
         let result;
-        if (this.backgrounds != undefined) {
-            result = this.backgrounds;
+        if (this.highlightColors?.[HIGHLIGHT_BACKGROUND].length) {
+            result = this.highlightColors[HIGHLIGHT_BACKGROUND]
         } else if (this._colors != undefined) {
             result = this._colors;
         } else {
@@ -599,7 +606,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     get coloration () /*: Coloration */ {
         return this._coloration;
     }
-    
+
     set coloration (coloration /*: Coloration */) {
         this.queueShowGraphic();
         this._coloration = coloration;
@@ -652,43 +659,24 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
      *   if only one color is needed (a common case) make each highlight color different
      *   if n colors are needed just start with hsl(0,100%,80%) and move 360/n for each new color
      */
-    highlightByBackground (elements /*: Array<Array<groupElement>> */) {
-        this.queueShowGraphic();
-        const backgrounds = this.backgrounds = new Array(this.group.order).fill(DEFAULT_BACKGROUND);
-        elements.forEach( (els, colorIndex) => {
-            els.forEach( (el) => backgrounds[el] = GEUtils.fromRainbow(colorIndex/elements.length) );
-        } );
-    }
 
-    highlightByBorder (elements /*: Array<Array<groupElement>> */) {
-        this.queueShowGraphic();
-        const borders = this.borders = new Array(this.group.order).fill(undefined);
-        if (elements.length == 1) {
-            elements[0].forEach( (el) => borders[el] = 'hsl(120, 100%, 80%)' );
-        } else {
-            elements.forEach( (els, colorIndex) => {
-                els.forEach( (el) => borders[el] = GEUtils.fromRainbow(colorIndex/elements.length) );
-            } );
-        }
-    }
+    getAllHighlighters() {
+       const highlighters = Object.entries(highlightNames)
+          .map(([typeString, name]) => {
+             const highlighter = (elementColors) => {
+                this.queueShowGraphic()
+                this.highlightColors[eval(typeString)] = elementColors
+             }
+             highlighter.label = name
+             return highlighter
+          })
 
-    highlightByCorner (elements /*: Array<Array<groupElement>> */) {
-        this.queueShowGraphic();
-        const corners = this.corners = new Array(this.group.order).fill(undefined);
-        if (elements.length == 1) {
-            elements[0].forEach( (el) => corners[el] = 'hsl(240, 100%, 80%)' );
-        } else {
-            elements.forEach( (els, colorIndex) => {
-                els.forEach( (el) => corners[el] = GEUtils.fromRainbow(colorIndex/elements.length) );
-            } );
-        }
+       return highlighters
     }
 
     clearHighlights () {
         this.queueShowGraphic();
-        this.backgrounds = undefined;
-        this.borders = undefined;
-        this.corners = undefined;
+        this.highlightColors = [[], [], []]
     }
 
 
@@ -696,24 +684,25 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     // two serialization functions
     toJSON () /*: MulttableJSON */ {
-        const tmp = {
+        const json = {
             groupURL: this.group.URL,
             elements: Array.from(this.elements),
             separation: this.separation,
             organizingSubgroup: this.organizingSubgroup,
             coloration: this.coloration,
             colorReordering: this.colorReordering,
-            highlights: {
-                background: this.backgrounds,
-                border: this.borders,
-                corner: this.corners
-            }
-        };
+            highlightColors: this.highlightColors,
+            highlightControl: this.highlightControl
+        }
 
-        return tmp;
+        return json;
     }
 
     fromJSON (json /*: MulttableJSON */) {
+        if (json == null) {
+            return
+        }
+
         Object.keys(json).forEach( (name) => {
             switch (name) {
             case 'elements':            this.elements = json.elements;                                  break;
@@ -721,9 +710,8 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
             case 'organizingSubgroup':  this.organizingSubgroup = json.organizingSubgroup;              break;
             case 'coloration':          this.coloration = json.coloration;                              break;
             case 'colorReordering':     this.colorReordering = json.colorReordering || 'topRowFixed';   break;
-            case 'highlights':          this.backgrounds = json.highlights.background;
-                                        this.borders = json.highlights.border;
-                                        this.corners = json.highlights.corner;                          break;
+            case 'highlightColors':     this.highlightColors = json.highlightColors;                    break;
+            case 'highlightControl':    this.highlightControl = json.highlightControl;                  break;
             default:                                                                                    break;
             }
         } );
@@ -734,14 +722,17 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
 
 // no labels, no separation, no zoom, no translate, no highlights
-export function createMinimalMulttableView (options /*: MulttableViewOptions */ = {}) /*: MulttableView */ {
+function createMinimalMulttableView (options /*: MulttableViewOptions */ = {}) /*: MulttableView */ {
     const view = new MulttableView(options);
     view.is_minimal_view = true;
     return view;
 }
 
-export function createFullMulttableView (options /*: MulttableViewOptions */ = {})  /*: MulttableView */ {
+function createFullMulttableView (options /*: MulttableViewOptions */ = {})  /*: MulttableView */ {
     const view = new MulttableView(options);
     view.is_minimal_view = false;
+    if (options.json != null) {
+        view.fromJSON(options.json)
+    }
     return view;
 }

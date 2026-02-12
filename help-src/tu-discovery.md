@@ -13,7 +13,7 @@ amount of information it presents may be a bit overwhelming.  But take care
 not to miss the section entitled "Computed properties."
 
 For example, [click
-here](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Z_6.group)
+here](../../GroupInfo.html?groupURL=groups/Z_6.group)
 to visit the group info page for the group \(\mathbb{Z}_6\) and scroll down
 to the "Computed properties" section.
 

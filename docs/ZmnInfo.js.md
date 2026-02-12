@@ -1,46 +1,50 @@
-// @flow
+/* @flow
 
-import BasicGroup from './BasicGroup.js';
-import GEUtils from './GEUtils.js'
-import IsomorphicGroups from './IsomorphicGroups.js';
-import Log from './Log.js';
-import MathUtils from './MathUtils.js';
-import * as SheetModel from './SheetModel.js';
-import Template from './Template.js';
+# ZmnInfo
 
-export {summary, display, showZmnIsomorphismSheet, showNoZmnIsomorphismSheet};
+A [GroupInfo](./GroupInfo.html.md) component that displays whether a group is isomorphic to the
+product group ℤ<sub>m</sub> x ℤ<sub>n</sub> where *m* and *n* are relatively prime, and shows the
+reason graphically in a [Sheet](./Sheet.html.md).
+
+```javascript
+ */
+import * as GEUtils from './GEUtils.js'
+import Group from './Group.js'
+import IsomorphicGroups from './IsomorphicGroups.js'
+import * as MathUtils from './MathUtils.js'
+import * as SheetModel from './SheetModel.js'
+
+export {display}
 
 /*::
-import XMLGroup from './XMLGroup.js';
+import Group from './Group.js';
 
 import type {StrategyParameters, Layout, Direction} from './CayleyDiagramView.js';
 */
 
-// Load templates
-const ZMN_INFO_URL = './html/ZmnInfo.html'
-const LoadPromise = GEUtils.ajaxLoad(ZMN_INFO_URL)
+function display (zmnInfoElementId, group) {
+   const zmnInfoElement = document.getElementById(zmnInfoElementId)
 
-let Group;
+   if (!group.isCyclic) {
+      zmnInfoElement.remove()
+      return
+   }
 
-function summary (Group /*: XMLGroup */) /*: string */ {
-    return (new Set(MathUtils.getFactors(Group.order)).size == 2 ? 'yes' : 'no');
+   zmnInfoElement.innerHTML = formatZmnInfo(group)
+
+   GEUtils.createActionHandler(zmnInfoElement, (action) => eval(action))
 }
 
-async function display (group /*: XMLGroup */, $wrapper /*: JQuery */) {
-  const templates = await LoadPromise
+function formatZmnInfo (group) /*: html */ {
+   const htmlFragments = [
+      `<details>
+          <summary>
+             <span class="title">ℤ<sub>mn</sub> group</span>
+             <span class="summary">${new Set(MathUtils.getFactors(group.order)).size == 2 ? 'yes' : 'no'}</span>
+          </summary>`
+   ]
 
-  if ($('template[id|="zmn"]').length == 0) {
-    $('body').append(templates);
-  }
-
-  Group = group;
-  $wrapper.html(formatZmnInfo());
-}
-
-function formatZmnInfo () /*: DocumentFragment */ {
-    const $frag = $(document.createDocumentFragment());
-
-    const factors = MathUtils.getFactors(Group.order);
+    const factors = MathUtils.getFactors(group.order);
     const [m, n, _] =
           factors.reduce( ([fac1, fac2, prev], el) => {
               if (el >= prev) {
@@ -53,33 +57,60 @@ function formatZmnInfo () /*: DocumentFragment */ {
           }, [1, 1, 0] );
     const isZmn = (factors.length != 1) && (n != 1);
     if (factors.length == 1) {
-        $frag.append(eval(Template.HTML('zmn-prime-template')));
+       htmlFragments.push(
+          `<div>A group of the form ℤ<sub>mn</sub> is isomorphic to the product group
+             ℤ<sub>m</sub> × ℤ<sub>n</sub> just when <i>m</i> and <i>n</i> are relatively prime.
+             In this case, <i>mn</i> = ${group.order}, which gives no possibilities for <i>m</i> and <i>n</i>.</div>
+           <div>Thus there is not even a product group  ℤ<sub>m</sub> × ℤ<sub>n</sub>
+             to speak of being isomorphic to.  (One of <i>m</i> or <i>n</i>
+             would need to be 1, making one factor the trivial group and the other ℤ<sub>mn</sub>.)</div>`)
+       
     } else if (n == 1) {
-        const facs = factors.slice(0,-1).join(', ') + ' and ' + factors.slice(-1).toString();
-        $frag.append(eval(Template.HTML('zmn-nonZmnGroup-template')));
-        for (let m = 2; m <= Math.sqrt(Group.order); m++) {
-            if (Group.order % m == 0) {
-                const n = Group.order / m;
-                $frag.append(eval(Template.HTML('zmn-illustration-template')));
+       const facs = factors.slice(0,-1).join(', ') + ' and ' + factors.slice(-1).toString();
+       htmlFragments.push(
+          `<div>A group of the form ℤ<sub>mn</sub> is isomorphic to the product group
+             ℤ<sub>m</sub> × ℤ<sub>n</sub> just when <i>m</i> and <i>n</i> are relatively prime.
+             In this case, the factors of <i>mn</i> are ${facs}, which cannot be divided into
+             two non-trivial sets that do not both contain ${factors[0]}.  Thus, there cannot be two relatively prime
+             factors of <i>mn</i> since any non-trivial factors must both be divisible by ${factors[0]}.</div>`)
+        for (let m = 2; m <= Math.sqrt(group.order); m++) {
+           if (group.order % m == 0) {
+              const n = group.order / m;
+              htmlFragments.push( 
+                 `<div><a href="" data-action="show${isZmn?'':'No'}ZmnIsomorphismSheet(group, ${m},${n})">Click here</a> to see
+                    ${isZmn ? 'an illustration of' : ''} why ℤ<sub>${m * n}</sub> is ${isZmn ? '' : 'not'}
+                    isomorphic to ℤ<sub>m</sub> × ℤ<sub>n</sub>.</div>`)
             }
         }
     } else {
-        $frag.append(eval(Template.HTML('zmn-template')));
-        $frag.append(eval(Template.HTML('zmn-illustration-template')));
+       htmlFragments.push(
+          `<div>A group of the form ℤ<sub>mn</sub> is isomorphic to the product group
+             ℤ<sub>m</sub> × ℤ<sub>n</sub> just when <i>m</i> and <i>n</i> are relatively prime.
+             In this case, because ${m} and ${n} are relatively prime, ℤ<sub>${m}</sub> × ℤ<sub>${n}</sub>
+             is isomorphic to ℤ<sub>${m*n}</sub>.</div>`,
+          `<div><a href="" data-action="show${isZmn?'':'No'}ZmnIsomorphismSheet(group, ${m},${n})">Click here</a> to see
+             ${isZmn ? 'an illustration of' : ''} why ℤ<sub>${m * n}</sub> is ${isZmn ? '' : 'not'}
+             isomorphic to ℤ<sub>m</sub> × ℤ<sub>n</sub>.</div>`)
     }
 
-    return (($frag[0] /*: any */) /*: DocumentFragment */);
+   htmlFragments.push('</details>')
+
+   return htmlFragments.join('')
 }
 
-function showZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement */ ) {
+function showZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
+   SheetModel.createNewSheet(() => formatZmnIsomorphismSheet(group, m, n))
+}
+
+function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
     const Z = ( k ) => `ℤ<sub>${k}</sub>`
     const prod = ( A, B ) => `${A} × ${B}`
-    const a = Group.elementOrders.indexOf( m );
-    const b = Group.elementOrders.indexOf( n );
-    const ab = Group.mult( a, b );
-    const hmar = 20, vmar = 20, hsep = 20, vsep = 20,
+    const a = group.elementOrders.indexOf( m );
+    const b = group.elementOrders.indexOf( n );
+    const ab = group.mult( a, b );
+    const hmar = 30, vmar = 24, hsep = 20, vsep = 20,
           W = 300, H = W, hdrH = 50, txtH = 100;
-    CreateNewSheet( [
+    const zmnIsomorphismSheet = [
         {
             className : 'TextElement',
             text : `Illustration of the isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`,
@@ -89,7 +120,7 @@ function showZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement */ 
         },
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
-            className : 'CDElement', groupURL : Group.URL,
+            className : 'CDElement', groupURL : group.URL,
             x : hmar, y : vmar+hdrH+vsep, w : W, h : H,
             arrows : [ a, b ],
             arrowColors : [ '#660000', '#006600' ],
@@ -98,7 +129,7 @@ function showZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement */ 
         },
         {
             // same as previous, plus arrow for ab
-            className : 'CDElement', groupURL : Group.URL,
+            className : 'CDElement', groupURL : group.URL,
             x : hmar+hsep+W, y : vmar+hdrH+vsep, w : W, h : H,
             arrows : [ a, b, ab ],
             arrowColors : [ '#660000', '#006600', '#000066' ],
@@ -107,7 +138,7 @@ function showZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement */ 
         },
         {
             // circular CD of Z_mn with arrow for ab shown only
-            className : 'CDElement', groupURL : Group.URL,
+            className : 'CDElement', groupURL : group.URL,
             x : hmar+2*hsep+2*W, y : vmar+hdrH+vsep, w : W, h : H,
             arrows : [ ab ],
             arrowColors : [ '#000066' ],
@@ -131,14 +162,20 @@ function showZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement */ 
             x : hmar+2*hsep+2*W, y : vmar+hdrH+H+2*vsep, w : W,
             alignment : 'center'
         }
-    ] );
+    ]
+
+    return zmnIsomorphismSheet
 }
 
-function showNoZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement */ ) {
+function showNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
+   SheetModel.createNewSheet(() => formatNoZmnIsomorphismSheet(group, m, n))
+}
+
+function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
     // define constants similar to those in showZmnIsomorphismSheet()
     const Z = ( k ) => `ℤ<sub>${k}</sub>`
     const prod = ( A, B ) => `${A} × ${B}`
-    const hmar = 20, vmar = 20, hsep = 20, vsep = 20,
+    const hmar = 30, vmar = 24, hsep = 20, vsep = 20,
           W = 300, H = W, hdrH = 50, txtH = 100;
     // build the group Z_m x Z_n and find it in the group library.
     const elements = Array.from( {length: m * n}, ( _ /*: mixed */, i /*: number */ ) => i );
@@ -151,8 +188,8 @@ function showNoZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement *
             return ( a1 + a2 ) % m * n + ( b1 + b2 ) % n;
         } );
     } );
-    const tmpgp = new BasicGroup( multtable );
-    const ZmxZn = ((IsomorphicGroups.find( tmpgp ) /*: any */) /*: XMLGroup */);
+    const tmpgp = Group.fromMulttable(multtable)
+    const ZmxZn = ((IsomorphicGroups.find( tmpgp ) /*: any */) /*: Group */);
     // find elements in that group of the needed orders
     const f = ((IsomorphicGroups.isomorphism( tmpgp, ZmxZn ) /*: any */) /*: Array<groupElement> */);
     const a = f[n]; // of order m
@@ -166,10 +203,10 @@ function showNoZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement *
     const maxOrd = orders.reduce( ( a, b ) => Math.max( a, b ) );
     const maxOrdElt = available.filter( e => ZmxZn.elementOrders[e] == maxOrd )[0];
     // create a sheet based on that group and those elements
-    CreateNewSheet( [
+    const noZmnIsomorphismSheet = [
         {
             className : 'TextElement',
-          text : `Why there is no isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`,
+            text : `Why there is no isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`,
             x : hmar, y : vmar,
             w : 3*W + 2*hsep, h : hdrH,
             fontSize : '20pt', alignment : 'center'
@@ -219,10 +256,7 @@ function showNoZmnIsomorphismSheet ( m /*: groupElement */, n /*: groupElement *
             x : hmar+2*hsep+2*W, y : vmar+hdrH+H+2*vsep, w : W,
             alignment : 'center'
         }
-    ] );
-}
+    ]
 
-function CreateNewSheet (oldJSONArray /*: Array<Obj> */) {
-    const newJSONArray = SheetModel.convertFromOldJSON(oldJSONArray)
-    SheetModel.createNewSheet(newJSONArray)
+    return noZmnIsomorphismSheet
 }

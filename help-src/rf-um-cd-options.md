@@ -41,25 +41,40 @@ A Cayley diagram (unlike multiplication tables and cycle graphs) is a
 three-dimensional structure. Thus you can left-click and drag [one-finger drag]
 on the view to rotate it in three-dimensional space; you can right-click and
 drag [two-finger drag] to translate it; and you can use the mouse wheel [pinch
-open/close] to zoom in and out. This lets you see all sides of the
-diagram, and seeing it in motion can give you a better mental picture of it.
+open/close] to zoom in and out. You can reset the view without otherwise
+changing the diagram by right-clicking [long tapping] anywhere on the
+display. (Note that this is *not* equivalent to regenerating the display, it
+leaves in place any [changes in node
+position](#changing-the-positions-of-nodes-in-the-diagram) or [arrow
+arcs](#changing-the-arcing-of-arrows-in-the-diagram) you may have made.)
+
+Changing your point of view in this way lets you see all sides of the diagram,
+and seeing it in motion can give you a better mental picture of it.
 
 ## Changing the positions of nodes in the diagram
 
-You can customize the appearance of any Cayley diagram by dragging the nodes
-in it around in three dimensions to any position you like. To drag the nodes
+You can customize the appearance of any Cayley diagram by dragging the nodes in
+it around in three dimensions to any position you like. To drag the nodes
 around, hold the shift key while you click on the node and drag. [On a touch
-device just start a one-finger drag on the node.] It will
-move in the plane parallel to the screen. As you move the node you may find
-that it obscures some of the arcs; you can [change the curvature of the arcs
-and arrows in the diagram](#changing-the-arcing-of-arrows-in-the-diagram) to
-avoid this. To reset the diagram to its original configuration, simply reload
-the page in your browser.
+device just start a one-finger drag on the node.] This will move the node in the
+plane parallel to the screen, highlighting it as it's moving. When using this
+technique in a complicated sheet it can be difficult to move the intended node
+without unintentionally rotating the view or moving the wrong node, especially
+on a touch device (where your finger is pretty much guaranteed to block your
+view). If you exprience this you can click [tap] the node to select it,
+make sure you've got the right node, and then move it. Deselect the node by
+clicking [tapping] anwhere in the display. While the node is selected it will be
+highlighted and it will be the only node that can be moved.
 
-Note that because [chunking](#chunking) depends on the positions of nodes in
-the diagram, if you reposition the nodes in this way you may have to redisplay
-the chunking. Simply reselect the desired subgroup from the "Chunk this subgroup"
-drop-down list at the bottom of the Diagram tab to do so.
+As you move the node you may find that it obscures some of the arcs; you can
+[change the curvature of the arcs and arrows in the
+diagram](#changing-the-arcing-of-arrows-in-the-diagram) to avoid this.
+
+Redrawing the diagram will reset the positions of the nodes.
+
+If [chunks](#chunking) are displayed they will move with the node, though they
+may become distorted. See [the discussion of chunking](#chunking) for further
+details.
 
 ## Changing the arcing of arrows in the diagram
 
@@ -69,13 +84,20 @@ node to its destination node. The exceptions to this are when the diagram is
 inherently round, and so the arrows follow the curvature of the diagram, or
 when there are nodes in the way and a curved path would avoid them.
 
-However you can feel free to improve on *Group Explorer*'s decisions
-in this matter by clicking in the middle of an arc in the diagram
-while holding down the shift key, and dragging to increase or decrease
-the amount of arcing it has. [On a touch device just start a
-one-finger drag on the arc. The arc color will change when it is
-selected.] You will not be able to change the direction of the arcing,
-only its amount.
+However you can feel free to improve on *Group Explorer*'s decisions in this
+matter by clicking in the middle of an arc in the diagram while holding down the
+shift key, and dragging to increase or decrease the amount of arcing it has. [On
+a touch device just start a one-finger drag on the arc.] The arc will be
+highlighted as it changes. As when repositioning a node, it can be difficult to
+ensure that you're about to change the intended arc without actually moving it
+or rotating the view. If that is the case you can click [tap] the middle of the
+arc, make sure you've got the right one, and then change it.  Deselect the arc
+by clicking [tapping] elsewhere in the display. While the arc is selected it
+will be highlighted and it will be the only arc that can be changed. You can
+even use this approach to follow an arc in a complicated diagram: just click
+it to see where it goes, then click again to return to normal.
+
+You will not be able to change the direction of the arcing, only its amount.
 
 ## The Diagram tab
 
@@ -136,7 +158,7 @@ are used to generate local regions of that grid, and those that are lower in
 the table are used to expand local regions to the global diagram. For
 instance, here is a comparison of two different choices of generators for
 the group
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group).
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group).
 (Note that \(rf = fr^2\) and \(fr = r^2f\), and we assume right
 multiplication in both cases.)
 
@@ -247,7 +269,13 @@ below](#related-interfaces).
 
 ### Chunking
 
-When trying to visualize the cosets of a subgroup, it can be useful to have them grouped visually. This option is available in both multiplication tables and Cayley diagrams, two situations in which such an organization is possible. Chunking cosets in a Cayley diagram means wrapping them in semi-transparent boxes which group the nodes of the cosets. For example, consider the grouping of two-element cosets of the subgroup \(\{ e, f \}\) in [\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group) shown below.
+When trying to visualize the cosets of a subgroup, it can be useful to have them
+grouped visually. This option is available in both multiplication tables and
+Cayley diagrams, two situations in which such an organization is
+possible. Chunking cosets in a Cayley diagram means wrapping them in
+semi-transparent boxes which group the nodes of the cosets. For example,
+consider the grouping of two-element cosets of the subgroup \(\{ e, f \}\) in
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group) shown below.
 
 ![Cayley diagram for S_3 with chunked cosets](illustration-cdchunking.png)
 
@@ -262,6 +290,12 @@ be \(\langle d \rangle\), \(\langle c,d \rangle\), \(\langle b,c,d
 Note also that chunking is disabled when the order of generation of the
 diagram does not match the order of nesting of the axes; [see more
 information above](#an-order-for-nesting-the-axes).
+
+Like individual nodes, you can reposition chunks to improve on *Group
+Explorer's* choice. Simply select the chunk by clicking on it while holding the
+shift key [long tap on the chunk] and drag it. This will highlight the chunk and
+translate it and all the nodes in it in the plane normal to your view. Deselect
+the chunk by clicking elsewhere in the display.
 
 CITE(VGT-8.2 MM-4 DE-9)
 

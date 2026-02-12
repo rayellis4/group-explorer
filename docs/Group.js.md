@@ -1,94 +1,178 @@
 // @flow
 /*
- * Class holds group defined only by a multiplication table
+ * Class holds group definition
  */
 /*
 ```js
  */
 import BitSet from './BitSet.js';
 import * as DefiningRelations from './DefiningRelations.js';
-import MathUtils from './MathUtils.js';
+import * as MathUtils from './MathUtils.js';
 import Subgroup from './Subgroup.js';
-import SubgroupFinder from './SubgroupFinder.js';
+import SubgroupLattice from './SubgroupLattice.js';
 
 /*::
 import type {Tree} from './GEUtils.js';
 import type {SubgroupJSON} from './Subgroup.js';
 
-export type BasicGroupJSON = {
+export type GroupJSON = {
    multtable: Array<Array<groupElement>>,
    _subgroups: Array<SubgroupJSON>
 };
+
+// patches until these parts are annotated
+type XMLCayleyDiagram = any;
+type XMLSymmetryObject = any;
+
+type BriefXMLGroupJSON = {
+   name: html,
+   shortName: string,
+   author: string,
+   notes: string,
+   phrase: html,
+   representations: Array<Array<html>>,
+   representationIndex: number,
+   cayleyDiagrams: Array<XMLCayleyDiagram>,
+   symmetryObjects: Array<XMLSymmetryObject>,
+   multtable: Array<Array<number>>
+};
  */
+export default class Group {
+   multtable /*: Array<Array<groupElement>> */
+   order /*: number */
+   elements /*: Array<groupElement> */
+   inverses /*: Array<groupElement> */
+   nonAbelianExample /*: ?[groupElement, groupElement] */
+   isAbelian /*: boolean */
+   elementPowers /*: Array<BitSet> */
+   elementPrimePowers /*: Array<BitSet> */
+   elementOrders /*: Array<number> */
+   isCyclic /*: boolean */
+   orderClasses /*: Array<BitSet> */
+   _orderClassSizes /*: Array<number> */
+   conjugacyClasses /*: Array<BitSet> */
+   _subgroups /*: Array<Subgroup> */
+   _subgroupOrders /*: Array<number> */
+   _isSolvable /*: boolean */
+   _isSimple /*: boolean */
+   _cosetIndices /*: ?Array<groupElement> */  // _cosetIndices[element in parent group] = coset index / element in quotient group
+   _indexInParentGroup /*: ?Array<groupElement> */ // _indexInParentGroup[element index in subgroup] = element index in parent group
+   relations /*: Array<Array<groupElement>> */
+   _conjugateSubgroupClasses /*: Array<BitSet> */
 
-export default
-class BasicGroup {
-/*::
-   multtable: Array<Array<groupElement>>;
-   order: number;
-   elements: Array<groupElement>;
-   inverses: Array<groupElement>;
-   nonAbelianExample: ?[groupElement, groupElement];
-   isAbelian: boolean;
-   elementPowers: Array<BitSet>;
-   elementPrimePowers: Array<BitSet>;
-   elementOrders: Array<number>;
-   isCyclic: boolean;
-   orderClasses: Array<BitSet>;
-   _orderClassSizes: Array<number>;
-   conjugacyClasses: Array<BitSet>;
-   _conjClassSizes: Array<number>;
-   _subgroups: Array<Subgroup>;
-   _subgroupOrders: Array<number>;
-   _isSolvable: boolean;
-   _isSimple: boolean;
-   _cosetIndices: Array<groupElement>;  // _cosetIndices[element in parent group] = coset index / element in quotient group)
-   _indexInParentGroup: Array<groupElement>; // _indexInParentGroup[element index in subgroup] = element index in parent group
-   relations: Array<Array<groupElement>>;
- */
-   constructor(multtable /*: ?Array<Array<groupElement>> */) {
-      if (multtable != undefined) {
-         this.multtable = multtable;
-         this.setDerivedProperties();
+   // Properties fom .group file with defaults calculated from multtable
+   /*
+    * A hack:
+    *   representationIndex >= 0 => representation = representations[index]
+    *   representationIndex < 0 => representation = userRepresentation[-(representationIndex + 1)]
+    *
+    * (representationIndex is an integer, not an object reference, so Group can be easily serialized)
+    */
+   representations /*: Array<Array<html>> */
+   userRepresentations /*: Array<Array<html>> */     = []
+   representationIndex /*: number */                 = 0
+   _longestHTMLLabel /*: number */
+
+   // Properties from .group file
+   names /*: Array<html> */                          = ['Unnamed Group']
+   gapname /*: ?string */
+   gapid /*: ?string */
+   shortName /*: string */                           = 'Unnamed Group'
+   links /*: ?Array<string> */
+   declaredGenerators /*: ?Array<Array<groupElement>> */
+   definition /*: ?html */
+   phrase /*: html */                                = ''
+   notes /*: string */                               = ''
+   author /*: string */                              = ''
+   cayleyDiagrams /*: Array<XMLCayleyDiagram> */     = []
+   symmetryObjects /*: Array<XMLSymmetryObject> */   = []
+
+   // Group properties set elsewhere
+   lastModifiedOnServer /*: ?string */
+   URL /*: string */
+   userNotes /*: string */                           = ''
+
+   constructor () {
+   }
+
+   static fromMulttable (multtable /*: Array<Array<groupElement>> */) /*: Group */ {
+      const G = new Group()
+
+      G.multtable = multtable
+      setFieldsFromMulttable(G)
+
+      G.names = [`An unknown group of order ${G.order}`]
+      G.representations = [Array.from({length: G.order}, (_, inx) => '' + inx)]
+      ;[G._subgroups, G._isSolvable] = SubgroupLattice.getSubgroups(G)
+      G.relations = DefiningRelations.findRelations(G)
+
+      return G
+   }
+
+   static fromGroupFileJSON (json /*: GroupJSON */) /*: Group */ {
+      // $FlowFixMe[incompatible-type] -- figure out what will be stored in indexedDB
+      // $FlowExpectedError[unsafe-object-assign]
+      const G = Object.assign(new Group(), json)
+      setFieldsFromMulttable(G)
+
+      ;[G._subgroups, G._isSolvable] = SubgroupLattice.getSubgroups(G)
+      G.relations = DefiningRelations.findRelations(G)
+
+      return G
+   }
+
+   static fromLocalCopyJSON (json /*: any */) /*: Group */ {
+      // remove CayleyThumbnail, if it exists
+      delete json.CayleyThumbnail
+      delete json.rowHTML
+
+      // convert name, other_names to names array
+      const names = []
+      if ('name' in json) {
+	 if (json.name != null) {
+            names.push(json.name)
+	 }
+	 delete json.name
       }
-   }
-
-   setDerivedProperties() {
-      this.order = this.multtable.length;
-      this.elements = this.multtable[0];
-      this.inverses = this.elements.map(el => this.multtable[el].indexOf(0));
-      this.nonAbelianExample = this.findNonAbelianExample();
-      this.isAbelian = (this.nonAbelianExample == undefined);
-      const [_tmp1, _tmp2] = this.getElementPowers(this);
-      this.elementPowers = _tmp1;
-      this.elementPrimePowers = _tmp2;
-      this.elementOrders = this.elementPowers.map(el => el.popcount());
-      this.isCyclic = this.elementOrders.some((el /*: number */) => el == this.order);
-      this.orderClasses = this.getOrderClasses(this.elementOrders);
-      this.conjugacyClasses = this.getConjugacyClasses(this.elements);
-      this.relations = DefiningRelations.findRelations(this);
-   }
-
-   static parseJSON(json /*: BasicGroupJSON & Obj */) /*: BasicGroup */ {
-      const group /*: BasicGroup */ = new BasicGroup();
-      group.parseJSON(json);
-      return group;
-   }
-
-   parseJSON(json /*: BasicGroupJSON & Obj */) {
-      this.multtable = json.multtable;
-      this.setDerivedProperties();
-
-      if (json._subgroups != undefined) {
-         this._subgroups = json._subgroups.map( (subgroupJSON) => {
-            const subgroup = Subgroup.parseJSON(subgroupJSON);
-            subgroup.group = this;
-            return subgroup;
-         } );
+      if ('other_names' in json) {
+	 if (json.other_names != null) {
+            names.push(json.other_names)
+	 }
+	 delete json.other_names
       }
+      if (json.names != null) {
+	 names.push(...json.names)
+      }
+      json.names = names
+
+      // should have either _XML_generators (from XML) or generators (from JSON), but not both
+      if (json._XML_generators != null) {   // convert _XML_generators to declaredGenerators
+	 json.declaredGenerators = json._XML_generators
+	 delete json._XML_generators
+      } else if (json.generators != null) { // convert generators to declaredGenerators
+	 json.declaredGenerators = json.generators
+	 delete json.generators
+      }
+
+      // $FlowExpectedError[unsafe-object-assign]
+      const G = Object.assign(new Group(), json)
+
+      // fix BitSets, circular reference in subgroups
+      json._subgroups.forEach((subgroupJSON, inx) => {
+	 G._subgroups[inx] = Subgroup.parseJSON(subgroupJSON)
+	 G._subgroups[inx].group = G
+      })
+
+      // fix BitSets in
+      ;['conjugacyClasses', 'elementPowers', 'elementPrimePowers', 'orderClasses']
+	 .forEach(
+            (field) => json[field].forEach((js,inx) => G[field][inx] = BitSet.parseJSON(js))
+	 )
+
+      return G
    }
 
-   findNonAbelianExample() /*: ?[groupElement, groupElement] */ {
+   findNonAbelianExample () /*: ?[groupElement, groupElement] */ {
       for (let i = 1; i < this.order; i++) {
          for (let j = i; j < this.order; j++) {
             if (this.multtable[i][j] != this.multtable[j][i]) {
@@ -98,25 +182,87 @@ class BasicGroup {
       }
    }
 
+   deleteUserRepresentation (userIndex /*: number */) {
+      this.userRepresentations.splice(userIndex, 1);
+      if (-(userIndex + 1) > this.representationIndex) {
+         this.representationIndex += 1
+      } else if (-(userIndex + 1) ===  this.representationIndex) {
+         this.representationIndex = 0
+      }
+   }
+
+   get representation () /*: Array<html> */ {
+      const inx = this.representationIndex
+      return (inx < 0) ? this.userRepresentations[-(inx + 1)] : this.representations[inx]
+   }
+
+   set representation (representation /*: Array<html> */) {
+      const inx = this.representations.findIndex((el) => el == representation)
+      if (inx >= 0) {
+         this.representationIndex = inx
+      } else {
+         const jnx = this.userRepresentations.findIndex((el) => el == representation)
+         if (jnx >= 0) {
+            this.representationIndex = -(jnx + 1)
+         } else {
+            this.representationIndex = 0
+         }
+      }
+   }
+
+   get representationIsUserDefined () /*: boolean */ {
+      return this.representationIndex < 0
+   }
+
+   // length of longest label, rendered as HTML at font-size = 20px
+   get longestHTMLLabel () /*: number */ {
+      if (this._longestHTMLLabel == null) {
+         const dummy = document.createElement('div')
+         dummy.innerHTML = this.representation.reduce((html, label) => html + label + '<br>', ''),
+         Object.assign(dummy.style, { left: 0, top: `${this.order + 10}em`, position: 'absolute', fontSize: '40px' })
+         document.body.append(dummy)
+         this._longestHTMLLabel = dummy.offsetWidth / 40
+         dummy.remove()
+      }
+
+      return this._longestHTMLLabel
+   }
+
+   get name () /*: html */ {
+      return this.names[0]
+   }
+
+   get other_names () {
+      return this.names.slice(1)
+   }
+
+   get isGenerated () /*: boolean */ {
+      return this.URL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)
+   }
+
+   get generators () /*: Array<groupElement> */ {
+      return this.declaredGenerators?.[0] || this.subgroups[this.subgroups.length - 1].generators.toArray()
+   }
+
    // calculate subgroups on demand -- slows down initial load too much (still true?)
-   get subgroups() /*: Array<Subgroup> */ {
-      if (this._subgroups === undefined) {
-         const [tmp1, tmp2] = SubgroupFinder.getSubgroups(this);
+   get subgroups () /*: Array<Subgroup> */ {
+      if (this._subgroups == null) {
+         const [tmp1, tmp2] = SubgroupLattice.getSubgroups(this);
          this._subgroups = tmp1;
          this._isSolvable = tmp2;
       }
       return this._subgroups;
    }
 
-   get isSolvable() /*: boolean */ {
-      if (this._isSolvable == undefined) {
+   get isSolvable () /*: boolean */ {
+      if (this._isSolvable == null) {
          this.subgroups;  // side effect is determining solvability
       }
       return this._isSolvable;
    }
 
-   get isSimple() /*: boolean */ {
-      if (this._isSimple == undefined) {
+   get isSimple () /*: boolean */ {
+      if (this._isSimple == null) {
          this._isSimple =
             this.subgroups.length > 2 &&
             !this.subgroups.some(
@@ -125,12 +271,8 @@ class BasicGroup {
       return this._isSimple;
    }
 
-   get generators() /*: Array<Array<groupElement>> */ {
-      return [this.subgroups[this.subgroups.length-1].generators.toArray()];
-   }
-
-   get orderClassSizes() /*: Array<number> */ {
-      if (this._orderClassSizes === undefined) {
+   get orderClassSizes () /*: Array<number> */ {
+      if (this._orderClassSizes == null) {
          this._orderClassSizes = this.orderClasses.reduce( (sizes, bitset) => {
             if (bitset != undefined)
                sizes.push(bitset.popcount());
@@ -140,19 +282,8 @@ class BasicGroup {
       return this._orderClassSizes;
    }
 
-   get conjClassSizes() /*: Array<number> */ {
-      if (this._conjClassSizes === undefined) {
-         this._conjClassSizes =
-            this.conjugacyClasses
-                .reduce( (bySize /*: Array<number> */, cc /*: BitSet */) => { bySize[cc.popcount()]++; return bySize; },
-                         new Array(this.order+1).fill(0) )
-                .filter(el => el != 0);
-      }
-      return this._conjClassSizes;
-   }
-
-   get subgroupOrders() /*: Array<number> */ {
-      if (this._subgroupOrders === undefined) {
+   get subgroupOrders () /*: Array<number> */ {
+      if (this._subgroupOrders == null) {
          this._subgroupOrders =
             this.subgroups.map(subgroup => subgroup.order)
                 .filter( (subgroupOrder /*: number */) => subgroupOrder < this.order);
@@ -160,15 +291,24 @@ class BasicGroup {
       return this._subgroupOrders;
    }
 
-   isNormal(subgroup /*: Subgroup */) /*: boolean */ {
+   // g h g⁻¹
+   conjugate (h /*: groupElement */, g /*: groupElement */) /*: groupElement */ {
+      return this.multtable[g][this.multtable[h][this.inverseOf(g)]]
+   }
+
+   inverseOf (g /*: groupElement */) /*: groupElement */ {
+      return this.multtable[g].indexOf(0)
+   }
+
+   isNormal (subgroup /*: Subgroup */) /*: boolean */ {
       if (this.isAbelian) {
          return true;
       }
 
       const conj =
-         (a,b) => this.multtable[a][this.multtable[b][this.inverses[a]]];
+         (a /*: groupElement */, b /*: groupElement */) => this.multtable[a][this.multtable[b][this.inverses[a]]];
 
-      for (let g of this.generators[0]) {
+      for (let g of this.generators) {
          for (let h of subgroup.generators.toArray()) {
             if (! subgroup.members.isSet(conj(g, h))) {
                return false;
@@ -180,20 +320,20 @@ class BasicGroup {
    }
 
    // takes bitset or array of generators; return bitset
-   closure(generators /*: BitSet | Array<groupElement> */) /*: BitSet */ {
-      const mult = (a, b) => this.multtable[a][b];
-      const gens = Array.isArray(generators) ? generators.slice() : generators.toArray();
+   closure (generators /*: BitSet | Array<groupElement> */) /*: BitSet */ {
+      const mult = (a /*: groupElement */, b /*: groupElement */) => this.multtable[a][b];
+      const gens = Array.isArray(generators) ? [...generators]  : generators.toArray();
       const rslt = new BitSet(this.order).set(0);
       if (gens.length == 0) {
          return rslt;
       }
-      const gensUsed = [gens.pop()];
+      const gensUsed = [((gens.pop() /*: any */) /*: groupElement */)];
       for (let g = gensUsed[0], s = g; g != 0; g = mult(g, s)) {
          rslt.set(g);
       }
 
       while (gens.length != 0) {
-         gensUsed.push(gens.pop());
+         gensUsed.push(((gens.pop() /*: any */) /*: groupElement */));
          const prevRslt = rslt.toArray();  // H_{i-1}
          const coset_reps = [0];
          for (const g of coset_reps) {
@@ -212,7 +352,7 @@ class BasicGroup {
    }
 
    // needs fixing to work for general set of elements (not just entire group)
-   getElementPowers(group /*: BasicGroup */) /*: [Array<BitSet>, Array<BitSet>] */ {
+   getElementPowers (group /*: Group */) /*: [Array<BitSet>, Array<BitSet>] */ {
       const powers = [], primePowers = [];
       for (let g = 0; g < group.order; g++) {
          const elementPowers = new BitSet(group.order, [0]),
@@ -231,7 +371,7 @@ class BasicGroup {
    }
 
    // needs fixing to work for general set of elements (not just entire group)
-   getOrderClasses(elementOrders /*: Array<number> */) /*: Array<BitSet> */ {
+   getOrderClasses (elementOrders /*: Array<number> */) /*: Array<BitSet> */ {
       const numOrderClasses = Math.max(...elementOrders) + 1;
       const orderClasses = Array.from( {length: numOrderClasses}, () => new BitSet(this.order) );
       elementOrders.forEach( (elementOrder, element) => orderClasses[elementOrder].set(element) );
@@ -239,12 +379,12 @@ class BasicGroup {
    }
 
    // creates conjugacy classes for element array, which may be the elements of a subgroup
-   getConjugacyClasses(elements /*: Array<groupElement> */) /*: Array<BitSet> */ {
+   getConjugacyClasses (elements /*: Array<groupElement> */) /*: Array<BitSet> */ {
       const conj =
-         (a,b) => this.multtable[a][this.multtable[b][this.inverses[a]]];
+         (a /*: groupElement */, b /*: groupElement */) => this.multtable[a][this.multtable[b][this.inverses[a]]];
 
       // create map with key:value where key is sum of values, value is array of bitsets
-      const conjugacyClasses = new Map();
+      const conjugacyClasses /*: Map<number, Array<BitSet>> */ = new Map();
 
       outerLoop: for (let i = 0; i < elements.length; i++) {
          let conjugacyClass = new BitSet(this.order);
@@ -267,15 +407,40 @@ class BasicGroup {
          }
       }
 
-      const result = [];
+      const result /*: Array<BitSet> */= [];
       conjugacyClasses.forEach(el => { result.push(...el) });
 
       const sortedResult  = result.sort( (a /*: BitSet */, b /*: BitSet */) => a.popcount() - b.popcount() );
       return sortedResult;
    }
 
-   getCosets(subgroupBitset /*: BitSet */, isLeft /*: ?boolean */ = true)  /*: Array<BitSet> */ {
-      const mult = isLeft ? (a,b) => this.multtable[a][b] : (a,b) => this.multtable[b][a];
+   getConjugateSubgroupClasses () /*: Array<BitSet> */ {
+      if (this._conjugateSubgroupClasses == null) {
+         this._conjugateSubgroupClasses = []
+         this.subgroups.forEach((H, hIndex) => {
+            let conjugacyClass = this._conjugateSubgroupClasses.find((klass) => {
+               // $FlowFixMe -- klass is a BitSet with at least one element set 
+               const K = this.subgroups[klass.first()]
+               return H.order == K.order
+                  && this.elements.some((g) =>
+                        H.members.toArray()
+                           .reduce((conjugateMembers, h) => conjugateMembers.set(this.conjugate(h, g)), new BitSet(this.order))
+                           .equals(K.members))
+            })
+            if (conjugacyClass == null) {
+               conjugacyClass = new BitSet(this.subgroups.length)
+               this._conjugateSubgroupClasses.push(conjugacyClass)
+            }
+            conjugacyClass.set(hIndex)  // sets at least one element of a newly created BitSet
+         })
+      }
+      return this._conjugateSubgroupClasses
+   }
+
+   getCosets (subgroupBitset /*: BitSet */, isLeft /*: ?boolean */ = true)  /*: Array<BitSet> */ {
+      const mult = isLeft
+         ? (a /*: groupElement */, b /*: groupElement */) => this.multtable[a][b]
+         : (a /*: groupElement */, b /*: groupElement */) => this.multtable[b][a]
       const cosets = [subgroupBitset];
       const todo = new BitSet(this.order).setAll().subtract(subgroupBitset);
       const subgroupArray = subgroupBitset.toArray();
@@ -293,7 +458,7 @@ class BasicGroup {
    }
 
    // assumes subgroup is normal
-   getQuotientGroup(subgroupBitset /*: BitSet */) /*: BasicGroup */ {
+   getQuotientGroup (subgroupBitset /*: BitSet */) /*: [Group, Array<groupElement>] */ {
       const cosets = this.getCosets(subgroupBitset, true);
       const quotientOrder = cosets.length;
       const cosetReps = cosets.map( (coset /*: BitSet */) => ((coset.first() /*: any */) /*: groupElement */) );
@@ -303,7 +468,7 @@ class BasicGroup {
             elementMap[j] = i;
          }
       }
-      const newMult = cosets.map(_ => new Array(quotientOrder));
+      const newMult /*: Array<Array<groupElement>> */ = cosets.map(_ => Array(quotientOrder));
       for (let i = 0; i < quotientOrder; i++) {
          for (let j = 0; j < quotientOrder; j++) {
             const ii = cosetReps[i],
@@ -311,13 +476,12 @@ class BasicGroup {
             newMult[i][j] = elementMap[this.mult(ii, jj)];
          }
       }
-      var result = new BasicGroup(newMult);
-      result._cosetIndices = elementMap;
-      return result;
+      var result = Group.fromMulttable(newMult)
+      return [result, elementMap]
    }
 
    // save generators in _loadedGenerators?
-   getSubgroupAsGroup(subgroup /*: Subgroup */) /*: BasicGroup */ {
+   getSubgroupAsGroup (subgroup /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
       const subgroupBitset = subgroup.members;
       const subgroupElements = subgroupBitset.toArray();
       const subgroupOrder = subgroupElements.length;
@@ -331,90 +495,68 @@ class BasicGroup {
                this.multtable[subgroupElements[i]][subgroupElements[j]]];
          }
       }
-      var result = new BasicGroup(newMult);
-      result._indexInParentGroup = subgroupElements;
-      return result;
+      var result = Group.fromMulttable(newMult)
+      return [result, subgroupElements]
    }
 
-   mult(a /*: groupElement */, b /*: groupElement */) /*: groupElement */ {
+   mult (a /*: groupElement */, b /*: groupElement */) /*: groupElement */ {
       return this.multtable[a % this.order][b % this.order];
    }
 
-   // returns closure of passed generators as an array of arrays of ...
-   // generators may be passed as a bitset, array, or a single element
-   closureArray(generators /*: BitSet | Array<groupElement> | groupElement */) /*: Tree<groupElement> */ {
-      const deepMultiply = (array /*: Tree<groupElement> */, factor , elementsUsed ) =>
-            array.map( (el) => {
-               if (Array.isArray(el)) {
-                  return deepMultiply( ((el /*: any */) /*: Tree<groupElement> */), factor, elementsUsed);
-               } else {
-                  const product = this.mult(el, factor);
-                  elementsUsed.set(product);
-                  return product;
-               }
-            } );
-
-      const close = (remainingGens, elementsUsed, gensUsed) => {
-         if (remainingGens.length == 1) {
-            const generator = remainingGens.pop();
-            const rslt = [0];
-            for (let g = generator, s = g; g != 0; g = this.mult(g, s)) {
-               rslt.push(g);
-               elementsUsed.set(g);
-            }
-            gensUsed.push(generator);
-            return rslt;
-         } else {
-            const generator = remainingGens.pop();
-            const curr = [close(remainingGens, elementsUsed, gensUsed)];
-            gensUsed.push(generator);
-            const prevRslt = curr[0].slice();
-            const cosetReps = [0];
-            for (const g of cosetReps) {
-               for (const s of (gensUsed /*: Array<groupElement> */)) {
-                  const gXs = this.mult(g,s);
-                  if (!elementsUsed.isSet(gXs)) {
-                     cosetReps.push(gXs);
-                     curr.push(deepMultiply(prevRslt, gXs, elementsUsed));
-                  }
-               }
-            }
-            return curr;
-         }
-      }
-
-      const gens = ((typeof(generators) == 'object') ?
-                    (Array.isArray(generators) ? generators.slice() : generators.toArray()) :
-                    [generators]);
-
-      return close(gens, new BitSet(this.order, [0]), []);
-   }
-
-   // calculates cosets of the passed group
-   cosetsArray(subgroup /*: Array<groupElement> */, isLeft /*: ?boolean */ = true) /*: Tree<groupElement> */ {
-      const cosets = [subgroup];
-      const cosetReps = [subgroup[0]];
-      const todo = new BitSet(this.order, subgroup).complement();
-
-      for (let _g = todo.pop(); _g != undefined; _g = todo.pop()) {
-         const g = _g;  // to help Flow
-         cosetReps.push(g);
-         const newCoset = subgroup.map( (el) => (isLeft ? this.multtable[g][el] : this.multtable[el][g]) );
-         cosets.push(newCoset);
-         todo.subtract(new BitSet(this.order, newCoset));
-      }
-
-      return ((cosets /*: any */) /*: Tree<groupElement> */);
-   }
-
-
-   elementPowerArray(element /*: groupElement */) /*: Array<groupElement> */ {
+   elementPowerArray (element /*: groupElement */) /*: Array<groupElement> */ {
       const result = [0];
       for (let g = element; g != 0; g = this.mult(element, g)) {
          result.push(g);
       }
       return result;
    }
+
+   center () /*: Array<groupElement> */ {
+      const result = []
+      const generators = this.generators
+      for (let inx = 0; inx < this.order; inx++) {
+         let ok = true
+         for (let jnx = 0; jnx < generators.length; jnx++) {
+            if (this.mult(generators[jnx], this.elements[inx]) != this.mult(this.elements[inx], generators[jnx])) {
+               ok = false
+               break;
+            }
+         }
+         if (ok) {
+            result.push(inx)
+         }
+      }
+      return result
+   }
+
+   toBriefJSON () /*: BriefXMLGroupJSON */ {
+      return {
+         name: this.name,
+         shortName: this.shortName,
+         author: this.author,
+         notes: this.notes,
+         phrase: this.phrase,
+         representations: this.representations,
+         representationIndex: this.representationIndex,
+         cayleyDiagrams: this.cayleyDiagrams,
+         symmetryObjects: this.symmetryObjects,
+         multtable: this.multtable
+      }
+   }
+}
+
+function setFieldsFromMulttable (G /*: Group */) {
+   G.order = G.multtable.length
+   G.elements = G.multtable[0]
+   G.inverses = G.elements.map(el => G.multtable[el].indexOf(0))
+   G.nonAbelianExample = G.findNonAbelianExample()
+   G.isAbelian = (G.nonAbelianExample == undefined)
+   // $FlowExpectedError[unsupported-syntax]
+   ;[G.elementPowers, G.elementPrimePowers] = G.getElementPowers(G)
+   G.elementOrders = G.elementPowers.map(el => el.popcount())
+   G.isCyclic = G.elementOrders.some((el /*: number */) => el == G.order)
+   G.orderClasses = G.getOrderClasses(G.elementOrders)
+   G.conjugacyClasses = G.getConjugacyClasses(G.elements)
 }
 /*
 ```

@@ -44,64 +44,44 @@ diagram.
 Every large visualizer page is split into two halves, like the one shown
 above. The left half will always have the picture--the visualization. The
 right half will be controls that allow you to edit the picture. You
-can hide the right half with the [hide/show](#hideshow) control on the
-top right of the window.
+can hide the right half by swiping right with your mouse or finger;
+if it's hidden, swiping left from the edge of the screen will expose it.
 
 If you perform any of the edits described with the controls below but then
 wish to undo them and reset the large visualizer to its original state, just
 reload the page in your browser.  Any changes you have made will be lost.
 
-## Toolbar
+## Page Menu
 
-On the top right of any visualizer you will find the following controls.
-We cover each of them separately, below.
+In the upper right-hand corner of every page you will find a menu icon 
 
-![Screenshot of the tools on the top right of a large visualizer page](large-viz-menu-icons.png)
+![Screenshot of the menu on the top right of a large visualizer
+page](large-viz-menu.png)
 
-### Home
+with the following options:
 
-The first icon (the house) is a link to the main *Group Explorer* website.
-That is, it will take you out of the app itself and back to the home page of
-the entire project.
+#### Group Info
 
-### Library
+The first option takes you to the [Group Info page](rf-um-groupwindow.md), where
+you can see all the information *Group Explorer* has about a given group.
 
-The second icon (the book) takes you to the Group Library page, the [main
-page of the app itself](rf-um-mainwindow.md).
+#### Group Library
 
-### Sheets
+The second option takes you to the Group Library page, the [main page of the app
+itself](rf-um-mainwindow.md).
 
-The third icon (the sheet of paper) takes you to a blank sheet, into which
-you can insert visualizations of any groups from the library and connect
-them with morphisms.  To read more on sheets, see [the sheets
-tutorial](tu-sheets.md) or [the sheets reference](rf-um-sheetwindow.md).
+#### New Sheet
 
-### Help
+The third option opens a blank sheet, into which you can insert visualizations
+of any groups from the library and connect them with morphisms.  To read more on
+sheets, see [the sheets tutorial](tu-sheets.md) or [the sheets
+reference](rf-um-sheetwindow.md).
 
-The fourth icon (the question mark) takes you to the main page of these help
-files.
+#### Help
 
-### GitHub
-
-The fifth icon (the GitHub logo) takes you to [the source code
-repository](https://github.com/nathancarter/group-explorer) from which the
-application and its website were built.  Visit that site if you would like
-to see how the application was built, make suggestions for its improvement,
-report an error in the documentation, or get involved in improving the
-software as a developer.
-
-### Hide/show
-
-The rightmost icon (which looks like a right-arrow, &gt;, in the image
-above) will hide the right-hand controls pane, exposing just the visualizer
-to your view.  When you hide it, the icon becomes a left-arrow, &lt;,
-instead.  Clicking it will reveal the controls again.
-
-## Four visualizer types
-
-The controls in that right-hand pane are specific to which large visualizer
-you have open.  For more information on that controls pane, visit the
-documentation on whichever large visualizer you're using:
+This option opens the main help file page appropriate to the large visulizer you
+have open. For more information on that controls pane, visit the documentation
+on whichever large visualizer you're using:
 
 *   [Documentation for large Cayley diagram interface](rf-um-cd-options.md)
 *   [Documentation for large multiplication table interface](rf-um-mt-options.md)
@@ -113,3 +93,21 @@ convenience, we provide links to their docuemntation here.
 
 *   [Documentation for the subset options controls](rf-um-subsetlistbox.md)
 *   [Documentation for controls for viewing 3D models](rf-um-modelview.md)
+
+#### About GE3
+
+Clicking this menu item pops up a box with information about the copy of
+*Group Explorer* you're running:
+
+![Screenshot of the GE3 help popup](GE3-help.png)
+
+It includes a link to the [main *Group Explorer*
+website](https://nathancarter.github.io/group-explorer), which will take you out
+of the app itself and back to the home page of the entire project.
+
+And it has a link to [the source code
+repository](https://github.com/nathancarter/group-explorer) from which the
+application and its website were built.  Visit that site if you would like to
+see how the application was built, make suggestions for its improvement, report
+an error in the documentation, or get involved in improving the software as a
+developer.

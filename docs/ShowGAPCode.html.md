@@ -39,7 +39,7 @@
          class GAPCell {
            /*::
               listeners: Array<[MouseEventTypes | TouchEventTypes, (MouseEvent | TouchEvent) => void]>
-              $iframe: JQuery
+              iframe: HTMLIframeElement
               iFrameSize: {width: float, height: float}
               startRect: DOMRect
               startDrag: {x: float, y: float}
@@ -48,7 +48,7 @@
             */
            constructor () {
              this.listeners = []
-             this.$iframe = window.parent.$('#gap-iframe')
+             this.iframe = window.parent.document.getElementById('gap-iframe')
            }
 
            // display GAP code in window
@@ -57,7 +57,8 @@
              this.closeSagecell()
 
              // create new #gap-window (any previous one is removed by sagecell.deleteSagecell)
-             const display = $('<div id="gap-window"></div>').appendTo('body')[0]
+             document.body.insertAdjacentHTML('beforeend', '<div id="gap-window"></div>')
+             const display = document.getElementById('gap-window')
 
              // create new sagecell loaded with input code
              await new Promise((resolve, reject) => {
@@ -73,21 +74,22 @@
              })
 
              // Add a heading containing the purpose
-             $(`<h2 id="gap-code-heading">GAP code for ${purpose}</h2>`)
-               .prependTo(display)
+             display.insertAdjacentHTML('afterbegin', `<h2 id="gap-code-heading">GAP code for ${purpose}</h2>`)
 
              // Add a link to the GE help page on GAP integration
-             $(`<p id="gap-link">${GAPlink}</p>`)
-               .prependTo(display)
+             display.insertAdjacentHTML('afterbegin', `<p id="gap-link">${GAPlink}</p>`)
 
-             // Add an Exit button next the the Run button and make them look similar
-             $('<button class="ui-button ui-corner-all ui-state-default">Exit</button>')
-               .css('font-size', $('.sagecell_evalButton').css('font-size'))
-               .appendTo($(display).find('.sagecell_input'))[0]
-               .addEventListener('click', () => {
-                 this.closeSagecell()
-                 this.$iframe.hide()
-               })
+             // Add an Exit button next the the Run button and style them the same
+             display
+               .querySelector('.sagecell_input')
+               .insertAdjacentHTML('beforeend',
+                 '<button id="eval-button" class="ui-button ui-corner-all ui-widget ui-state-default">Exit</button>')
+             const evalButton = display.querySelector('#eval-button')
+             evalButton.style.fontSize = display.querySelector('.sagecell_evalButton').style.fontSize
+             evalButton.addEventListener('click', () => {
+                this.closeSagecell()
+                this.iframe.style.display = 'none'
+             })
 
              /** check for body size change and adjust iframe size to match
               *
@@ -98,22 +100,20 @@
               *   the content size)
               */
              const adjustSize = (timeStamp) => {
+               const textarea = document.querySelector('textarea.sagecell_commands')
                // calculate current frame size and padding around textarea on first time through
                if (this.iFrameSize == null) { // first time through?
-                 const currentRect = this.$iframe[0].getBoundingClientRect()
+                 const currentRect = this.iframe.getBoundingClientRect()
                  this.iFrameSize = { width: currentRect.width, height: currentRect.height }
                  // use offsetWidth to make sure we capture the effect of scroll bars
-                 this.textareaPad = window.innerWidth - $('textarea')[0].offsetWidth
+                 this.textareaPad = window.innerWidth - textarea.offsetWidth
                }
-               const targetIFrameHeight = $('body').height() // body has no padding or border
-               const $textarea = $('textarea.sagecell_commands')
-               if ($textarea.length !== 0) {
-                 const targetIFrameWidth = $textarea[0].offsetWidth + this.textareaPad
+               const targetIFrameHeight = document.body.offsetHeight // body has no padding or border
+               if (textarea != null) {
+                 const targetIFrameWidth = textarea.offsetWidth + this.textareaPad
                  if (targetIFrameWidth !== this.iFrameSize.width || targetIFrameHeight !== this.iFrameSize.height) {
-                   this.$iframe.css({
-                     width: targetIFrameWidth,
-                     height: targetIFrameHeight
-                   })
+                   this.iframe.style.width = targetIFrameWidth
+                   this.iframe.style.height = targetIFrameHeight
                    this.iFrameSize.width = targetIFrameWidth
                    this.iFrameSize.height = targetIFrameHeight
                  }
@@ -122,7 +122,7 @@
              }
              window.requestAnimationFrame(adjustSize)
 
-             this.$iframe.css('display', 'block')
+             this.iframe.style.display = 'block'
 
              this.restartListeners()
            }
@@ -143,19 +143,20 @@
              const listener = (event /*: MouseEvent | TouchEvent */) => this.eventListener(event)
              eventTypes.forEach((eventType) => {
                this.listeners.push([eventType, listener])
-               $('body')[0].addEventListener(eventType, listener)
+               document.body.addEventListener(eventType, listener)
              })
            }
 
            removeEventListeners () {
              while (this.listeners.length > 0) {
                const [eventType, listener] = this.listeners.pop()
-               $('body')[0].removeEventListener(eventType, listener)
+               document.body.removeEventListener(eventType, listener)
              }
            }
 
            eventListener (event /*: MouseEvent | TouchEvent */) {
-             if (event instanceof TouchEvent &&
+             if (typeof TouchEvent !== 'undefined' &&
+                 event instanceof TouchEvent &&
                  ((event.type === 'touchstart' && event.touches.length !== 1) ||
                   (event.type === 'touchmove' && event.touches.length !== 1) ||
                   (event.type === 'touchend' && (event.changedTouches.length !== 1 || event.touches.length !== 0)))) {
@@ -204,21 +205,22 @@
            }
 
            dragStart ({ clientX, clientY, target }) {
-             if ($(target).css('cursor') !== 'move') {
+             if (target.style.cursor !== 'move') {
                return false
              }
-             this.startRect = DOMRect.fromRect(((this.$iframe[0].getBoundingClientRect() /*: any */) /*: DOMRect */))
+             this.startRect = DOMRect.fromRect(((this.iframe.getBoundingClientRect() /*: any */) /*: DOMRect */))
              this.startDrag = { x: clientX + this.startRect.left, y: clientY + this.startRect.top }
              return true
            }
 
            drag ({ clientX, clientY }) {
-             const { left, top } = this.$iframe[0].getBoundingClientRect()
+             const { left, top } = this.iframe.getBoundingClientRect()
              const currentPosition = { x: clientX + left, y: clientY + top }
              const movement = { x: currentPosition.x - this.startDrag.x, y: currentPosition.y - this.startDrag.y }
              const x = movement.x + this.startRect.x
              const y = movement.y + this.startRect.y
-             this.$iframe.css({ left: x, top: y })
+             this.iframe.style.left = x
+             this.iframe.style.top = y
            }
          }
 
@@ -228,5 +230,3 @@
     <body>
     </body>
 </html>
-
-

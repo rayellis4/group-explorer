@@ -27,11 +27,11 @@ or toolbar above.
 
 *Group Explorer* is all about visualization.  To see some of the images,
 click a group from [the library
-page](http://nathancarter.github.io/group-explorer/GroupExplorer.html) and
+page](../../GroupExplorer.html) and
 then click one of the pictures you see.  Or try one of these links:
 
- * [Example group info file](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/D_4 x Z_2.group)
- * [Example visualization](http://nathancarter.github.io/group-explorer/SymmetryObject.html?groupURL=groups/A_4.group)
+ * [Example group info file](../../GroupInfo.html?groupURL=groups/D_4%20x%20Z_2.group)
+ * [Example visualization](../../SymmetryObject.html?groupURL=groups/A_4.group)
 
 # New to version 3.0?
 
@@ -54,5 +54,5 @@ New features in this version:
  * There are sure to be bugs in version 3.0, because it is so new.
    Please feel free to report them using
    [the project's issue tracker](https://github.com/nathancarter/group-explorer/issues).
- * Many updates are planned for versions 3.1, 3.2, and so on, so check back
+ * Many updates are planned for future versions, so check back
    later for more.

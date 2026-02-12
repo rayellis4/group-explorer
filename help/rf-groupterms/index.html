@@ -55,7 +55,7 @@ img { border: 1px solid black; }
                 <ul>
                 
                     <li><a style="text-decoration: none;"
-                          href="#1-1-one-to-one">1-1 ("one-to-one")</a></li>
+                          href="#1-1-one-to-one">1-1 (&ldquo;one-to-one&rdquo;)</a></li>
                 
                     <li><a style="text-decoration: none;"
                           href="#abelian-group">Abelian group</a></li>
@@ -321,7 +321,7 @@ with an introduction <a href="../gs-cd-intro/">here</a>, and a tutorial
 <p>The elements of a group can be partitioned into <a href="#conjugacy-classes">conjugacy
 classes</a>. The class equation is a numerical equation
 describing this partitioning. For instance, the group
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a> has three conjugacy
+<a href="../../GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a> has three conjugacy
 classes, of sizes 1, 2, and 3 respectively. The <a href="#order-of-a-group">order</a> of the group
 is 6, and so the class equation is <script type="math/tex; mode=display">1 + 2 + 3 = 6.</script>
 </p>
@@ -340,6 +340,8 @@ subset is a set of <a href="#generators-for-a-group-or-subgroup">generators</a>.
 <h3 id="conjugacy-classes">Conjugacy classes</h3>
 <p>The conjugacy class of an element <script type="math/tex">g</script> in a group is the set of all elements <script type="math/tex">hgh^{-1}</script> for any element <script type="math/tex">h</script> in the group. These are called &ldquo;classes&rdquo; because they partition the group (that is, they form an equivalence relation) and are called &ldquo;conjugacy&rdquo; classes because the element <script type="math/tex">hgh^{-1}</script> is called the &ldquo;conjugate&rdquo; of <script type="math/tex">g</script> by <script type="math/tex">h</script>.</p>
 <p>See also <a href="#class-equation">class equation</a>.</p>
+<p>The term &ldquo;conjugacy&rdquo; can also be applied to subgroups: the conjugacy class of a subgroup <script type="math/tex">H \le G</script>, denoted
+<script type="math/tex">Cl_{G}(H)</script>, is the set of all subgroups <script type="math/tex">gHg^{-1} = \{ghg^{-1}\,|\,h \in H\}</script> for a fixed <script type="math/tex">g \in G</script>.</p>
 <p>CITE(VGT-7.5 MM-3.7)</p>
 <h3 id="cosets">Cosets</h3>
 <p>For any subgroup <script type="math/tex">H</script> of a group <script type="math/tex">G</script>, we can speak of the left cosets and
@@ -357,12 +359,12 @@ elements</a>) and how those cycles connect.
 Here is an example cycle graph.</p>
 <p><img alt="Cycle graph of Z_2 times Z_4" src="../z_2_x_z_4_cycle_miniature.png" /></p>
 <p>The above graph shows the group
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Z_2
-x Z_4.group"><script type="math/tex">\mathbb{Z}_2\times\mathbb{Z}_4</script></a>. One can see that there are two four-cycles (in the top half
-of the picture) which share two nodes (the central node and the topmost
-node). In addition to these six elements, there are two other
-<a href="#order-of-an-element-in-a-group">order</a>-2 elements that are not in either
-of the two larger four-cycles, shown at the bottom of the picture.</p>
+<a href="../../GroupInfo.html?groupURL=groups/Z_2%20x%20Z_4.group"><script type="math/tex">\mathbb{Z}_2\times\mathbb{Z}_4</script></a>.
+One can see that there are two four-cycles (in the top half of the picture) which
+share two nodes (the central node and the topmost node). In addition to these
+six elements, there are two other <a href="#order-of-an-element-in-a-group">order</a>-2
+elements that are not in either of the two larger four-cycles, shown at the
+bottom of the picture.</p>
 <p><em>Group Explorer</em> has a <a href="../rf-geterms/#visualizers">visualizer</a> for showing
 you Cycle graphs, documented in full <a href="../rf-um-cg-options/">here</a>.</p>
 <p>CITE(VGT-5.1)</p>
@@ -390,12 +392,11 @@ describes a group with an <a href="#order-of-an-element-in-a-group">order</a>-4
 generator <script type="math/tex">a</script> and an <a href="#order-of-an-element-in-a-group">order</a>-2 generator
 <script type="math/tex">b</script> which commute with each other. The last equation <script type="math/tex">ab=ba</script> describes
 the commutativity of the generators, and therefore implies the commutativity
-of the whole group. This group is thus
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Z_2
-x Z_4.group"><script type="math/tex">\mathbb{Z}_2\times\mathbb{Z}_4</script></a>. But if we had written the same definition with a different
-final equation, say <script type="math/tex">bab=a^{-1}</script>, we would have come up with a different
-group
-(<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/D_4.group"><script type="math/tex">D_4</script></a>).</p>
+of the whole group. This group is thus</p>
+<p><a href="../../GroupInfo.html?groupURL=groups/Z_2%20x%20Z_4.group"><script type="math/tex">\mathbb{Z}_2\times\mathbb{Z}_4</script></a>. But
+if we had written the same definition with a different final equation, say
+<script type="math/tex">bab=a^{-1}</script>, we would have come up with a different group
+(<a href="../../GroupInfo.html?groupURL=groups/D_4.group"><script type="math/tex">D_4</script></a>).</p>
 <p>One of the columns available for view in <a href="../rf-um-mainwindow/">the main page (the group
 library)</a> is the definition in this format of every
 group loaded.</p>
@@ -430,18 +431,18 @@ group (and they are called generators) if all possible combinations of
 multiplications of those elements with one another yields all elements of
 the group.</p>
 <p>For instance, the elements <script type="math/tex">r</script> and <script type="math/tex">f</script> in
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>
+<a href="../../GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>
 generate the group because the complete list of elements of
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>
+<a href="../../GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>
 is <script type="math/tex">r,f,rf,fr,r^2</script>, plus the identity, which can be written as <script type="math/tex">r^3</script>.
 Thus all elements of <script type="math/tex">S_3</script> are expressible as products of <script type="math/tex">r</script>s and
 <script type="math/tex">f</script>s, so the set <script type="math/tex">\{r,f\}</script> generates <script type="math/tex">S_3</script>. Sometimes this is written
 <script type="math/tex">\left\langle r,f \right\rangle=</script>
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>.</p>
+<a href="../../GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>.</p>
 <p>If we consider just the element <script type="math/tex">r</script> in the same group and ask what set of
 elements it generates, <script type="math/tex">\langle r\rangle</script>, we find only the elements
 <script type="math/tex">\{e,r,r^2\}</script>. Therefore <script type="math/tex">r</script> does not generate all of
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>,
+<a href="../../GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>,
 but only a <a href="#subgroup">subgroup</a>.</p>
 <p>CITE(VGT-1.4 VGT-2.3)</p>
 <h3 id="group">Group</h3>
@@ -552,17 +553,17 @@ you multiplication tables. More information about it appears in its
 <p><em>Group Explorer</em> shows multiplication tables in one of two ways&ndash;with or
 without text in the cells of the table. Consider the following
 multiplication table for the group
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/D_4.group"><script type="math/tex">D_4</script></a>.</p>
+<a href="../../GroupInfo.html?groupURL=groups/D_4.group"><script type="math/tex">D_4</script></a>.</p>
 <p><img alt="Unlabeled multiplication table for D_4" src="../d_4_multtable_miniature_unlabelled.png" /></p>
 <p>This table has no text and thus the colors of the cells exhibit the abstract
 pattern inherent in the group operation. Omitting the text allows tables to
 be shown in small sizes (like in <a href="../rf-um-groupwindow/">group info pages</a> or
 <a href="../rf-um-mainwindow/">the group library</a>). If you want to see this same
-table with the element names in the cells, <a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/D_4.group">click here to open the group
+table with the element names in the cells, <a href="../../GroupInfo.html?groupURL=groups/D_4.group">click here to open the group
 info page for
 <script type="math/tex">D_4</script></a>
 and then click the multiplication table visualizer shown under the Views
-section. (Or jump to it directly with <a href="http://nathancarter.github.io/group-explorer/Multtable.html?groupURL=groups/D_4.group">this
+section. (Or jump to it directly with <a href="../../Multtable.html?groupURL=groups/D_4.group">this
 link</a>.)</p>
 <p>Upon inspecting the multiplication table with text included, you can see
 that for example the element <script type="math/tex">r</script> in the leftmost column, second row,
@@ -632,51 +633,51 @@ one encounters by following <script type="math/tex">a</script>-arrows repeatedly
 <a href="#order-of-an-element-in-a-group">order</a>, and thus we can partition the
 elements of the group into classes which all have the same order. For
 instance the elements of the group
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>
+<a href="../../GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script></a>
 are listed in the table below, with their orders.</p>
 <table>
 <thead>
 <tr>
-<th align="center">Element</th>
-<th align="center">Order</th>
+<th style="text-align: center;">Element</th>
+<th style="text-align: center;">Order</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td align="center">
+<td style="text-align: center;">
 <script type="math/tex">e</script>
 </td>
-<td align="center">1</td>
+<td style="text-align: center;">1</td>
 </tr>
 <tr>
-<td align="center">
+<td style="text-align: center;">
 <script type="math/tex">r</script>
 </td>
-<td align="center">3</td>
+<td style="text-align: center;">3</td>
 </tr>
 <tr>
-<td align="center">
+<td style="text-align: center;">
 <script type="math/tex">r^2</script>
 </td>
-<td align="center">3</td>
+<td style="text-align: center;">3</td>
 </tr>
 <tr>
-<td align="center">
+<td style="text-align: center;">
 <script type="math/tex">f</script>
 </td>
-<td align="center">2</td>
+<td style="text-align: center;">2</td>
 </tr>
 <tr>
-<td align="center">
+<td style="text-align: center;">
 <script type="math/tex">fr</script>
 </td>
-<td align="center">2</td>
+<td style="text-align: center;">2</td>
 </tr>
 <tr>
-<td align="center">
+<td style="text-align: center;">
 <script type="math/tex">rf</script>
 </td>
-<td align="center">2</td>
+<td style="text-align: center;">2</td>
 </tr>
 </tbody>
 </table>
@@ -795,14 +796,14 @@ that the short exact sequence <script type="math/tex">A\to B\to C</script> illus
 subgroup</a> of any group. Go to a <a href="../rf-um-groupwindow/">group&rsquo;s info
 page</a>, to the Subgroups section under Computations,
 and click &ldquo;tell me more.&rdquo; Any normal subgroup will provide a link to a
-<a href="../rf-geterms/#sheet">sheet</a> illustrating the <a href="#quotient-group">quotient</a>
+<a href="../rf-geterms/#sheets">sheet</a> illustrating the <a href="#quotient-group">quotient</a>
 via a short exact sequence.</p>
 <h3 id="simple-group">Simple group</h3>
 <p>A simple group is a non-<a href="#trivial-groupsubgroup">trivial</a> group with no
 non-<a href="#trivial-groupsubgroup">trivial</a>, <a href="#proper-subgroup">proper</a>, <a href="#normal-subgroup">normal
 subgroups</a>. Among <a href="#abelian-group">abelian</a> groups, the only simple groups are the
 <a href="#cyclic-group">cyclic</a> groups of prime order. The smallest non-<a href="#abelian-group">abelian</a> simple group is
-<a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/A_5.group"><script type="math/tex">A_5</script></a>.</p>
+<a href="../../GroupInfo.html?groupURL=groups/A_5.group"><script type="math/tex">A_5</script></a>.</p>
 <p>CITE(MM-5.7 TJ-10.2)</p>
 <h3 id="solvable-group-solvable-decomposition">Solvable group, solvable decomposition</h3>
 <p>Solvable groups are important in Galois theory, which is too large a topic
@@ -856,7 +857,7 @@ descriptions of the subgroups tell you which ones are Sylow
 <h3 id="symmetry-objects">Symmetry objects</h3>
 <p>See <a href="#objects-of-symmetry">objects of symmetry</a>.</p>
 <h3 id="trivial-groupsubgroup">Trivial group/subgroup</h3>
-<p>The trivial group is the <a href="#group">group</a> with only one element. <a href="http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Trivial.group">You can see
+<p>The trivial group is the <a href="#group">group</a> with only one element. <a href="../../GroupInfo.html?groupURL=groups/Trivial.group">You can see
 its information
 here.</a></p>
 <p>In every group, the set containing only the identity element is a

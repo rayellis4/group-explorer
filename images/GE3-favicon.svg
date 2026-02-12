@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<!-- Create GE3-favicon.ico with ImageMagick convert:
+         convert -format ico -resize 16x16 GE3-favicon.svg GE3-favicon.ico -->
+<svg
+   width="116mm"
+   height="116mm"
+   viewBox="0 0 116 116"
+   version="1.1"
+   id="svg1169"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   sodipodi:docname="GE3-favicon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1171"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.77771465"
+     inkscape:cx="198.01607"
+     inkscape:cy="183.22916"
+     inkscape:window-width="3840"
+     inkscape:window-height="2100"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1166">
+    <rect
+       x="157.23308"
+       y="314.26422"
+       width="572.28113"
+       height="560.58453"
+       id="rect36115" />
+    <rect
+       x="137.94612"
+       y="296.29565"
+       width="526.0224"
+       height="565.66998"
+       id="rect27955" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-50,-100)">
+    <g
+       id="g38955">
+      <circle
+         style="fill:#6565a5;stroke-width:0.404543"
+         id="path1254"
+         cx="108"
+         cy="158"
+         r="58" />
+      <circle
+         style="fill:#ececec;fill-opacity:1;stroke-width:0.378233"
+         id="path1252"
+         cx="108"
+         cy="158"
+         r="54" />
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:51.1527px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';fill:#20244d;fill-opacity:1;stroke-width:0.264583"
+         x="66.119614"
+         y="156.63698"
+         id="text7451"><tspan
+           sodipodi:role="line"
+           id="tspan7449"
+           style="fill:#20244d;fill-opacity:1;stroke-width:0.264583"
+           x="66.119614"
+           y="156.63698">GE</tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:51.1527px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';fill:#20244d;fill-opacity:1;stroke-width:0.264583"
+         x="91.634743"
+         y="201.17372"
+         id="text8607"><tspan
+           sodipodi:role="line"
+           id="tspan8605"
+           style="fill:#20244d;fill-opacity:1;stroke-width:0.264583"
+           x="91.634743"
+           y="201.17372">3</tspan></text>
+    </g>
+    <g
+       id="g29655">
+      <text
+         xml:space="preserve"
+         transform="scale(0.26458333)"
+         id="text27953"
+         style="font-weight:bold;font-size:193.333px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';white-space:pre;shape-inside:url(#rect27955)" />
+    </g>
+    <text
+       xml:space="preserve"
+       transform="scale(0.26458333)"
+       id="text36113"
+       style="font-weight:bold;font-size:193.333px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';white-space:pre;shape-inside:url(#rect36115)" />
+  </g>
+</svg>

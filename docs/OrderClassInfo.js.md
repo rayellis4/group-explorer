@@ -1,51 +1,58 @@
-// @flow
+/* @flow
 
-import GEUtils from './GEUtils.js'
-import Log from './Log.js';
-import Template from './Template.js';
+# OrderClassInfo
 
-export {summary, display};
+A [GroupInfo](./GroupInfo.html.md) component that displays group order classes.
 
-/*::
-import XMLGroup from './XMLGroup.js';
-*/
+```javascript
+ */
+export {display}
 
-// Load templates
-const ORDER_CLASSES_INFO_URL = './html/OrderClassesInfo.html'
-const LoadPromise = GEUtils.ajaxLoad(ORDER_CLASSES_INFO_URL)
+function display (orderClassElementId, group) {
+   const orderClassElement = document.getElementById(orderClassElementId)
+   orderClassElement.innerHTML = makeOrderClassInfoContent(group)
 
-function summary (Group /*: XMLGroup */) /*: string */ {
-    const numOrderClasses = new Set(Group.elementOrders).size;
-    return `${numOrderClasses} order class${(Group.order == 1) ? '' : 'es'}`;
+   // rebuild content on representation change
+   orderClassElement.closest('.all-info')
+      .addEventListener('representationChange', () => orderClassElement.innerHTML = makeOrderClassInfoContent(group))
 }
 
-async function  display (Group /*: XMLGroup */, $wrapper /*: JQuery */) {
-  const templates = await LoadPromise
+function makeOrderClassInfoContent (group) {
+   const htmlFragments = [
+      `<details>
+          <summary>
+             <span class="title">Order classes</span>
+             <span class="summary">${new Set(group.elementOrders).size} order class${(group.order === 1) ? '' : 'es'}</span>
+          </summary>`
+   ]
 
-  if ($('template[id|="order-classes"]').length == 0) {
-    $('body').append(templates);
-  }
+   const numOrderClasses = new Set(group.elementOrders).size;
+   if (numOrderClasses === 1) {
+      htmlFragments.push(
+         `<div>In ${group.name}, there is just one
+            <a href="./help/rf-groupterms/index.html#order-classes">order class</a>
+            containing all the elements of the group.</div>`)
+   } else {
+      const orderClassList = group.orderClasses.map(
+         (orderClass, order) => {
+            return (orderClass.popcount() === 0)
+               ? ''
+               : `<li>Elements of order ${order}: ${orderClass.toArray().map((el) => group.representation[el]).join(', ')}</li>`
+         })
 
-  $wrapper.html(formatOrderClasses(Group));
-}
+      htmlFragments.push(
+         `<div class="indent-children">In ${group.name} there are ${numOrderClasses}
+            <a href="./help/rf-groupterms/index.html#order-classes">order classes</a>.
+            Each is listed here:
+               <ul id="order-classes-list">`,
+                  ...orderClassList,
+              '</ul>',
+         '</div>')
+   }
 
-function formatOrderClasses (Group /*: XMLGroup */) /*: DocumentFragment */ {
-    const $frag = $(document.createDocumentFragment());
-    const numOrderClasses = new Set(Group.elementOrders).size;
-    if (numOrderClasses == 1) {
-        $frag.append(eval(Template.HTML('order-classes-single-template')));
-    } else {
-        $frag.append(eval(Template.HTML('order-classes-multiple-template')));
-        Group.orderClasses.forEach( (members, order) => {
-            if (members.popcount() != 0) {
-                $frag.find('#order-classes-list')
-                    .append($('<li>').html(`Elements of order ${order}: ` +
-                       members.toArray().map((el) => Group.representation[el]).join(', ')
-                    ))
-            }
-        } )
-    };
-    $frag.append(eval(Template.HTML('order-classes-trailer-template')));
+   htmlFragments.push(
+      `<button class="gap-compute" data-GAP="computing how many order classes a group has">Compute this in GAP</button>
+      </details>`)
 
-    return (($frag[0] /*: any */) /*: DocumentFragment */);
+   return htmlFragments.join('')
 }

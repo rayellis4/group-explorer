@@ -1,11 +1,28 @@
-// @flow
+/* @flow
 
+# SymmetryObjectView
+
+Draws a 3D symmetry object wity [three.js](http://threejs.org) using many of the capabilities
+inherited from [AbstractDiagramDisplay](./AbstractDiagramDisplay.js.md) and shared with
+[CayleyDiagramView](./CayleyDiagramView.js.md).
+
+It is the 'view' part of the general model ([Group](./Group.js.md)) - view - controller
+([SymmetryObjectControlDisplay](./SymmetryObjectControlDisplay.js.md)) structure of
+the [SymmetryObject](./SymmetryObject.html.md) page.
+
+It is used to draw the main object of symmetry diagrams in the
+[SymmetryObject](./SymmetryObject.html.md) page, as well as thumbnails in the main
+[GroupExplorer](./GroupExplorer.html.md) and [GroupInfo](./GroupInfo.html.md) pages.
+
+```javascript
+ */
 import {AbstractDiagramDisplay} from './AbstractDiagramDisplay.js';
 import {DEFAULT_SPHERE_COLOR, DEFAULT_LINE_COLOR as DEFAULT_PATH_COLOR} from './AbstractDiagramDisplay.js';
 
 // $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from '../lib/externals.js';
 
+export {SymmetryObjectView, createInteractiveSymmetryObjectView, createStaticSymmetryObjectView}
 /*::
 import type {XMLSymmetryObject} from './XMLGroup.js';
 import type {AbstractDiagramDisplayOptions} from './AbstractDiagramDisplay.js';
@@ -16,21 +33,31 @@ type LineData = {
 } & Obj;
 
 export type SymmetryObjectViewOptions = {
+    group?: Group,
+    diagramName?: string,
 } & AbstractDiagramDisplayOptions;
 */
 
 const SYMMETRY_OBJECT_BACKGROUND_COLOR = '#C8E8C8';
 
-export class SymmetryObjectView extends AbstractDiagramDisplay {
+class SymmetryObjectView extends AbstractDiagramDisplay {
     constructor (options /*: SymmetryObjectViewOptions */ = {}) {
-        super(options);
+       super(options)
 
-        // Set background
-        this.background = SYMMETRY_OBJECT_BACKGROUND_COLOR;
+       if (   options.group != null
+           && options.group.symmetryObjects.some((obj) => obj.name === options.diagramName)) {
+          this.group = options.group
+          this.diagramName = options.diagramName
+          const symmetryObject = this.group.symmetryObjects.find((symmetryObject) => this.diagramName === symmetryObject.name)
+          this.setObject(symmetryObject)
+       }
+       
+       // Set background
+       this.background = SYMMETRY_OBJECT_BACKGROUND_COLOR;
     }
-    
+
     ////////////////////////////   Line routines   ////////////////////////////////
-        
+
     createLines (line_data /*: Array<LineData> */) {
         const line_group = this.getGroup('lines');
         line_data.forEach( (line_datum, inx) => {
@@ -62,20 +89,22 @@ export class SymmetryObjectView extends AbstractDiagramDisplay {
         } );
         this.createLines(paths);
 
+        this.render()
+
         return this;
     }
 }
 
 ////////////////////////////   Factory Functions   ////////////////////////////////
 
-export function createInteractiveSymmetryObjectView(options /*: SymmetryObjectViewOptions */ = {}) {
+function createInteractiveSymmetryObjectView (options /*: SymmetryObjectViewOptions */ = {}) {
     const display = new SymmetryObjectView(options);
     display.enableTrackballControl();
     display.render();
     return display;
 }
 
-export function createStaticSymmetryObjectView(options /*: SymmetryObjectViewOptions */ = {}) {
+function createStaticSymmetryObjectView (options /*: SymmetryObjectViewOptions */ = {}) {
     const display = new SymmetryObjectView(options);
     return display;
 }

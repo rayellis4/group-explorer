@@ -1,0 +1,125 @@
+<!--
+     Sheet.html demo page
+-->
+<html>
+   <head>
+      <meta charset="utf-8" />
+      <base href=".."></base>
+
+      <script type="module">
+       import * as StoredObjects from './js/StoredObjects.js'
+
+       document.getElementById('test').addEventListener('click', async () => {
+          await StoredObjects.setPassedSheet(demoJSON())
+          window.open('./Sheet.html?passedSheet', '_blank')
+       })
+
+       function demoJSON () {
+          const scale = Math.min(window.innerWidth, window.innerHeight)
+
+          return [
+             /*
+                {
+                id: 'Rectangle',
+                className: 'RectangleElement',
+                x: 0.1 * scale,
+                y: 0.3 * scale,
+                w: 0.05 * scale,
+                h: 0.1 * scale,
+                color: 'red'
+                },
+              */
+             {
+                id: 'Rectangle 1',
+                className: 'TextElement',
+                x: 0.1 * scale,
+                y: 0.3 * scale,
+                w: 0.05 * scale,
+                h: 0.1 * scale,
+                color: 'red'
+             },
+
+             {
+                id: 'Rectangle 2',
+                className: 'TextElement',
+                x: 0.5 * scale,
+                y: 0.2 * scale,
+                w: 0.05 * scale,
+                h: 0.1 * scale,
+                color: 'blue'
+             },
+
+             {
+                id: 'TextBox',
+                className: 'TextElement',
+                x: 0.4 * scale,
+                y: 0.4 * scale,
+                w: 0.25 * scale,
+                fontSize: '32pt',
+                fontColor: 'blue',
+                text: 'HTML displayed on semi-transparent background:<br><i>H</i><sub>2</sub> = a<sup>2</sup>',
+                alignment: 'center',
+                color: 'aqua',
+                opacity: 0.2 // semi-transparent
+             },
+
+             {
+                id: 'CycleGraph',
+                className: 'CGElement',
+                x: 0.2 * scale,
+                y: 0.6 * scale,
+                w: 0.1 * scale,
+                h: 0.1 * scale,
+                groupURL: './groups/S_3.group'
+             },
+
+             {
+                id: 'Multtable',
+                className: 'MTElement',
+                x: 0.5 * scale,
+                y: 0.8 * scale,
+                w: 0.15 * scale,
+                h: 0.15 * scale,
+                groupURL: './groups/S_3.group'
+             },
+
+             {
+                id: 'CayleyDiagram',
+                className: 'CDElement',
+                x: 0.75 * scale,
+                y: 0.5 * scale,
+                w: 0.2 * scale,
+                h: 0.2 * scale,
+                groupURL: './groups/S_3.group'
+             },
+
+             {
+                id: 'Connector',
+                className: 'ConnectingElement',
+                sourceId: 'Rectangle 1',
+                destinationId: 'Rectangle 2',
+                color: 'black',
+                thickness: 5,
+                hasArrowhead: true
+             },
+
+             {
+                id: 'Morphism',
+                className: 'MorphismElement',
+                name: 'g',
+                sourceId: 'Multtable',
+                destinationId: 'CayleyDiagram',
+                definingPairs: [[1, 2], [3, 5]],
+                showDefiningPairs: true,
+                showDomainAndCodomain: true,
+                showInjectionSurjection: false,
+                showManyArrows: true
+             }
+          ]
+       }
+      </script>
+   </head>
+   <body>
+      <div id="test"><h2>Click to open Sheet demo in new window</h2></div>
+   </body>
+</html>

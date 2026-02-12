@@ -3,18 +3,17 @@
  * Function returns subgroups of group as array of BitSets
  */
 
-import MathUtils from './MathUtils.js';
-import BasicGroup from './BasicGroup.js';
+import * as MathUtils from './MathUtils.js';
 import BitSet from './BitSet.js';
 import Subgroup from './Subgroup.js';
 
 export default
-class SubgroupFinder {
+class SubgroupLattice {
 /*::
-   group: BasicGroup;
+   group: Group;
    z_generators: BitSet;
  */
-   constructor (group /*: BasicGroup */) {
+   constructor (group /*: Group */) {
       this.group = group;
       this.z_generators = new BitSet(group.order);
       for (let i = 1; i < group.order; i++) {
@@ -24,10 +23,10 @@ class SubgroupFinder {
       }
    }
 
-   static getSubgroups(group /*: BasicGroup */) /*: [Array<Subgroup>, boolean] */ {
+   static getSubgroups(group /*: Group */) /*: [Array<Subgroup>, boolean] */ {
       let allSubgroups,
           isSolvable = true,
-          subGroupFinder = new SubgroupFinder(group);
+          subgroupFinder = new SubgroupLattice(group);
 
       // special case cyclic groups, trivial group
       if (group.order == 1) {
@@ -38,7 +37,7 @@ class SubgroupFinder {
             new Subgroup(group, [1]).setAllMembers(),
          ];
       } else {
-         allSubgroups = subGroupFinder.findAllSubgroups();
+         allSubgroups = subgroupFinder.findAllSubgroups();
       }
 
       allSubgroups.sort((a,b) => a.members.popcount() - b.members.popcount());
@@ -49,11 +48,11 @@ class SubgroupFinder {
          const new_subgroup = new Subgroup(group, last_subgroup_found.generators.toArray()).setAllMembers();
          const new_element =
                ((BitSet.difference(new_subgroup.members, last_subgroup_found.members).first() /*: any */) /*: groupElement */);
-         subGroupFinder.minimizeGenerators(new_subgroup, new_element);
+         subgroupFinder.minimizeGenerators(new_subgroup, new_element);
          allSubgroups.push(new_subgroup);
       }
 
-      SubgroupFinder.addSubgroupLattice(allSubgroups);
+      SubgroupLattice.addSubgroupLattice(allSubgroups);
 
       return [allSubgroups, isSolvable];
    }

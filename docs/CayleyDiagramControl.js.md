@@ -1,212 +1,206 @@
-// @flow
+/* @flow
 
+# CayleyDiagramControl
+
+This component implements the cayley-diagram-control panel in the [CayleyDiagram](./CayleyDiagram.html.md) page.
+
+The only exported quantity is the [`addControl`](#addcontrol) function, which adds the html for the panel to the
+DOM and initializes its displayed values and their event handlers.
+
+The panel is divided into five parts, each handled in a separate class:
+ * [Choose diagram](#diagramchoice)
+ * [Generate diagram in this way](#generator)
+ * [Show these arrows](#arrow)
+ * [Arrows mean](#multiplication)
+ * [Chunk this subgroup](#chunking)
+
+The only direct interaction among these classes us through the `updateAll` routine, invoked when the user
+chooses a new diagram to display or selects a new generation scheme and much of the panel needs to be redrawn.
+
+```javascript
+ */
 import {THREE} from '../lib/externals.js';
 
-import {Group, Cayley_Diagram_View} from '../CayleyDiagram.js';
-import BitSet from '../js/BitSet.js';
-import {CayleyGeneratorFromStrategy, DIRECTION_INDEX, AXIS_NAME} from '../js/CayleyGenerator.js';
-import GEUtils from '../js/GEUtils.js';
-import Log from '../js/Log.js';
-import Menu from '../js/Menu.js';
-import Template from '../js/Template.js';
+import BitSet from './BitSet.js';
+import {DIRECTION_INDEX, AXIS_NAME} from './CayleyDiagramGenerator.js';
+import {makeDetachedMenu, makeMockSelect} from './UIComponents.js'
 
-export {load, update};
-
-const DIAGRAM_PANEL_URL /*: string */ = './html/CayleyDiagramController.html'
-
-class Arrow {
-   // actions:  show menu; select from menu; select from list; remove
-   // utility function add_arrow_list_item(element) to add arrow to list (called from initialization, select from menu)
-   // utility function clearArrowList() to remove all arrows from list (called during reset)
-
-   // Row selected in arrow-list:
-   //   clear all highlights
-   //   highlight row (find arrow-list item w/ arrow = ${element})
-   //   enable remove button
-   static selectArrow(element /*: number */) {
-      GEUtils.cleanWindow();
-      $('#arrow-list li').removeClass('highlighted');
-      $(`#arrow-list li[arrow=${element}]`).addClass('highlighted');
-      $('#arrow-remove-button').attr('action', `Arrow.removeArrow(${element})`);
-      $('#arrow-remove-button').prop('disabled', false);
-   }
-
-   // returns all arrows displayed in arrow-list as an array
-   static getAllArrows() /*: Array<groupElement> */ {
-      return $('#arrow-list li').toArray().map( (list_item /*: HTMLLIElement */) => parseInt(list_item.getAttribute('arrow')) );
-   }
-
-   // Add button clicked:
-   //   Clear (hidden) menu
-   //   Populate menu (for each element not in arrow-list)
-   //   Position, expose menu
-   static showArrowMenu(event /*: JQueryMouseEventObject */) {
-      // returns an HTML string with a list element for each arrow that can be added to the arrow-list
-      const makeArrowList = () /*: html */ => {
-         const template = Template.HTML('arrow-menu-item-template');
-         const result = Group.elements
-               .reduce( (list, element) => {
-                  // not the identity and not already displayed
-                  if (element != 0 && $(`#arrow-list li[arrow=${element}]`).length == 0) {
-                     list.push(eval(template));
-                  }
-                  return list;
-               }, [] )
-               .join('');
-         return result;
-      }
-
-      GEUtils.cleanWindow();
-      const $menus = $(eval(Template.HTML('arrow-menu-template')))
-            .appendTo('#arrow-add-button');
-      Menu.addMenus($menus, event, clickHandler);
-   }
-
-   // Add button menu element clicked:
-   //   Hide menu
-   //   Add lines to Cayley_diagram
-   //   Update lines, arrowheads in graphic, arrow-list
-   static addArrow(element /*: number */) {
-      GEUtils.cleanWindow();
-      Cayley_Diagram_View.addArrows([element]);
-      Arrow.updateArrows();
-   }
-
-   // Remove button clicked
-   //   Remove highlighted row from arrow-list
-   //   Disable remove button
-   //   Remove line from Cayley_diagram
-   //   Update lines in graphic, arrow-list
-   static removeArrow(element /*: number */) {
-      $('#remove-arrow-button').prop('disabled', true);
-      Cayley_Diagram_View.removeArrows([element]);
-      Arrow.updateArrows()
-   }
-
-   // clear arrows
-   // set line colors in Cayley_diagram
-   // update lines, arrowheads in CD
-   // add rows to arrow list from line colors
-   static updateArrows() {
-      $('#arrow-list').children().remove();
-      // ES6 introduces a Set, but does not provide any way to change the notion of equality among set members
-      // Here we work around that by joining a generator value from the line.arrow attribute ("27") and a color ("#99FFC1")
-      //   into a unique string ("27#99FFC1") in the Set, then partitioning the string back into an element and a color part
-      const arrow_hashes = new Set(Cayley_Diagram_View.arrows.map(
-          (arrow) => '' + arrow.generator.toString() + '#' + (new THREE.Color(arrow.color).getHexString())
-      ));
-      arrow_hashes.forEach( (hash) => {
-         const element = hash.slice(0,-7);
-         const color = hash.slice(-7);
-         $('#arrow-list').append(eval(Template.HTML('arrow-list-item-template')));  // make entry in arrow-list
-      } );
-      if (arrow_hashes.size == Group.order - 1) {  // can't make an arrow out of the identity
-         Arrow.disable()
-      } else {
-         Arrow.enable()
-      }
-   }
-
-   // disable Add button
-   static enable() {
-      $('#arrow-add-button').prop('disabled', false);
-   }
-
-   // enable Add button
-   static disable() {
-      $('#arrow-add-button').prop('disabled', true);
-   }
-}
-
-
-class Chunking {
-   static updateChunkingSelect() {
-      // check that first generator is innermost, second is middle, etc.
-      const generator = ((Cayley_Diagram_View.generator /*: any */) /*: CayleyGeneratorFromStrategy */);
-      if (Cayley_Diagram_View.isGenerated &&
-          generator.strategies.every((strategy, inx) => strategy.nesting_level == inx)) {
-         Chunking.enable();
-         const [choices, _] = generator.strategies.slice(0, -1).reduce(([choices, generators], strategy) => {
-            generators.push(Group.representation[strategy.generator])
-            const subgroupIndex = Group.subgroups.findIndex((subgroup) => subgroup.members.equals(strategy.elements));
-            choices.push(eval(Template.HTML('chunk-select-subgroup-template')))
-            return [choices, generators]
-         }, [[eval(Template.HTML('chunk-no-chunking-template'))], []])
-         choices.push(eval(Template.HTML('chunk-select-whole-group-template')))
-         GEUtils.setupFauxSelect($('#chunk-select')[0], choices, 0)
-      } else {
-         Chunking.disable();
-      }
-   }
-
-   static changeHandler (changeEvent /*: Event */) {
-      const choice = $(changeEvent.target).children()[0]
-      if (choice != null) {
-         const chunk = parseInt($(choice).attr('data-chunk'))
-         Cayley_Diagram_View.chunk = chunk
-      }
-   }
-
-   static enable() {
-      $('#chunking-fog').hide();
-      $('#chunk-select').prop('disabled', false);
-   }
-
-   static disable() {
-      if (Cayley_Diagram_View.isGenerated) {
-         const generator = ((Cayley_Diagram_View.generator /*: any */) /*: CayleyGeneratorFromStrategy */);
-         generator.chunk = 0;
-      }
-
-      const $chunking_fog = $('#chunking-fog');
-      $chunking_fog.css('height', '100%');
-      $chunking_fog.css('width', '100%');
-      $chunking_fog.show();
-
-      $('#chunk-select').prop('disabled', true);
-   }
-
-   static isDisabled() /*: boolean */ {
-      return $('#chunk-select').prop('disabled');
-   }
-}
-
-
-class DiagramChoice {
-   /* Populate diagram select element, show selected diagram */
-   static setupDiagramSelect() {
-      const choices = Group.cayleyDiagrams.reduce((choices, diagram) => {
-         choices.push(eval(Template.HTML('diagram-choice-template')))
-         return choices
-      }, [eval(Template.HTML('diagram-generate-diagram-template'))])
-      const choiceIndex = Group.cayleyDiagrams.findIndex(({name}) => name === Cayley_Diagram_View.diagram_name) + 1
-      GEUtils.setupFauxSelect($('#diagram-select')[0], choices, choiceIndex)
-   }
-
-   static changeHandler (changeEvent /*: Event */) {
-      const choice = $(changeEvent.target).children()[0]
-      if (choice != null) {
-         const diagramName = $(choice).attr('data-diagram-name')
-         Cayley_Diagram_View.diagram_name = diagramName
-         Chunking.enable()
-         update()
-      }
-   }
-}
+export {addControl}
 
 /*::
 import type {Layout, Direction, StrategyParameters} from '../js/CayleyDiagramView.js';
 */
+/*
+```
+#### Module variables
 
+Set in [addControl](#addcontrol) and shared by all module classes
+```javascript
+ */
+let cayleyDiagramControlElement
+let cayleyDiagramGenerator
+let group
+let updateAll
+/*
+```
+### addControl
+
+```javascript
+ */
+function addControl (_cayleyDiagramControlElement, _cayleyDiagramGenerator) {
+   cayleyDiagramControlElement = _cayleyDiagramControlElement
+   cayleyDiagramGenerator = _cayleyDiagramGenerator
+   group = cayleyDiagramGenerator.group
+
+   new DiagramChoice()
+   const generatorHandler = new Generator()
+   const arrowHandler = new Arrow()
+   const multiplicationHandler = new Multiplication()
+   const chunkingHandler = new Chunking()
+
+   updateAll = () => {
+      generatorHandler.update()
+      arrowHandler.update()
+      multiplicationHandler.update()
+      chunkingHandler.update()
+   }
+
+   updateAll()
+}
+
+function clickHandler (event /*: MouseEvent */) {
+   event.preventDefault()
+   const action = event.target.closest('[data-action]')
+   if (action != null) {
+      event.stopPropagation()
+      if (action.parentElement.classList.contains('menu'))
+         action.getRootNode().host.remove()
+      eval(action.getAttribute('data-action'))
+   }
+}
+/*
+```
+### DiagramChoice
+
+Displays the available Cayley Diagrams as well as the option to generate one.
+
+Note that when a new diagram is chosen many other options need to be changed, so it calls the module
+routine `updateAll.`
+```javascript
+ */
+class DiagramChoice {
+   constructor () {
+      cayleyDiagramControlElement.insertAdjacentHTML('beforeend',
+         `<div>
+             Choose diagram:
+             <div id="diagram-select" class="mock-select"
+                data-index="${this.currentChoice}">${this.choices[this.currentChoice]}</div>
+          </div>`)
+      this.diagramSelect.addEventListener('click', (_ev) => this.showDiagramChoices())
+   }
+
+   get diagramSelect () {
+      return document.getElementById('diagram-select')
+   }
+
+   get currentChoice () {
+      return (cayleyDiagramGenerator.generatesFromStrategy)
+            ? 0
+            : group.cayleyDiagrams.findIndex(({name}) => name === cayleyDiagramGenerator.diagramName) + 1
+   }
+
+   get choices () {
+      return [
+         'Generate diagram',
+         ...group.cayleyDiagrams.map((diagram) => diagram.name)
+      ]
+   }
+
+   showDiagramChoices () {
+      makeMockSelect(this.diagramSelect, this.choices)
+         .then(
+            (choice) => {
+               if (choice === 'Generate diagram') {
+                  cayleyDiagramGenerator.strategyParameters = null
+               } else {
+                  cayleyDiagramGenerator.diagramName = choice
+               }
+               cayleyDiagramGenerator.draw()
+               updateAll()
+            },
+            () => {}
+         )
+   }
+}
+/*
+```
+### Generator
+```javascript
+ */
 class Generator {
 /*::
-   static axis_label: {[key: Layout]: {[key: Direction]: string}};
-   static axis_image: {[key: Layout]: {[key: Direction]: string}};
-   static orders: Array<Array<string>>;
+   axis_label: {[key: Layout]: {[key: Direction]: string}};
+   axis_image: {[key: Layout]: {[key: Direction]: string}};
+   orders: Array<Array<string>>;
  */
-   static init () {
+   constructor () {
+      cayleyDiagramControlElement.insertAdjacentHTML('beforeend',
+         `<style>
+              #generation-strategy {
+                 border: var(--dark-border);
+                 border-radius: var(--border-radius);
+                 border-spacing: 0;
+                 font-size: 1em;
+                 width: 100%;
+              }
+              #generation-strategy th,
+              #generation-strategy td {
+                 padding: 0.1em 1ch;
+              }
+              #generation-table td + td {
+                 background-color: var(--gray0);;
+                 border-left: var(--light-border);
+                 border-top: var(--light-border);
+                 white-space: nowrap;
+              }
+              #generation-table tr {
+                  height: 3em;
+              }
+              #generation-table img {
+                  vertical-align: middle;
+              }
+          </style>
+
+          <div id="generation-control">
+             Generate diagram this way:
+             <div>
+                <table id="generation-strategy">
+                   <thead>
+                      <tr>
+                         <th></th>
+                         <th>Generator</th>
+                         <th>Axis</th>
+                         <th>Order</th>
+                      </tr>
+                   </thead>
+                   <tbody id="generation-table">
+                   </tbody>
+                </table>
+             </div>
+          </div>`)
+
+      // stopPropagation to keep ControlPanel from getting event and capturing the pointer
+      ;['pointerdown', 'pointerup'].forEach((eventType) => {
+         this.generationControlElement.addEventListener(eventType, (ev) => ev.stopPropagation())
+      })
+      this.generationControlElement.addEventListener('click', clickHandler.bind(this))
+      this.generationControlElement.addEventListener('contextmenu', clickHandler.bind(this))
+      this.generationTableElement.addEventListener('dragstart', this.dragStart.bind(this))
+      this.generationTableElement.addEventListener('drop', this.drop.bind(this))
+      this.generationTableElement.addEventListener('dragover', this.dragOver.bind(this))
+
       // layout choices (linear/circular/rotated), direction (X/Y/Z)
-      Generator.axis_label = {
+      this.AXIS_LABELS = {
          linear:   { X: 'Linear in <i>x</i>',
                      Y: 'Linear in <i>y</i>',
                      Z: 'Linear in <i>z</i>' },
@@ -218,287 +212,555 @@ class Generator {
                      XY: 'Rotated in <i>x</i>, <i>y</i>' },
       };
 
-      Generator.axis_image = {
+      this.AXIS_IMAGES = {
          linear:   { X: 'axis-x.png', Y: 'axis-y.png', Z: 'axis-z.png' },
          circular: { YZ: 'axis-yz.png', XZ: 'axis-xz.png', XY: 'axis-xy.png'},
          rotated:  { YZ: 'axis-ryz.png', XZ: 'axis-rxz.png', XY: 'axis-rxy.png'},
       };
 
       // wording for nesting order
-      Generator.orders = [
+      this.ORDER_LABELS = [
          [],
          ['N/A'],
          ['inside', 'outside'],
          ['innermost', 'middle', 'outermost'],
          ['innermost', 'second innermost', 'second outermost', 'outermost'],
-         ['innermost', 'second innermost', 'middle', 'second outermost', 'outermost']
+         ['innermost', 'second innermost', 'middle', 'second outermost', 'outermost'],
+         ['innermost', 'second innermost', 'third innermost', 'third outermost', 'second outermost', 'outermost'],
+         ['innermost', 'second innermost', 'third innermost', 'middle', 'third outermost', 'second outermost', 'outermost'],
+         ['innermost', 'second innermost', 'third innermost', 'fourth innermost', 'fourth outermost', 'third outermost', 'second outermost', 'outermost'],
+         ['innermost', 'second innermost', 'third innermost', 'fourth innermost', 'middle', 'fourth outermost', 'third outermost', 'second outermost', 'outermost'],
       ];
+   }
 
-      $('#multiplication-control input').each(
-         (_inx, el) => el.addEventListener('click', () => Generator.setMult(`${el.id}`))
-      );
+   get generationControlElement () {
+      return document.getElementById('generation-control')
+   }
+
+   get generationTableElement () {
+      return document.getElementById('generation-table')
    }
 
    /*
     * Draw Generator table
     */
-   static draw () {
+   update () {
       // clear table
-      const $generation_table = $('#generation-table');
-      $generation_table.children().remove();
+      Array.from(this.generationTableElement.children).forEach((el) => el.remove())
 
       // add a row for each strategy in Cayley diagram
-      const strategies = Cayley_Diagram_View.strategy_parameters;
-      if (strategies == undefined) {
-         $('#generation-table').html(
-            '<tr style="height: 3em"><td></td><td style="width: 25%"></td><td style="width: 40%"></td><td></td></tr>');
-      } else {
-         strategies.forEach( (strategy, inx) => {
-            $generation_table.append($(eval(Template.HTML('generation-table-row-template'))));
-         } );
-      }
+       if (cayleyDiagramGenerator.generatesFromStrategy) {
+          const strategyParameters = cayleyDiagramGenerator.strategyParameters
+          strategyParameters.forEach((strategyParameter, inx) => {
+             const tableRow =
+                `<tr>
+                <td draggable="true">${inx+1}</td>
+                <td data-action="this.showGeneratorMenu(event, ${inx})">
+                     ${group.representation[strategyParameter.generator]}
+                     </td>
+                     <td data-action="this.showAxisMenu(event, ${inx})">
+                     <img src="./images/${this.AXIS_IMAGES[strategyParameter.layout][strategyParameter.direction]}">
+                     ${this.AXIS_LABELS[strategyParameter.layout][strategyParameter.direction]}
+                     </td>
+                     <td data-action="this.showOrderMenu(event, ${inx})">
+                     ${this.ORDER_LABELS[strategyParameters.length][strategyParameter.nestingLevel]}
+                     </td>
+                     </tr>`
+             this.generationTableElement.insertAdjacentHTML('beforeend', tableRow)
+          })
+       } else {
+         this.generationTableElement.innerHTML =
+            '<tr><td></td><td style="width: 25%"></td><td style="width: 40%"></td><td></td></tr>'
+       }
    }
 
    /*
     * Show option menus for the columns of the Generator table
     */
-   static showGeneratorMenu (click_location /*: eventLocation */, strategy_index /*: number */) {
-      $('#bodyDouble').click();
-
+   showGeneratorMenu (clickLocation /*: eventLocation */, strategyIndex /*: number */) {
       // show only elements not generated by previously applied strategies
-      const generator = ((Cayley_Diagram_View.generator /*: any */) /*: CayleyGeneratorFromStrategy */);
-      const eligibleGenerators = ( (strategy_index == 0) ?
-                                   new BitSet(Group.order, [0]) :
-                                   generator.strategies[strategy_index-1].elements.clone() )
+      const eligibleGenerators = ( (strategyIndex == 0) ?
+                                   new BitSet(group.order, [0]) :
+                                   cayleyDiagramGenerator.strategies[strategyIndex - 1].elements.clone() )
             .complement().toArray();
 
-
       // returns an HTML string with a list element for each arrow that can be added to the arrow-list
-      const makeEligibleGeneratorList = () /*: html */ => {
-         const template_html = Template.HTML('generation-generator-menu-item-template');
-         const result = eligibleGenerators
-               .reduce( (generators, generator) => (generators.push(eval(template_html)), generators), [] )
-               .join('');
-         return result;
-      }
+      const eligibleGeneratorList =
+         eligibleGenerators
+            .sort((a,b) => (group.representation[a] < group.representation[b]) ? -1 : 1)
+            .map((generator) =>
+                  `<li data-action="this.updateGenerator(${strategyIndex}, ${generator})">
+                      ${group.representation[generator]}
+                   </li>`)
+            .join('')
 
-      const $menus = $(eval(Template.HTML('generation-generator-menu-template')))
-            .appendTo('#generation-table');
+      const generatorMenu =
+         `<ul>
+             ${eligibleGeneratorList}
+             <hr>
+             <li class="detached-submenu">Organize by
+                <ul>${this.makeOrganizeByMenu()}</ul>
+             </li>
+          </ul>`
 
-      Menu.addMenus($menus, click_location, clickHandler);
+      makeDetachedMenu(generatorMenu, clickLocation)
+         .then( (action) => eval(action) )
    }
 
-   static showAxisMenu (click_location /*: eventLocation */, strategy_index /*: number */) {
-      $('#bodyDouble').click();
-
+   showAxisMenu (clickLocation /*: eventLocation */, strategyIndex /*: number */) {
       // previously generated subgroup must have > 2 cosets in this subgroup
       //   in order to show it in a curved (circular or rotated) layout
-      const generator = ((Cayley_Diagram_View.generator /*: any */) /*: CayleyGeneratorFromStrategy */);
       const curvable =
-            (generator.strategies[strategy_index].elements.popcount()
-             /  ((strategy_index == 0) ? 1 : generator.strategies[strategy_index - 1].elements.popcount()))
-      > 2;
+            (cayleyDiagramGenerator.strategies[strategyIndex].elements.popcount()
+               /  ((strategyIndex == 0) ? 1 : cayleyDiagramGenerator.strategies[strategyIndex - 1].elements.popcount())) > 2
 
-      const $menus = $(eval(Template.HTML('generation-axis-menu-template')))
-            .appendTo('#generation-table');
+      const axisMenu = [
+         `<ul>
+             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'X')">${this.AXIS_LABELS['linear']['X']}</li> 
+             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'Y')">${this.AXIS_LABELS['linear']['Y']}</li> 
+             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'Z')">${this.AXIS_LABELS['linear']['Z']}</li>`,
+         (curvable)
+          ? `<li data-action="this.updateAxes(${strategyIndex}, 'circular', 'XY')">${this.AXIS_LABELS['circular']['XY']}</li>
+             <li data-action="this.updateAxes(${strategyIndex}, 'circular', 'XZ')">${this.AXIS_LABELS['circular']['XZ']}</li>
+             <li data-action="this.updateAxes(${strategyIndex}, 'circular', 'YZ')">${this.AXIS_LABELS['circular']['YZ']}</li>
+             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'XY')">${this.AXIS_LABELS['rotated']['XY']}</li>  
+             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'XZ')">${this.AXIS_LABELS['rotated']['XZ']}</li>  
+             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'YZ')">${this.AXIS_LABELS['rotated']['YZ']}</li>`
+          : '',
+         `   <hr>
+             <li class="detached-submenu">Organize by
+                <ul>${this.makeOrganizeByMenu()}</ul>
+             </li>
+          </ul>`
+      ].join('')
 
-      Menu.addMenus($menus, click_location, clickHandler);
-   }
-
-   static showOrderMenu (click_location /*: eventLocation */, strategy_index /*: number */) {
-      $('#bodyDouble').click();
-
-      const generator = ((Cayley_Diagram_View.generator /*: any */) /*: CayleyGeneratorFromStrategy */);
-      const makeStrategyList = () => {
-         const template = Template.HTML('generation-order-menu-item-template');
-         const result = generator.strategies
-               .reduce( (orders, _strategy, order) => (orders.push(eval(template)), orders), [])
-               .join('');
-      return result;
-      };
       
-      const num_strategies = generator.strategies.length;
-      const $menus = $(eval(Template.HTML('generation-order-menu-template')))
-            .appendTo('#generation-table');
-
-      Menu.addMenus($menus, click_location, clickHandler);
+      makeDetachedMenu(axisMenu, clickLocation)
+         .then( (action) => eval(action) )
    }
 
-   static makeOrganizeByMenu () {
-      const template = Template.HTML('generation-organize-by-menu-item-template');
-      const result = Group.subgroups
-           .reduce( (list, subgroup, inx) => {
-              if (subgroup.order != 1 && subgroup.order != Group.order) {  // only append non-trivial subgroups
-                 list.push(eval(template));
-              }
-              return list;
-           }, [] )
-         .join('');
-      return result;
+   showOrderMenu (clickLocation /*: eventLocation */, strategyIndex /*: number */) {
+      const numStrategies = cayleyDiagramGenerator.strategies.length
+      
+      const orderList = cayleyDiagramGenerator.strategies.map((_strategy, order) =>
+         `<li data-action="this.updateOrder(${strategyIndex}, ${order})"
+             >${this.ORDER_LABELS[numStrategies][order]}</li>`)
+
+      const orderMenuHTML = [
+         `<ul id="generation-order-menu">`,
+            orderList.join(''),
+           `<hr>
+            <li class="detached-submenu">Organize by
+               <ul>${this.makeOrganizeByMenu()}</ul>
+            </li>
+          </ul>`
+      ].join('')
+
+      makeDetachedMenu(orderMenuHTML, clickLocation)
+         .then( (action) => eval(action) )
+   }
+
+   makeOrganizeByMenu () {
+      const organizeByMenu =
+         group.subgroups.slice(1, -1)  // only append non-trivial subgroups
+            .map((subgroup, inx) =>
+                `<li data-action="this.organizeBy(${inx + 1})">
+                    <i>H</i><sub>${inx + 1}</sub>, a subgroup of order ${subgroup.order}
+                 </li>`)
+            .join('')
+      return organizeByMenu
+   }
+
+   updateStrategies (newStrategies /*: Array<StrategyParameters> */) {
+      const strategies = this.refineStrategies(newStrategies)
+      cayleyDiagramGenerator.strategyParameters = strategies
+      cayleyDiagramGenerator.draw()
+      updateAll()
+   }
+
+   refineStrategies (newStrategies /*: Array<StrategyParameters> */) {
+      const generatorsUsed = new BitSet(group.order)
+      const elementsGenerated = new BitSet(group.order, [0])
+      const strategies = []
+      
+      newStrategies.forEach((strategy) => {
+         // don't include new strategies if they don't generate new elements
+         if (!elementsGenerated.isSet(strategy.generator)) {
+            const previousElementCount = elementsGenerated.popcount()
+            generatorsUsed.set(strategy.generator)
+            elementsGenerated.setFrom(group.closure(generatorsUsed))
+            const newElementCount = elementsGenerated.popcount()
+
+            // check whether we can use a curved display
+            if (strategy.layout != 'linear' && newElementCount / previousElementCount < 3) {
+               strategy.layout = 'linear'
+               if (strategy.direction != 'X' && strategy.direction != 'Y' && strategy.direction != 'Z') {
+                  strategy.direction = 'X'
+               }
+            }
+
+            strategies.push(strategy)
+         }
+      })
+
+      // fix nesting order
+      strategies.slice().sort((a, b) => a.nestingLevel - b.nestingLevel).map((el, inx) => (el.nestingLevel = inx, el))
+
+      // add elements to generate entire group; append to nesting
+      if (elementsGenerated.popcount() != group.order) {
+         // look for new element -- we know one exists
+         const newGenerator = elementsGenerated.complement().toArray()
+            .find((el) => group.closure(generatorsUsed.clone().set(el)).popcount() == group.order)
+
+         // among linear layouts, try to find a direction that hasn't been used yet
+         const unusedDirections = new BitSet(3).setAll()
+         strategies.forEach(({layout, direction}) => {
+            if (layout == 'linear') {
+               unusedDirections.clear(DIRECTION_INDEX[direction])
+            }
+         })
+
+         const unusedDirection = unusedDirections.first()
+         const newDirection = (unusedDirection == undefined) ? AXIS_NAME[0] : AXIS_NAME[unusedDirection]
+         strategies.push({ generator: newGenerator, layout: 'linear', direction: newDirection, nestingLevel: strategies.length })
+      }
+
+      return strategies;
    }
 
    /*
     * Perform actions directed by option menus
     */
-   static organizeBy (subgroup_index /*: number */) {
+   organizeBy (subgroupIndex /*: number */) {
       // get subgroup generators
-      const subgroup_generators = Group.subgroups[subgroup_index].generators.toArray();
+      const subgroupGenerators = group.subgroups[subgroupIndex].generators.toArray();
 
       // add subgroup generator(s) to start of strategies
-      for (let g = 0; g < subgroup_generators.length; g++) {
-         Generator.updateGenerator(g, subgroup_generators[g]);
-         Generator.updateOrder(g, g);
+      for (let g = 0; g < subgroupGenerators.length; g++) {
+         this.updateGenerator(g, subgroupGenerators[g]);
+         this.updateOrder(g, g);
       }
    }
 
-   static updateGenerator (strategy_index /*: number */, generator /*: number */) {
-      const strategy_parameters = ((Cayley_Diagram_View.strategy_parameters /*: any */) /*: Array<StrategyParameters> */);
-      strategy_parameters[strategy_index].generator = generator;
-      updateStrategies(strategy_parameters);
+   updateGenerator (strategyIndex /*: number */, generator /*: number */) {
+      const strategyParameters = ((cayleyDiagramGenerator.strategyParameters /*: any */) /*: Array<StrategyParameters> */);
+      strategyParameters[strategyIndex].generator = generator;
+      this.updateStrategies(strategyParameters);
    }
 
-   static updateAxes (strategy_index /*: number */, layout /*: Layout */, direction /*: Direction */) {
-      const strategy_parameters = ((Cayley_Diagram_View.strategy_parameters /*: any */) /*: Array<StrategyParameters> */);
-      strategy_parameters[strategy_index].layout = layout;
-      strategy_parameters[strategy_index].direction = direction;
-      updateStrategies(strategy_parameters);
+   updateAxes (strategyIndex /*: number */, layout /*: Layout */, direction /*: Direction */) {
+      const strategyParameters = ((cayleyDiagramGenerator.strategyParameters /*: any */) /*: Array<StrategyParameters> */);
+      strategyParameters[strategyIndex].layout = layout;
+      strategyParameters[strategyIndex].direction = direction;
+      this.updateStrategies(strategyParameters);
    }
 
-   static updateOrder (strategy_index /*: number */, order /*: number */) {
-      const strategy_parameters = ((Cayley_Diagram_View.strategy_parameters /*: any */) /*: Array<StrategyParameters> */);
-      const other_strategy = strategy_parameters.findIndex( (strategy) => strategy.nestingLevel == order );
-      strategy_parameters[other_strategy].nestingLevel = strategy_parameters[strategy_index].nestingLevel;
-      strategy_parameters[strategy_index].nestingLevel = order;
-      updateStrategies(strategy_parameters);
+   updateOrder (strategyIndex /*: number */, order /*: number */) {
+      const strategyParameters = ((cayleyDiagramGenerator.strategyParameters /*: any */) /*: Array<StrategyParameters> */);
+      const otherStrategy = strategyParameters.findIndex( (strategy) => strategy.nestingLevel == order );
+      strategyParameters[otherStrategy].nestingLevel = strategyParameters[strategyIndex].nestingLevel;
+      strategyParameters[strategyIndex].nestingLevel = order;
+      this.updateStrategies(strategyParameters);
    }
 
    /*
     * Drag-and-drop generation-table rows to re-order generators
     */
-   static dragStart (dragstartEvent /*: DragEvent */) {
+   dragStart (dragstartEvent /*: DragEvent */) {
       const target = ((dragstartEvent.target /*: any */) /*: HTMLElement */);
       const dataTransfer = ((dragstartEvent.dataTransfer /*: any */) /*: DataTransfer */);
       dataTransfer.setData('text/plain', target.textContent);
    }
 
-   static drop (dropEvent /*: DragEvent */) {
+   drop (dropEvent /*: DragEvent */) {
       dropEvent.preventDefault();
       const target = ((dropEvent.target /*: any */) /*: HTMLElement */);
       const dataTransfer = ((dropEvent.dataTransfer /*: any */) /*: DataTransfer */);
       const dest = parseInt(target.textContent);
       const src = parseInt(dataTransfer.getData('text/plain'));
-      const strategy_parameters = ((Cayley_Diagram_View.strategy_parameters /*: any */) /*: Array<StrategyParameters> */);
-      strategy_parameters.splice(dest-1, 0, strategy_parameters.splice(src-1, 1)[0]);
-      updateStrategies(strategy_parameters);
+      const strategyParameters = ((cayleyDiagramGenerator.strategyParameters /*: any */) /*: Array<StrategyParameters> */);
+      strategyParameters.splice(dest-1, 0, strategyParameters.splice(src-1, 1)[0]);
+      this.updateStrategies(strategyParameters);
    }
 
-   static dragOver (dragoverEvent /*: DragEvent */) {
+   dragOver (dragoverEvent /*: DragEvent */) {
          dragoverEvent.preventDefault();
    }
-
-   static setMult (rightOrLeft /*: string */) {
-      Cayley_Diagram_View.right_multiply = (rightOrLeft == 'right');
-   }
 }
-
 /*
- * Internal routines, not exported
+```
+### Arrow
+```javascript
  */
+class Arrow {
+// actions:  show menu; select from menu; select from list; remove
+// utility function add_arrow_list_item(element) to add arrow to list (called from initialization, select from menu)
+// utility function clearArrowList() to remove all arrows from list (called during reset)
+   constructor () {
+      cayleyDiagramControlElement.insertAdjacentHTML('beforeend',
+         `<style>
+              #arrow-list {
+                 min-height: 5em;
+                 background-color: white;
+                 margin-block-start: 0;
+                 margin-block-end: 0;
+                 padding-inline-start: 0;
+                 line-height: 1;
+                 border: var(--dark-border);
+                 border-radius: var(--border-radius);
+              }
+              #arrow-list hr {   /* Colored lines in arrow display */
+                 display: inline-block;
+                 width: 8ch;
+                 margin-block-start: 1ex;
+                 margin-block-end: 0.7ex;
+                 margin-inline-start: 0.5ch;
+                 margin-inline-end: 0.5ch;
+              }
+           </style>
 
-// Remove redundant generators, check whether there are enough elements to use curved display
-function refineStrategies (strategies /*: Array<StrategyParameters> */) {
-   const generators_used = new BitSet(Group.order);
-   let elements_generated = new BitSet(Group.order, [0]);
-   strategies = strategies.reduce( (nonRedundantStrategies, strategy) => {
-      if (!elements_generated.isSet(strategy.generator)) {
-         const old_size = elements_generated.popcount();
-         generators_used.set(strategy.generator);
-         elements_generated = Group.closure(generators_used);
-         const new_size = elements_generated.popcount();
+           <div id="arrow-control" class="stack-03em">
+              Show these arrows:
+              <ul id="arrow-list" data-action="this.clearHighlights()"></ul>
+              <div id="arrow-buttons" class="flex-h">
+                 <button id="arrow-add-button" data-action="this.showArrowMenu(event)">Add</button>
+                 <button id="arrow-remove-button" disabled="">Remove</button>
+              </div>
+           </div>`)
 
-         if (strategy.layout != 'linear' && new_size / old_size < 3) {
-            strategy.layout = 'linear';
-            if (strategy.direction != 'X' && strategy.direction != 'Y' && strategy.direction != 'Z') {
-               strategy.direction = 'X';
-            }
-         }
-
-         nonRedundantStrategies.push(strategy);
-      }
-      return nonRedundantStrategies;
-   }, []);
-
-   // fix nesting order
-   strategies.slice().sort( (a,b) => a.nestingLevel - b.nestingLevel ).map( (el,inx) => (el.nestingLevel = inx, el) );
-
-   // add elements to generate entire group; append to nesting
-   if (elements_generated.popcount() != Group.order) {
-      // look for new element -- we know one exists
-      const new_generator = ((elements_generated
-                              .complement()
-                              .toArray()
-                              .find( (el) => Group.closure(generators_used.clone().set(el)).popcount() == Group.order ) /*: any */) /*: groupElement */);
-      // among linear layouts, try to find a direction that hasn't been used yet
-      const unused_direction =
-            strategies.reduce( (unused_directions, {layout, direction}) => {
-               if (layout == 'linear') {
-                  unused_directions.clear(DIRECTION_INDEX[direction]);
-               }
-               return unused_directions;
-            }, new BitSet(3).setAll() )
-            .first();
-      const new_direction = (unused_direction == undefined) ? AXIS_NAME[0] : AXIS_NAME[unused_direction];
-      strategies.push({generator: new_generator, layout: 'linear', direction: new_direction, nestingLevel: strategies.length});
+      this.arrowControlElement.addEventListener('click', clickHandler.bind(this))
+      this.arrowControlElement.addEventListener('contextmenu', clickHandler.bind(this))
    }
 
-   return strategies;
-}
+   get arrowControlElement () {
+      return document.getElementById('arrow-control')
+   }
 
-function updateStrategies (new_strategies /*: Array<StrategyParameters> */) {
-   const strategies = refineStrategies(new_strategies);
-   Cayley_Diagram_View.strategy_parameters = strategies;
-   update();
-}
+   get arrowListElement () {
+      return  document.getElementById('arrow-list')
+   }
 
+   get arrowAddButton () {
+      return document.getElementById('arrow-add-button')
+   }
 
-/* Load, initialize diagram control */
-async function load ($diagramWrapper /*: JQuery */) /*: Promise<void> */ {
-  const data = await GEUtils.ajaxLoad(DIAGRAM_PANEL_URL)
+   get arrowRemoveButton () {
+      return document.getElementById('arrow-remove-button')
+   }   
 
-  $diagramWrapper.html(data)
-   Generator.init();
+   clearHighlights () {
+      this.arrowListElement.querySelectorAll('li').forEach((el) => el.classList.remove('highlighted'))
+   }
 
-   $('#diagram-select')[0].addEventListener('change', DiagramChoice.changeHandler);
+   // Row selected in arrow-list:
+   //   clear all highlights
+   //   highlight row (find arrow-list item w/ arrow = ${element})
+   //   enable remove button
+   selectArrow (element /*: number */) {
+      this.clearHighlights()
+      this.arrowListElement.querySelector(`li[data-arrow="${element}"]`).classList.add('highlighted')
+      this.arrowRemoveButton.setAttribute('data-action', `this.removeArrow(${element})`)
+      this.arrowRemoveButton.disabled = false
+   }
 
-   $('#generation-control')[0].addEventListener('click', clickHandler);
-   $('#generation-table')[0].addEventListener('dragstart', Generator.dragStart);
-   $('#generation-table')[0].addEventListener('drop', Generator.drop);
-   $('#generation-table')[0].addEventListener('dragover', Generator.dragOver);
+   // returns all arrows displayed in arrow-list as an array
+   getAllArrows () /*: Array<groupElement> */ {
+      return Array
+         .from(this.arrowListElement.querySelectorAll('li'))
+         .map((listItem /*: HTMLLIElement */) => parseInt(listItem.getAttribute('arrow')))
+   }
 
-   $('#arrow-control')[0].addEventListener('click', clickHandler);
+   // Add button clicked:
+   //   Clear (hidden) menu
+   //   Populate menu (for each element not in arrow-list)
+   //   Position, expose menu
+   showArrowMenu (event /*: MouseEvent */) {
+      // make an array of HTML strings with a list element for each arrow that can be added to the arrow-list
+      const arrowList = group.elements
+         .filter((element) => element != 0 && this.arrowListElement.querySelector(`li[data-arrow="${element}"]`) == null)
+         .sort((a, b) => (group.representation[a] < group.representation[b]) ? -1 : 1)
+         .map((element) => `<li data-action="this.addArrow(${element})">${group.representation[element]}</li>`)
 
-   $('#chunk-select')[0].addEventListener('change', Chunking.changeHandler);
+      const arrowMenu = `<ul id="arrow-menu" style="min-width: 10ch">${arrowList.join('')}</ul>`
 
-   update();
-}
+      makeDetachedMenu(arrowMenu, event)
+         .then((action) => eval(action))
+   }
 
-function update() {
-   DiagramChoice.setupDiagramSelect();
-   Generator.draw();
-   Arrow.updateArrows();
-   Chunking.updateChunkingSelect();
-}
+   // Add button menu element clicked:
+   //   Hide menu
+   //   Add lines to Cayley_diagram
+   //   Update lines, arrowheads in graphic, arrow-list
+   addArrow (element /*: number */) {
+      cayleyDiagramGenerator.addArrow(element)
+      this.update()
+   }
 
-function clickHandler(event /*: MouseEvent */) {
-   event.preventDefault();
-   const $action = $(event.target).closest('[action]');
-   if ($action.length != 0) {
-      event.stopPropagation();
-      eval($action.attr('action'));
-      // if we've just executed a menu action that's not just exposing a sub-menu
-      //   then we're done: clean up the window
-      if ($action.parent().hasClass('menu') && $action.attr('link') == undefined) {
-         GEUtils.cleanWindow();  // is this always the right thing to do?
+   // Remove button clicked
+   //   Remove highlighted row from arrow-list
+   //   Disable remove button
+   //   Remove line from Cayley_diagram
+   //   Update lines in graphic, arrow-list
+   removeArrow (element /*: number */) {
+      this.arrowRemoveButton.disabled = true
+      cayleyDiagramGenerator.removeArrow(element)
+      this.update()
+   }
+
+   // clear arrows
+   // set line colors in Cayley_diagram
+   // update lines, arrowheads in CD
+   // add rows to arrow list from line colors
+   update () {
+      const arrows = Array.from(this.arrowListElement.children)
+      arrows.forEach((el) => el.remove())
+      // ES6 introduces a Set, but does not provide any way to change the notion of equality among set members
+      // Here we work around that by joining a generator value from the line.arrow attribute ("27") and a color ("#99FFC1")
+      //   into a unique string ("27#99FFC1") in the Set, then partitioning the string back into an element and a color part
+      const arrowHashes = new Set(cayleyDiagramGenerator.arrows.map(
+          (arrow) => '' + arrow.generator.toString() + '#' + (new THREE.Color(arrow.color).getHexString())
+      ))
+      arrowHashes.forEach( (hash) => {
+         const element = hash.slice(0,-7)
+         const color = hash.slice(-7)
+         const listItem = `<li data-arrow="${element}" data-color="${color}" data-action="this.selectArrow(${element})">
+                              <hr style="border: 2px solid ${color}">${group.representation[element]}</li>`
+         this.arrowListElement.insertAdjacentHTML('beforeend', listItem)
+      } );
+      if (arrowHashes.size == group.order - 1) {  // can't make an arrow out of the identity
+         this.disable()
+      } else {
+         this.enable()
       }
+   }
+
+   // disable Add button
+   enable () {
+      this.arrowAddButton.disabled = false
+   }
+
+   // enable Add button
+   disable () {
+      this.arrowAddButton.disabled = true
+   }
+}
+/*
+```
+### Multiplication
+```javascript
+ */
+class Multiplication {
+   constructor () {
+      cayleyDiagramControlElement.insertAdjacentHTML('beforeend',
+         `<div>
+             Arrows mean:
+             <div>
+                <input id="right-multiplication" name="multiplication" type="radio" value="right" checked>
+                <label for="right-multiplication">right multiplication</label>
+             </div>
+             <div>
+                <input id="left-multiplication" name="multiplication" type="radio" value="left">
+                <label for="left-multiplication">left multiplication</label>
+             </div>
+          </div>`)
+
+      this.rightMultiplicationElement.addEventListener('click', () => this.setMult('right'))
+      this.leftMultiplicationElement.addEventListener('click', () => this.setMult('left'))
+   }
+
+   get leftMultiplicationElement () {
+      return document.getElementById('left-multiplication')
+   }
+
+   get rightMultiplicationElement () {
+      return document.getElementById('right-multiplication')
+   }
+   
+   setMult (rightOrLeft /*: string */) {
+      cayleyDiagramGenerator.rightMultiply = (rightOrLeft == 'right')
+   }
+
+   update () {
+      this.rightMultiplicationElement.checked = 'true'
+      this.setMult('right')
+   }
+}
+/*
+```
+### Chunking
+```javascript
+ */
+class Chunking {
+   constructor () {
+      cayleyDiagramControlElement.insertAdjacentHTML('beforeend',
+         `<style>
+              #chunking-fog {
+                 position: absolute;
+                 left: 0;
+                 top: 0;
+                 width: 100%;
+                 height: 100%;
+                 background: rgb(255, 255, 255, 0.5);
+              }
+          </style>
+
+          <div class="position:relative">
+             Chunk this subgroup:
+             <div id="chunk-select" class="mock-select" data-index="0">(no chunking)</div>
+             <div id="chunking-fog"></div>
+          </div>`)
+
+      this.chunkSelect.addEventListener('click', (_ev) =>  this.displayChunkingOptions())
+   }
+
+   get chunkSelect () {
+      return document.getElementById('chunk-select')
+   }
+   
+   get chunkingFog () {
+      return document.getElementById('chunking-fog')
+   }
+
+   // check that first generator is innermost, second is middle, etc.
+   get chunkingIsPossible () {
+      const strategies = cayleyDiagramGenerator.strategies
+      return cayleyDiagramGenerator.generatesFromStrategy
+          && (  strategies[0].nesting_level == 0
+              || strategies[strategies.length - 1].nesting_level == strategies.length - 1)
+   }
+
+   displayChunkingOptions () {
+      const choices = [
+         [0, '(no chunking)']
+      ]
+
+      if (this.chunkingIsPossible) {
+          const strategies = cayleyDiagramGenerator.strategies
+          const chunkingChoices = cayleyDiagramGenerator.getChunkingChoices()
+          
+          chunkingChoices.forEach((chunkingChoice) => {
+              const subgroupIndex = group.subgroups.findIndex((H) => H.members.equals(chunkingChoice.elements))
+              const strategyIndex = strategies.findIndex((strategy) => strategy == chunkingChoice)
+              const accumulatedGenerators = strategies.slice(0, strategyIndex + 1)
+                  .map((strategy) => group.representation[strategy.generator])
+              const label = (subgroupIndex === group.subgroups.length - 1)
+                ? 'The whole group'
+                : `<i>H</i><sub>${subgroupIndex}</sub>, generated by { ${accumulatedGenerators.join(', ')} }`
+              choices.push([subgroupIndex, label])
+          })
+      }
+
+      makeMockSelect(this.chunkSelect, choices)
+         .then(
+            (choice) => cayleyDiagramGenerator.chunk = choice,
+            () => {}
+         )
+   }
+
+   update () {
+      cayleyDiagramGenerator.chunk = 0
+      this.chunkSelect.setAttribute('data-index', 0)
+      this.chunkSelect.innerHTML = '(no chunking)'
+      this.chunkingFog.style.display = this.chunkingIsPossible ? 'none' : 'block'
    }
 }

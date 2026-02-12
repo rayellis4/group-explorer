@@ -1,0 +1,277 @@
+
+group-explorer
+  index.html
+  citing.html
+  Version.js
+  makefile
+  GroupURLs.js
+  mkdocs.hml
+  README.md
+  refreshVersion.js
+  Migration.js  >> update refresh logic here?
+  pages
+     GroupExplorer
+        GroupExplorer.html
+        GroupExplorer.js
+        TopRightMenu.js -> root/components/TopRightMenu.md
+     GroupInfo
+        GroupInfo.html
+        GroupInfo.js
+        TopRightMenu.js -> root/components/TopRightMenu.md
+        AbelianInfo.js  >> these contain deprecated references to root/html files
+        CayleyDiagramController.js
+        CayleyViewController.js
+        ClassEquationInfo.js
+        CyclicInfo.js
+        OrderClassesInfo.js
+        ShowGAPCode.js
+        SolvableInfo.js
+        SubgroupInfo.js
+        ZmnInfo.js
+     CayleyDiagram
+        CayleyDiagram.html
+        CayleyDiagram.js
+        CayleyDiagramController.css  >> integrate with component
+        TopRightMenu.js -> root/components/TopRightMenu.md
+        SubsetHighlightControllerMenu.js -> root/components/SubsetHighlightController.md
+        AbstractDiagramDisplay.js -> root/js/AbstractDiagramDisplay.js
+        CayleyDiagramController.js
+        CayleyDiagramView.js
+        CayleyGenerator.js
+        CayleyViewController.js
+        DiagramDnD.js -> DiagramDnD.md
+        DiagramDnD.md
+     Multtable
+        Multtable.html
+        Multtable.js
+        TopRightMenu.js -> root/components/TopRightMenu.md
+        SubsetHighlightControllerMenu.js -> root/components/SubsetHighlightController.md
+        MulttableView
+     CycleGraph
+        CycleGraph.html
+        CycleGraph.js
+        TopRightMenu.js -> root/components/TopRightMenu.md
+        SubsetHighlightControllerMenu.js -> root/components/SubsetHighlightController.md
+        CycleGraphView
+     SymmetryObject
+        SymmetryObject.html
+        SymmetryObject.js
+        TopRightMenu.js -> root/components/TopRightMenu.md
+        SubsetHighlightControllerMenu.js -> root/components/SubsetHighlightController.md
+        AbstractDiagramDisplay.js -> root/js/AbstractDiagramDisplay.js
+        SymmetryObjectView.js
+     Sheet
+        Sheet.html
+        Sheet.js
+        TopRightMenu.js -> root/components/TopRightMenu.md
+        SheetController.js
+        SheetModel.js -> SheetModel.md
+        SheetModel.md
+        SheetView.js
+  components
+     DetachedComponent.js -> DetachedComponent.md
+     DetachedComponent.md
+     ModalMenu.js -> ModalMenu.md  >> rename to simply Menu?
+     ModalMenu.md
+     SubsetHighlightController.js  >> rename *Controllers to, e.g., SubsetHighlighter
+     Tooltip.js -> Tooltip.md
+     Tooltip.md
+     TopRightMenu.js -> TopRightMenu.md
+     TopRightMenu.md
+  html  >> integrate with components?
+  js  >> put *.md files in another directory?
+     AbstractDiagramDisplay.js
+     BasicGroup.js -> BasicGroup.md
+     BasicGroup.md
+     BitSet.js -> BitSet.md
+     BitSet.md
+     DefiningRelations.js
+     ge-lib-endmatter.js
+     ge-lib-preamble.js
+     GEUtils.js -> GEUtils.md
+     GEUtils.md
+     IsomorphicGroups.js
+     Library.js
+     Log.js -> Log.md
+     Log.md
+     MathML.js -> MathML.md
+     MathML.md
+     MathUtils.js
+     Menu.js -> Menu.md
+     Menu.md
+     Subgroup.js -> Subgroup.md
+     Subgroup.md
+     SubgroupLattice.js -> SubgroupLattice.md
+     SubgroupLattice.md
+     Template.js -> Template.md
+     Template.md
+     XMLGroup.js
+  style
+     fonts.css
+     menu.css  >> integrate with Menu component
+     sliders.css
+     w3.css
+     w3-theme-blue.css
+  groups
+     >> keep GroupURLs.js here?
+     >> rename GroupURLs.js as StandardLibrary?
+     >> generate automatically in makefile?
+     >> convert to .json?
+  fgb_groups
+     >> merge with groups, entries not in groupURLs.js?
+  tests
+     BitTest.js
+     GEUtils.js
+     MathUtils.js
+     Template.js
+     UnitTests.html
+  fonts
+     README.txt
+     GroupExplorer_AMS.woff
+     MathJax_SansSerif-Bold.woff
+     MathJax_SansSerif-Italic.woff
+     MathJax_SansSerif-Regular.woff
+  lib
+     externals.js
+     three-146  >> update (current is 158)? any local mods to maintain?
+  docs  >> integrate with notes and delete directory? (remove references from ../makefile, too)
+     templateTest.html
+     visualizerExemplar.html
+     visualizerExemplar.md
+     visualizerFramework_html.md
+     visualizerLayout.html
+     visualizerLayout.md
+     visualizerLayout.png
+  visualizerFramework -- integrate with components, delete?
+     visualizer.css -> visualizer_css.md
+     visualizer_css.md
+     visualizer.js -> visualizer.md
+     visualizer.md
+  notes
+     DiagramDnD_1.htmlcc
+     DiagramDnD_2.html
+     gotchas.md
+     mobile.md
+     PostponedOrAbandoned.txt
+     style.md
+     ToDo.md
+  help
+  help-src
+  help-style
+
+
+
+ Components uses:
+ index.html
+
+ GroupExplorer
+    heading
+       IconGroup
+
+ GroupInfo
+    heading
+       IconGroup
+
+ CayleyDiagram
+    CayleySheetEditor
+    heading
+       IconGroup
+    display
+       CayleyDisplay
+          CayleyDiagramView
+    controls
+       HighlightControl
+       CayleyViewControl
+       CayleyDiagramControl
+
+ Multtable
+    MulttableSheetEditor
+    heading
+       IconGroup
+    display
+       MulttableDisplay
+          MulttablView
+    controls
+       HighlightControl
+       MulttableControl
+
+ CycleGraph
+    CycleGraphSheetEditor
+    heading
+       IconGroup
+    display
+       CycleGraphDisplay
+          CycleGraphView
+    controls
+       HighlightControl
+
+ SymmetryObject
+    heading
+       IconGroup
+    display
+       SymmetryObjectDisplay
+          AbstractDiagramDisplay
+    controls
+       SymmetryObjectControl
+
+ Sheet
+    heading
+       IconGroup
+
+
+
+Files using jQuery marked with X:
+
+   CayleyDiagram.js
+   CycleGraph.js
+X  GroupExplorer.js
+X  GroupInfo.js
+   Multtable.js
+X  Sheet.js
+   SymmetryObject.js
+X  js/AbelianInfo.js
+X  js/AbstractDiagramDisplay.js
+   js/AutoUpgrade.js
+X  js/CayleyDiagramControl.js
+X  js/CayleyDiagramView.js
+   js/CayleyDisplay.js
+X  js/CayleyGenerator.js
+   js/CayleySheetEditor.js
+   js/CayleyViewControl.js
+X  js/ClassEquationInfo.js
+   js/ControlPanel.js
+   js/CycleGraphDisplay.js
+   js/CycleGraphSheetEditor.js
+X  js/CycleGraphView.js
+X  js/CyclicInfo.js
+   js/DetachedComponent.js
+X  js/DiagramDnD.js
+   js/DisplayGestureHandler.js
+X  js/ge-lib-endmatter.js
+X  js/ge-lib-preamble.js
+   js/GenericSheetEditor.js
+X  js/GEUtils.js
+   js/Heading.js
+X  js/HighlightControl.js
+X  js/Library.js
+X  js/MathML.js
+X  js/Menu.js
+   js/ModalMenu.js
+   js/MulttableControl.js
+X  js/MulttableDisplay.js
+   js/MulttableSheetEditor.js
+X  js/MulttableView.js
+X  js/OrderClassesInfo.js
+X  js/SheetController.js
+X  js/SheetModel.js
+X  js/SheetView.js
+X  js/ShowGAPCode.js
+X  js/SolvableInfo.js
+X  js/SubgroupInfo.js
+   js/SymmetryObjectControl.js
+   js/SymmetryObjectDisplay.js
+   js/SymmetryObjectView.js
+X  js/Template.js
+   js/Tooltip.js
+X  js/XMLGroup.js
+X  js/ZmnInfo.js

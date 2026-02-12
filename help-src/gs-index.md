@@ -27,7 +27,7 @@ operations and groups.  *Group Explorer* allows users to view them,
 highlight them, compare them, draw homomorphisms between them, take
 quotients of them, and more.
 
- * [See an example multiplication table here](http://nathancarter.github.io/group-explorer/Multtable.html?groupURL=groups/S_3.group)
+ * [See an example multiplication table here](../../Multtable.html?groupURL=groups/S_3.group)
  * [Read more about multiplication tables here](gs-mt-intro.md)
 
 CITE(VGT-4.3 MM-1.5 DE-5.3)
@@ -40,7 +40,7 @@ diagrams expose the structure of a group and the relationships between its
 elements and generators.  These, too, can be viewed, highlighted, connected
 by homomorphisms, etc.
 
- * [See an example Cayley diagram here](http://nathancarter.github.io/group-explorer/CayleyDiagram.html?groupURL=groups/S_3.group)
+ * [See an example Cayley diagram here](../../CayleyDiagram.html?groupURL=groups/S_3.group)
  * [Read more about Cayley diagrams here](gs-cd-intro.md)
 
 CITE(VGT-2.4 MM-1.2 DE-3)
@@ -49,12 +49,12 @@ CITE(VGT-2.4 MM-1.2 DE-3)
 
 Symmetry objects are very common and cycle graphs are very rare, but both are also integrated in *Group Explorer.*
 
- * [See an example object of symmetry here](http://nathancarter.github.io/group-explorer/SymmetryObject.html?groupURL=groups/S_3.group)
- * [See an example cycle graph here](http://nathancarter.github.io/group-explorer/CycleGraph.html?groupURL=groups/S_3.group)
+ * [See an example object of symmetry here](../../SymmetryObject.html?groupURL=groups/S_3.group)
+ * [See an example cycle graph here](../../CycleGraph.html?groupURL=groups/S_3.group)
 
 These help pages allow the student to be guided by the software on their
 explorations and investigations in group theory.  [*Group Explorer's* group
-library](http://nathancarter.github.io/group-explorer/GroupExplorer.html) is
+library](../../GroupExplorer.html) is
 the perfect place to start for building conjectures or finding
 counterexamples.
 

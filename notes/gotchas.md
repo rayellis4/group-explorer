@@ -156,3 +156,7 @@ Chrome (and others) cannot display more than 16 active WebGL contexts at once
 The Stack Overflow entry https://stackoverflow.com/questions/29221795/serializing-camera-state-in-threejs is not completely accurate -- you need to serialize camera.up as well as the decomposed matrix.
 
 <hr>
+
+Mobile Safari does not honor the viewport meta tag parameter user-scalable=no, so pinching can result in changing the viewport scale for the whole page, with some surprising results. This scaling can be prevented by catching the touchmove events and preventing the default behavior, but as described in https://stackoverflow.com/questions/37808180/disable-viewport-zooming-ios-10-safari if any deeper targets call stopPropagation on the event, the event will not reach the document and the scaling behavior will not be prevented by this listener. Another Safari workaround.
+
+<hr>

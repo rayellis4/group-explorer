@@ -1,22 +1,24 @@
-// @flow
+/* @flow
 
-import BasicGroup from './BasicGroup.js';
-import {CayleyDiagramView, createUnlabelledCayleyDiagramView} from './CayleyDiagramView.js';
-import GEUtils from './GEUtils.js'
-import IsomorphicGroups from './IsomorphicGroups.js';
-import Log from './Log.js';
-import MathUtils from './MathUtils.js';
-import Subgroup from './Subgroup.js';
-import Template from './Template.js';
+# SubgroupInfo
 
-import {actionClickHandler} from '../GroupInfo.js';
+A [GroupInfo](./GroupInfo.html.md) component that displays information about a group's subgroups,
+including a table of the group's subgroups and some of their properties.
 
-import * as SheetModel from './SheetModel.js';
+```javascript
+ */
+import BitSet from './BitSet.js'
+import {createCayleyDiagramGenerator} from './CayleyDiagramGenerator.js'
+import * as GEUtils from './GEUtils.js'
+import {IMAGE_SIZE} from './GroupTable.js'
+import * as Library from './Library.js'
+import * as MathUtils from './MathUtils.js'
+import * as SheetModel from './SheetModel.js'
 
-export {summary, display, showSubgroupLattice, showEmbeddingSheet, showQuotientSheet};
+export {display}
 
 /*::
-import XMLGroup from './XMLGroup.js'
+import Group from './Group.js'
 
 import type {
     JSONType,
@@ -32,112 +34,224 @@ import type {
 type DecoratedSubgroup = Subgroup & {_tierIndex?: number, _used?: boolean};
 */
 
-// Load templates
-const SUBGROUP_INFO_URL = './html/SubgroupInfo.html';
-const LoadPromise = GEUtils.ajaxLoad(SUBGROUP_INFO_URL)
+function display (subgroupInfoElementId, group) {
+   const cayleyDiagramGenerator = createCayleyDiagramGenerator( { width : IMAGE_SIZE, height : IMAGE_SIZE } );
+   const subgroupInfoElement = document.getElementById(subgroupInfoElementId)
+   subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId, cayleyDiagramGenerator)
 
-// Module variables
-let Group /*: XMLGroup */;
-let Cayley_Diagram_View	/*: CayleyDiagramView */;
+   GEUtils.createActionHandler(subgroupInfoElement, (action) => eval(action))
 
-function summary (group /*: XMLGroup */) {
-    return `${group.subgroups.length} subgroups`;
-}
-
-async function display (group /*: XMLGroup */, $wrapper /*: JQuery */) {
-  const templates = await LoadPromise
-
-  if ($('template[id|="subgroups"]').length == 0) {
-    $('body').append(templates);
-  }
-
-  $wrapper.html(formatSubgroupInfo(group));
-}
-
-function formatSubgroupInfo (group /*: XMLGroup */) /*: DocumentFragment */ {
-    Group = group;
-    Cayley_Diagram_View = createUnlabelledCayleyDiagramView( { width : 50, height : 50 } );
-
-    const $frag = $(document.createDocumentFragment())
-          .append(eval(Template.HTML('subgroups-header-template')));
-
-    if (Group.isSimple) {
-        $frag.find('#not-simple').remove();
-    } else {
-        $frag.find('#simple').remove();
-    }
-
-    for (let inx = 0; inx < Group.subgroups.length; inx++) {
-        $frag.find('tbody').append(subgroupInfo(inx)).html();
-    }
-
-    if ($frag.find('li.subgroups-no-isomorphism').length == 0) {
-        $frag.find('#subgroups-no-isomorphism-reason').remove();
-    }
-    if ($frag.find('li.subgroups-no-quotient-group').length == 0) {
-        $frag.find('#subgroups-no-quotient-group-reason').remove();
-    }
-
-    return (($frag[0] /*: any */) /*: DocumentFragment */);
-}
-
-function subgroupInfo (index /*: number */) {
-   const subgroup = Group.subgroups[index];
-   const subgroupOrder = subgroup.members.popcount();
-   const optionalDescription = shortDescription(subgroup);
-   const element_representations = subgroup.members.toArray().map( el => Group.representation[el] );
-
-   const $row = $(eval(Template.HTML('subgroups-data-row-template')));
-
-   let isomorphicGroup = IsomorphicGroups.findForSubgroup(Group, subgroup)
-   if (isomorphicGroup == undefined) {
-      $row.find('ul').append(eval(Template.HTML('subgroups-no-isomorphism-template')));
-   } else {
-      // FIXME -- get CayleyDiagram to build for unnamed BasicGroup
-      if (!isomorphicGroup.hasOwnProperty('name'))
-         Log.err('trying to build CayleyDiagram for unnamed BasicGroup in SubgroupInfo');
-      // Use cached Cayley diagram where possible
-      const cached_thumbnail = ((isomorphicGroup /*: any */) /*: XMLGroup */).CayleyThumbnail;
-      let image /*: Image */;
-      if (cached_thumbnail != undefined) {
-         image = (($('<img>').attr({src: cached_thumbnail})[0] /*: any */) /*: Image */);
-      } else {
-         Cayley_Diagram_View.setDiagram( ((isomorphicGroup /*: any */) /*: XMLGroup */) );
-         image = Cayley_Diagram_View.getImage();
-      }
-      image.height = image.width = 50;
-      $row.find('.image').html('').append(image);
-      $row.find('ul').append(eval(Template.HTML('subgroups-isomorphism-template')));
-   }
-
-   if (Group.isNormal(subgroup)) {
-      if (subgroupOrder == 1) {
-         isomorphicGroup = Group;
-      } else {
-         const quotientGroup = Group.getQuotientGroup(subgroup.members);
-         isomorphicGroup = IsomorphicGroups.find(quotientGroup);
-      }
-
-      if (isomorphicGroup === undefined) {
-         $row.find('ul').append(eval(Template.HTML('subgroups-no-quotient-group-template')));
-      } else {
-         $row.find('ul').append(eval(Template.HTML('subgroups-quotient-group-template')));
+   // create twisty details on the fly
+   const generateDetail = (event) => {
+      if (event.target.querySelector('div') == null) {
+         const subgroupIndex = parseInt(event.target.getAttribute('subgroup'))
+         const expandedContent = formatSubgroupListContent(group, subgroupIndex, cayleyDiagramGenerator)
+         event.target.insertAdjacentHTML('beforeEnd', expandedContent)
+         event.target.removeEventListener('toggle', generateDetail)
       }
    }
+   Array.from(document.querySelectorAll('#subgroup-list details')).forEach((element) => {
+      if (element.hasAttribute('subgroup')) {
+         element.addEventListener('toggle', generateDetail)
+      }
+   })
 
-   return $row;
+   // rebuild content on representation change
+   subgroupInfoElement.closest('.all-info')
+      .addEventListener('representationChange',
+          () => subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId))
 }
 
-function shortDescription (subgroup /*: Subgroup */) {
+function makeSubgroupInfoContent (group, subgroupInfoElementId, cayleyDiagramGenerator) {
+   const htmlFragments = [
+      `<style>
+         #${subgroupInfoElementId} > details > div {
+            margin-top: 1em;
+         }
+         #${subgroupInfoElementId} > details > summary + div {
+            margin-top: 0;
+         }
+         #${subgroupInfoElementId} .normal-group {
+            color: blue;
+         }
+         #subgroup-list {
+            max-height: 75em;
+            overflow-y: auto;
+         }
+       </style>
+       <details>
+       <summary>
+           <span class="title">Subgroups</span>
+           <span class="summary">${group.subgroups.length} (${group.subgroups.filter((H) => group.isNormal(H)).length} normal)</span>
+       </summary>`,
+         ...formatSubgroupInfoHeader(group),
+      `<div id="subgroup-list">
+         <ul>`,
+            ...group.subgroups.map((_, subgroupIndex) => formatSubgroupListElement(group.subgroups[subgroupIndex])),
+        `</ul>
+       </div>`,
+      `</details>`
+   ]
+
+   return htmlFragments.join('')
+}
+
+function formatSubgroupInfoHeader (group) {
+   const htmlFragments = [
+      `<div>All <a href="./help/rf-groupterms/index.html#subgroup">subgroups</a> of
+          ${group.name} are listed below, together with their
+          <a href="./help/rf-groupterms/index.html#generators-for-a-group-or-subgroup">generators</a>
+          and the <a href="./help/rf-groupterms/index.html#order-of-a-subgroup">subgroup order</a>.
+          <a href="./help/rf-groupterms/index.html#normal-subgroup">Normal subgroups</a> are shown in
+          <span class="normal-group">blue</span>.</div>
+       <button class="gap-compute" data-GAP="getting the list of all subgroups of a group">Compute this in GAP</button>
+       <div>Further information is available by clicking the twisty to the left of the listing.
+          This includes a brief description of the subgroup, a list of its elements, a link to the Group Info page of
+          the <i>Group Explorer</i> library group that is
+          <a href="./help/rf-groupterms/index.html#isomorphicm-isomorphic">isomorphic</a> to it,
+          and a link to a sheet showing the subgroup's embedding in the group.
+          In addition, if the subgroup is normal, it provides a link to a sheet showing a
+          <a href="./help/rf-groupterms/index.html#short-exact-sequence">short exact sequence</a> which exhibits the
+          <a href="./help/rf-groupterms/index.html#first-isomorphism-theorem">First Isomorphism Theorem</a>
+          applied to the subgroup.</div>
+       <button class="gap-compute" data-GAP="checking whether a subgroup is normal">Compute this in GAP</button>
+       <div>The subgroups can also be shown arranged in a
+          <a href="./help/rf-groupterms/index.html#lattice-of-subgroups">lattice</a>, each shown as
+          highlighted portions of the whole group, connected by the identity (inclusion)
+          homomorphism. You may see that lattice by
+          <a href="" data-action="showSubgroupLattice(group, 'CDElement')">Cayley diagram</a>,
+          <a href="" data-action="showSubgroupLattice(group, 'CGElement')">cycle graph</a>,
+          <a href="" data-action="showSubgroupLattice(group, 'MTElement')">multiplication table</a>.
+          (The subgroup labels in the sheets are colored by
+             <a href="./help/rf-groupterms/index.html#conjugacy-classes">subgroup conjugacy class</a>.)
+          You can also calculate it in GAP:</div>
+          <button class="gap-compute" data-GAP="getting the lattice of subgroups of a group">Compute this in GAP</button>
+          <div>And you can see the subgroups and their conjugacy classes arranged in a
+          <a href="" data-action="showSubgroupLattice(group, 'TextElement', true)">reduced diagram</a>
+          in which subgroups in the same conjugacy class are merged into a single node (which
+          may not result in a true lattice!).</div>`,
+       (group.isSimple)
+          ? `<div>None of the subgroups on the list below is
+               <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a>.
+               For this reason, ${group.name} is a
+               <a href="./help/rf-groupterms/index.html#simple-group">simple</a> group.</div>`
+          : `<div>At least one of the subgroups on the list below is
+               <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a>.
+               For this reason, ${group.name} is not a
+               <a href="./help/rf-groupterms/index.html#simple-group">simple</a> group.</div>`,
+      `<button class="gap-compute" data-GAP="checking if a group is simple">Compute this in GAP</button>`
+   ]
+
+   return htmlFragments
+}
+
+function formatSubgroupListElement (subgroup) {
+   const subgroupIndex = subgroup.group.subgroups.indexOf(subgroup)
+   const txtName = () => `H_${subgroupIndex}`
+   const htmlName = () => `<i>H</i><sub>${subgroupIndex}</sub>`
+
+   const generators = subgroup.generators.toArray()
+      .map( el => subgroup.group.representation[el] );
+
+   let line;
+   switch (subgroup.order) {
+   case 0:
+      line =
+         `<li id="${txtName()}">
+             <details subgroup="${subgroupIndex}">
+                <summary>
+                   <span class="normal-group title">
+                      ${htmlName()} = ⟨ ${generators[0]} ⟩ is the trivial subgroup { ${generators[0]} }.
+                   </span>
+                </summary>
+             </details>
+          </li>`
+      break
+   case subgroup.group.order:
+      line =
+         `<li id="${txtName()}">
+             <details subgroup="${subgroupIndex}">
+                <summary>
+                   <span class="normal-group title">
+                      ${htmlName()} = ⟨ ${generators.join(', <wbr>')} ⟩ is the group itself.
+                   </span>
+                </summary>
+             </details>
+          </li>`
+      break
+   default:
+      line =
+         `<li id="${txtName()}">
+             <details subgroup="${subgroupIndex}">
+                <summary>
+                   <span ${(subgroup.isNormal) ? 'class="normal-group title"' : 'class="title"'}>
+                      ${htmlName()} = ⟨ ${generators.join(', <wbr>')} ⟩ is a subgroup of order ${subgroup.order}.
+                   </span>
+                </summary>
+             </details>
+          </li>`
+      break
+   }
+
+   return line
+}
+
+function formatSubgroupListContent (group, subgroupIndex, cayleyDiagramGenerator) {
+   const subgroup = group.subgroups[subgroupIndex]
+   const elementRepresentations = subgroup.members.toArray().map(el => group.representation[el])
+   const isomorphicGroup = subgroup.isomorphicGroup
+
+   // create thumbnail if it doesn't exist already
+   if (isomorphicGroup.thumbnails?.cayleyDiagram == null) {
+      cayleyDiagramGenerator.group = isomorphicGroup
+      cayleyDiagramGenerator.drawFromModel(isomorphicGroup.cayleyDiagrams[0]?.name)
+      const imageSource = cayleyDiagramGenerator.cayleyDiagramView.getImage().src
+      isomorphicGroup.thumbnails = isomorphicGroup.thumbnails || {}
+      isomorphicGroup.thumbnails.cayleyDiagram = imageSource
+      Library.saveGroup(isomorphicGroup)
+   }
+
+   const contentHTML = [
+      '<div class="flex-h">',
+      `<div><img src="${isomorphicGroup.thumbnails.cayleyDiagram}" style="width: 48px; height: 48px"></div>`,
+      '<div class="stack-03em" style="margin-left: 1ch">',
+         `<div><i>H</i><sub>${subgroupIndex}</sub>${shortDescription(group, subgroup)} is
+             <a href="./help/rf-groupterms/index.html#isomorphism-isomorphic">isomorphic</a> to
+             <a href="./GroupInfo.html?groupURL=${isomorphicGroup.URL}" target="_blank"
+                >${isomorphicGroup.name}</a>. You can see the embedding by
+             <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'CDElement')">Cayley diagram</a>,
+             <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'CGElement')">cycle graph</a>,
+             <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'MTElement')">multiplication table</a>.`,
+         '</div>',
+         (subgroup.isNormal)
+            ? `<div>It is a <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a> subgroup.
+                  See the <a href="./help/rf-groupterms/index.html#short-exact-sequence">short exact sequence</a>
+                  exhibiting the
+                  <a href="./help/rf-groupterms/index.html#quotient-group">quotient group</a>,
+                  isomorphic to <a href="./GroupInfo.html?groupURL=${subgroup.isomorphicQuotientGroup.URL}" target="_blank"
+                     >${subgroup.isomorphicQuotientGroup.name},</a> by
+                  <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'CDElement')">Cayley diagram</a>,
+                  <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'CGElement')">cycle graph</a>,
+                  <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'MTElement')">multiplication table</a>.
+               </div>`
+            : '',
+         `<div>The elements of <i>H</i><sub>${subgroupIndex}</sub> are { ${elementRepresentations.join(', ')} }.</div>`,
+      `</div></div>`
+   ].join('')
+
+   return contentHTML
+}
+
+function shortDescription (group, subgroup /*: Subgroup */) {
    let rslt = '';
 
    const elements = subgroup.members.toArray();
    if (elements.length == 1) {
       rslt = ', the trivial subgroup, ';
-   } else if (elements.length == Group.order) {
+   } else if (elements.length == group.order) {
       rslt = ', the whole group, '
-      if (MathUtils.isPrimePower(Group.order)) {
-         const prime = MathUtils.getFactors(Group.order)[0];
+      if (MathUtils.isPrimePower(group.order)) {
+         const prime = MathUtils.getFactors(group.order)[0];
          rslt += `a <a href="./help/rf-groupterms/index.html#p-subgroup">
                          ${prime}-group</a>, `;
       }
@@ -145,10 +259,10 @@ function shortDescription (subgroup /*: Subgroup */) {
       // get first non-one element,
       // find prime for group,
       // test all other elements for even divisibility
-      const subgroupElementOrders /*: Array<number> */ = elements.map( el => Group.elementOrders[el] );
+      const subgroupElementOrders /*: Array<number> */ = elements.map( el => group.elementOrders[el] );
       const prime = MathUtils.getFactors(subgroupElementOrders[1])[0];
       if (subgroupElementOrders.every(el => el == 1 || el % prime == 0)) {
-         if (Group.order / subgroup.members.popcount() % prime != 0) {
+         if (group.order / subgroup.members.popcount() % prime != 0) {
             rslt = `, a <a href="./help/rf-groupterms/index.html#sylow-p-subgroup">
                         Sylow ${prime}-subgroup</a>, `;
          } else {
@@ -161,197 +275,353 @@ function shortDescription (subgroup /*: Subgroup */) {
    return rslt;
 }
 
-function highlightSubgroup ( H /*: Subgroup */ ) {
-   return Array( Group.order ).fill( '' ).map( ( e /*: color */, i ) =>
-      H.members.isSet( i ) ? 'hsl(0, 100%, 80%)' : e );
+function highlightSubgroup ( group, H /*: Subgroup */, type ) {
+   const highlightColor = (type == 'CDElement') ? 'hsl(0, 50%, 30%)' : 'hsl(0, 100%, 80%)'
+   return Array( group.order ).fill( '' ).map( ( e /*: color */, i ) =>
+      H.members.isSet( i ) ? highlightColor : e );
 }
-function showSubgroupLattice ( type /*: VisualizerType */ ) {
-   // Handy function
-   function subset ( H /*: Subgroup */, K /*: Subgroup */ ) /*: boolean */ { return K.members.contains( H.members ); }
-   // Let's tier the group's subgroups by order.
-   var subgroupTiers /*: Array<Array<DecoratedSubgroup>> */ = [ ];
-   for ( var i = 0 ; i < Group.subgroups.length ; i++ ) {
-      const sgp /*: DecoratedSubgroup */ = Group.subgroups[i];
-      var existingTier /*: Array<DecoratedSubgroup> */ = (subgroupTiers.find( ( tier ) => tier[0].order == sgp.order ) /*: any */);
-      if ( existingTier )
-         existingTier.push( sgp );
-      else
-         subgroupTiers.push( [ sgp ] );
-   }
-   // Now sort those tiers with the smallest subgroups first, largest later.
-   // Sort the original list of subgroups as well.
-   subgroupTiers.sort( ( tiera, tierb ) => tiera[0].order - tierb[0].order );
-   subgroupTiers.map( ( tier, i ) => tier.map( sgp => {
-      sgp._tierIndex = i;
-      sgp._used = false;
-   } ) );
-   // We wish to organize each tier so that connections between tiers are least tangled.
-   // We begin by getting a list of the tiers' orders.
-   const tierOrders = subgroupTiers.map( ( tier ) => tier[0].order );
-   // We now compute a series of paths from {e} to G, passing through as many subgroups
-   // as possible, so we can form chains that should be vertically arranged.
-   // As we place subgroups in a chain, we remove them from placement in other chains.
-   function pathsUpFrom ( H /*: DecoratedSubgroup */) /*: Array<Array<null | DecoratedSubgroup>> */ {
-      H._used = true;
-      // This is a recursive walk through the graph, turning it into a tree.
-      if ( H._tierIndex == subgroupTiers.length - 1 ) {
-         // Base case: We've already reached the top node.
-         // Thus there is one path up, the one-step path containing just H, which is G.
-         return [ [ H ] ];
-      } else {
-         // Find the tier containing the next subgroup we can walk to.
-         var result /*: Array<Array<null | DecoratedSubgroup>> */ = [ ];
-         var initialSegment /*: Array<null | DecoratedSubgroup> */ = [ H ];
-         for ( var tierIdx = ((H._tierIndex /*: any */) /*: integer */) + 1 ; tierIdx < subgroupTiers.length ; tierIdx++ ) {
-            subgroupTiers[tierIdx]
-               .filter( (K /*: DecoratedSubgroup */) => subset( H, K ) && !K._used )
-               .map( (K) => {
-                  pathsUpFrom( K )
-                     .map( (path /*: Array<null | DecoratedSubgroup> */) => {
-                        result.push( initialSegment.concat( path ) );
-                        initialSegment[0] = null;
-                     } );
-               } );
-            initialSegment.push( null );
-         }
-         if ( initialSegment[0] != null ) result.push( initialSegment );
-         return result;
-      }
-   }
-   const chains = pathsUpFrom( Group.subgroups[0] );
-   // Now we write a function that uses the chains structure to compute a position on
-   // the sheet for a visualizer of the subgroup.
-   const hSize = chains.length, vSize = chains[0].length,
-         cellWidth = Math.min( 300, Math.ceil( 0.9 * Math.min(window.innerWidth / hSize, window.innerHeight / (1.5 * vSize)) ) ),
-         cellHeight = cellWidth * 1.5,
-         hMargin = Math.ceil( cellWidth * 0.1 ),
-         vMargin = hMargin + ( cellHeight - cellWidth ) / 2,
-         latticeTop = 100, latticeLeft = 50,
-         zz = 3;
-   function subgroupPosition ( H  /*: Subgroup */ ) /*: {x: number, y: number} */ {
-      var x, y;
-      if ( ( H.order == 1 ) || ( H.order == Group.order ) ) {
-         x = chains.length * cellWidth / 2 - cellWidth / 2;
-         y = ( H.order == 1 ) ? cellHeight * ( vSize - 1 ) : 0;
-      } else {
-         const hIndex = chains.indexOf( chains.find(
-            chain => chain.indexOf( H ) > -1 ) );
-         x = hIndex * cellWidth;
-         const vIndex = vSize - 1 - chains[hIndex].indexOf( H );
-         y = vIndex * cellHeight;
-      }
-      return { x : latticeLeft + x, y : latticeTop + y };
-   }
-   // Build a sheet with subgroups shown at those locations.
-   var sheetElementsAsJSON = [ ];
-   Group.subgroups.map( (H /*: Subgroup */) => {
-      const pos = subgroupPosition( H );
-      sheetElementsAsJSON.push( {
-         className : type, groupURL : Group.URL,
-         x : pos.x + hMargin, y : pos.y + vMargin,
-         w : cellWidth - 2 * hMargin, h : cellHeight - 2 * vMargin,
-         highlights : { background : highlightSubgroup( H ) }
-      } );
-            
-      
-/* Haas diagram?
-      if (type === 'TextElement') {
-         const subgroupIndex = Group.subgroups.findIndex((g) => g == H)
-         const caption = `<span display="inline-block"><i>H</i><sub>${subgroupIndex}</sub>&nbsp;=&nbsp⟨ </span>` +
-            H.generators.toArray().map((gen) => '<span display="inline-block">' + Group.representation[gen]).join(', </span>') +
-            '</span>&nbsp;⟩'
-         console.log(caption)
-         const myHMargin = hMargin
-         sheetElement = {
+
+// Swiss army knife routine to display subgroup lattice for a group by
+//   type (CDELement/CGElement/MTElement/TextElement)
+//   reduced (boolean) -- elements organized (and highlighted) by subgroup conjugacy class
+//   labelled (boolean) -- whether visualizer has label (ignored if type == TextElement)
+function showSubgroupLattice (group, type, reduced = false, labelled = false) {
+   SheetModel.createNewSheet(() => formatSubgroupLattice(group, type, reduced, labelled))
+}
+
+function formatSubgroupLattice (group, type, reduced, labelled) {
+   labelled ||= (type == 'TextElement')
+   const conjugateSubgroupClasses = group.getConjugateSubgroupClasses()
+   const covering = reduced ? getSubgroupConjugacyClassCovering(group) : getSubgroupCovering(group)
+   const subgroupOrders = getSubgroupOrders(group)
+   const tiers = reduced
+      ? conjugateSubgroupClasses.map((klass) => subgroupOrders.indexOf(group.subgroups[klass.first()].order))
+      : group.subgroups.map((H) => subgroupOrders.indexOf(H.order))
+   const chains = layoutNodes(tiers, covering)
+
+   // Find the width of a sample caption
+   //   'Cl(H_xx) (yy)' if reduced && some conjugacy class has order != 1
+   //   'H_xx' otherwise
+   const {width: captionWidth} = !labelled
+      ? {width: 0}
+      : (reduced && conjugateSubgroupClasses.some((klass) => klass.popcount() != 1))
+         ? captionSize(
+            `<details><summary style="white-space: nowrap">
+                <span>Cl(<i>H</i><sub>${group.order}</sub>) (${group.order})</span>
+             </summary></details>`)
+         : captionSize(
+            `<details><summary style="white-space: nowrap">
+                <span><i>H</i><sub>${group.order}</sub></span>
+             </summary></details>`)
+
+   // Find the size of the title
+   const title = (reduced ? 'Reduced ' : '') + `Subgroup Lattice for the group ${group.name}`
+   const {width: titleWidth, height: titleHeight} = captionSize(`<span style="font-size: 20pt">${title}</span>`)
+
+   // Use tiers/chains from layoutNode to construct the sheet
+   const hSize = Math.max(...chains) + 1
+   const vSize = subgroupOrders.length
+   const horizontalSpace = window.innerWidth
+   const verticalSpace = window.innerHeight - document.querySelector('#heading').offsetHeight - 4 * titleHeight
+
+   const naturalWidth = horizontalSpace / hSize
+   const naturalHeight = verticalSpace / vSize
+   const naturalSize = Math.min(200, naturalWidth, naturalHeight)
+
+   const naturalCellSize = Math.max(naturalSize, 1.25 * 1.25 * captionWidth) // 10% padding, 10% margin around 20px text
+   const latticeWidth = naturalCellSize * hSize
+   const latticeHeight = naturalCellSize * vSize
+   const scale = Math.min(1.0, horizontalSpace / latticeWidth, verticalSpace / latticeHeight)
+
+   const cellWidth = (hSize <= 3) ? 0.15 * horizontalSpace : scale * naturalCellSize
+   const cellHeight = verticalSpace / Math.max(3, vSize)
+   const hMargin = Math.ceil( cellWidth * 0.1 )
+   const vMargin = hMargin + Math.max(0, ( cellHeight - cellWidth ) / 2)
+   const latticeTop = 4 * titleHeight
+   const latticeLeft = (hSize * cellWidth > horizontalSpace) ? 0 : (horizontalSpace - hSize * cellWidth) / 2
+
+   // Build the sheet
+   const sheetElementsAsJSON = []
+
+   // Add a title over the lattice, centered on the sheet
+   sheetElementsAsJSON.push({
+      className : 'TextElement',
+      text : title,
+      x : (horizontalSpace - titleWidth) / 2,
+      y : 2 * titleHeight,
+      w : 0,
+      h : titleHeight,
+      fontSize : '20pt',
+      alignment : 'center'
+   })
+
+   if (type != 'TextElement') {  // labelled visualizer
+      // find conjugacy class colors
+      const nColors = conjugateSubgroupClasses.filter((klass) => klass.popcount() > 1).length
+      const rainbow = Array.from({length: nColors}, (_, inx) => GEUtils.fromRainbow(inx / nColors, .4))
+      const colors = conjugateSubgroupClasses.map((klass) => (klass.popcount() > 1) ? rainbow.pop() : '#d8d8d8')
+
+      // find caption size in scratch element, and calculate scaled fontSize
+      const {width: captionWidth} = captionSize(
+         `<details><summary style="white-space: nowrap">
+             <span><i>H</i><sub>${group.order}</sub></span>
+          </summary></details>`
+      )
+      const fontSize = Math.min(20, 20 * (cellWidth - 2 * hMargin) / (captionWidth + 20)) + 'px'
+
+      group.subgroups.forEach( (H /*: Subgroup */, subgroupIndex) => {
+         sheetElementsAsJSON.push({
+            className : type,
+            id : `viz-${subgroupIndex}`,
+            groupURL : group.URL,
+            x : latticeLeft + chains[subgroupIndex] * cellWidth + hMargin,
+            y : latticeTop + tiers[subgroupIndex] * cellHeight + vMargin,
+            w : cellWidth - 2 * hMargin,
+            h : cellHeight - 2 * vMargin,
+            highlights : {background : highlightSubgroup(group, H, type)}
+         })
+
+         const caption = [
+            `<details>
+                <summary style="box-sizing: border-box; white-space: nowrap">
+                   <span ${H.isNormal ? 'class="normal-group"' : ''}><i>H</i><sub>${subgroupIndex}</sub></span>
+               </summary>
+               <ul style="box-sizing: border-box; margin-block-start: 0; margin-block-end: 0; padding-inline-start: 2ch;
+                          text-align: left; list-style: disc; color: black">
+                  <li>⟨${H.generators.toArray().map((h) => group.representation[h]).join(', ')}⟩</li>
+                  <li>order ${H.order}</li>
+                  <li>≅ <a href="javascript:window.open('./GroupInfo.html?groupURL=${H.isomorphicGroup?.URL}')"
+                        >${H.isomorphicGroup?.name}</a></li>`,
+                  H.isNormal ? `<li>${group.name} / <i>H</i><sub>${subgroupIndex}</sub> ≅ ${H.isomorphicQuotientGroup?.name}</li>` : '',
+              `</ul>
+             </details>`].join('')
+         const conjugacyClass = conjugateSubgroupClasses.findIndex((klass) => klass.isSet(subgroupIndex))
+
+         sheetElementsAsJSON.push({
             className: 'TextElement',
+            id: `sub-${subgroupIndex}`,
+            text: caption,
+            fontColor: H.isNormal ? 'blue' : 'black',
+            color: colors[conjugacyClass],
+            alignment: 'center',
+            fontSize: fontSize,
+            x: latticeLeft + chains[subgroupIndex] * cellWidth + hMargin,
+            y: latticeTop + tiers[subgroupIndex] * cellHeight + vMargin + cellHeight - 2 * vMargin,
+            w: cellWidth - 2 * hMargin,
+         })
+      } )
+   } else if (reduced) {
+      // place each subgroup conjugacy class
+      conjugateSubgroupClasses.forEach((classSubgroupsBitSet, classIndex) => {
+         const classSubgroups = classSubgroupsBitSet.toArray()
+         const isomorphicGroup = group.subgroups[classSubgroups[0]].isomorphicGroup
+         const caption = (classSubgroups.length == 1 )
+            ? `<details><summary style="white-space: nowrap">
+                  <span><i>H</i><sub>${classSubgroups[0]}</sub></span>
+               </summary>
+               <ul style="box-sizing: border-box; margin-block-start: 0; margin-block-end: 0; padding-inline-start: 2ch;
+                          text-align: left; list-style: disc; color: black">
+                  <li> ≅ <a href="javascript:window.open('./GroupInfo.html?groupURL=${isomorphicGroup?.URL}')"
+                         >${isomorphicGroup?.name}</a></li>
+                  <li>order ${group.subgroups[classSubgroups[0]].order}</li>
+               </ul></details>`
+            : `<details><summary style="white-space: nowrap">
+                  <span>Cl(<i>H</i><sub>${classSubgroups[0]}</sub>) (${classSubgroups.length})</span>
+               </summary>
+               <ul style="box-sizing: border-box; margin-block-start: 0; margin-block-end: 0; padding-inline-start: 2ch;
+                          text-align: left; list-style: disc; color: black">
+                  <li> ≅ <a href="javascript:window.open('./GroupInfo.html?groupURL=${isomorphicGroup?.URL}')"
+                         >${isomorphicGroup?.name}</a></li>
+                  <li>order ${group.subgroups[classSubgroups[0]].order}</li>
+                  <li>${classSubgroups.map((hIndex) => '<i>H</i><sub>' + hIndex + '</sub>').join(', ')}</li>
+               </ul></details>`
+         sheetElementsAsJSON.push({
+            className: 'TextElement',
+            id: `viz-${classIndex}`,
             text: caption,
             fontColor: 'black',
+            fontSize: 20 * scale + 'px',
             color: '#d8d8d8',
             alignment: 'center',
-            fontSize: cellHeight/15 + 'px',
-            x: pos.x + myHMargin,
-            y: pos.y + vMargin,
-            w: cellWidth - 2 * myHMargin,
-            h: 0
-         }
-*/
-
-   } );
-   // Connect every pair of subgroups that don't have an intermediate connection.
-   function existsIntermediateSubgroup ( H /*: Subgroup */, K /*: Subgroup */ ) /*: boolean */ {
-      for ( var i = 0 ; i < Group.subgroups.length ; i++ ) {
-         const considerMe = Group.subgroups[i];
-         if ( ( H != considerMe ) && ( K != considerMe )
-           && subset( H, considerMe ) && subset( considerMe, K ) )
-            return true;
-      }
-      return false;
+            x: latticeLeft + chains[classIndex] * cellWidth + hMargin,
+            y: latticeTop + tiers[classIndex] * cellHeight + vMargin,
+            w: cellWidth - 2 * hMargin,
+         })
+      })
    }
-   Group.subgroups.map( ( H /*: Subgroup */, i /*: number */ ) => {
-      Group.subgroups.map( ( K, j ) => {
-         if ( ( H != K ) && subset( H, K ) && !existsIntermediateSubgroup( H, K ) ) {
-            sheetElementsAsJSON.push( {
-               className : 'ConnectingElement', fromIndex : i, toIndex : j,
-                thickness : 2, hasArrowhead : false
-            } );
-         }
-      } );
-   } );
-   // Add a title.
-   sheetElementsAsJSON.push( {
-      className : 'TextElement',
-      text : `Subgroup Lattice for the Group ${Group.name}`,
-      x : latticeLeft, y : latticeTop / 2,
-      w : hSize * cellWidth, h : latticeTop / 2,
-      fontSize : '20pt', alignment : 'center'
-   } );
-   // Show the sheet.
-   CreateNewSheet( sheetElementsAsJSON );
+
+   // add connections
+   sheetElementsAsJSON.push(...getConnectionJSON(covering))
+
+   return sheetElementsAsJSON
 }
 
-function showEmbeddingSheet ( indexOfH /*: number */, type /*: VisualizerType */ ) {
-   const H = Group.subgroups[indexOfH],
-         [ libraryH, embedding ] = ((IsomorphicGroups.findEmbedding( Group, H ) /*: any */) /*: [XMLGroup, Array<groupElement>] */);
-   CreateNewSheet( [
+function getConnectionJSON (covering) {
+   const connectionJSON = covering.map((targets, source) => {
+      return targets.toArray().map((target) => {
+         return {
+            className: 'ConnectingElement',
+            sourceId: `viz-${source}`,
+            destinationId: `viz-${target}`,
+            thickness: 2,
+            hasArrowhead: false
+         }
+      })
+   })
+
+   return connectionJSON.flat()
+}
+
+function captionSize (caption) {
+   if (document.getElementById('subgroup-info-scratch') == null) {
+      document.body.insertAdjacentHTML('afterbegin',
+         `<div id="subgroup-info-scratch"
+             style="position: absolute; z-index: -1; font-size: 20px; width: auto; height: auto; padding: 0"></div>`)
+   }
+   const scratch = document.getElementById('subgroup-info-scratch')
+   scratch.innerHTML = caption
+
+   return scratch.getBoundingClientRect()
+}
+
+function getSubgroupOrders (group) {
+   const subgroupOrders = group.subgroups.reduce((uniqueOrders, H) => {
+      if (!uniqueOrders.includes(H.order)) {
+         uniqueOrders.push(H.order)
+      }
+      return uniqueOrders
+   }, []).reverse()
+
+   return subgroupOrders
+}
+
+function getSubgroupCovering (group) {
+   const subgroupCovering = Array(group.subgroups.length)
+   // group.subgroups is sorted in increasing subgroup order
+   for (let inx = 0; inx < group.subgroups.length; inx++) {
+      const inxMembers = group.subgroups[inx].members
+      const containsInx = []
+      for (let jnx = inx + 1; jnx < group.subgroups.length; jnx++) {
+         const jnxMembers = group.subgroups[jnx].members
+         // jnx contains inx and we have not found any other inx subgroup that it contains
+         if (jnxMembers.contains(inxMembers) && containsInx.every((knx) => !jnxMembers.contains(group.subgroups[knx].members))) {
+            containsInx.push(jnx)
+         }
+      }
+      subgroupCovering[inx] = new BitSet(group.subgroups.length, containsInx)
+   }
+   return subgroupCovering
+}
+
+function getSubgroupConjugacyClassCovering (group) {
+   // conjugate subgroup classes are sorted by increasing class order
+   const subgroupCovering = getSubgroupCovering(group)
+   const conjugateSubgroupClasses = group.getConjugateSubgroupClasses()
+   const subgroupConjugacyClassCovering = Array(conjugateSubgroupClasses.length)
+   for (let inx = 0; inx < conjugateSubgroupClasses.length; inx++) {
+      const inxSubgroups = conjugateSubgroupClasses[inx]
+      const containsInx = []
+      for (let jnx = inx + 1; jnx < conjugateSubgroupClasses.length; jnx++) {
+         const jnxSubgroups = conjugateSubgroupClasses[jnx].toArray()
+         // if some subgroup of jnx directly contains any subgroup of inx
+         if (jnxSubgroups.some((jnxSubgroup) => subgroupCovering[inxSubgroups.first()].isSet(jnxSubgroup))) {
+            containsInx.push(jnx)
+         }
+      }
+      subgroupConjugacyClassCovering[inx] = new BitSet(conjugateSubgroupClasses.length, containsInx)
+   }
+
+   return subgroupConjugacyClassCovering
+}
+
+// lays out subgroup and reduced subgroup lattices
+// given: nodes organized by subgroup order (tier), and edges organized by source (node index)
+// node corresponds to  subgroup or conjugacy class, edge is direct 'contained in' relation
+// nodeTiers = Array<tier>
+// edges[source node index] = Array<target node indices>
+// produces: X,Y position for each node on the screen, list of connections
+function layoutNodes (nodeTiers, edges) {
+   const pathsUpFrom = (currentNode, nodePositions, unplacedNodes, position) => {
+      unplacedNodes.clear(currentNode)
+      nodePositions[currentNode] = position
+      // find edges that start here and go to an as-yet unplaced node
+      const targets = BitSet.intersection(edges[currentNode], unplacedNodes).toArray()
+      targets.forEach((target, inx) => {
+         position += (inx == 0) ? 0 : 1
+         position = pathsUpFrom(target, nodePositions, unplacedNodes, position)
+      })
+      return position
+   }
+
+   const nodePositions = Array(nodeTiers.length)
+   const todo = new BitSet(nodeTiers.length, Array.from({length: nodeTiers.length}, (_, inx) => inx))
+   const maxPosition = pathsUpFrom(0, nodePositions, todo, 0)
+   nodePositions[0] = nodePositions[nodePositions.length - 1] = maxPosition / 2
+
+   return nodePositions
+}
+
+function showEmbeddingSheet (group, indexOfH /*: number */, type /*: VisualizerType */) {
+   SheetModel.createNewSheet(() => formatEmbeddingSheet(group, indexOfH, type))
+}
+
+function formatEmbeddingSheet (group, indexOfH, type) {
+   const H = group.subgroups[indexOfH]
+   const libraryH = H.isomorphicGroup
+   const embedding = H.isomorphicGroupEmbedding
+
+   const embeddingSheet = [
       {
          className : 'TextElement',
-         text : `Embedding ${libraryH.name} as <i>H</i><sub>${indexOfH}</sub> in ${Group.name}`,
-         x : 50, y : 50, w : 500, h : 40,
+         text : `Embedding ${libraryH.name} as <i>H</i><sub>${indexOfH}</sub> in ${group.name}`,
+         x : 60, y : 54, w : 500, h : 40,
          fontSize : '20pt', alignment : 'center'
       },
       {
          className : type, groupURL : libraryH.URL,
-         x : 50, y : 100, w : 200, h : 200,
+         x : 60, y : 104, w : 200, h : 200,
          highlights : {
             background : Array( libraryH.order ).fill( 'hsl(0, 100%, 80%)' )
          }
       },
       {
-         className : type, groupURL : Group.URL,
-         x : 350, y : 100, w : 200, h : 200,
+         className : type, groupURL : group.URL,
+         x : 360, y : 104, w : 200, h : 200,
          highlights : {
-            background : Array( Group.order ).fill( '' ).map( ( _, elt ) =>
+            background : Array( group.order ).fill( '' ).map( ( _, elt ) =>
                embedding.indexOf( elt ) > -1 ? 'hsl(0, 100%, 80%)' : '' )
          }
       },
       {
          className : 'MorphismElement',
-         fromIndex : 1, toIndex : 2, name : '<i>e</i>',
-         definingPairs : libraryH.generators[0].map( gen =>
-            [ gen, embedding[gen] ] ),
-         showManyArrows : true, showInjSurj : true
+         sourceId : '1', destinationId : '2', name : '<i>e</i>',
+         definingPairs : libraryH.generators.map(gen => [gen, embedding[gen]]),
+         showManyArrows : true, showInjectionSurjection: true
       }
-   ] );
+   ]
+
+   return embeddingSheet
 }
 
-function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */) {
+function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerType */) {
+   SheetModel.createNewSheet(() => formatQuotientSheet(group, indexOfN, type))
+}
+
+function formatQuotientSheet (group, indexOfN, type) {
    const adj = Math.min(window.innerWidth, window.innerHeight)/1100
-   const N = Group.subgroups[indexOfN],
-         [ libraryQ, quotientMap ] = ((IsomorphicGroups.findQuotient( Group, N ) /*: any */) /*: [XMLGroup, Array<groupElement>] */),
-         [ libraryN, embedding ] = ((IsomorphicGroups.findEmbedding( Group, N ) /*: any */) /*: [XMLGroup, Array<groupElement>] */),
-         L = 25*adj, T = 150*adj, W = 120*adj, H = W, gap = 100*adj;
+   const N = group.subgroups[indexOfN]
+   const libraryQ = N.isomorphicQuotientGroup
+   const quotientMap = N.isomorphicQuotientMap
+   const libraryN = N.isomorphicGroup
+   const embedding = N.isomorphicGroupEmbedding
+   const L = 10 + 25*adj
+   const T = 4 + 150*adj
+   const W = 120*adj
+   const H = W
+   const gap = 100*adj
+
    function shrink ( order, x, y, w, h ) {
-      const factor = 0.5 * ( 1 + order / Group.order ),
+      const factor = 0.5 * ( 1 + order / group.order ),
             hMargin = ( w - factor * w ) / 2,
             vMargin = ( h - factor * h ) / 2;
       return {
@@ -365,23 +635,23 @@ function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */)
          col5 = 'hsl(120, 90%, 85%)',
          loc1 = shrink( 1, L, T, W, H ),
          loc2 = shrink( libraryN.order, L+W+gap, T, W, H ),
-         loc3 = shrink( Group.order, L+2*W+2*gap, T, W, H ),
+         loc3 = shrink( group.order, L+2*W+2*gap, T, W, H ),
          loc4 = shrink( libraryQ.order, L+3*W+3*gap, T, W, H ),
          loc5 = shrink( 1, L+4*W+4*gap, T, W, H ),
          high1 = Array( 1 ).fill( col1 ),
          high2 = Array( libraryN.order ).fill( col2 ),
-         high3 = Array( Group.order ).fill( col3 ),
+         high3 = Array( group.order ).fill( col3 ),
          high4 = Array( libraryQ.order ).fill( col3 ),
          high5 = Array( 1 ).fill( col5 );
    embedding.map( elt => high3[elt] = col2 );
    high2[0] = col1;
    high3[0] = col1;
    high4[0] = col4;
-   CreateNewSheet( [
+   const quotientSheet = [
       {
          className : 'TextElement',
          x : L, y : T-100*adj, w : 5*W+4*gap, h : 50,
-         text : `Short Exact Sequence showing ${Group.name} / ${libraryN.name} ≅ ${libraryQ.name}`,
+         text : `Short Exact Sequence showing ${group.name} / ${libraryN.name} ≅ ${libraryQ.name}`,
          fontSize : `${20*adj}pt`, alignment : 'center'
       },
       {
@@ -408,10 +678,10 @@ function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */)
       {
          className : 'TextElement',
          x : L+2*W+2*gap, y : T-50, w : W, h : 50,
-         text : Group.name, alignment : 'center', fontSize : `${12*adj}pt`
+         text : group.name, alignment : 'center', fontSize : `${12*adj}pt`
       },
       {
-         className : type, groupURL : Group.URL,
+         className : type, groupURL : group.URL,
          x : loc3.x, y : loc3.y, w : loc3.w, h : loc3.h,
          highlights : { background : high3 }
       },
@@ -456,32 +726,29 @@ function showQuotientSheet ( indexOfN /*: number */, type /*: VisualizerType */)
       },
       {
          className : 'MorphismElement', name : 'id',
-         fromIndex : 2, toIndex : 4,
-         showManyArrows : true, showInjSurj : true,
+         sourceId : '2', destinationId : '4',
+         showManyArrows : true, showInjectionSurjection : true,
          definingPairs : [ [ 0, 0 ] ]
       },
       {
          className : 'MorphismElement', name : 'e',
-         fromIndex : 4, toIndex : 6,
-         showManyArrows : true, showInjSurj : true,
-         definingPairs : libraryN.generators[0].map( gen => [ gen, embedding[gen] ] )
+         sourceId : '4', destinationId : '6',
+         showManyArrows : true, showInjectionSurjection : true,
+         definingPairs : libraryN.generators.map(gen => [gen, embedding[gen]])
       },
       {
          className : 'MorphismElement', name : 'q',
-         fromIndex : 6, toIndex : 8,
-         showManyArrows : true, showInjSurj : true,
-         definingPairs : Group.generators[0].map( gen => [ gen, quotientMap[gen] ] )
+         sourceId : '6', destinationId : '8',
+         showManyArrows : true, showInjectionSurjection : true,
+         definingPairs : group.generators.map(gen => [gen, quotientMap[gen]])
       },
       {
          className : 'MorphismElement', name : 'z',
-         fromIndex : 8, toIndex : 10,
-         showManyArrows : true, showInjSurj : true,
-         definingPairs : libraryQ.generators[0].map( gen => [ gen, 0 ] )
+         sourceId : '8', destinationId : '10',
+         showManyArrows : true, showInjectionSurjection : true,
+         definingPairs : libraryQ.generators.map(gen => [gen, 0])
       }
-   ] );
-}
+   ]
 
-function CreateNewSheet (oldJSONArray /*: Array<Obj> */) {
-    const newJSONArray = SheetModel.convertFromOldJSON(oldJSONArray)
-    SheetModel.createNewSheet(newJSONArray)
+   return quotientSheet
 }

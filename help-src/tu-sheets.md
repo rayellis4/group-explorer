@@ -17,27 +17,27 @@ fancier stuff shows up.
 ## Making your own sheets
 
 Let's use a sheet to compare two groups of the same order,
-[\(\mathbb{Z}_6\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=Z_6.group)
+[\(\mathbb{Z}_6\)](../../GroupInfo.html?groupURL=groups/Z_6.group)
 and
-[\(S_3\)](http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=S_3.group).
+[\(S_3\)](../../GroupInfo.html?groupURL=groups/S_3.group).
 
- * From the *Group Explorer* main page, click the Sheet icon on the top
-   right hand side of the page.
+ * Select 'New Sheet' from the menu icon in the top right corner of any page:
 
-    ![Sheet icon](sheet-icon.png)
+    ![Menu with New Sheet selected](illustration-sheettut0.png)
 
     This creates a new sheet.
 
  * In the control window on the right hand side of the sheet, select
    \(\mathbb{Z}_6\) from the "Group" drop-down list and click the "Cycle graph"
-   button above it. You should see a small cycle graph for \(\mathbb{Z}_6\)
+   button below it. You should see a small cycle graph for \(\mathbb{Z}_6\)
    appear in the upper left-hand corner of the left side of the sheet. I resized
-   mine slightly and the result was as follows. (To move a visualizer just drag
-   it with the mouse or your finger; to resize it right-click [tap] it and
-   select 'Resize' from the resulting context menu. A light blue outline will
-   appear around the visualizer. Then drag starting outside the element in the
-   direction you'd like it to grow. A short click [tap] will dismiss the blue
-   outline. See [here](rf-um-sheetwindow.md#resizing) for more details.)
+   mine slightly and the result was as follows. (To move or resize a visualizer
+   first click on it with the mouse or tap it with your finger to select it.
+   A light blue outline will appear around the visualizer. You can then move
+   it by draggging it with your mouse or finger. And you can resize it by grabbing
+   the handle in the lower right-hand corner; or you can use a scrolling gesture;
+   or you can use a pinch-spread gesture. A short click [tap] anywhere
+   on the screen will de-select the figure and remove the blue outline.)
 
 ![Sheet containing one cycle graph](illustration-sheettut1.png)
 
@@ -76,11 +76,15 @@ and
 ![Homomorphism from Z_6 to S_3](illustration-sheettut5.png)
 
 The arrows require some attention to follow carefully, but you can see how the
-six-element circle marches around the little three-element circle twice.  I've
-taken the liberty of highlighting \(\mathbb{Z}_6\) red and its
-[image](rf-groupterms.md#image-of-a-subset-under-a-morphism) in \(S_3\) red
-also. (To do so, open the element context menu for the visualizer you'd like to
-highligh and select "Edit". Then play with its subsets [as documented
+six-element circle marches around the little three-element circle twice.  You
+can highlight individual arrows by clicking [tapping] on them, as I've done with
+the \(a_5 \rightarrow r_2\) mapping. (You can make it easier to select an
+individual arrow by [zooming in](rf-um-sheetwindow.md#zoom-and-pan-sheet-view)
+on it, especially on touch devices.) And you can highlight subsets of the group
+in the visualizers. I've taken the liberty of highlighting \(\mathbb{Z}_6\) red
+and its [image](rf-groupterms.md#image-of-a-subset-under-a-morphism) in \(S_3\)
+red also. (To do so, open the element context menu for the visualizer you'd like
+to highligh and select "Edit". Then play with its subsets [as documented
 here](rf-um-subsetlistbox.md).)
 
 ![Homomorphism from Z_6 to S_3 with domain and image highlighted](illustration-sheettut6.png)

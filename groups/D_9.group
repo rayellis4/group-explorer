@@ -1,101 +1,195 @@
-<!DOCTYPE groupexplorerml>
-<group>
-    <gapid>18,1</gapid>
-    <gapname>D18</gapname>
-    <link>http://groupnames.org/1/D9.html</link>
-    <name text="D_9"><mrow><msub><mi>D</mi><mn>9</mn></msub></mrow></name>
-    <definition text="&amp;lt; &lt;i&gt;a&lt;/i&gt;, &lt;i&gt;b&lt;/i&gt; | &lt;i&gt;a&lt;/i&gt;&lt;sup&gt;2&lt;/sup&gt;=&lt;i&gt;b&lt;/i&gt;&lt;sup&gt;9&lt;/sup&gt;=1, &lt;i&gt;bab&lt;/i&gt;=&lt;i&gt;a&lt;/i&gt;&lt;sup&gt;-1&lt;/sup&gt; &amp;gt;">
-        <mfenced open="⟨" close="⟩" separators=":">
-            <mrow><mi>a</mi><mo>,</mo><mi>b</mi></mrow>
-            <mrow><msup><mi>a</mi><mn>2</mn></msup><mo>=</mo><msup><mi>b</mi><mn>9</mn></msup><mo>=</mo><mn>1</mn><mo>,</mo><mi>b</mi><mi>a</mi><mi>b</mi><mo>=</mo><msup><mi>a</mi><mn>-1</mn></msup></mrow>
-        </mfenced>
-    </definition>
-    <phrase>Dihedral group on 9 vertices</phrase>
-    <author>Nathan Carter (ncarter@bentley.edu)</author>
-    <multtable>
-        <row> 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 </row>
-        <row> 1 2 3 4 5 6 7 8 0 17 9 10 11 12 13 14 15 16 </row>
-        <row> 2 3 4 5 6 7 8 0 1 16 17 9 10 11 12 13 14 15 </row>
-        <row> 3 4 5 6 7 8 0 1 2 15 16 17 9 10 11 12 13 14 </row>
-        <row> 4 5 6 7 8 0 1 2 3 14 15 16 17 9 10 11 12 13 </row>
-        <row> 5 6 7 8 0 1 2 3 4 13 14 15 16 17 9 10 11 12 </row>
-        <row> 6 7 8 0 1 2 3 4 5 12 13 14 15 16 17 9 10 11 </row>
-        <row> 7 8 0 1 2 3 4 5 6 11 12 13 14 15 16 17 9 10 </row>
-        <row> 8 0 1 2 3 4 5 6 7 10 11 12 13 14 15 16 17 9 </row>
-        <row> 9 10 11 12 13 14 15 16 17 0 1 2 3 4 5 6 7 8 </row>
-        <row> 10 11 12 13 14 15 16 17 9 8 0 1 2 3 4 5 6 7 </row>
-        <row> 11 12 13 14 15 16 17 9 10 7 8 0 1 2 3 4 5 6 </row>
-        <row> 12 13 14 15 16 17 9 10 11 6 7 8 0 1 2 3 4 5 </row>
-        <row> 13 14 15 16 17 9 10 11 12 5 6 7 8 0 1 2 3 4 </row>
-        <row> 14 15 16 17 9 10 11 12 13 4 5 6 7 8 0 1 2 3 </row>
-        <row> 15 16 17 9 10 11 12 13 14 3 4 5 6 7 8 0 1 2 </row>
-        <row> 16 17 9 10 11 12 13 14 15 2 3 4 5 6 7 8 0 1 </row>
-        <row> 17 9 10 11 12 13 14 15 16 1 2 3 4 5 6 7 8 0 </row>
-    </multtable>
-    <generators list="1 9"/>
-    <representation>
-        <element text="e"><mi>e</mi></element>
-        <element text="r"><mi>r</mi></element>
-        <element text="r^2"><msup><mi>r</mi><mn>2</mn></msup></element>
-        <element text="r^3"><msup><mi>r</mi><mn>3</mn></msup></element>
-        <element text="r^4"><msup><mi>r</mi><mn>4</mn></msup></element>
-        <element text="r^5"><msup><mi>r</mi><mn>5</mn></msup></element>
-        <element text="fr^3f"><mrow><mi>f</mi><msup><mi>r</mi><mn>3</mn></msup><mi>f</mi></mrow></element>
-        <element text="fr^2f"><mrow><mi>f</mi><msup><mi>r</mi><mn>2</mn></msup><mi>f</mi></mrow></element>
-        <element text="frf"><mi>frf</mi></element>
-        <element text="f"><mi>f</mi></element>
-        <element text="fr"><mi>fr</mi></element>
-        <element text="fr^2"><mrow><mi>f</mi><msup><mi>r</mi><mn>2</mn></msup></mrow></element>
-        <element text="fr^3"><mrow><mi>f</mi><msup><mi>r</mi><mn>3</mn></msup></mrow></element>
-        <element text="fr^4"><mrow><mi>f</mi><msup><mi>r</mi><mn>4</mn></msup></mrow></element>
-        <element text="r^4f"><mrow><msup><mi>r</mi><mn>4</mn></msup><mi>f</mi></mrow></element>
-        <element text="r^3f"><mrow><msup><mi>r</mi><mn>3</mn></msup><mi>f</mi></mrow></element>
-        <element text="r^2f"><mrow><msup><mi>r</mi><mn>2</mn></msup><mi>f</mi></mrow></element>
-        <element text="rf"><mi>rf</mi></element>
-    </representation>
-    <representation>
-        <element text="()"><mrow><mo>(</mo><mo>)</mo></mrow></element>
-        <element text="(0 1 2 3 4 5 6 7 8)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>1</mn><mspace width="0.3em"/><mn>2</mn><mspace width="0.3em"/><mn>3</mn><mspace width="0.3em"/><mn>4</mn><mspace width="0.3em"/><mn>5</mn><mspace width="0.3em"/><mn>6</mn><mspace width="0.3em"/><mn>7</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 2 4 6 8 1 3 5 7)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>2</mn><mspace width="0.3em"/><mn>4</mn><mspace width="0.3em"/><mn>6</mn><mspace width="0.3em"/><mn>8</mn><mspace width="0.3em"/><mn>1</mn><mspace width="0.3em"/><mn>3</mn><mspace width="0.3em"/><mn>5</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 3 6)(1 4 7)(2 5 8)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>3</mn><mspace width="0.3em"/><mn>6</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>4</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>2</mn><mspace width="0.3em"/><mn>5</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 4 8 3 7 2 6 1 5)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>4</mn><mspace width="0.3em"/><mn>8</mn><mspace width="0.3em"/><mn>3</mn><mspace width="0.3em"/><mn>7</mn><mspace width="0.3em"/><mn>2</mn><mspace width="0.3em"/><mn>6</mn><mspace width="0.3em"/><mn>1</mn><mspace width="0.3em"/><mn>5</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 5 1 6 2 7 3 8 4)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>5</mn><mspace width="0.3em"/><mn>1</mn><mspace width="0.3em"/><mn>6</mn><mspace width="0.3em"/><mn>2</mn><mspace width="0.3em"/><mn>7</mn><mspace width="0.3em"/><mn>3</mn><mspace width="0.3em"/><mn>8</mn><mspace width="0.3em"/><mn>4</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 6 3)(1 7 4)(2 8 5)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>6</mn><mspace width="0.3em"/><mn>3</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>7</mn><mspace width="0.3em"/><mn>4</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>2</mn><mspace width="0.3em"/><mn>8</mn><mspace width="0.3em"/><mn>5</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 7 5 3 1 8 6 4 2)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>7</mn><mspace width="0.3em"/><mn>5</mn><mspace width="0.3em"/><mn>3</mn><mspace width="0.3em"/><mn>1</mn><mspace width="0.3em"/><mn>8</mn><mspace width="0.3em"/><mn>6</mn><mspace width="0.3em"/><mn>4</mn><mspace width="0.3em"/><mn>2</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 8 7 6 5 4 3 2 1)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>8</mn><mspace width="0.3em"/><mn>7</mn><mspace width="0.3em"/><mn>6</mn><mspace width="0.3em"/><mn>5</mn><mspace width="0.3em"/><mn>4</mn><mspace width="0.3em"/><mn>3</mn><mspace width="0.3em"/><mn>2</mn><mspace width="0.3em"/><mn>1</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(1 8)(2 7)(3 6)(4 5)"><mrow><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>2</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>3</mn><mspace width="0.3em"/><mn>6</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>4</mn><mspace width="0.3em"/><mn>5</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 8)(1 7)(2 6)(3 5)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>2</mn><mspace width="0.3em"/><mn>6</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>3</mn><mspace width="0.3em"/><mn>5</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 7)(1 6)(2 5)(3 4)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>6</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>2</mn><mspace width="0.3em"/><mn>5</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>3</mn><mspace width="0.3em"/><mn>4</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 6)(1 5)(2 4)(7 8)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>6</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>5</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>2</mn><mspace width="0.3em"/><mn>4</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>7</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 5)(1 4)(2 3)(6 8)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>5</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>4</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>2</mn><mspace width="0.3em"/><mn>3</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>6</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 4)(1 3)(5 8)(6 7)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>4</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>3</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>5</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>6</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 3)(1 2)(4 8)(5 7)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>3</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>1</mn><mspace width="0.3em"/><mn>2</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>4</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>5</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 2)(3 8)(4 7)(5 6)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>2</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>3</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>4</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>5</mn><mspace width="0.3em"/><mn>6</mn></mrow><mo>)</mo></mrow></element>
-        <element text="(0 1)(2 8)(3 7)(4 6)"><mrow><mo>(</mo><mrow><mn>0</mn><mspace width="0.3em"/><mn>1</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>2</mn><mspace width="0.3em"/><mn>8</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>3</mn><mspace width="0.3em"/><mn>7</mn></mrow><mo>)</mo><mo>(</mo><mrow><mn>4</mn><mspace width="0.3em"/><mn>6</mn></mrow><mo>)</mo></mrow></element>
-    </representation>
-    <symmetryobject name="Nonagon">
-        <operation element="1" degrees="40.0"><point x="1.0" y="0.0" z="0.0"/></operation>
-        <operation element="9" degrees="180.0"><point x="0.0" y="1.0" z="0.0"/></operation>
-        <sphere radius="0.1" color="#FF0000"><point x="0.0" y="1.0" z="0.0"/></sphere>
-        <sphere radius="0.1" color="#FFAA00"><point x="0.0" y="0.766" z="0.643"/></sphere>
-        <sphere radius="0.1" color="#AAFF00"><point x="0.0" y="0.174" z="0.985"/></sphere>
-        <sphere radius="0.1" color="#00FF00"><point x="0.0" y="-0.5" z="0.866"/></sphere>
-        <sphere radius="0.1" color="#00FFAA"><point x="0.0" y="-0.94" z="0.342"/></sphere>
-        <sphere radius="0.1" color="#00AAFF"><point x="0.0" y="-0.94" z="-0.342"/></sphere>
-        <sphere radius="0.1" color="#0000FF"><point x="0.0" y="-0.5" z="-0.866"/></sphere>
-        <sphere radius="0.1" color="#AA00FF"><point x="0.0" y="0.174" z="-0.985"/></sphere>
-        <sphere radius="0.1" color="#FF00AA"><point x="0.0" y="0.766" z="-0.643"/></sphere>
-        <path color="#000000">
-            <point x="0.0" y="0.766" z="-0.643"/>
-            <point x="0.0" y="1.0" z="0.0"/>
-            <point x="0.0" y="0.766" z="0.643"/>
-            <point x="0.0" y="0.174" z="0.985"/>
-            <point x="0.0" y="-0.5" z="0.866"/>
-            <point x="0.0" y="-0.94" z="0.342"/>
-            <point x="0.0" y="-0.94" z="-0.342"/>
-            <point x="0.0" y="-0.5" z="-0.866"/>
-            <point x="0.0" y="0.174" z="-0.985"/>
-            <point x="0.0" y="0.766" z="-0.643"/>
-        </path>
-    </symmetryobject>
-</group>
+{
+    "gapid": "18,1", 
+    "gapname": "D18", 
+    "links": ["http://groupnames.org/1/D9.html"], 
+    "names": ["<i>D</i><sub>9</sub>"], 
+    "shortName": "D_9", 
+    "definition": "⟨<i>a</i>, <i>b</i> : <i>a</i><sup>2</sup>=<i>b</i><sup>9</sup>=1,<wbr> <i>b</i><i>a</i><i>b</i>=<i>a</i><sup>-1</sup>⟩",
+    "phrase": "Dihedral group on 9 vertices", 
+    "notes": "", 
+    "author": "Nathan Carter (ncarter@bentley.edu)", 
+    "multtable": [
+        [
+             0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 
+            13, 14, 15, 16, 17
+        ], 
+        [
+             1,  2,  3,  4,  5,  6,  7,  8,  0, 17,  9, 10, 11, 
+            12, 13, 14, 15, 16
+        ], 
+        [
+             2,  3,  4,  5,  6,  7,  8,  0,  1, 16, 17,  9, 10, 
+            11, 12, 13, 14, 15
+        ], 
+        [
+             3,  4,  5,  6,  7,  8,  0,  1,  2, 15, 16, 17,  9, 
+            10, 11, 12, 13, 14
+        ], 
+        [
+             4,  5,  6,  7,  8,  0,  1,  2,  3, 14, 15, 16, 17, 
+             9, 10, 11, 12, 13
+        ], 
+        [
+             5,  6,  7,  8,  0,  1,  2,  3,  4, 13, 14, 15, 16, 
+            17,  9, 10, 11, 12
+        ], 
+        [
+             6,  7,  8,  0,  1,  2,  3,  4,  5, 12, 13, 14, 15, 
+            16, 17,  9, 10, 11
+        ], 
+        [
+             7,  8,  0,  1,  2,  3,  4,  5,  6, 11, 12, 13, 14, 
+            15, 16, 17,  9, 10
+        ], 
+        [
+             8,  0,  1,  2,  3,  4,  5,  6,  7, 10, 11, 12, 13, 
+            14, 15, 16, 17,  9
+        ], 
+        [
+             9, 10, 11, 12, 13, 14, 15, 16, 17,  0,  1,  2,  3, 
+             4,  5,  6,  7,  8
+        ], 
+        [
+            10, 11, 12, 13, 14, 15, 16, 17,  9,  8,  0,  1,  2, 
+             3,  4,  5,  6,  7
+        ], 
+        [
+            11, 12, 13, 14, 15, 16, 17,  9, 10,  7,  8,  0,  1, 
+             2,  3,  4,  5,  6
+        ], 
+        [
+            12, 13, 14, 15, 16, 17,  9, 10, 11,  6,  7,  8,  0, 
+             1,  2,  3,  4,  5
+        ], 
+        [
+            13, 14, 15, 16, 17,  9, 10, 11, 12,  5,  6,  7,  8, 
+             0,  1,  2,  3,  4
+        ], 
+        [
+            14, 15, 16, 17,  9, 10, 11, 12, 13,  4,  5,  6,  7, 
+             8,  0,  1,  2,  3
+        ], 
+        [
+            15, 16, 17,  9, 10, 11, 12, 13, 14,  3,  4,  5,  6, 
+             7,  8,  0,  1,  2
+        ], 
+        [
+            16, 17,  9, 10, 11, 12, 13, 14, 15,  2,  3,  4,  5, 
+             6,  7,  8,  0,  1
+        ], 
+        [
+            17,  9, 10, 11, 12, 13, 14, 15, 16,  1,  2,  3,  4, 
+             5,  6,  7,  8,  0
+        ]
+    ], 
+    "declaredGenerators": [ [1, 9] ], 
+    "representations": [
+        [
+            "<i>e</i>", "<i>r</i>", "<i>r</i><sup>2</sup>", 
+            "<i>r</i><sup>3</sup>", "<i>r</i><sup>4</sup>", 
+            "<i>r</i><sup>5</sup>", 
+            "<i>f</i><i>r</i><sup>3</sup><i>f</i>", 
+            "<i>f</i><i>r</i><sup>2</sup><i>f</i>", 
+            "<i>frf</i>", "<i>f</i>", "<i>fr</i>", 
+            "<i>f</i><i>r</i><sup>2</sup>", 
+            "<i>f</i><i>r</i><sup>3</sup>", 
+            "<i>f</i><i>r</i><sup>4</sup>", 
+            "<i>r</i><sup>4</sup><i>f</i>", 
+            "<i>r</i><sup>3</sup><i>f</i>", 
+            "<i>r</i><sup>2</sup><i>f</i>", "<i>rf</i>"
+        ], 
+        [
+            "()", "(0 1 2 3 4 5 6 7 8)", "(0 2 4 6 8 1 3 5 7)", 
+            "(0 3 6)(1 4 7)(2 5 8)", "(0 4 8 3 7 2 6 1 5)", 
+            "(0 5 1 6 2 7 3 8 4)", "(0 6 3)(1 7 4)(2 8 5)", 
+            "(0 7 5 3 1 8 6 4 2)", "(0 8 7 6 5 4 3 2 1)", 
+            "(1 8)(2 7)(3 6)(4 5)", "(0 8)(1 7)(2 6)(3 5)", 
+            "(0 7)(1 6)(2 5)(3 4)", "(0 6)(1 5)(2 4)(7 8)", 
+            "(0 5)(1 4)(2 3)(6 8)", "(0 4)(1 3)(5 8)(6 7)", 
+            "(0 3)(1 2)(4 8)(5 7)", "(0 2)(3 8)(4 7)(5 6)", 
+            "(0 1)(2 8)(3 7)(4 6)"
+        ]
+    ], 
+    "cayleyDiagrams": [], 
+    "symmetryObjects": [
+        {
+            "name": "Nonagon", 
+            "operations": [
+                {
+                    "element": 1, 
+                    "degrees": 40, 
+                    "point": [1, 0, 0]
+                }, 
+                {
+                    "element": 9, 
+                    "degrees": 180, 
+                    "point": [0, 1, 0]
+                }
+            ], 
+            "spheres": [
+                {
+                    "radius": 0.1, 
+                    "color": "#FF0000", 
+                    "point": [0, 1, 0]
+                }, 
+                {
+                    "radius": 0.1, 
+                    "color": "#FFAA00", 
+                    "point": [0, 0.766, 0.643]
+                }, 
+                {
+                    "radius": 0.1, 
+                    "color": "#AAFF00", 
+                    "point": [0, 0.174, 0.985]
+                }, 
+                {
+                    "radius": 0.1, 
+                    "color": "#00FF00", 
+                    "point": [0, -0.5, 0.866]
+                }, 
+                {
+                    "radius": 0.1, 
+                    "color": "#00FFAA", 
+                    "point": [0, -0.94, 0.342]
+                }, 
+                {
+                    "radius": 0.1, 
+                    "color": "#00AAFF", 
+                    "point": [0, -0.94, -0.342]
+                }, 
+                {
+                    "radius": 0.1, 
+                    "color": "#0000FF", 
+                    "point": [0, -0.5, -0.866]
+                }, 
+                {
+                    "radius": 0.1, 
+                    "color": "#AA00FF", 
+                    "point": [0, 0.174, -0.985]
+                }, 
+                {
+                    "radius": 0.1, 
+                    "color": "#FF00AA", 
+                    "point": [0, 0.766, -0.643]
+                }
+            ], 
+            "paths": [
+                {
+                    "points": [
+                        [ 0,  0.766, -0.643 ], 
+                        [ 0,  1.000,  0.000 ], 
+                        [ 0,  0.766,  0.643 ], 
+                        [ 0,  0.174,  0.985 ], 
+                        [ 0, -0.500,  0.866 ], 
+                        [ 0, -0.940,  0.342 ], 
+                        [ 0, -0.940, -0.342 ], 
+                        [ 0, -0.500, -0.866 ], 
+                        [ 0,  0.174, -0.985 ], 
+                        [ 0,  0.766, -0.643 ]
+                    ], 
+                    "color": "#000000"
+                }
+            ]
+        }
+    ]
+}

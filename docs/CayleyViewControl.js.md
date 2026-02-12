@@ -1,92 +1,120 @@
-// @flow
+/* @flow
 
-import {Cayley_Diagram_View} from '../CayleyDiagram.js';
-import {CayleyDiagramView} from '../js/CayleyDiagramView.js';
-import GEUtils from './GEUtils.js'
-import Log from '../js/Log.js';
+# CayleyViewControl
 
-export {load, updateFromView};
+Display input elements that configure the CayleyDiagramView:
+ * set zoom level
+ * set line thickness
+ * set node radius
+ * set whether or not to use fog and how much
+ * set whether or not to show labels and how big
+ * set arrowhead location from start to end of arrow
 
-const VIEW_PANEL_URL = './html/CayleyViewController.html'
-
-/*::
-import type {CayleyDiagramJSON} from '../js/CayleyDiagramView.js';
-*/
-
-async function load ($viewWrapper /*: JQuery */) /*: Promise<void> */ {
-  const data = await GEUtils.ajaxLoad(VIEW_PANEL_URL)
-
-  $viewWrapper.html(data);
-  setupViewPage();
-  updateFromView();
-}
-
-function setupViewPage() {
-   $('#zoom-level').off('input', setZoomLevel).on('input', setZoomLevel);
-   $('#line-thickness').off('input', setLineThickness).on('input', setLineThickness);
-   $('#node-radius').off('input', setNodeRadius).on('input', setNodeRadius);
-   $('#fog-level').off('input', setFogLevel).on('input', setFogLevel);
-   $('#use-fog').off('input', setFogLevel).on('input', setFogLevel);
-   $('#label-size').off('input', setLabelSize).on('input', setLabelSize);
-   $('#show-labels').off('input', setLabelSize).on('input', setLabelSize);
-   $('#arrowhead-placement').off('input', setArrowheadPlacement).on('input', setArrowheadPlacement);
-}
-
-/* Set sliders, check boxes in view panel:
- *   arrowhead placement
- *   use fog/fog level
- *   show labels/label size
- *   line thickness
- *   node radius
- *   zoom level
+```javascript
  */
-function updateFromView() {
-    $('#arrowhead-placement').val(20*Cayley_Diagram_View.arrowhead_placement);
+import * as GEUtils from './GEUtils.js'
 
-    const fog_level = Cayley_Diagram_View.fog_level;
-    $('#use-fog').prop('checked', fog_level != 0);
-    $('#fog-level').val( (fog_level == 0) ? 5 : 10*fog_level);
+export {addControl}
 
-    const label_scale_factor = Cayley_Diagram_View.label_scale_factor;
-    $('#show-labels').prop('checked', label_scale_factor != 0);
-    $('#label-size').val( (label_scale_factor == 0) ? 5 : 10*Math.log(label_scale_factor) );
+function addControl (cayleyViewControlElement, cayleyDiagramView) {
+   // create view control elements and initialize values from cayleyDiagramView
+   // n.b.: data-name attributes are just documentation, they aren't used in the code
+   const fogLevel = cayleyDiagramView.fog_level
+   const labelScaleFactor = cayleyDiagramView.label_scale_factor
+   cayleyViewControlElement.innerHTML =
+     `<div>
+         Zoom level:
+         <input id="zoom-level-slider" type="range" min="-10" max="10"
+            value="${10 * Math.log(cayleyDiagramView.zoom_level)}">
+      </div>
 
-    $('#line-thickness').val(1 + (Cayley_Diagram_View.line_width - 1)/0.75);
+      <div>
+         Line thickness:
+         <input id="line-thickness-slider" type="range" min="1" max="20"
+            value="${1 + (cayleyDiagramView.line_width - 1) / 0.75}">
+      </div>
 
-    $('#node-radius').val(10*Math.log(Cayley_Diagram_View.sphere_scale_factor));
+      <div>
+         Node radius:
+         <input id="node-radius-slider" type="range" min="-10" max="10"
+            value="${10 * Math.log(cayleyDiagramView.sphere_scale_factor)}">
+      </div>
 
-    $('#zoom-level').val(10*Math.log(Cayley_Diagram_View.zoom_level));
+      <div>
+         <input id="use-fog-checkbox" type="checkbox"
+            ${(fogLevel == 0) ? '' : 'checked'}>Use this much fog:
+         <input id="fog-level-slider" type="range" min="1" max="10"
+            value="${(fogLevel == 0) ? 5 : 10 * fogLevel}">
+      </div>
+
+      <div>
+         <input id="show-labels-checkbox" type="checkbox"
+            ${(labelScaleFactor == 0) ? '' : 'checked'}>Show labels of this size:
+         <input id="label-size-slider" type="range" min="-10" max="10"
+            value="${(labelScaleFactor == 0) ? 5 : 10 * Math.log(labelScaleFactor)}">
+      </div>
+
+      <div>
+         Arrowhead placement:
+         <input id="arrowhead-placement-slider" type="range" min="0" max="20"
+            value="${20 * cayleyDiagramView.arrowhead_placement}">
+      </div>
+
+      <div>
+         <details style="font-size: 1.25rem">
+            <summary>Advanced</summary>
+            <button style="width: 20ch" data-action="cayleyDiagramView.toggleCoordinateAxisDisplay()"
+               >Show/hide axes</button>
+            <button style="width: 20ch" data-action="cayleyDiagramView.snapToAxis()"
+               >Snap to axis</button>
+         </details>
+      </div>`
+
+   // define view control element names
+   const zoomLevelSlider = document.getElementById('zoom-level-slider')
+   const lineThicknessSlider = document.getElementById('line-thickness-slider')
+   const nodeRadiusSlider = document.getElementById('node-radius-slider')
+   const useFogCheckbox = document.getElementById('use-fog-checkbox')
+   const fogLevelSlider = document.getElementById('fog-level-slider')
+   const showLabelsCheckbox = document.getElementById('show-labels-checkbox')
+   const labelSizeSlider = document.getElementById('label-size-slider')
+   const arrowheadPlacementSlider = document.getElementById('arrowhead-placement-slider')
+
+   // define view control element input handlers
+   const setZoomLevel = () => {
+      cayleyDiagramView.zoom_level = Math.exp(Number(zoomLevelSlider.value) / 10)
+   }
+
+   const setLineThickness = () => {
+      cayleyDiagramView.line_width = 1 + 0.75 * (Number(lineThicknessSlider.value) - 1)
+   }
+
+   const setNodeRadius = () => {
+      cayleyDiagramView.sphere_scale_factor = Math.exp(Number(nodeRadiusSlider.value) / 10)
+   }
+
+   const setFogLevel = () => {
+      cayleyDiagramView.fog_level =
+         useFogCheckbox.checked ? Number(fogLevelSlider.value) / 10 : 0
+   }
+
+   const setLabelSize = () => {
+      cayleyDiagramView.label_scale_factor =
+         showLabelsCheckbox.checked ? Math.exp(Number(labelSizeSlider.value) / 10) : 0
+   }
+
+   const setArrowheadPlacement = () => {
+      cayleyDiagramView.arrowhead_placement = Number(arrowheadPlacementSlider.value) / 20
+   }
+
+   // set view control element handlers
+   zoomLevelSlider.addEventListener('input', setZoomLevel)
+   lineThicknessSlider.addEventListener('input', setLineThickness)
+   nodeRadiusSlider.addEventListener('input', setNodeRadius)
+   useFogCheckbox.addEventListener('input', setFogLevel)
+   fogLevelSlider.addEventListener('input', setFogLevel)
+   showLabelsCheckbox.addEventListener('input', setLabelSize)
+   labelSizeSlider.addEventListener('input', setLabelSize)
+   arrowheadPlacementSlider.addEventListener('input', setArrowheadPlacement)
+   GEUtils.createActionHandler(cayleyViewControlElement, (action) => eval(action))
 }
-
-/* Slider handlers */
-function setZoomLevel() {
-   const zoom_level = Math.exp( Number($('#zoom-level').val())/10 );
-   Cayley_Diagram_View.zoom_level = zoom_level;
-}
-
-function setLineThickness() {
-   const slider_value = Number($('#line-thickness').val());
-   const line_width = 1 + 0.75*(slider_value - 1);
-   Cayley_Diagram_View.line_width = line_width;
-}
-
-function setNodeRadius() {
-   const sphere_scale_factor = Math.exp( Number($('#node-radius').val())/10 );
-   Cayley_Diagram_View.sphere_scale_factor = sphere_scale_factor;
-}
-
-function setFogLevel() {
-   const fog_level = $('#use-fog').is(':checked') ? Number($('#fog-level').val())/10 : 0;
-   Cayley_Diagram_View.fog_level = fog_level;
-}
-
-function setLabelSize() {
-   const label_scale_factor = $('#show-labels').is(':checked') ? Math.exp( Number($('#label-size').val())/10 ) : 0;
-   Cayley_Diagram_View.label_scale_factor = label_scale_factor;
-}
-
-function setArrowheadPlacement() {
-   const arrowhead_placement = Number($('#arrowhead-placement').val())/20;
-   Cayley_Diagram_View.arrowhead_placement = arrowhead_placement;
-}
-

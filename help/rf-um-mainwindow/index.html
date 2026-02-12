@@ -139,6 +139,7 @@ and from which all other page are opened.</p>
 group. By default, the following columns are visible (in this order) when
 <em>Group Explorer</em> has opened:</p>
 <ol>
+<li>GAP Id &ndash; the small group ID of the group in <a href="../rf-um-gap/">GAP</a></li>
 <li>Name - the symbolic name of the group, as shown above</li>
 <li><a href="../rf-groupterms/#order-of-a-group">Order</a></li>
 <li><a href="../rf-groupterms/#definition-of-a-group-via-generators-and-relations">Definition</a></li>
@@ -158,32 +159,46 @@ time to load all the groups in the library.  Future times that you visit the
 page, this should be faster, because the application stores some of the data
 in your browser so that it can be accessed more quickly in the future.</p>
 <h2 id="sorting-the-table">Sorting the table</h2>
-<p>You can sort the table by group name or order; simply click the column
+<p>You can sort the table by GAP id, group name or order; simply click the column
 heading cell.  (The heading for the Order column is also a link to the help
 on group order; click outside the word &ldquo;Order&rdquo; to sort by that column.)</p>
 <h2 id="menu-top-right">Menu (top right)</h2>
-<p>The following icons appear on the top right of the main page.  Each is
-addressed separately, below.</p>
-<p><img alt="A screenshot of the icons on the top right of the main page" src="../main-page-menu-icons.png" /></p>
-<h3 id="home">Home</h3>
-<p>The first icon (the house) is a link to the main <em>Group Explorer</em> website.
-That is, it will take you out of the app itself and back to the home page of
-the entire project.</p>
-<h3 id="sheets">Sheets</h3>
-<p>The second icon (the sheet of paper) takes you to a blank sheet, into which
-you can insert visualizations of any groups from the library and connect
-them with morphisms.  To read more on sheets, see <a href="../tu-sheets/">the sheets
-tutorial</a> or <a href="../rf-um-sheetwindow/">the sheets reference</a>.</p>
-<h3 id="help">Help</h3>
-<p>The third icon (the question mark) takes you to the main page of these help
-files.</p>
-<h3 id="github">GitHub</h3>
-<p>The rightmost icon (the GitHub logo) takes you to <a href="https://github.com/nathancarter/group-explorer">the source code
+<p>In the upper right-hand corner of the <em>Group Explorer</em> page you will find a
+menu icon for the page:</p>
+<p><img alt="A screenshot of the menu options on the top right of the main page" src="../main-page-menu.png" /></p>
+<p>with the following options:</p>
+<h4 id="show-hide-extended-library">Show / Hide Extended Library</h4>
+<p>The first menu option will show (or hide) an extended collection of groups from the
+<em>Group Explorer</em> library. These larger, generally more complex groups introduce
+new ways of combining groups not illustrated by the default library. They are
+intended for those looking for just a bit more&hellip;</p>
+<h4 id="show-hide-delete-generated-groups-optional">Show / Hide, Delete Generated Groups (optional)</h4>
+<p>In some circumstances <em>Group Explorer</em> will generate a group that is not in one
+of its libraries and store it locally. If the library contains one of these
+groups these options will be displayed. They allow you to show or hide such
+groups when listing the library, and to delete them if they&rsquo;re no longer
+useful. For more information see the discussion in <a href="../rf-geterms/#generated-groups">Group Explorer
+Terminology</a>.</p>
+<h4 id="new-sheet">New Sheet</h4>
+<p>This option opens a blank sheet, into which you can insert visualizations of any
+groups from the library and connect them with morphisms.  To read more on
+sheets, see <a href="../tu-sheets/">the sheets tutorial</a> or <a href="../rf-um-sheetwindow/">the sheets
+reference</a>.</p>
+<h4 id="help">Help</h4>
+<p>This option takes you to the main page of these help files.</p>
+<h4 id="about-ge3">About GE3</h4>
+<p>Clicking this menu item pops up a box with information about the copy of
+<em>Group Explorer</em> you&rsquo;re running:</p>
+<p><img alt="Screenshot of the GE3 help popup" src="../GE3-help.png" /></p>
+<p>It includes a link to the <a href="https://nathancarter.github.io/group-explorer">main <em>Group Explorer</em>
+website</a>, which will take you out
+of the app itself and back to the home page of the entire project.</p>
+<p>And it has a link to <a href="https://github.com/nathancarter/group-explorer">the source code
 repository</a> from which the
-application and its website were built.  Visit that site if you would like
-to see how the application was built, make suggestions for its improvement,
-report an error in the documentation, or get involved in improving the
-software as a developer.</p>
+application and its website were built.  Visit that site if you would like to
+see how the application was built, make suggestions for its improvement, report
+an error in the documentation, or get involved in improving the software as a
+developer.</p>
         </div>
     </div>
 </div>

@@ -1,0 +1,124 @@
+....how/why do primitive Gesture routines get called?
+
+Gesture.recognizeSelect
+  MulttableViewUI.addSelect (display element tooltip)
+    UIComponents.makeTooltip
+      UIComponents.makeMoveResizable
+  UIComponents.js
+    makeFixedMenu: execute action
+    makeDetachedMenu: execute action
+  CycleGraphViewUI.js
+    makeTooltip
+  CayleyDiagramViewUI.js
+    pick arc/node for manual rearrangement
+  SheetViewUI.js
+    select display element for move, resize
+
+Gesture.recognizeContextMenu
+  MulttableViewUI.addContextMenu (reset full window zoom)
+  UIComponents.js
+    makeFixedMenu: execute action2
+  CycleGraphViewUI.js
+    reset full window zoom
+  CayleyDiagramViewUI.js
+    makeTooltip if over node / reset display pan-zoom
+  SheetViewUI.js
+    display editor/context menu for display element
+
+Gesture.recognizeDragAndDrop
+  ControlPanel constructor (hide/expose control panel)
+  MulttableViewUI.addMove (pan display / drag-and-drop row or column)
+  CayleyDiagramViewUI.js
+    move arc/node for manual rearrangement
+  CycleGraphViewUI.js
+    pan display
+  UIComponents.makeMovable (move/scroll detached menu)
+  SheetViewUI.js
+    move display element
+    (on context menu) pan display
+
+Gesture.recognizePinch
+  MulttableViewUI.addPinch (zoom display)
+  CycleGraphViewUI.addPinch (zoom display)
+  SheetViewUI.init (set up handler to resize display)
+
+Gesture.recognizeZoom
+  MulttableViewUI.addZoom (zoom display from hand-rolled 'wheel' handler)
+  CycleGraphViewUI.addZoom (zoom display from hand-rolled 'wheel' handler)
+  SheetViewUI.init (set up handler to resize display)
+
+Gesture.recognizeMoveResize
+  UIComponents.makeTooltip, UIComponents.makeMockSelect, UIComponents.makeDialog (move/resize component)
+  SheetViewUI.init (set up handler to move/resize display element)
+
+
+....who calls UI components?
+
+makeFixedMenu
+  SheetControl.js    
+  UIComponents.js    
+  HighlightControl
+
+makeTooltip
+  CycleGraphViewUI.js
+  CayleyDiagramViewUI.js
+  MulttableViewUI.js
+  HighlightControl.js
+
+makeMockSelect
+  SymmetryObjectControl.js
+  SheetControl.js
+  MulttableControl.js
+  CayleyDiagramControl.js
+  SheetModelEditors.showDomainChoices, SheetModelEditors.showCodomainChoices: map editor
+
+makeDialog
+  SheetModelEditors.constructor (underlying display for all editors)
+  SheetViewUI.createLink (dialog for making link/morphism)
+  SheetControl.showCreateSheetDialog, SheetControl.showImportSheetDialog, SheetControl.showExportSheetDialog (various dialogs)
+  HighlightControl.SubsetEditor constructor (underlying display for SubsetEditor)
+  Heading.aboutGE3 (show about GE3 dialog)
+
+
+...variations on default
+
+SheetViewUI.init calls recognizeDragAndDrop with contextMenu: true when panning display
+MulttableViewUI.addContextMenu calls recognizeContextMenu with returnOnLongTapTimeout: true to give user feedback during column/row move
+SheetModelEditors.MorphismEditor constructor calls makeDialog with resizable: false to prevent resizing morphism editor
+
+Can we separate move from resize?
+  create recognizeMove and recognizeResize?
+Can we limit dw and dh separately and still have option to maintain initial aspect ratio?
+
+
+...label elements with css classes to indicate:
+  use css aspect-ratio to control resizing? (e.g., display element for Multtable)
+  scrollable => wheel events under scrollable elements don't initiate resizing
+  how does this work now in morphism editor, subset editor?
+    -- subset editor: done by dialog from UIComponent
+    -- morphism editor: entire dialog is not resizable
+
+
+
+
+
+Gesture.recognizeMoveResize
+  UIComponents.makeMoveResizable
+      UIComponents.makeTooltip                                                                                                      
+        CycleGraphViewUI.js                                                                                                         
+        CayleyDiagramViewUI.js                                                                                                      
+        MulttableViewUI.js                                                                                                          
+        HighlightControl.js                                                                                                         
+      UIComponents.makeMockSelect                                                                                                   
+        SymmetryObjectControl.js                                                                                                    
+        SheetControl.js                                                                                                             
+        MulttableControl.js                                                                                                         
+        CayleyDiagramControl.js                                                                                                     
+        SheetModelEditors.showDomainChoices, SheetModelEditors.showCodomainChoices: map editor                                      
+      UIComponents.makeDialog (move/resize component)                                                                               
+        SheetModelEditors.constructor (underlying display for all editors)                                                          
+        SheetViewUI.createLink (dialog for making link/morphism)                                                                    
+        SheetControl.showCreateSheetDialog, SheetControl.showImportSheetDialog, SheetControl.showExportSheetDialog (various dialogs)
+        HighlightControl.SubsetEditor constructor (underlying display for SubsetEditor)                                             
+        Heading.aboutGE3 (show about GE3 dialog)                                                                                    
+ SheetViewUI.init (set up handler to move/resize display element)

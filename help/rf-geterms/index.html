@@ -75,6 +75,15 @@ img { border: 1px solid black; }
                     <li><a style="text-decoration: none;"
                           href="#visualizers">Visualizers</a></li>
                 
+                    <li><a style="text-decoration: none;"
+                          href="#generated-groups">Generated Groups</a></li>
+                
+                    <li><a style="text-decoration: none;"
+                          href="#page-menu">Page Menu</a></li>
+                
+                    <li><a style="text-decoration: none;"
+                          href="#collapsible-sections">Collapsible Sections</a></li>
+                
                 </ul>
 
                 <hr>
@@ -159,10 +168,11 @@ which the file from which the group was loaded was last modified. See also
 <a href="#url-of-a-group">URL of a group</a>.</p>
 <h3 id="url-of-a-group">URL of a group</h3>
 <p>Groups are stored on the <em>Group Explorer</em> website in files that end in the
-extension <code>.group</code>. The group&rsquo;s URL is the web address (beginning with
-<code>http://</code>) pointing to the <code>.group</code> file from which the group was loaded on
+extension <code>.group</code>, and then copied to the browser&rsquo;s local storage for faster
+subsequent access. The group&rsquo;s URL is the web address (generally beginning with
+<code>http://</code> or <code>https://</code>) of the <code>.group</code> file from which the group was loaded on
 <em>Group Explorer&rsquo;s</em> website. Example:</p>
-<p><code>https://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=groups/Z_2 x Z_4.group</code></p>
+<p><code>http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=http://nathancarter.github.io/group-explorer/groups/Z_2%20x%20Z_4.group</code></p>
 <h3 id="naming-scheme-for-group-elements">Naming scheme (for group elements)</h3>
 <p>See <a href="#representation-of-a-group">representation of a group</a>.</p>
 <h3 id="representation-of-a-group">Representation of a group</h3>
@@ -183,10 +193,10 @@ group presentations.</p>
 group, homomorphisms to connect them, and pieces of text for description.
 Thus groups need not be examined only in isolation; they can be compared to
 other groups.</p>
-<p>To open a new sheet, from <a href="../rf-um-mainwindow/">the main page</a>, click the
-sheet icon on the top right. For more information, see <a href="../tu-sheets/">the introduction to
-sheets</a> or the <a href="../rf-um-sheetwindow/">reference documentation on the sheet
-interface</a>.</p>
+<p>To open a new sheet click on the <a href="#page-menu">page menu</a> icon in the upper
+right-hand corner of the page and select the &ldquo;New sheet&rdquo; option.  For more
+information, see <a href="../tu-sheets/">the introduction to sheets</a> or the <a href="../rf-um-sheetwindow/">reference
+documentation on the sheet interface</a>.</p>
 <h3 id="visualizers">Visualizers</h3>
 <p><em>Group Explorer</em> uses the term visualizer to describe any of the various
 mechanisms for obtaining pictures of a group. For instance, one way to
@@ -197,6 +207,103 @@ tables</a>, <a href="../rf-groupterms/#cycle-graph">cycle
 graphs</a>, <a href="../rf-groupterms/#cayley-diagrams">cayley
 diagrams</a>, and <a href="../rf-groupterms/#objects-of-symmetry">objects of
 symmetry</a>.</p>
+<h3 id="generated-groups">Generated Groups</h3>
+<p><em>Group Explorer</em> can dynamically create groups that are not part of its built-in
+library but can be treated just as if they were. These &ldquo;generated groups&rdquo; are
+produced when needed, as in these circumstances:</p>
+<ul>
+<li>when displaying the groups isomorphic to the subgroups of a large group<br></li>
+<li>when the URI for a generated group is specified in the page launch URL<br></li>
+<li>when a generated group is embedded in a sheet definition exported from another
+  environment</li>
+</ul>
+<p>Once created, these groups</p>
+<ul>
+<li>are stored in the browser&rsquo;s local storage for faster future access</li>
+<li>function identically to built-in library groups</li>
+<li>can be listed in the main <a href="../rf-um-mainwindow/"><em>Group Explorer</em> window</a>
+  (newly generated groups may require a page refresh)</li>
+<li>have properties that can be examined on <a href="../rf-um-groupwindow/">Group Info pages</a></li>
+<li>can be visualized with any of the <a href="../rf-um-largewindow/">large visualizers</a></li>
+<li>can be included in <a href="../rf-um-sheetwindow/"><em>Sheets</em></a> with other groups</li>
+<li>can be <a href="../rf-um-sheetwindow/#export-import-backup-and-restore">exported</a> to other
+  browsers</li>
+</ul>
+<p>Generated groups are distinguished by their URL format, which uses a <a href="https://en.wikipedia.org/wiki/Data_URI_scheme">data URI
+scheme</a> instead of a traditional
+web address. For example:<br>
+&emsp;&emsp;<code>data:,//GE3/generated?a,b:abAB,aaaaaa,aaabAAAB,bbbbbaaab,bbaabAABBB</code></p>
+<p>This format has three parts:</p>
+<ul>
+<li><code>data:</code> - indicates this is embedded data rather than a file location</li>
+<li><code>//GE3/generated</code> - identifies this as a <em>Group Explorer</em> generated group</li>
+<li>The text after <code>?</code> - defines the group using <a href="../rf-groupterms/#definition-of-a-group-via-generators-and-relations">generators and
+  relations</a>
+  <br>(<em>Note:</em> capital letters in the relations represent inverse elements:
+  A ≡ a<sup>-1</sup>. B ≡ b<sup>-1</sup>, etc.)</li>
+</ul>
+<h4 id="example">Example</h4>
+<p>Here&rsquo;s an example that lets you see generated groups in action:</p>
+<ol>
+<li>
+<p>Display the <a href="../../GroupInfo.html?groupURL=groups/Z_2%20x%20Z_3%20x%20Z_3%20x%20Z_4.group">Group Info page for
+<script type="math/tex">\mathbb{Z}_2\times\mathbb{Z}_3\times\mathbb{Z}_3\times\mathbb{Z}_4
+</script></a></p>
+</li>
+<li>
+<p>Find the &ldquo;Subgroups&rdquo; subsection and expand it by clicking on the &lsquo;▶&rsquo; twisty
+   to the left. Scroll all the way to the bottom of the subgroup info table to
+   <script type="math/tex">H_{46}</script>, the next-to-last entry, and click on the <code>'A Generated Group of
+   Order 36'</code> link. This will bring up the Group Info page for a new group,
+   <script type="math/tex">\mathbb{Z}_3\times\mathbb{Z}_3\times\mathbb{Z}_4</script>, isomorphic to
+   <script type="math/tex">H_{46}</script>. And even though this group isn&rsquo;t in <em>Group Explorer&rsquo;s</em> built-in
+   library, the group info page displays all the information expected of a
+   built-in group, including thumbnails of the visualizers and all the computed
+   properties. You can even add custom element naming schemes and notes!</p>
+</li>
+<li>
+<p>Click on the <a href="../rf-groupterms/#cayley-diagrams">cayley diagram</a> in the generated
+   group&rsquo;s info page to display the new group in a full-sized visualizer. The
+   default layout doesn&rsquo;t show the
+   <script type="math/tex">\mathbb{Z}_3\times\mathbb{Z}_3\times\mathbb{Z}_4</script> structure very well &ndash;
+   see if you can <a href="../rf-um-cd-options/#the-diagram-tab">change to way the diagram is
+   generated</a> to improve it. The <a href="../rf-groupterms/#cycle-graph">cycle
+   graph</a> offers insight into the group&rsquo;s structure,
+   too: note that there are four paths of nine elements around the
+   circumference.</p>
+</li>
+<li>
+<p>Back in the subgroup info table of the <a href="../../GroupInfo.html?groupURL=groups/Z_2%20x%20Z_3%20x%20Z_3%20x%20Z_4.group">Group Info page for
+   <script type="math/tex">\mathbb{Z}_2\times\mathbb{Z}_3\times\mathbb{Z}_3\times\mathbb{Z}_4
+   </script></a>,
+   click on one of the <code>embedding</code> or <code>short exact sequence</code> links for
+   <script type="math/tex">H_{46}</script> to see the generated group shown in a sheet.</p>
+</li>
+<li>
+<p>Display the <a href="../../GroupExplorer.html">group library</a> page and look for
+   groups named <code>'A Generated Group of Order ...'</code>. (If the page was already
+   open you will have to refresh it manually to see your new additions.)  Make
+   sure you&rsquo;ve selected &lsquo;Show generated groups&rsquo; from the <a href="#page-menu">page
+   menu</a>; other options allow you to hide or delete generated
+   groups, as discussed <a href="../rf-um-mainwindow/#menu-top-right">here</a>. (You don&rsquo;t need
+   to worry about deleting the generated groups, by the way: if <em>Group Explorer</em>
+   needs them again it&rsquo;ll just regenerate them.)</p>
+</li>
+</ol>
+<h3 id="page-menu">Page Menu</h3>
+<p>All pages have a menu icon in the upper right-hand corner, indicated by a
+so-called &ldquo;hamburger&rdquo; icon, <script type="math/tex">\equiv</script>. In addition to page-specific options,
+discussed separately with the various page descriptions, the menu contains a
+link to the help documentation for the page being viewed, and a popup with
+infomation about the copy of <em>Group Explorer</em> you&rsquo;re running:</p>
+<p><img alt="Screenshot of the GE3 help popup" src="../GE3-help.png" /></p>
+<h3 id="collapsible-sections">Collapsible Sections</h3>
+<p>Many pages have collapsible sections, indicated by &lsquo;▶&rsquo; and &lsquo;▼&rsquo; characters to the
+left of the main text. Often call &ldquo;twisties&rdquo;, clicking on a &lsquo;▶&rsquo; character will
+expand the section and change the symbol to a &lsquo;▼&rsquo;; clicking on a &lsquo;▼&rsquo; character
+will collapse the section and change the symbol to a &lsquo;▶&rsquo;. See examples in the
+<a href="../rf-um-groupwindow/">Group Info page</a> and the <a href="../rf-um-subsetlistbox/">subset
+options</a>.</p>
         </div>
     </div>
 </div>

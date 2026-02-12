@@ -1,34 +1,233 @@
 // @flow
 
-import BitSet from '../js/BitSet.js';
-import GEUtils from '../js/GEUtils.js';
-import Log from '../js/Log.js';
-import Menu from '../js/Menu.js';
-import SubgroupFinder from '../js/SubgroupFinder.js';
-import Template from '../js/Template.js';
-import XMLGroup from '../js/XMLGroup.js';
+import BitSet from './BitSet.js';
+import * as GEUtils from './GEUtils.js'
+import * as SheetEditor from './SheetEditor.js'
+import SubgroupLattice from './SubgroupLattice.js';
+import {makeFixedMenu, makeDetachedMenu, makeDialog} from './UIComponents.js'
+import {THREE} from '../lib/externals.js'
+import {TrackballControls} from '../lib/externals.js'
+/*::
+import Group from './Group.js';
+ */
 
-export {load};
+export {addControl, toJSON, initializeHighlights}
 
 /*::
 type highlighterRoutines = Array<{handler: (Array<Array<groupElement>>) => void, label: string}>;
 */
 
-const SUBSET_DISPLAY_URL = './html/SubsetHighlightController.html'
+let rootElement /*: HTMLElement */
+let group /*: Group */
+let nextSubsetIndex /*: number*/
+let nextId /*: number */
+let view
+const displayList = [] /*: Array<AbstractSubset> */
+const highlighters = [] /*: highlighterRoutines */
+const highlights = [] /*: Array<Array<number>> */
 
-const LoadPromise = GEUtils.ajaxLoad(SUBSET_DISPLAY_URL)
+function addControl (highlightControlElement, visualizer) {
+   // set module variables
+   rootElement = highlightControlElement
+   view = visualizer
+   group = view.group
+   highlighters.push(...view.getAllHighlighters())
+   highlights.push(...highlighters.map(() => []))
+   displayList.splice(0)
+   nextSubsetIndex = 0;
+   nextId = 0;
 
-let group /*: XMLGroup */ = new XMLGroup();
-let nextSubsetIndex /*: number*/ = 0;
-let nextId /*: number */ = 0;
-let displayList /*: Array<AbstractSubset> */ = [];
-let highlighters /*: highlighterRoutines */ = [];
-let clearHighlights /*: () => void */ = () => void(0);
-let element_display_timeoutID /*: ?TimeoutID */ = null;
+   // Display all subgroups
+   const subgroupListHTML = group.subgroups.map((_h, inx) => new Subgroop(inx).displayLine).join('')
 
+   const highlightControlHTML =
+      `<style>
+          #subset-page {
+              -webkit-user-select: none;
+              -webkit-tap-highlight-color: transparent;
+              background-color: white;
+              white-space: nowrap;
+              touch-action: pan-y;
+              min-width: 100%;
+              font-size: 1em;
+          }
+          #subset-page li:not(:has(> ul)):hover,
+          #subset-page li:has(> ul.hidden):hover {
+              background-color: unset;
+          }
+          #subset-page .menu-label {
+             font-size: 1.25em;
+             margin-bottom: 0.2em;
+             display: inline-block;
+          }
+          #subset-page .placeholder:after {
+             font-style: italic;
+             content: "(None)";
+          }
+          #subset-page ul {
+             padding-inline-start: 0.5em;
+             display: flex;
+             flex-direction: column;
+             margin-top: 0;
+          }
+          #subset-page ul > li {
+             flex: 1 1 1.5em;  /* make li at least 1.5em, about the height of a superscript */
+          }
+          #subset-page .menu-label:hover,
+          #subset-page .placeholder:hover,
+          #subset-page li:hover > details > summary {
+             background-color: #FFB886;   /* orange-tan (~light salmon) */
+          }
+          #subset-page li > details > *:not(summary) {
+             white-space: normal;
+             padding-left: 1.5em;
+          }
+          #subset-page .normal-group {
+             color: blue;
+          }
+          #subset-page .highlight-mark summary {
+             background-color: yellow;
+          }
+       </style>
+       <div id="subset-page" class="box stack-08em fill-v scrollable">
+          <details open id="subgroups">
+          <summary><span class="menu-label" data-action2="showHeaderMenu(event)">Subgroups</span></summary>
+             <ul>
+                ${subgroupListHTML}
+             </ul>
+          </details>
+
+          <details open id="subsets">
+          <summary><span class="menu-label" data-action2="showHeaderMenu(event)">User-defined subsets</span></summary>
+             <ul>
+                <li class="placeholder" data-action="showHeaderMenu(event)" data-action2="showHeaderMenu(event)"></li>
+             </ul>
+          </details>
+
+          <details open id="partitions">
+             <summary><span class="menu-label" data-action2="showHeaderMenu(event)">Partitions</span></summary>
+             <ul>
+                <li class="placeholder" data-action="showHeaderMenu(event)" data-action2="showHeaderMenu(event)"></li>
+             </ul>
+          </details>
+       </div>`
+   highlightControlElement.insertAdjacentHTML('beforeend', highlightControlHTML)
+
+   makeFixedMenu(document.getElementById('subset-page'), (action, event) => eval(action))
+
+   // create twisty details on the fly
+   const generateDetail = (event) => {
+      if (event.target.querySelector('div') == null) {
+         const subgroop = displayList[event.target.getAttribute('subgroup')]
+         event.target.insertAdjacentHTML('beforeEnd', subgroop.getInfo())
+         event.target.removeEventListener('toggle', generateDetail)
+      }
+   }
+   Array.from(document.getElementsByTagName('details')).forEach((element) => {
+      if (element.hasAttribute('subgroup')) {
+         element.addEventListener('toggle', generateDetail)
+      }
+   })
+
+   updateHighlightMark()
+}
+
+// Set up global data, assuming group layout is in place
+function initializeHighlights () {
+   if (view.highlightControl != null) {
+      const highlightControlJSON = view.highlightControl
+
+      // Add Subsets to displayList
+      highlightControlJSON.displayList
+         .filter((displayItem) => 'subsetIndex' in displayItem)
+         .forEach((displayItem) => {
+            nextId = displayItem.id
+            nextSubsetIndex = displayItem.subsetIndex
+            new Subset(BitSet.parseJSON(displayItem.elements))
+         })
+
+      // Create Partitions and add PartitionSubsets to displayList
+      highlightControlJSON.partitionList
+         .forEach((partition) => {
+            const firstChild = highlightControlJSON.displayList.find((child) => partition.subsets[0] == child.id)
+            nextId = firstChild.id
+            if (firstChild.name.includes('CC')) {
+               new ConjugacyClasses()
+            } else if (firstChild.name.includes('OC')) {
+               new OrderClasses()
+            } else {  // must be coset, the only remaining partition option
+               new Cosets(displayList[partition.subgroop.id], partition.side)
+            }
+         })
+
+      // Reset global counters
+      nextSubsetIndex = Math.max(...displayList.filter(Boolean).map((el) => 'subsetIndex' in el ? el.subsetIndex : -1)) + 1
+      nextId = Math.max(...displayList.filter(Boolean).map((el) => el.id)) + 1
+
+      // Update highlights
+      highlightControlJSON.highlights.forEach((highlight, inx) => highlightItem(highlight, inx))
+   } else if (view.highlightColors?.[0]?.length) {
+      const backgroundHighlights = view.highlightColors[0].filter(Boolean)
+      if (backgroundHighlights.length == 0) {  // no highlights?
+         highlightItem([], 0)
+      } else {
+         const highlightColor = backgroundHighlights[0]
+         if (backgroundHighlights.every((color) => color == highlightColor)) {  // only one color?
+            // make set of colored elements and highlight matching subset
+            const coloredElements = new BitSet(group.order)
+            view.highlightColors[0].forEach((color, inx) => {
+               if (color == highlightColor) {
+                  coloredElements.set(inx)
+               }
+            })
+            const highlightedSubset = displayList.find((displayItem) => displayItem.elements.equals(coloredElements))
+            if (highlightedSubset != null) {
+               highlightItem([highlightedSubset.id], 0, [highlightColor])
+            }
+            updateHighlightMark()
+         }
+      }
+   }
+}
+
+// break recursive structure in displayList to be serializable as JSON
+// remove first |group| entries from displayList (recalc from group properties)
+function toJSON () {
+   const displayedItems = displayList
+      .filter((displayItem) => !('subgroupIndex' in displayItem))
+      .map((displayItem) => Object.assign({}, displayItem))
+   const partitionList = displayedItems
+      .reduce((partitionList, displayedItem) => {
+         if ('parent' in displayedItem) {
+            if (!partitionList.includes(displayedItem.parent)) {
+               partitionList.push(displayedItem.parent)
+            }
+            displayedItem.parent = null
+         }
+         return partitionList
+      }, [])
+      .map((partition) => {
+         const copy = Object.assign({}, partition)
+         copy.subsets = partition.subsets.map((subset) => subset.id)
+         return copy
+      })
+   const json = {highlights: highlights, displayList: displayedItems, partitionList: partitionList}
+
+   return json
+}
+
+function updateHighlightMark () {
+   // clear current highlight markings
+   document.querySelectorAll('#subset-page .highlight-mark')
+      .forEach((element) => element.classList.remove('highlight-mark'))
+
+   if (highlights[0].length == 1) {
+      document.getElementById(`${highlights[0][0]}`).classList.add('highlight-mark')
+   }
+}
 /*
  * AbstractSubset --
- *   Direct superclass of Subgroup, Subset, and Partition
+ *   Direct superclass of Subgroop, Subset, and Partition
  *   Assigns an id to every element displayed in the subsetDisplay,
  *     and adds it to displayList
  *   Implements set operations unions, intersection, and elementwise product
@@ -45,39 +244,87 @@ class AbstractSubset {
 /*::
    id: number;
    elements: BitSet;
-  +name: string;	// implemented in subclass
-  +menu: JQuery;	// implemented in subclass
+  +name: string;  // implemented in subclass
+  +menu: html;  // implemented in subclass
   +displayLine: string; // implemented in subclass
- */  
-   constructor() {
+ */
+   constructor () {
       this.id = getNextId();
       displayList[this.id] = this;
+      window.setTimeout(() => updateHighlightMark(), 0)  // update highlights after any subset is created
    }
 
-   get closure() /*: Subset */ {
-      return new Subset(group.closure(this.elements));
+   get closure () /*: Subset */ {
+      const subsetElements = group.closure(this.elements)
+
+      const explanation =
+         `It is the closure of ${this.name}, ⟨ ${this.name} ⟩. This means that it
+         is the smallest subgroup of ${group.name} which contains ${this.name}.`
+
+      confirmSubsetSave(subsetElements, explanation)
+   }
+
+   get clickAction () {
+      // preventDefault keeps click from exposing details and toggling colors at the same time
+      return `data-action="event.preventDefault(); toggleColorHighlight(${this.id})"`
+   }
+
+   get contextAction () {
+      return `data-action2="showMenu(event, ${this.id})"`
    }
 
    // delete is a javascript keyword...
-   destroy() {
+   destroy () {
+      // remove highlights
+      for (const [inx, highlight] of Object.entries(highlights)) {
+         if (highlight.includes(this.id)) {
+            highlightItem([], inx)
+         }
+      }
+         
       delete(displayList[this.id]);
-      $(`#${this.id}`).remove();
+      document.getElementById(`${this.id}`).remove();
+      SheetEditor.broadcastChange()
    }
 
+   get info () {
+      const subsetElements = this.elements.toArray().map((el) => group.representation[el]);
+      const subsetElementList = subsetElements.join(', <wbr>')  // .replaceAll(' ', '&nbsp;')
+      const myInfo = `<div>The elements of ${this.name} are:
+                         <div style="white-space: nowrap; max-width: 25em; padding-left: 1em">${subsetElementList}</div>
+                      </div>`
+      return myInfo
+   }
+
+   getInfo () {
+      const result = `<div>${this.info}</div>`
+
+      return result
+   }
 
    /*
     * Operations that create new Subsets by performing
     *   union, intersection, and elementwise product on this set
     */
-   union(other /*: AbstractSubset */) /* Subset */ {
-      return new Subset(BitSet.union(this.elements, other.elements));
+   union (other /*: AbstractSubset */) /* Subset */ {
+      const subsetElements = BitSet.union(this.elements, other.elements)
+
+      const explanation =
+         `It is the union of ${this.name} with ${other.name}.`
+
+      confirmSubsetSave(subsetElements, explanation)
    }
 
-   intersection(other /*: AbstractSubset */) /*: Subset */ {
-      return new Subset(BitSet.intersection(this.elements, other.elements));
+   intersection (other /*: AbstractSubset */) /*: Subset */ {
+      const subsetElements = BitSet.intersection(this.elements, other.elements)
+
+      const explanation =
+         `It is the intersection of ${this.name} with ${other.name}.`
+
+      confirmSubsetSave(subsetElements, explanation)
    }
 
-   elementwiseProduct(other /*: AbstractSubset */) /*: Subset */{
+   elementwiseProduct (other /*: AbstractSubset */) /*: Subset */{
       const newElements = new BitSet(group.order);
       for (let i = 0; i < this.elements.len; i++) {
          if (this.elements.isSet(i)) {
@@ -88,16 +335,21 @@ class AbstractSubset {
             }
          }
       }
-      return new Subset(newElements);      
+      const explanation =
+         `It is the elementwise product of ${this.name} with ${other.name}. This means that it
+         is the set of all elements <i>ab</i> in ${group.name}, with <i>a</i> from ${this.name}
+         and b from ${other.name}. Note that the elementwise product operation is not
+         necessarily commutative.`
+
+      confirmSubsetSave(newElements, explanation)
    }
 
-   get elementString() /*: string */ {
+   get elementString () /*: string */ {
       return '[' + this.elements.toString() + ']';
    }
 }
 
-
-class Subgroup extends AbstractSubset {
+class Subgroop extends AbstractSubset {
 /*::
    subgroupIndex: number;
   +normalizer: Subset;
@@ -118,26 +370,112 @@ class Subgroup extends AbstractSubset {
    get displayLine() {
       const generators = group.subgroups[this.subgroupIndex].generators.toArray()
                                .map( el => group.representation[el] );
-      let templateName;
+      let template;
       switch (this.subgroupIndex) {
-         case 0:
-            templateName = 'first-subgroup-template';	break;
-         case group.subgroups.length - 1:
-            templateName = 'last-subgroup-template';	break;
-         default:
-            templateName = 'subgroup-template';	break;
+      case 0:
+         template =
+           `<li id="${this.id}">
+               <details subgroup="${this.id}"><summary><span class="normal-group" ${this.clickAction} ${this.contextAction}>
+                   ${this.name} = ⟨ ${generators[0]} ⟩ is the trivial subgroup { ${generators[0]} }.
+               </span></summary></details>
+            </li>`
+         break
+      case group.subgroups.length - 1:
+         template =
+           `<li id="${this.id}">
+               <details subgroup="${this.id}"><summary><span class="normal-group" ${this.clickAction} ${this.contextAction}>
+                   ${this.name} = ⟨ ${generators.join(', <wbr>')} ⟩ is the group itself.
+               </span></summary></details>
+            </li>`
+         break
+      default:
+         const isNormal = group.subgroups[this.subgroupIndex].isNormal
+         template =
+           `<li id="${this.id}">
+               <details subgroup="${this.id}"><summary><span ${(isNormal) ? 'class="normal-group"' : ''} ${this.clickAction} ${this.contextAction}>
+                  ${this.name} = ⟨ ${generators.join(', <wbr>')} ⟩ is a subgroup of order ${group.subgroups[this.subgroupIndex].order}.
+               </span></summary></details>
+            </li>`
+         break
       }
-      return eval(Template.HTML(templateName));
+
+      return template
+   }
+
+   get info () {
+      let subgroopInfo = ''
+      const subgroup = group.subgroups[this.subgroupIndex]
+
+      subgroopInfo += `<div>${this.name} is a ${subgroup.isNormal ? 'normal' : ''} subgroup of ${group.name}`
+      if (subgroup.isomorphicGroup == null) {
+         subgroopInfo += `; it is not isomorphic any group in GE3`
+      } else {
+         subgroopInfo += `, isomorphic to <a href="./GroupInfo.html?groupURL=${subgroup.isomorphicGroup.URL}" target="_blank">${subgroup.isomorphicGroup.name}</a>`
+      }
+      subgroopInfo += '</div>'
+
+      if (subgroup.isNormal) {
+         subgroopInfo += `<div>The quotient group ${group.name}/${this.name} is`
+         if (subgroup.isomorphicQuotientGroup == null) {
+            subgroopInfo += ` not isomorphic to any group in GE3`
+         } else {
+            subgroopInfo += ` isomorphic to <a href="./GroupInfo.html?groupURL=${subgroup.isomorphicQuotientGroup.URL}">${subgroup.isomorphicQuotientGroup.name}</a>`
+         }
+         subgroopInfo += '</div>'
+      }
+
+      return subgroopInfo + super.info
    }
 
    get menu() {
-      return $(eval(Template.HTML('subgroup-menu-template')));
+      const subgroupMenuTemplate = `
+         <ul id="subgroup-menu">
+            <li data-action="makeSubsetEditor()">Create ${Subset.nextName()}</li>
+            <hr>
+            <li class="inline-submenu">Compute
+               <ul id="compute-menu">
+                  ${showingConjugacyClasses() ? '' : allConjugacyClassesHTML()}
+                  ${showingOrderClasses() ? '' : allOrderClassesHTML()}
+                  <li data-action="displayList[${this.id}].normalizer">the normalizer of ${this.name}, Norm(${this.name})</li>
+                  ${showingLeftCosets(this.id) ? ''
+                     : `<li data-action="displayList[${this.id}].leftCosets">all left cosets <i>g</i>${this.name} of ${this.name}</li>`}
+                  ${showingRightCosets(this.id) ? ''
+                     : `<li data-action="displayList[${this.id}].rightCosets">all right cosets ${this.name}<i>g</i> of ${this.name}</li>`}
+                  <li class="detached-submenu">an intersection
+                     <ul id="intersection-menu">
+                        ${ makeLongList(this.id, intersectionItemHTML) }
+                     </ul>
+                  </li>
+                  <li class="detached-submenu">a union
+                     <ul id="union-menu">
+                        ${ makeLongList(this.id, unionItemHTML) }
+                     </ul>
+                  </li>
+                  <li class="detached-submenu">an elementwise product
+                     <ul id="elementwise-product-menu">
+                        ${makeLongList(this.id, elementwiseProductItemHTML) }
+                     </ul>
+                  </li>
+               </ul>
+            </li>
+            <li class="inline-submenu">Highlight item
+               ${highlightItemMenuHTML(this)}
+            </li>
+            <li data-action="clearHighlights()">Clear all highlighting</li>
+         </ul>`
+
+      return subgroupMenuTemplate
    }
 
-   get normalizer() {
-      return new Subset(
-         new SubgroupFinder(group)
-            .findNormalizer(group.subgroups[this.subgroupIndex]).members );
+   get normalizer () {
+      const subsetElements = new SubgroupLattice(group)
+         .findNormalizer(group.subgroups[this.subgroupIndex]).members
+
+      const explanation =
+         `It is the normalizer of ${this.name}, Norm(${this.name}). This means that it
+         is the largest subgroup of ${group.name} in which ${this.name} is normal.`
+
+      confirmSubsetSave(subsetElements, explanation)
    }
 
    get leftCosets() {
@@ -147,14 +485,7 @@ class Subgroup extends AbstractSubset {
    get rightCosets() {
       return new Cosets(this, 'right');
    }
-
-   static displayAll() {
-      $('#subgroups').html('').append(
-         group.subgroups.reduce( (frag, _, inx) => frag.append(new Subgroup(inx).displayLine),
-                                 $(document.createDocumentFragment()) ));
-   }
 }
-
 
 class Subset extends AbstractSubset {
 /*::
@@ -172,8 +503,10 @@ class Subset extends AbstractSubset {
       }
       this.subsetIndex = getNextSubsetIndex();
 
-      $('#subsets_placeholder').hide();
-      $('#subsets').append(this.displayLine).show();
+      rootElement.querySelector('#subsets .placeholder').style.display = 'none'
+      rootElement.querySelector('#subsets ul').insertAdjacentHTML('beforeend', this.displayLine)
+
+      SheetEditor.broadcastChange()
    }
 
    get name () /*: html */ {
@@ -189,53 +522,79 @@ class Subset extends AbstractSubset {
        if (numElements > 3) {
          elements.push('...');
       }
-      return eval(Template.HTML('subset-template'));
+      const subsetTemplate =
+        `<li id="${this.id}">
+            <details><summary><span ${this.clickAction} ${this.contextAction}>
+               ${this.name} = { ${elements.join(', <wbr>')} } is
+                  ${numElements == 0 || numElements == group.order ? 'the' : 'a'} subset of size ${numElements}.
+            </span></summary>${this.getInfo()}</details>
+         </li>`
+
+      return subsetTemplate
+   }
+
+   getInfo () {
+      let subsetInfo = ''
+
+      const subgroop = displayList
+         .filter((el) => el instanceof Subgroop)
+         .find((subgroop) => group.subgroups[subgroop.subgroupIndex].members.equals(this.elements))
+      if (subgroop == null) {
+         subsetInfo = super.info
+      } else {
+         subsetInfo += `<div>${this.name} is identical to ${subgroop.name}</div>` + subgroop.info
+      }
+
+      return subsetInfo
    }
 
    get menu() {
-      const id = this.id,
-            name = this.name;
-      const $menu = $(eval(Template.HTML('subset-menu-template')));
-      return $menu;
+      const subsetMenuTemplate = `
+         <ul id="subset-menu">
+            <li data-action="makeSubsetEditor(${this.id})">Edit list of elements in ${this.name}</li>
+            <li data-action="displayList[${this.id}].destroy()">Delete ${this.name}</li>
+            <li data-action="makeSubsetEditor()">Create ${Subset.nextName()}</li>
+            <hr>
+            <li class="inline-submenu">Compute
+               <ul id="compute-menu">
+                  ${showingConjugacyClasses() ? '' : allConjugacyClassesHTML()}
+                  ${showingOrderClasses() ? '' : allOrderClassesHTML()}
+                  <li data-action="displayList[${this.id}].closure">the closure of ${this.name}, ⟨ ${this.name} ⟩</li>
+                  <li class="detached-submenu">an intersection
+                     <ul id="intersection-menu">
+                        ${makeLongList(this.id, intersectionItemHTML)}
+                     </ul>
+                  </li>
+                  <li class="detached-submenu">a union
+                     <ul id="union-menu">
+                        ${makeLongList(this.id, unionItemHTML)}
+                     </ul>
+                  </li>
+                  <li class="detached-submenu">an elementwise product
+                     <ul id="elementwise-product-menu">
+                        ${makeLongList(this.id, elementwiseProductItemHTML)}
+                     </ul>
+                  </li>
+               </ul>
+            </li>
+            <li class="inline-submenu">Highlight item
+               ${highlightItemMenuHTML(this)}
+            </li>
+            <li data-action="clearHighlights()">Clear all highlighting</li>
+         </ul>`
+
+      return subsetMenuTemplate
    }
 
    destroy() {
       super.destroy();
-      if ($('#subsets li').length == 0) {
-         $('#subsets_placeholder').show();
+      if (rootElement.querySelectorAll('#subsets li').length === 1) {
+         rootElement.querySelector('#subsets .placeholder').style.display = ''
       }
    }
 
    static nextName () /*: html */ {
       return `<i>S</i><sub>${nextSubsetIndex}</sub>`
-   }
-}
-
-
-class AbstractPartition {
-/*::
-  +destroy: () => void;   
-  +name: string;
-   subsets: Array<PartitionSubset>;
-  +allElementString: string;
- */   
-   constructor() {
-      this.subsets = [];
-   }
-
-   get name() {
-      return `{ ${this.subsets[0].name} ... ${this.subsets[this.subsets.length-1].name} }`
-   }
-
-   destroy() {
-      this.subsets.forEach( (subset) => subset.destroy() );
-      if ($('#partitions li').length == 0) {
-         $('#partitions_placeholder').show();
-      }
-   }
-
-   get allElementString() {
-      return '[[' + this.subsets.map( (el) => el.elements.toString() ).join('],[') + ']]';
    }
 }
 
@@ -245,21 +604,24 @@ class PartitionSubset extends AbstractSubset {
    subIndex: number;
    elements: BitSet;
    name: string;
-   partitionClass: string;
   +elementRepresentations: Array<string>;
  */
    constructor(parent /*: AbstractPartition */,
                subIndex /*: number */,
                elements /*: BitSet */,
-               name /*: string */,
-               partitionClass /*: string */) {
+               name /*: string */) {
       super();
 
       this.parent = parent;
       this.subIndex = subIndex;
       this.elements = elements;
       this.name = name;
-      this.partitionClass = partitionClass;
+
+      SheetEditor.broadcastChange()
+   }
+
+   get clickAction () {
+      return `data-action="event.preventDefault(); toggleColorHighlight(${this.id})"`
    }
 
    get elementRepresentations() {
@@ -275,36 +637,134 @@ class PartitionSubset extends AbstractSubset {
       return result;
    }
 
-   get menu() {
-      return $(eval(Template.HTML('partition-menu-template')));
-   }
+   get menu () {
+      const partitionMenuTemplate = `
+         <ul id="partition-menu">
+            <li data-action="displayList[${this.id}].parent.destroy()">Delete partition ${this.parent.name}</li>
+            <li data-action="makeSubsetEditor()">Create ${Subset.nextName()}</li>
+            <hr>
+            <li class="inline-submenu">Compute
+               <ul id="compute-menu">
+                  ${showingConjugacyClasses() ? '' : allConjugacyClassesHTML()}
+                  ${showingOrderClasses() ? '' : allOrderClassesHTML()}
+                  <li data-action="displayList[${this.id}].closure">the closure of ${this.name}, ⟨ ${this.name} ⟩</li>
+                  <li class="detached-submenu">an intersection
+                     <ul id="intersection-menu">
+                        ${makeLongList(this.id, intersectionItemHTML)}
+                     </ul>
+                  </li>
+                  <li class="detached-submenu">a union
+                     <ul id="union-menu">
+                        ${makeLongList(this.id, unionItemHTML)}
+                     </ul>
+                  </li>
+                  <li class="detached-submenu">an elementwise product
+                     <ul id="elementwise-product-menu">
+                        ${makeLongList(this.id, elementwiseProductItemHTML)}
+                     </ul>
+                  </li>
+               </ul>
+            </li>
+            <li class="inline-submenu">Highlight item
+               ${highlightItemMenuHTML(this)}
+            </li>
+            <li class="inline-submenu">Highlight partition
+               ${highlightPartitionMenuHTML(this.parent)}
+            </li>
+            <li data-action="clearHighlights()">Clear all highlighting</li>
+         </ul>`
 
-   get displayLine() /*: html */ {
-      return eval(Template.HTML(this.partitionClass + '-template'));
+      return partitionMenuTemplate
    }
 }
 
+class ConjugacyClass extends PartitionSubset {
+   get displayLine () /*: html */ {
+      const conjugacyClassTemplate =
+        `<li id="${this.id}" class="conjugacyClass">
+            <details><summary><span ${this.clickAction} ${this.contextAction}>
+               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} } is a conjugacy class of size ${this.elements.popcount()}.
+            </span></summary>${this.getInfo()}</details>
+         </li>`
+      return conjugacyClassTemplate
+   }
+}
+
+class OrderClass extends PartitionSubset {
+   get displayLine () {
+      const orderClassTemplate =
+        `<li id="${this.id}" class="orderClass">
+            <details><summary><span ${this.clickAction} ${this.contextAction}>
+               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} } is an order class of size ${this.elements.popcount()}.
+            </span></summary>${this.getInfo()}</details>
+         </li>`
+      return orderClassTemplate
+   }
+}
+
+class Coset extends PartitionSubset {
+   get displayLine () {
+      const cosetClassTemplate =
+        `<li id="${this.id}" class="${this.parent.side}coset${this.parent.subgroop.id}">
+            <details><summary><span ${this.clickAction} ${this.contextAction}>
+               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} } is the ${this.parent.isLeft ? 'left' : 'right'} coset of
+               ${this.parent.subgroop.name} by ${(group.representation[this.elements.toArray()[0]])}.
+            </span></summary>${this.getInfo()}</details>
+         </li>`
+      return cosetClassTemplate
+   }
+}
+
+class AbstractPartition {
+/*::
+  +destroy: () => void;
+  +name: string;
+   subsets: Array<PartitionSubset>;
+   +allElementString: string
+ */
+   constructor () {
+      this.subsets = [];
+
+      rootElement.querySelector('#partitions .placeholder').style.display = 'none'
+   }
+
+   get name () {
+      return `{ ${this.subsets[0].name} ... ${this.subsets[this.subsets.length-1].name} }`
+   }
+
+   toJSON () {
+      const copy = Object.assign({}, this)
+      copy.subsets = copy.subsets.map((subset) => subset.id)
+      return copy
+   }
+
+   destroy () {
+      this.subsets.forEach((subset) => subset.destroy())
+      if (rootElement.querySelectorAll('#partitions li').length === 1) {
+         rootElement.querySelector('#partitions .placeholder').style.display = ''
+      }
+   }
+
+   addAllSubsets () {
+      const allSubsetsHTML = this.subsets.map((subset) => subset.displayLine).join('')
+      rootElement.querySelector('#partitions ul').insertAdjacentHTML('beforeend', allSubsetsHTML)
+   }
+
+   get allElementString() {
+      return '[[' + this.subsets.map( (el) => el.elements.toString() ).join('],[') + ']]';
+   }
+}
 
 class ConjugacyClasses extends AbstractPartition {
    constructor() {
-      super();
+      super()
 
-      this.subsets = group.conjugacyClasses.map( (conjugacyClass, inx) =>
-          new PartitionSubset(this, inx, conjugacyClass, `<i>CC</i><sub>${inx}</sub>`, 'conjugacy-class') );
+      this.subsets = group.conjugacyClasses.map((conjugacyClass, inx) =>
+         new ConjugacyClass(this, inx, conjugacyClass, `<i>CC</i><sub>${inx}</sub>`))
 
-      $('#partitions_placeholder').hide();
-      $('#partitions').append(
-         this.subsets.reduce( ($frag, subset) => $frag.append(subset.displayLine),
-                              $(document.createDocumentFragment()) ))
-                      .show();
-   }
-
-   destroy() {
-      $('#partitions li.conjugacyClass').remove();
-      super.destroy();
+      this.addAllSubsets()
    }
 }
-
 
 class OrderClasses extends AbstractPartition {
    constructor() {
@@ -312,272 +772,418 @@ class OrderClasses extends AbstractPartition {
 
       this.subsets = group
          .orderClasses
-         .filter( (orderClass) => orderClass.popcount() != 0 )
-         .map( (orderClass, inx) => 
-            new PartitionSubset(this, inx, orderClass, `<i>OC</i><sub>${inx}</sub>`, 'order-class')
-         );
+         .filter((orderClass) => orderClass.popcount() != 0)
+         .map((orderClass, inx) =>
+            new OrderClass(this, inx, orderClass, `<i>OC</i><sub>${inx}</sub>`)
+         )
 
-      $('#partitions_placeholder').hide();
-      $('#partitions').append(
-         this.subsets.reduce( ($frag, subset) => $frag.append(subset.displayLine),
-                              $(document.createDocumentFragment()) ))
-                      .show();
-   }
-
-   destroy() {
-      $('#partitions li.orderClass').remove();
-      super.destroy();
+      this.addAllSubsets()
    }
 }
 
-
 class Cosets extends AbstractPartition {
 /*::
-  subgroup: Subgroup;
+  subgroop: Subgroop;
   isLeft: boolean;
   side: string;
  */
-   constructor(subgroup /*: Subgroup */, side /*: string */) {
+   constructor(subgroop /*: Subgroop */, side /*: string */) {
       super();
 
-      this.subgroup = subgroup;
+      this.subgroop = subgroop;
       this.isLeft = side == 'left';
       this.side = side;
 
       this.subsets = group
-         .getCosets(this.subgroup.elements, this.isLeft)
-         .map( (coset, inx) => {
-            const rep = group.representation[((coset.first() /*: any */) /*: groupElement */)];
-            const name = this.isLeft ?
-                         rep + this.subgroup.name :
-                         this.subgroup.name + rep;
-            return new PartitionSubset(this, inx, coset, name, 'coset-class');
-         } );
+         .getCosets(this.subgroop.elements, this.isLeft)
+         .map((coset, inx) => {
+            const rep = group.representation[((coset.first() /*: any */) /*: groupElement */)]
+            const name = this.isLeft
+               ? rep + this.subgroop.name
+               : this.subgroop.name + rep
+            return new Coset(this, inx, coset, name)
+         })
 
-      $('#partitions_placeholder').hide();
-      $('#partitions').append(
-         this.subsets.reduce( ($frag, subset) => $frag.append(subset.displayLine),
-                              $(document.createDocumentFragment()) ))
-                      .show();
-   }
-
-   destroy() {
-      $(`#partitions li.${this.side}coset${this.subgroup.subgroupIndex}`).remove();
-      super.destroy();
+      this.addAllSubsets()
    }
 }
 
+function makeSubsetEditor (displayId) {
+   const subsetFromId = (displayId === undefined) ? undefined : displayList[displayId];
+   const setElements = (subsetFromId === undefined) ? new BitSet(group.order) : subsetFromId.elements;
+   const setName = (subsetFromId === undefined) ? Subset.nextName() : subsetFromId.name;
+
+   return new SubsetEditor(setName, setElements)
+}
 
 class SubsetEditor {
-   static open(displayId /*: number */) {
-      const subset = displayId === undefined ? undefined : displayList[displayId];
-      const elements = subset === undefined ? new BitSet(group.order) : subset.elements;
-      const setName = subset === undefined ? Subset.nextName() : subset.name;
-      const $subsetEditor = $('body').append(eval(Template.HTML('subset-editor-template')))
-                                     .find('#subset-editor').show();
-      $subsetEditor.find('#ssedit-cancel-button').on('click', SubsetEditor.close);
-      $subsetEditor.find('#ssedit-ok-button').on('click', SubsetEditor.accept);
-      $subsetEditor.find('#ssedit-content').on('dragover', (ev /*: JQueryEventObject */) => ev.preventDefault());
-      $subsetEditor.find('#ssedit-in-elements-list').on('drop', SubsetEditor.addElement);
-      $subsetEditor.find('#ssedit-not-in-elements-list').on('drop', SubsetEditor.removeElement);
-
+   constructor (setName, setElements) {
+      const subset = []
+      const complement = []
       for (const el of group.elements) {
-         const elementHTML =
-            `<li element=${el} draggable="true">${group.representation[el]}</li>`;
-         const listName = elements.isSet(el) ? 'ssedit-in-elements-list' : 'ssedit-not-in-elements-list';
-         $(elementHTML).appendTo($subsetEditor.find(`#${listName}`))
-                       .on('dragstart', (event /*: JQueryEventObject */) => {
-                          const dragEvent = ((event.originalEvent /*: any */) /*: DragEvent */);
-                          if (dragEvent.dataTransfer != undefined) {
-                             dragEvent.dataTransfer.setData("text", el.toString());
-                          }
-                       });
+         const listElement =
+            `<li data-element="${el}" data-action="this.swapElement(${el})">${group.representation[el]}</li>`
+         if (setElements.isSet(el))
+            subset.push(listElement)
+         else
+            complement.push(listElement)
+      }
+      const subsetList = subset.join('')
+      const complementList = complement.join('')
+
+      const subsetEditorHTML =
+         `<div id="subset-editor" class="flex-v">
+             <div id="subset-editor-title" class="centered">Edit subset ${setName}</div>
+             <div id="subset-editor-body" class="flex-v stretch">
+                <div id="subset-editor-info">Move elements of ${setName} from one column to the other by clicking/tapping them.</div>
+                <div class="flex-h stretch">
+                   <div id="subset-editor-subset" class="subset flex-v">
+                      <div class="centered">Elements in ${setName}</div>
+                      <ul id="subset-elements" class="elements stretch scrollable">${subsetList}</ul>
+                      <button id="cancel-button" data-action="this.close()">Cancel</button>
+                   </div>
+                   <div id="subset-editor-complement" class="subset flex-v stretch">
+                      <div class="centered">Elements not in ${setName}</div>
+                      <ul id="complement-elements" class="elements stretch scrollable">${complementList}</ul>
+                      <button id="ok-button" data-action="this.accept()">OK</button>
+                   </div>
+                </div>
+             </div>
+             <style>
+                #subset-editor {
+                   min-width: 35em;
+                   min-height: 20em;
+                   padding: 0;
+                   overflow-x: hidden;
+                }
+                #subset-editor-body {
+                   padding: 0.3ch;
+                }
+                #subset-editor-info {
+                   line-height: 1;
+                   white-space: normal;
+                   margin-top: 0.5em;
+                }
+                #subset-editor .centered {
+                   text-align: center;
+                }
+                #subset-editor-title {
+                   font-size: 1.5rem;
+                   padding-top: 0.15em;  /* Title doesn't have any descenders so it looks off-center */
+                   background-color: var(--dialog-header-background);
+                }
+                #subset-editor ul {
+                   height: 0;  /* otherwise element gets sized to max-content on first display */
+                   background-color: var(--gray0);
+                   border: var(--dark-border);
+                   list-style: none;
+                   margin-block-end: 0;
+                   margin-block-start: 0;
+                   overflow: hidden auto;
+                   padding-inline-start: 0.5ch;
+                   white-space: nowrap;
+                   position: unset;
+                   width: unset;
+                   resize: unset;
+                }
+                #subset-editor .subset {
+                   width: 50%;
+                   margin: 0 0.2ch;
+                }
+                #subset-editor button {
+                   width: 8ch;
+                   margin: 0.2em auto;
+                }
+             </style>
+          </div>`
+
+      this.editorDialog = makeDialog(subsetEditorHTML, {clientX: 0, clientY: 0})
+
+      // Center grid
+      const subsetEditor = document.getElementById('subset-editor')
+      subsetEditor.style.left =
+         `${Math.max(0.1 * window.innerWidth, 0.5 * (window.innerWidth - subsetEditor.offsetWidth))}px`
+      subsetEditor.style.top =
+         `${Math.max(0.1 * window.innerHeight, 0.2 * (window.innerHeight - subsetEditor.offsetHeight))}px`
+
+      // register action handler
+      GEUtils.createActionHandler(this.editorDialog, (action) => eval(action))
+   }
+
+   close () {
+      this.editorDialog.remove()
+   }
+
+   async accept () {
+      const subsetElementArray = Array
+         .from(this.editorDialog.querySelectorAll('#subset-elements > li'))
+         .map((el) => parseInt(el.getAttribute('data-element')))
+      const subsetElements = new BitSet(group.order, subsetElementArray)
+
+      const explanation = 'The elements were chosen in the Subset Editor.'
+
+      const confirmation = await confirmSubsetSave(subsetElements, explanation)
+
+      if (confirmation) {
+         this.close()
       }
    }
 
-   // Create new subset from ssedit-in-elements-list, make sure it's formatted, and close editor
-   static accept() {
-      new Subset(
-         $('#ssedit-in-elements-list > li')
-            .map( (_, el) => parseInt($(el).attr('element')) )
-            .toArray()
-      );
-      SubsetEditor.close()
-   }
-
-   static close() {
-      $('#subset-editor').remove();
-   }
-
-   static addElement(event /*: JQueryEventObject */) {
-      event.preventDefault();
-      const dragEvent = ((event.originalEvent /*: any */) /*: DragEvent */);
-      if (dragEvent != undefined && dragEvent.dataTransfer != undefined) {
-         const element = dragEvent.dataTransfer.getData("text");
-         $(`#ssedit-not-in-elements-list li[element=${element}]`).detach().appendTo($(`#ssedit-in-elements-list`));
-      }
-   }
-
-   static removeElement(event /*: JQueryEventObject */) {
-      event.preventDefault();
-      const dragEvent = ((event.originalEvent /*: any */) /*: DragEvent */);
-      if (dragEvent != undefined && dragEvent.dataTransfer != undefined) {
-         const element = dragEvent.dataTransfer.getData("text");
-         $(`#ssedit-in-elements-list li[element=${element}]`).detach().appendTo($(`#ssedit-not-in-elements-list`));
+   swapElement (elementNumber) {
+      const li = this.editorDialog.querySelector(`[data-element="${elementNumber}"]`)
+      const toList = (li.closest('ul').getAttribute('id') == 'subset-elements')
+         ? this.editorDialog.querySelector('#complement-elements')
+         : this.editorDialog.querySelector('#subset-elements')
+      // sort the toList? find location to insert li?
+      const toListElements = Array
+         .from(toList.querySelectorAll('li'))
+         .map((el) => parseInt(el.getAttribute('data-element')))
+      if (   toListElements.length == 0
+          || toListElements[toListElements.length - 1] < elementNumber
+      ) {
+         toList.append(li)
+      } else { // find first element larger than element number and insert li before it
+         const inx = toListElements.findIndex((el) => el > elementNumber)
+         toList.children[inx].insertAdjacentElement('beforebegin', li)
       }
    }
 }
-
-
-//displayElements, 
-function initSubsetMenu() {
-   const subsetPage = $('#subset-control')[0];
-   if (GEUtils.isTouchDevice()) {
-      // register touchstart, touchmove, touchend events on subset page
-
-      subsetPage.addEventListener('touchstart', touchHandler);
-      subsetPage.addEventListener('touchmove', touchHandler);
-      subsetPage.addEventListener('touchend', touchHandler);
-
-      subsetPage.addEventListener('click', subsetClickHandler);
-   } else {
-      // register contextmenu, dblclick
-      subsetPage.addEventListener('contextmenu', subsetClickHandler);
-      subsetPage.addEventListener('dblclick', (event /*: MouseEvent */) => displayElements(event, event));
-   }
-}
-
-function subsetClickHandler (event /*: MouseEvent */) {
-   event.preventDefault();
-   const $action = $(event.target).closest('[action]');
-   if ($action.length != 0) {
-      event.stopPropagation();
-      eval($action.attr('action'));
-      // if we've just executed a menu action that's not just exposing a sub-menu
-      //   then we're done: clean up the window
-      if ($action.parent().hasClass('menu') && $action.attr('link') == undefined) {
-         GEUtils.cleanWindow();  // is this always the right thing to do?
-      }
-   }
-}
-
-
 /*
- * Mouse right-click or touchscreen tap displays menu according to
- *   -- target class (subset_page_header or placeholder)
- *   -- li element id (<subset>.menu)
- *
- * Mouse double-click or touchscreen tap-hold displays elements in subset
- *   Following mouse click or touchscreen tap anywhere clears element display
+ * Utility functions
  */
-function touchHandler(touchEvent /*: TouchEvent */) {
-   // skip modified events, multi-touches
-   if (   touchEvent.altKey || touchEvent.ctrlKey || touchEvent.metaKey || touchEvent.shiftKey
-       || touchEvent.touches.length > 1 || touchEvent.changedTouches.length > 1) {
-      return;
+async function confirmSubsetSave (subsetElements, explanation) {
+   const matchingSubsets = displayList
+      .filter((displayElement) => displayElement.parent == null && displayElement.elements.equals(subsetElements))
+
+   if (matchingSubsets.length == 0) {
+      new Subset(subsetElements)
+      return true
    }
 
-   switch (touchEvent.type) {
-   case 'touchstart':
-      element_display_timeoutID = setTimeout( () => displayElements(touchEvent, touchEvent.touches[0]), 500);
-      break;
+   const matchingSubsetString = matchingSubsets.reduce((subsetString, subset, inx) => {
+      if (inx != 0) {
+         if (inx == matchingSubsets.length - 1) {
+            if (matchingSubsets.length > 2) {
+               subsetString += ','
+            }
+            subsetString += ' and '
+         } else if (inx != 0) {
+            subsetString += ', '
+         }
+      }
+      return subsetString + subset.name
+   }, '')
 
-   case 'touchend':
-      element_display_timeoutID = clearTimeout(element_display_timeoutID);
-      break;
-   }
+   const confirmationHTML =
+     `<div style="text-wrap: auto; width: 70ch; resize: none;">
+         <p>The subset { ${subsetElements.toString()} } of ${group.name} was computed as follows:</p>` +
+        '<p>' + explanation + '</p>' +
+        `<p style="text-align: center; color: red">This subset is equivalent to ${matchingSubsetString}.</p>
+         <p>Would you like to add this subset to the list as <i>S</i><sub>${nextSubsetIndex}</sub>?</p>
+         <div style="display: flex; justify-content: flex-end; gap: 2ch">
+            <button data-value="true">Yes, add a new subset</button>
+            <button data-value="false">No, forget it</button>
+         </div>
+      </div>`
+
+   const location = {clientX: 'calc((100% - 70ch) / 2)', clientY: 'calc((100% - 15em) / 4)'}
+   const confirmationDialog = makeDialog(confirmationHTML, location)
+
+   const result = await new Promise((resolve, _reject) => {
+      confirmationDialog.addEventListener('click', (event) => {
+         const dataValue = event.target.closest('button[data-value]')?.getAttribute('data-value')
+         if (dataValue != null) {
+            confirmationDialog.remove()
+            const confirmation = eval(dataValue)
+            if (confirmation) {
+               new Subset(subsetElements)
+            }
+            resolve(confirmation)
+         }
+      })
+   })
+
+   return result
 }
 
-function displayElements(event /*: Event */, location /*: eventLocation */) {
-   event.preventDefault();
-   GEUtils.cleanWindow();
-   const $curr = $(event.target).closest('li');
-   const id = $curr.attr('id');
-   if (id != undefined) {
-      const subset = displayList[parseInt(id)];
-      const subsetName = subset.name;
-      const subsetElements = subset.elements.toArray().map( (el) => group.representation[el] );
-      const $menu = $(eval(Template.HTML('subset-elements-template')));
-      $curr.addClass('highlighted').append($menu);
-      Menu.setMenuLocation($menu, location);
-      $menu.css('visibility', 'visible');
-      event.stopPropagation();
-   }
+function showingOrderClasses () /*: boolean */ {
+   return rootElement.querySelector('#partitions li.orderClass') != null
 }
 
-function showingOrderClasses() /*: boolean */ {
-   return $('#partitions li.orderClass').length != 0;
+function showingConjugacyClasses () /*: boolean */ {
+   return rootElement.querySelector('#partitions li.conjugacyClass') != null
 }
 
-function showingConjugacyClasses() /*: boolean */ {
-   return $('#partitions li.conjugacyClass').length != 0;
+function showingLeftCosets (id /*: groupElement */) /*: boolean */ {
+   return rootElement.querySelector('#partitions li.leftCoset' + id) != null
 }
 
-function showingLeftCosets(id /*: groupElement */) /*: boolean */ {
-   return $('#partitions li.leftCoset' + id).length != 0;
+function showingRightCosets (id /*: groupElement */) /*: boolean */ {
+   return rootElement.querySelector('#partitions li.rightCoset' + id) != null
 }
 
-function showingRightCosets(id /*: groupElement */) /*: boolean */ {
-   return $('#partitions li.rightCoset' + id).length != 0;
-}
-
-function makeLongList(id /*: groupElement */, template_name /*: string */) /*: html */ {
-   const template = Template.HTML(template_name);
+function makeLongList (id /*: groupElement */, htmlGenerator /*: string */) /*: html */ {
    const result = displayList.reduce(
-      (list, item, other_id) => ((other_id == id) ? null : list.push(eval(template)), list), [] )
+      (list, item, other_id) => ((other_id == id) ? null : list.push(htmlGenerator(id, other_id)), list), [] )
          .join('');
    return result;
 }
 
-function showHeaderMenu(event /*: MouseEvent */) {
-   GEUtils.cleanWindow();
-   const $menus = $(eval(Template.HTML('header-menu-template')))
-         .appendTo($(event.target).closest('[action]')[0]);
-   Menu.addMenus($menus, event, subsetClickHandler);
+function showHeaderMenu (event /*: MouseEvent */) {
+   const headerMenu =
+      `<ul id="header-menu">
+         <li data-action="makeSubsetEditor()">Create ${Subset.nextName()}</li>
+         <hr>
+         ${(showingOrderClasses() && showingConjugacyClasses()) ? '' :
+            `<li class="inline-submenu">Compute
+               <ul id="compute-menu">
+                  ${showingConjugacyClasses() ? '' : allConjugacyClassesHTML()}
+                  ${showingOrderClasses() ? '' : allOrderClassesHTML()}
+               </ul>
+            </li>`}
+         <li data-action="clearHighlights()">Clear all highlighting</li>
+      </ul>`
+
+   makeDetachedMenu(headerMenu, event)
+      .then( (action) => eval(action) )
 }
 
-function showMenu(event /*: MouseEvent */, id /*: number */) {
-   GEUtils.cleanWindow();
-   const $menus = displayList[id].menu
-         .appendTo($(event.target).closest('li'));
-   Menu.addMenus($menus, event, subsetClickHandler);
+function showMenu (event /*: MouseEvent */, id /*: number */) {
+   const menu = displayList[id].menu
+   event.target.closest('[data-action]').style.backgroundColor = 'var(--list-highlight)'
+   makeDetachedMenu(menu, event)
+      .then(
+         (action) => {
+            // clear highlight
+            event.target.closest('[data-action]').style.backgroundColor = ''
+            eval(action)
+         })
 }
 
-/* Load, initialize subset display */
-async function load ($subsetWrapper /*: JQuery */,
-               _highlighters /*: highlighterRoutines*/,
-               _clearHighlights /*: () => void */,
-               _group /*: XMLGroup */) /*: Promise<void> */
-{
-   group = _group;
-   highlighters = _highlighters;
-   clearHighlights = _clearHighlights;              
-   nextSubsetIndex = 0;
-   nextId = 0;
-   displayList = [];
-
-  const data = await LoadPromise
-
-  $subsetWrapper.html(data);
-  setupSubsetPage();
+function toggleColorHighlight (id) {
+   if (  highlights[0].length == 0
+      || !(displayList[id] instanceof PartitionSubset) && (highlights[0][0] != id)
+      || (displayList[id] instanceof PartitionSubset) && (displayList[highlights[0][0]]?.parent != displayList[id].parent)
+   ) {  // set highlights
+      if (displayList[id] instanceof PartitionSubset) {
+         highlightItem(displayList[id].parent.subsets.map((part) => part.id), 0)
+      } else {
+         highlightItem([id], 0)
+      }
+   } else {  // clear highlights
+      highlightItem([], 0)
+   }
 }
 
-function setupSubsetPage() {
-   // clear out displayed lists; show '(None)' placeholders
-   $('ul.subset_page_content li').remove();
-   $('p.placeholder').show();
-
-   // Display all subgroups
-   Subgroup.displayAll();
-
-   // set up event listeners for menus
-   initSubsetMenu();
+function clearHighlights () {
+   view.clearHighlights()
+   highlights.fill([])
+   updateHighlightMark()
 }
 
-function getNextId() /*: number */ {
+function getNextId () /*: number */ {
    return nextId++;
 }
 
-function getNextSubsetIndex() /*: number */ {
+function getNextSubsetIndex () /*: number */ {
    return nextSubsetIndex++;
+}
+
+function allConjugacyClassesHTML () {
+   const html =
+      `<li data-action="new ConjugacyClasses()">
+          all conjugacy classes <i>CC</i><sub>i</sub>
+       </li>`
+   return html
+}
+
+function allOrderClassesHTML () {
+   const html =
+      `<li data-action="new OrderClasses()">
+          all order classes <i>OC</i><sub>i</sub>
+       </li>`
+   return html
+}
+
+function intersectionItemHTML (id, other_id) {
+   const html =
+      `<li data-action="displayList[${id}].intersection(displayList[${other_id}])">
+          the intersection of ${displayList[id].name} with ${displayList[other_id].name}
+       </li>`
+   return html
+}
+
+function unionItemHTML (id, other_id) {
+   const html =
+      `<li data-action="displayList[${id}].union(displayList[${other_id}])">
+          the union of ${displayList[id].name} with ${displayList[other_id].name}
+       </li>`
+   return html
+}
+
+function elementwiseProductItemHTML (id, other_id) {
+   const html =
+      `<li data-action="displayList[${id}].elementwiseProduct(displayList[${other_id}])">
+          the elementwise product of ${displayList[id].name} with ${displayList[other_id].name}
+       </li>`
+   return html
+}
+
+function highlightItemMenuHTML (subset) {
+   const html = [
+      '<ul id="highlight-item-menu">'
+   ]
+   for (const [inx, highlighter] of Object.entries(highlighters)) {
+      html.push(
+         `<li data-action="highlightItem([${subset.id}], ${inx})">
+             by ${highlighter.label}
+          </li>`
+      )
+   }
+   html.push(
+      '</ul>'
+   )
+
+   return html.join('')
+}
+
+function highlightPartitionMenuHTML (partition) {
+   const html = [
+      '<ul id="highlight-partition-menu">'
+   ]
+   for (const [inx, highlighter] of Object.entries(highlighters)) {
+      html.push(
+         `<li data-action="highlightItem([${partition.subsets.map((el) => el.id)}], ${inx})">
+             by ${highlighter.label}
+          </li>`
+      )
+   }
+   html.push(
+      '</ul>'
+   )
+
+   return html.join('')
+}
+
+// Set highlight color as a function of visualizer, highlight type
+function highlightItem (displayListIndexes, highlighterIndex, colors) {
+   const elementArray = (displayListIndexes.length == 0) ? [] : Array(group.order).fill(null)
+   for (const [inx, displayId] of displayListIndexes.entries()) {
+      let color
+      if (colors != null) {
+         color = colors[inx]
+      } else {
+         const h = inx / displayListIndexes.length
+         const s = (view.constructor.name == 'CayleyDiagramView') ? 0.53 : 1
+         const l = (view.constructor.name == 'CayleyDiagramView') ? 0.30 : 0.8
+         const offset = (view.constructor.name == 'CayleyDiagramView') ? 0 : highlighterIndex / 3
+         color = '#' + new THREE.Color(GEUtils.fromRainbow(h, s, l, offset)).getHexString()
+      }
+      displayList[displayId].elements.toArray().forEach((element) => elementArray[element] = color)
+   }
+   highlighters[highlighterIndex](elementArray)
+   highlights[highlighterIndex] = [...displayListIndexes]
+   if (highlighterIndex == 0) {
+      updateHighlightMark()
+   }
 }

@@ -34,7 +34,7 @@ const DEFAULT_LIGHT_POSITIONS = [
     new THREE.Vector3(-35, -50, 87),
     new THREE.Vector3(-35, 100, 0),
 ];
-const ABSTRACT_DIAGRAM_DISPLAY_GROUP_NAMES = ['lights', 'spheres', 'lines'];
+const ABSTRACT_DIAGRAM_DISPLAY_GROUP_NAMES = ['lights', 'spheres', 'lines', 'debug'];
 
 export {DEFAULT_SPHERE_COLOR, DEFAULT_LINE_COLOR};
 
@@ -59,7 +59,7 @@ export class AbstractDiagramDisplay {
      * create a scene to hold all the elements such as lights and objects
      * create a camera, which defines the point of view
      * create a renderer, sets the size
-     * add the output of the renderer to the container element (a jquery wrapped set)
+     * add the output of the renderer to the container element
      */
     constructor (options /*: AbstractDiagramDisplayOptions */ = {}) {
         // Default constants
@@ -70,12 +70,12 @@ export class AbstractDiagramDisplay {
         // Renderer
         this.renderer = new THREE.WebGLRenderer({preserveDrawingBuffer: true, antialias: true});
         if (options.container != undefined) {
-            $(options.container).append(this.renderer.domElement);
+            options.container.append(this.renderer.domElement);
         }
 
         this.size = (options.container != undefined)
-              ? {w: $(options.container).width(), h: $(options.container).height()}
-              : {w: options.width || DEFAULT_CANVAS_WIDTH, h: options.height || DEFAULT_CANVAS_HEIGHT};
+           ? {w: options.container.offsetWidth, h: options.container.offsetHeight}
+           : {w: options.width || DEFAULT_CANVAS_WIDTH, h: options.height || DEFAULT_CANVAS_HEIGHT};
        
         // Create new Scene
         this.scene = new THREE.Scene();
@@ -90,7 +90,7 @@ export class AbstractDiagramDisplay {
         this.light_positions = DEFAULT_LIGHT_POSITIONS;
 
         const scene_diameter = Math.sqrt(this.size.w*this.size.w + this.size.h*this.size.h);
-        this._line_width = options.line_width || Math.max(5, 2000 / scene_diameter) // Heuristic
+        this._line_width = options.line_width || DEFAULT_LINE_WIDTH
         this.sphere_facet_count = (scene_diameter < 100) ? 5 : (scene_diameter < 300) ? 10 : 20;
     }
 
@@ -116,7 +116,7 @@ export class AbstractDiagramDisplay {
     }
 
     set container (container /*: HTMLElement */) {
-        $(container).append(this.renderer.domElement);
+        container.append(this.renderer.domElement);
         this.resize();
     }
 
@@ -128,6 +128,7 @@ export class AbstractDiagramDisplay {
         if (this.container != undefined) {
             this.control = new TrackballControls(this.camera, this.container);
             this.control.dynamicDampingFactor = 1.0;
+            this.render()
         }
     }
 
@@ -143,14 +144,18 @@ export class AbstractDiagramDisplay {
     set fog_level (fog_level /*: float */) {
         this._fog_level = fog_level;
 
-        const sceneRadius = Math.sqrt(Math.max(1, ...this.getGroup('spheres').children.map( (sphere) => sphere.position.lengthSq() )));
+        const sceneRadius = Math.sqrt(Math.max(1, ...this.spheres.map( (sphere) => sphere.position.lengthSq() )));
         const cameraDistance = this.camera.position.length();
         this.scene.fog.near = cameraDistance - sceneRadius - 1;
         this.scene.fog.far = (fog_level == 0) ? 100 : (cameraDistance + sceneRadius*(5 - 4 * fog_level));
     }
 
+    get lights () {
+        return this.getGroup('lights').children
+    }
+
     get light_positions () {
-        const positions = this.getGroup('lights').children.map/*:: <THREE.Vector3> */( (light) => light.position );
+        const positions = this.lights.map/*:: <THREE.Vector3> */( (light) => light.position );
         return positions;
     }
 
@@ -158,10 +163,11 @@ export class AbstractDiagramDisplay {
         const lights = this.getGroup('lights');
         lights.remove(...lights.children);
         locations.forEach( (location) => {
-            const light = new THREE.DirectionalLight();
+            const light = new THREE.DirectionalLight(0xffffff, 0.3)
             light.position.copy(location);
             lights.add(light);
         } )
+        lights.add(new THREE.AmbientLight(0xffffff, 3.5))
     }
 
     get size () /*: {w: number, h: number} */ {
@@ -211,6 +217,10 @@ export class AbstractDiagramDisplay {
 
     // Render graphics, recursing to animate
     render () {
+        if (this.renderer == null) {
+            return
+        }
+
         this.renderer.render(this.scene, this.camera);
         const trackballControl = this.control;
         if (trackballControl != undefined) {
@@ -222,10 +232,10 @@ export class AbstractDiagramDisplay {
     // Resize the 3D scene from the freshly re-sized graphic
     resize () {
         if (this.container != undefined) {
-            const $container = $(this.container);
-            this.size = {w: $container.width(), h: $container.height()};
+            const { width, height } = this.container.getBoundingClientRect()
+            this.size = { w: width, h: height }
         }
-    }        
+    }
     
     ////////////////////////////   Camera   /////////////////////////////////////////
 
@@ -262,10 +272,14 @@ export class AbstractDiagramDisplay {
 
         const radius = Math.sqrt(Math.max(1, ...sphere_positions.map( (position) => position.lengthSq() )));
         location.multiplyScalar(radius);
-    
-        this.camera.position.copy(location);
-        this.camera.up.copy(up);
-        this.camera.lookAt(new THREE.Vector3());
+
+        this.setCameraPosition(location, up)
+    }
+
+    setCameraPosition (position /*: THREE.Vector3 */, up /*: THREE.Vector3 */) {
+        this.camera.position.copy(position)
+        this.camera.up.copy(up)
+        this.camera.lookAt(new THREE.Vector3())
     }
 
     get zoom_level () {
@@ -277,8 +291,76 @@ export class AbstractDiagramDisplay {
         this.camera.updateProjectionMatrix();
     }
 
+    // snap camera position to nearest display axis
+    snapToAxis () {
+        // find index of array element with max absolute value
+        function indexOfMax (arr) {
+           const [_maxValue, indexOfMax] = arr.reduce(([val, inx], currVal, currInx) => {
+              return (Math.abs(currVal) > Math.abs(val)) ? [currVal, currInx] : [val, inx]
+           }, [0, -1])
+           return indexOfMax
+        }
+  
+         // find axis that is most nearly aligned with camera position and rotate position to that axis
+        const position = this.camera.position.clone().normalize()
+        const positionAxis = indexOfMax(position.toArray())
+        const q1 = new THREE.Quaternion()
+           .setFromUnitVectors(
+              position,
+              new THREE.Vector3().setComponent(positionAxis, Math.sign(position.getComponent(positionAxis))))
+  
+        // rotate 'up' into the axis most nearly aligned with the 'up' direction
+        const up = this.camera.up.applyQuaternion(q1).clone().normalize()
+        const upAxis = indexOfMax(up.clone().setComponent(positionAxis, 0).toArray())
+        const q2 = new THREE.Quaternion()
+           .setFromUnitVectors(
+              up,
+              new THREE.Vector3().setComponent(upAxis, Math.sign(up.getComponent(upAxis))))
+  
+        // apply rotations to camera position, up direction
+        this.camera.position.applyQuaternion(q1)
+        this.camera.up.applyQuaternion(q2)  // already applied q1
+        this.camera.updateProjectionMatrix()
+    }
+
+    // draw / remove thin {R,G,B} lines on {X,Y,Z} axes
+    toggleCoordinateAxisDisplay () {
+        if (this.getGroup('debug').children.length == 0) {
+            this.drawCoordinateAxes()
+        } else {
+            this.removeCoordinateAxes()
+        }
+    }
+
+    drawCoordinateAxes () {
+        const coordinateAxes  = [
+            {color: 0xff0000, points: [new THREE.Vector3(), new THREE.Vector3(5,0,0)]},
+            {color: 0x00ff00, points: [new THREE.Vector3(), new THREE.Vector3(0,5,0)]},
+            {color: 0x0000ff, points: [new THREE.Vector3(), new THREE.Vector3(0,0,5)]},
+        ]
+        coordinateAxes.forEach((axis) => {
+            const lineMaterial = new THREE.LineBasicMaterial({color: axis.color})
+            const geometry = new THREE.BufferGeometry().setFromPoints(axis.points)
+            const line = new THREE.Line(geometry, lineMaterial)
+            this.getGroup('debug').add(line)
+        })
+    }
+
+    removeCoordinateAxes () {
+        const coordinateLines = this.getGroup('debug').children
+        coordinateLines.forEach((line) => {
+            line.geometry.dispose()
+            line.material.dispose()
+        })
+        this.getGroup('debug').remove(...coordinateLines)
+    }
+
     ////////////////////////////   Sphere routines   ////////////////////////////////
-    
+
+    get spheres () {
+        return this.getGroup('spheres').children
+    }
+
     get sphere_scale_factor () /*: float */ {
         if (this._sphere_scale_factor == undefined) {
             this._sphere_scale_factor = 1;
@@ -290,9 +372,8 @@ export class AbstractDiagramDisplay {
     set sphere_scale_factor (new_scale_factor /*: float */) {
         if (this.sphere_scale_factor != new_scale_factor) {
             this._sphere_scale_factor = new_scale_factor;
-            const spheres = this.getGroup('spheres').children;
             const sphere_radius = this.sphere_radius;
-            spheres.forEach( (sphere) => sphere.scale.set(sphere_radius, sphere_radius, sphere_radius) );
+            this.spheres.forEach( (sphere) => sphere.scale.set(sphere_radius, sphere_radius, sphere_radius) );
         }
     }
 
@@ -305,7 +386,10 @@ export class AbstractDiagramDisplay {
         const geometry = new THREE.SphereGeometry(1.0, this.sphere_facet_count, this.sphere_facet_count);
         sphere_data.forEach( (sphere_datum) => {
             sphere_datum.color = (sphere_datum.color == undefined) ? DEFAULT_SPHERE_COLOR : sphere_datum.color;
-            const material = new THREE.MeshPhongMaterial();
+            const material = new THREE.MeshPhongMaterial({
+               shininess: 40,
+               specular: 0xdddddd,
+            });
             material.color.set(sphere_datum.color);
             const sphere = new THREE.Mesh(geometry, material);
             sphere.userData = {node: sphere_datum};
@@ -324,20 +408,30 @@ export class AbstractDiagramDisplay {
     
     ////////////////////////////   Line routines   ////////////////////////////////
 
-    get line_width () /*: float */ {
-        if (this._line_width == undefined) {
-            this._line_width = DEFAULT_LINE_WIDTH;
-        }
+    get lines () {
+        return this.getGroup('lines').children
+    }
 
+    // line_width is pixels wide on 1000 pixel screen
+    get line_width () /*: float */ {
         return this._line_width
     }
     
     set line_width (line_width /*: float */) {
         if (this.line_width != line_width) {
-            this._line_width = line_width;
-            const lines = ((this.getGroup('lines').children /*: any */) /*: Array<LineType> */);
-            lines.forEach( (line) => line.material.linewidth = line_width );
+            this._line_width = line_width || DEFAULT_LINE_WIDTH
+            this.lines.forEach((line) => {
+                line.material.linewidth = this.scaledLinewidth,
+                line.material.resolution.set(this.size.w, this.size.h)
+            })
         }
+    }
+
+    // line width used in line material, scales with screen size and number of nodes
+    get scaledLinewidth () {
+        return Math.max(1, this.line_width 
+           * 0.00025 * Math.min(this.size.w, this.size.h)
+           * (7 - Math.log(this.getGroup('spheres').children.length)))
     }
 
     // Create a line from an array of vertices
@@ -348,8 +442,8 @@ export class AbstractDiagramDisplay {
             [] ) );
 
         const material = new LineMaterial( {
-            linewidth: this.line_width,
-            resolution:  new THREE.Vector2(window.innerWidth, window.innerHeight),
+            linewidth: this.scaledLinewidth,
+            resolution: new THREE.Vector2(this.size.w, this.size.h)
         } );
             
         const new_line = new Line2( geometry, material );
@@ -357,7 +451,7 @@ export class AbstractDiagramDisplay {
     }
 
     deleteAllLines () {
-        this.deleteLines( ((this.getGroup('lines').children /*: any */) /*: Array<LineType> */) );
+        this.deleteLines(this.lines)
     }
 
     deleteLines (lines /*: Array<LineType> */) {
@@ -367,5 +461,12 @@ export class AbstractDiagramDisplay {
             line.material.dispose();  // FIXME: should we do this for fat lines?
         } );
         this.getGroup('lines').remove(...lines);
+    }
+
+    rescaleLines () {
+        this.lines.forEach((line) => {
+            line.material.linewidth = this.scaledLinewidth
+            line.material.resolution.set(this.size.w, this.size.h)  // redraw thick lines to scale
+        })
     }
 }

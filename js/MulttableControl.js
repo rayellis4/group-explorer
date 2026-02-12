@@ -1,0 +1,1 @@
+../docs/MulttableControl.js.md

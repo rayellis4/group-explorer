@@ -8,10 +8,13 @@
  * When you add a new subset in subset control, Group Explorer does not check whether it
    exists under another name or give you the option to cancel your addition, as GE2 does
    (and as the documentation claims).
+   >> Done
 
  * Dropdown lists in Sheets are not formatted with MathJax
+   >> Done (MathJax subsumed by HTML)
 
  * Give visible feedback (color change?) when grabbing a node/line during Cayley diagram manual re-arrangement 
+   >> Done (highlighted -- currently in white)
 
 ### Miscellany
 
@@ -46,8 +49,12 @@ but that order is not set in stone.
    function, then use the console to do that across the whole library, show the results,
    and paste them into a big file.  Read it with `node.js` and spit out one `.json` file
    for each group.
+   >> all .group files are now formatted in JSON
+   >> (can still read XML files, though -- do we need to retain this feature?)
  * Add to each group file a "GAPKey" datum, saying what the group's name is in the GAP
    small groups library, and use that as our database key.
+   >> gapid is in .group files, but using it as key wouldn't work in the current scheme to
+   >> implement generated groups   
  * In the build process, import `LibraryMetadata.js` after `Library.js` in every situation
    where you import `Library.js`.
  * Clients can query the library (synchronously) for metadata just with `Library.metadata`.
@@ -55,6 +62,14 @@ but that order is not set in stone.
    `Library.metadata`, but you can filter it if you like and pass a subset.
  * Consider then expanding each group file to include pre-computed things like sets of
    subgroups.
+   >> the entire library is loaded on application start
+   >> client checks for server changes with GE3 version update
+   >> the working copy of the library is entirely local
+   >> access to the working copy is always synchronous
+   >> it is stored in IndexedDB and updated asynchronously
+   >> size is not a problem with IndexedDB
+   >> performance on computed features is very good -- optimization doesn't seem needed
+   >> (biggest chunk of time goes into generating visualizer thumbnails)
 
 # To-dos related to the Group Info page
 
@@ -83,7 +98,8 @@ and may benefit from being done in concert.
       its ToC merge into one, and you can delete the ToC from the top.  At the same time,
       flatten the Computed Properties section out into main headings.
     * If you do that, sort them so that column 2 has mathy stuff on top and data-related
-      stuff further down
+      stuff further down 
+   >> review in current info page layout
 
 # To-dos related to the subgroup info page
 
@@ -105,6 +121,7 @@ and may benefit from being done in concert.
  * For big groups like the Tesseract, the SubgroupInfo.html page says it can't show the
    embedding of `H_{1522}`, because it's a group of order 32 not in the library.  But it
    should be able to just visualize it because it has the multiplication table, period.
+   >> done
 
 # To-dos related to the main page
 
@@ -133,18 +150,23 @@ Note that these ideas are contingent upon what feedback we receive from first us
 
  * Title DIV of the Sheet page should update itself with the name of the sheet when you
    save/load.
+   >> done
  * Eventually add export tools to sheets: to PNG, to PDF.
+   >> export/import JSON; druther let the browser/system take care of snapshots
  * Make morphism arrows use filled arrowheads, not carets.
+   >> done
  * Color the arrows in morphisms with "useManyArrows" option enabled based on the color
    of their origin nodes.
  * Make it possible to click on a single arrow in a morphism showing many arrows, and
    highlight that arrow brightly to distinguish it if it's among a mess of others.
+   >> done
  * In GE2.0, the subset pane's context menu had a Morphisms submenu that would let you
    push subsets through morphisms to find their image, or pull them back to find their
    pre-image.  We have not yet added that to GE3.0.
  * In GE2.0, it was possible to toggle a multiplication table between using its left
    column and using its top row as the source points for morphism arrows.  Add that
    feature to GE3.0 as well.
+   >> done
  * Extend the toJSON() and fromJSON() in DisplayDiagram.js to also respect:
     * background color:
       `Graphic_context.renderer.getClearColor().toArray()` and
@@ -158,17 +180,21 @@ Note that these ideas are contingent upon what feedback we receive from first us
    "Loading ${N} subgroups..." so that as the long time passes, people understand to wait.
    Later this could be enhanced with a progress bar or percent-complete indicator, but it
    can start this simply.
+   >> another solution would be to make subgroup info lines (especially isomorphic group
+   >> info) on demand, like highlight subset panel
  * The SolvableInfo.html page says it can't report whether the group is solvable, because
    it can't convert subgroups into their names from the library.  But it knows the subgroup
    chain, so it should be able to report it using just `H_*` names.  (This "bug" will not
    manifest until you include in the release groups of order >40, because all groups of
    order 20 or less are present.  So this is low-priority.)
+   >> done
  * Change subgroup control so that it doesn't list subsets in sentences
    ("`H_0 = { e }` is the subset of order 1") but rather as a table (headings for
    "name", "elements", "order", and "normal?").  This will make it more succinct,
    easier to read, and will eliminate some of the line-breaking problems that exist now,
    especially if you put the elements list in the final column, and let people scroll
    left-to-right as well.
+   >> can slide control panel off-screen
  * Include fog in small visualizers of 3D CDs, so that you can tell the back of the
    bucky ball from the front, fex.
  * Visualizers:
@@ -177,24 +203,29 @@ Note that these ideas are contingent upon what feedback we receive from first us
       visualizers as options, and if you choose one, reload the same page with that
       visualizer name in the URL in place of the old one (if the group doesn't have a URL,
       then pass the multiplication table in the URL as a blob URL).
+   >> how bout page menu option? current version has links to Library, GroupInfo pages
  * Design question, to talk with users about: Do people want to be able to add groups?
    Perhaps the way to do this is, when someone is using the GE package for GAP, and they
    visualize a group that yields `IsomorphicGroups.find(G)==null`, there is a "Save to
    group library" button on the visualizer that lets them do so; it goes in `localStorage`.
+   >> just open GroupInfo page with a generated URI (see rf-groupterms.md?)
  * One day replace all MathML in the app with LaTeX instead, which should improve overall
    results because MathJax doesn't seem to be as good at processing MathML as it is at
    processing LaTeX, and Ray has had to write some code to tweak/prod the MathJax input
    or output in order to get it to make nice results from our MathML input.  LaTeX will
    also be easier to read for programmers and much less verbose.
+   >> it's all HTML now
  * The group Z3 semidirect product Z4 in the library is correctly named (including with
    the factors in the correct order) but its naming scheme is poorly chosen, because the
    generator of the normal 3-element subgroup is b^2 (or alternatively ab^2), which is
    neither of the named generators (a and b).  Create a naming scheme that makes the two
    factors Z3 and Z4 clear.
+   >> this group is also Dic_6 -- maybe just change the default Cayley diagram?
  * The group Z4 semidirect product Z5 in the library is correctly named, except that the
    operator is backwards from what it is in the other semidirect product groups.  Change
    the operator to its mirror inverse horizontally and swap the order of the factors, so
    that the meaning stays the same, but the notation becomes consistent.
+   >> done
 
 ## Assigned to Ray
 
@@ -205,11 +236,14 @@ Note that these ideas are contingent upon what feedback we receive from first us
     * Open a Cayley Diagram for A_5.
     * Make the first generator (0 1 2 3 4), linear in x, innermost.
     * Make the second generator (0 1)(2 3), rotary in x,y, outermost.
+ >> done
  * Remove colored background from all three visualizers.
+ 
 
 ### CayleyDiagram diagram panel
 
  * Display raw element numbers for debugging?
+ >> done (the default for user-defined naming scheme)
  * Investigate how to get Cayley Diagrams to look more like VGT and less
    like GE2.0.
 
@@ -227,10 +261,12 @@ Note that these ideas are contingent upon what feedback we receive from first us
  * Find out whether Tom Leong might want to make us a nice set of CSS to make the whole
    app prettier.
  * Rename Cycle Diagram HTML page to Cycle Graph instead
+ >> done
  * Feature for sheets: Create embed HTML code, so that an instructor can paste a whole
    sheet into their blog/website.  Students visiting that page will be able to use the
    "save" button in the sheet iframe to keep a copy if they like.  The HTML code would be
    `<iframe>[load sheet.html]</iframe><script>(after iframe loaded, pass it the sheet JSON)</script>`.
+   >> easy first idea: take sheet JSON, dump to 'passed sheet' in localStore, and invoke Sheet.html?passedSheet
  * Add an object of symmetry for Z_1: something with no symmetry
  * Consider how to improve the default style of the three visualizations:
     * Investigate drawing Cycle Graphs with SVGs; let the browser do the
@@ -247,3 +283,4 @@ Note that these ideas are contingent upon what feedback we receive from first us
          (See last page on which a tiger SVG is embedded.)
        * [The source code that created the tiger page](https://github.com/foliojs/pdfkit/blob/83f5f7243172a017adcf6a7faa5547c55982c57b/demo/test.js#L48)
        * [The tiger data in JSON-like format](https://raw.githubusercontent.com/foliojs/pdfkit/master/demo/tiger.js)
+    >> browsers/systems all do that now don't they? print to pdf, snapshot to .jpg/.png, etc.?

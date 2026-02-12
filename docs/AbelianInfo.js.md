@@ -1,44 +1,49 @@
-// @flow
+/* @flow
 
-import GEUtils from './GEUtils.js'
-import Log from './Log.js';
-import Template from './Template.js';
+# AbelianInfo
 
-export {summary, display};
+A [GroupInfo](./GroupInfo.html.md) component that displays information about a group's commutativity.
 
-/*::
-import XMLGroup from './XMLGroup.js'
-*/
+```javascript
+ */
+export {display}
 
-// Load templates
-const ABELIAN_INFO_URL = './html/AbelianInfo.html'
-const LoadPromise = GEUtils.ajaxLoad(ABELIAN_INFO_URL)
+function display (abelianInfoElementId, group) {
+   const abelianInfoElement = document.getElementById(abelianInfoElementId)
+   abelianInfoElement.innerHTML = makeAbelianInfoContent(group)
 
-function summary (Group /*: XMLGroup */) /*: string */ {
-    return Group.isAbelian ? 'yes' : 'no';
+   // rebuild content on representation change
+   abelianInfoElement.closest('.all-info')
+      .addEventListener('representationChange', () => abelianInfoElement.innerHTML = makeAbelianInfoContent(group))
 }
 
-async function display (Group /*: XMLGroup */, $wrapper /*: JQuery */) {
-  const templates = await LoadPromise
+function makeAbelianInfoContent (group) {
+   const htmlFragments = [
+      `<details>
+          <summary>
+             <span class="title">Abelian Info</span>
+             <span class="summary">${group.isAbelian ? 'yes' : 'no'}</span>
+          </summary>`
+   ]
 
-  if ($('template[id|="abelian"]').length == 0) {
-    $('body').append(templates);
-  }
+   if (group.isAbelian) {
+      htmlFragments.push(
+        `<div>${group.name} is <a href="./help/rf-groupterms/index.html#abelian-group">abelian</a>;
+            every pair of elements commutes.</div>`
+      )
+   } else {
+      const [i, j] = group.nonAbelianExample
+      htmlFragments.push(
+        `<div>${group.name} is not <a href="./help/rf-groupterms/index.html#abelian-group">abelian</a>.
+            We can find two elements that do not commute:
+            ${group.representation[i]} ⋅ ${group.representation[j]} = ${group.representation[group.multtable[i][j]]}, but
+            ${group.representation[j]} ⋅ ${group.representation[i]} = ${group.representation[group.multtable[j][i]]}.</div>`
+      )
+   }
+   
+   htmlFragments.push(
+      `<button class="gap-compute" data-GAP="checking if a group is abelian">Compute this in GAP</button>
+       </details>`)
 
-  $wrapper.html(formatAbelianInfo(Group));
-}
-
-function formatAbelianInfo (Group /*: XMLGroup */) /*: DocumentFragment */ {
-    const $frag = $(document.createDocumentFragment());
-
-    if (Group.isAbelian) {
-        $frag.append(eval(Template.HTML('abelian-isAbelian-template')));
-    } else {
-        // $FlowFixMe -- flow doesn't understand deconstruction
-        const [i,j] = Group.nonAbelianExample;
-        $frag.append(eval(Template.HTML('abelian-isNonAbelian-template')));
-    }
-    $frag.append(eval(Template.HTML('abelian-gap-compute-template')));
-
-    return (($frag[0] /*: any */) /*: DocumentFragment */);
+   return htmlFragments.join('')
 }

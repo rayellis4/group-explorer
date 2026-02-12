@@ -135,25 +135,33 @@ const MATHML_2_HTML =
 ```js
 */
 function toHTML (mathml /*: mathml */) /*: html */ {
+  const domParser = new DOMParser()
+
   if (xsltProcessor == null) {
       xsltProcessor = new XSLTProcessor()
-      xsltProcessor.importStylesheet($.parseXML(MATHML_2_HTML))
+      xsltProcessor.importStylesheet(domParser.parseFromString(MATHML_2_HTML, 'application/xml'))
   }
 
-  const frag = xsltProcessor.transformToFragment($.parseXML(mathml), document)
-  const result = $('<div>').html(frag).html()
+  const frag = xsltProcessor.transformToFragment(domParser.parseFromString(mathml, 'application/xml'), document)
+  const result = new XMLSerializer().serializeToString(frag)
+
   return result
 }
 
 function htmlToUnicode (html /*: html */) /*: string */ {
-  const $html = $('<div>').html(html)
+  const domParser = new DOMParser()
+  const document = domParser.parseFromString(html, 'text/html')
 
-  $html.find('sub').each( (_,el) => $(el).text($(el).text().split('').map(ch => Subscripts[ch]).join('')) );
-  $html.find('sup').each( (_,el) => $(el).text($(el).text().split('').map(ch => Superscripts[ch]).join('')));
+  document.querySelectorAll('body sub').forEach((sub) => {
+     sub.textContent = sub.textContent.split('').map(ch => Subscripts[ch]).join('')
+  })
+  document.querySelectorAll('body sup').forEach((sub) => {
+     sub.textContent = sub.textContent.split('').map(ch => Superscripts[ch]).join('')
+  })
 
-  const result = $html.text();
+  const result = document.body.textContent
 
-  return result;
+  return result
 }
 
 function mathml2text (mathml /*: mathml */) /*: string */ {

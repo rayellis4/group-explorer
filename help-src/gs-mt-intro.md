@@ -6,7 +6,7 @@ depicting a group operation.  Let's take a look at some of its potential.
 If you have not yet encountered the multiplication table
 [visualizer](rf-geterms.md#visualizers), start with these help pages:
 
- * [The definition of a multiplication table](rf-groupterms.md#multtable)
+ * [The definition of a multiplication table](rf-groupterms.md#multiplication-table)
  * [The documentation on the multiplication table interface in
    *Group Explorer*](rf-um-mt-options.md)
 
@@ -39,7 +39,7 @@ on their membership in the [cosets](rf-groupterms.md#cosets) of the
 group operation in this example respects the cosets nicely--in fact, by
 considering each block of like-colored neighbors as one big cell, one can
 see the multiplication table of the [quotient
-group](rf-groupterms.md#quotient)! The subgroup in question is therefore
+group](rf-groupterms.md#quotient-group)! The subgroup in question is therefore
 [normal](rf-groupterms.md#normal-subgroup).
 
 ### Exercise

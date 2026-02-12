@@ -19,7 +19,7 @@ rectangular label on the morphism arrow in the sheet, as shown below.
 ![A screenshot of a homomorphism](illustration-morph1.png)
 
 The morphism name is displayed as HTML, so, as described
-[here](#rf-um-sheetwindow.md#text-and-html-input), if you would like the
+[here](rf-um-sheetwindow.md#dialog-inputs), if you would like the
 morphism name to appear as "f<sub>2</sub>", you may enter "f&lt;sub>2&lt;/sub>",
 and the following will be displayed:
 
@@ -71,6 +71,13 @@ the map; in the example below, the map \(z\) is the zero map, mapping all
 elements to the identity.
 
 ![A homomorphism with an arrow shown for each element of the domain](illustration-morph5.png)
+
+### Use top row of source (destination) multtable for morphisms
+
+This option is only displayed if the domain (codomain) of the morphism is
+visualized as a multiplication table. It allows you to choose whether the arrows
+in a multiple arrow display originate (terminate) in the left column of the
+multiplication table or the top row.
 
 ### Arrows margin
 

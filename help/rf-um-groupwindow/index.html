@@ -145,12 +145,10 @@ img { border: 1px solid black; }
         <div class="w3-threequarter w3-container">
             <p>The Group Info page is the presentation to the user of all information <em>Group
 Explorer</em> has about a given group. </p>
-<p>It consists of several sections, each with a heading and a body.  On first
-visiting the page most of the bodies are hidden, as indicated by a &lsquo;▶&rsquo; sign to
-the left of the heading. Clicking the &lsquo;▶&rsquo; sign expands the body, and changes the
-&lsquo;▶&rsquo; sign to a &lsquo;▼&rsquo;. Clicking the &lsquo;▼&rsquo; sign hides the body again. You can also
-hide/expose all the section together by clicking on the &lsquo;v&rsquo; and &lsquo;^&rsquo; icons in the
-upper right-hand corner of the page.</p>
+<p>It consists of several <a href="../rf-geterms/#collapsible-sections">collapsible sections</a>,
+each with a heading and a body. In addition to being able to expand and collapse
+the sections individually, the <a href="../rf-geterms/#page-menu">page menu</a> offers
+<code>Expand all</code> and <code>Collapse all</code> options.</p>
 <p>Let us consider each section that appears in a Group Info page separately.  It
 may help you to open <a href="../../GroupInfo.html?groupURL=groups/Z_5.group">an example group info page
 now</a> and read it alongside this
@@ -158,17 +156,16 @@ help page.</p>
 <h2 id="facts">Facts</h2>
 <p>The section presents basic facts about a group such as its
 <a href="../rf-groupterms/#definition-of-a-group-via-generators-and-relations">definition</a>,
-<a href="../rf-groupterms/#order">order</a>, and any other names it has besides its primary
+<a href="../rf-groupterms/#order-of-a-group">order</a>, and any other names it has besides its primary
 name (which is the title of each Group Info page).  Some (but not all) groups
 contain notes with a description of the group, which appears in this
 section.</p>
 <h2 id="views">Views</h2>
 <p><em>Group Explorer</em> is all about visualization, and thus the Views section receives
 high priority. To the right of the heading a row of small thumbnails shows a
-sample of the various ways to visualize the group. Expanding this section by
-clicking the &lsquo;▶&rsquo; sign to the left of the heading exposes larger previews of
-every way to visualize the group, including all the <a href="../rf-groupterms/#cayley-diagrams">Cayley
-diagrams</a>, a <a href="../rf-groupterms/#multtable">multiplication
+sample of the various ways to visualize the group. Expanding this section
+exposes larger previews of every way to visualize the group, including all the
+<a href="../rf-groupterms/#cayley-diagrams">Cayley diagrams</a>, a <a href="../rf-groupterms/#multiplication-table">multiplication
 table</a>, a <a href="../rf-groupterms/#cycle-graph">cycle
 graph</a>, and any <a href="../rf-groupterms/#objects-of-symmetry">objects of
 symmetry</a> the group has.</p>
@@ -200,28 +197,27 @@ create new naming schemes.</p>
 naming schemes; this information is stored in the user&rsquo;s web browser so that
 it will be preserved even when they leave the site.</p>
 <p>The section contains a link that reads &ldquo;Click here to add a new
-<a href="../rf-geterms/#representation">representation</a> for this group&rdquo; and possibly
+<a href="../rf-geterms/#representation-of-a-group">representation</a> for this group&rdquo; and possibly
 also links that read &ldquo;Click here to edit this representation.&rdquo; (Note that
-&ldquo;<a href="../rf-geterms/#namingscheme">naming scheme</a>&rdquo; and
-&ldquo;<a href="../rf-geterms/#representation">representation</a>&rdquo; are interchangeable terms.)
+&ldquo;<a href="../rf-geterms/#naming-scheme-for-group-elements">naming scheme</a>&rdquo; and
+&ldquo;<a href="../rf-geterms/#representation-of-a-group">representation</a>&rdquo; are interchangeable terms.)
 In both cases, if you click the link, an interface like the following one
 appears, allowing you to custom-define a naming scheme for the elements of
 the group.</p>
 <p><img alt="Group element naming scheme interface" src="../illustration-namescheme.png" /></p>
-<p>The left column lists the default element names, the center column shows
-the current naming as it will be rendered elsewhere, and the right
-column contains a text area in which you can enter your own representation.
-The text area will display your entry as plain text, but elsewhere
-it will be displayed as HTML, so if you would like the permutation (0 1 2)
-to be shown as <i>r</i><sup>-1</sup> in a Cayley diagram,
-enter &ldquo;&lt;i&gt;r&lt;/i&gt;&lt;sup&gt;-1&lt;/sup&gt;&rdquo; into the text area, as
-shown in the illustration above. You can preview the HTML by clicking 
+<p>The left column lists the default element names, the center column shows the
+current naming as it will be rendered elsewhere, and the right column contains a
+text area in which you can enter your own representation.  The text area will
+display your entry as plain text, but elsewhere it will be displayed as HTML, so
+if you would like the permutation (0 1 2) to be shown as <script type="math/tex">r^{-1}</script> in a Cayley
+diagram, enter &ldquo;&lt;i&gt;r&lt;/i&gt;&lt;sup&gt;-1&lt;/sup&gt;&rdquo; into the text
+area, as shown in the illustration above. You can preview the HTML by clicking
 &ldquo;<span style='color: blue'>Display changes</span> as they would appear, without
-saving them.&rdquo;, and they will appear formatted in HTML in the center column. 
-When you are done, if you choose 
-&ldquo;<span style='color: blue'>Save changes</span> and close editor.&rdquo;, your
-changes will be committed and you will have defined a new representation (or
-changed an old representation) of the elements of the group.</p>
+saving them.&rdquo;, and they will appear formatted in HTML in the center column.
+When you are done, if you choose &ldquo;<span style='color: blue'>Save changes</span>
+and close editor.&rdquo;, your changes will be committed and you will have defined a
+new representation (or changed an old representation) of the elements of the
+group.</p>
 <p>A few notes about entering HTML in the text area:</p>
 <ul>
 <li>

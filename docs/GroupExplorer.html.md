@@ -1,201 +1,27 @@
+<!DOCTYPE html>
 <html>
    <head>
       <title>Group Explorer Library</title>
 
-      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-      <meta name="GE3-GITVersion" content="3.6.1">
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+      <meta charset="utf-8" />
+      <meta name="GE3-GITVersion" content="3.7rc12" />
 
-      <link rel="icon" type="image/png" href="./images/favicon.png"></link>
-      <link rel="stylesheet" href="./style/fonts.css" type="text/css"></link>
-      <link rel="stylesheet" href="./style/menu.css" type="text/css"></link>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css">
+      <link rel="icon" href="./images/GE3-favicon.ico" />
+      <link rel="preload" href="./fonts/GroupExplorer_AMS.woff" as="font" crossorigin />
+      <link rel="preload" href="./fonts/MathJax_SansSerif-Regular.woff" as="font" crossorigin />
+      <link rel="preload" href="./fonts/MathJax_SansSerif-Bold.woff" as="font" crossorigin />
+      <link rel="preload" href="./fonts/MathJax_SansSerif-Italic.woff" as="font" crossorigin />
+      <link rel="stylesheet" href="./style/ge3.css" type="text/css" />
 
-      <style type="text/css">
-       table, th, td {
-          border: 1px solid #A0A0A0;
-          border-collapse: collapse;
-          vertical-align: middle;
-       }
-       #PageHeader {
-          border: 1px solid white;
-          border-bottom: none;
-          padding: 8px;
-          padding-top: 0;
-       }
-       .diagramHeader {
-          min-width: 100px;
-       }
-       .groupName > a, .definition > a {
-          font-size: large;
-          text-decoration: none;
-       }
-       .groupOrder {
-          text-align: center;
-       }
-       .cayleyDiagram, .multiplicationTable, .symmetryObject, .noDiagram, .cycleGraph {
-          text-align: center;
-       }
-
-       a:link {
-          color: black;
-       }
-       a:hover {
-          color: -webkit-link;
-       }
-
-       #GroupTable td a {
-          display: block;
-       }
-
-       #GroupTable tbody {
-          -webkit-user-select: none;                  /* prevents cut-and-paste */
-          -webkit-tap-highlight-color: transparent;   /* prevents anchor highlight on tap */
-          -webkit-touch-callout: none;                /* prevents default tap-hold menu */
-       }
-
-       tr.highlighted {
-          background-color: hsl(0, 0%, 96%);
-       }
-
-       td.groupName.emphasized,
-       td.definition.emphasized {
-          background-color: hsl(0, 0%, 85%);
-       }
-       td.cayleyDiagram.emphasized {
-          background-color: hsl(0, 38%, 90%);
-       }
-       td.multiplicationTable.emphasized {
-          background-color: hsl(79, 100%, 93%);
-       }
-       td.symmetryObject.emphasized {
-          background-color: hsl(120, 38%, 90%);
-       }
-       td.cycleGraph.emphasized {
-          background-color: hsl(240, 38%, 90%);
-       }
-       td.noDiagram.emphasized {
-          background-color: white;
-       }
-
-       td a:link, td a:hover, td a:visited {
-          color: black;
-       }
-
-       .sort-up:after,
-       .sort-down:after,
-       .sort-none:after {
-          content: '';
-          position: relative;
-          left: 10px;
-          border: 7px solid transparent;
-       }
-       .sort-up:after {
-          top: 10px;
-          border-top-color: #787878;
-       }
-       .sort-down:after {
-          bottom: 10px;
-          border-bottom-color: #787878;
-       }
-       .sort-none:after {
-          border-top-color: transparent;
-          border-bottom-color: transparent;
-       }
-       .sort-up,
-       .sort-down,
-       .sort-none {
-          padding-right: 10px;
-       }
-
-       #tooltip {
-          background-color: black;
-          color: white;
-          font-weight: bolder;
-       }
-      </style>
-
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
-      <script src="./refreshVersion.js"></script>
       <script type="module">
-       import {check} from './js/Migration.js'
-       import {load} from './GroupExplorer.js'
-       window.addEventListener('load', () => check().then(load))
+       import * as AutoUpgrade from './js/AutoUpgrade.js'
+       await AutoUpgrade.initialize()
+
+       import ('./js/GroupExplorer.js')
+          .then((GroupExplorer) => GroupExplorer.load())
       </script>
    </head>
    <body>
-      <table id="ScratchTable" style="width: 100%; display: none"></table>
-
-      <table id="GroupTable" style="width: 100%;">
-         <thead>
-            <tr>
-               <th id="PageHeader" colspan="7">
-                  <div style="text-align: center; display: inline-block">
-                     <img style="border: 1px solid black;" src="images/logo.png"/>
-                  </div>
-                  <div class="top-right-menu" style="position: relative; float: right; margin-top: 0">
-                     <div>
-                        <a href="index.html">
-                           <i title="Project Home" class="fa fa-home fa-2x trm-blue"></i></a>
-                        <a href="Sheet.html" target="_blank">
-                            <i title="Sheets" class="fa fa-file trm-blue" style="font-size:1.5em;vertical-align:10%;"></i></a>
-                        <a href="help/index.html">
-                            <i title="Help" class="fa fa-question-circle fa-2x trm-blue"></i></a>
-                        <a href="https://github.com/nathancarter/group-explorer">
-                            <i title="Source on GitHub" class="fa fa-github fa-2x trm-blue"></i></a>
-                     </div>
-                     <div id="version" style="float: right; font-size: small; color: #2196f3;"></div>
-                     <script type="module">
-                      import * as Version from './Version.js';
-                      document.getElementById("version").textContent = Version.label
-                     </script>
-                  </div>
-               </th>
-            </tr>
-            <tr id="GroupTableHeaders" height="32px">
-               <th class="sortable sort-none">Name</th>
-               <th class="sortable sort-down"><a href="help/rf-groupterms/index.html#order-of-a-group">Order</a></th>
-               <th><a href="help/rf-groupterms/index.html#definition-of-a-group-via-generators-and-relations">Definition</a></th>
-               <th class="diagramHeader"><a href="help/rf-groupterms/index.html#cayley-diagrams">Cayley diagram</a></th>
-               <th class="diagramHeader"><a href="help/rf-groupterms/index.html#multiplication-table">Multiplication table</a></th>
-               <th class="diagramHeader"><a href="help/rf-groupterms/index.html#objects-of-symmetry">Object of symmetry</a></th>
-               <th class="diagramHeader"><a href="help/rf-groupterms/index.html#cycle-graph">Cycle graph</a></th>
-            </tr>
-            <tr id="loadingMessage" class="hidden">
-               <th colspan="7">
-                  <center><i class="slowflash">Loading groups...</i></center>
-               </th>
-            </tr>
-         </thead>
-         <tbody>
-         </tbody>
-      </table>
-
-      <template id="row_template">
-         <tr group="${group.URL}">
-            <td class="groupName">
-               <a href="GroupInfo.html?groupURL=${group.URL}" title="Open Group Info page">
-                  <div>${group.name}</div>
-               </a>
-            </td>
-            <td class="groupOrder noDiagram">${ group.order }</td>
-            <td class="definition">
-               <a href="GroupInfo.html?groupURL=${group.URL}" title="Open Group Info page">
-                  <div>${group.definition}</div>
-               </a>
-            </td>
-            <td class="cayleyDiagram">
-               <a href="CayleyDiagram.html?groupURL=${group.URL}${(cayleyTitle == undefined)?'':'&diagram='+encodeURIComponent(cayleyTitle)}" title="Open Cayley Diagram visualizer"><div></div></a>
-            </td>
-            <td class="multiplicationTable">
-               <a href="Multtable.html?groupURL=${group.URL}" title="Open Multiplication Table visualizer"><div></div></a>
-            </td>
-            <td class="symmetryObject">
-               <a href="SymmetryObject.html?groupURL=${group.URL}" title="Open Symmetry Object visualizer"><div></div></a>
-            </td>
-            <td class="cycleGraph">
-               <a href="CycleGraph.html?groupURL=${group.URL}" title="Open Cycle Graph visualizer"><div></div></a>
-            </td>
-         </tr>
-      </template>
    </body>
 </html>

@@ -1,17 +1,23 @@
-// @flow
+/* @flow
+
+# SheetModel
+
+The Model parrt of the Sheet Model-View-Control structure
+
+```javascript
+ */
 
 import { createLabelledCycleGraphView } from './CycleGraphView.js'
 import { createFullMulttableView } from './MulttableView.js'
-import { createLabelledCayleyDiagramView } from './CayleyDiagramView.js'
 import * as Library from './Library.js'
-import Log from './Log.js'
+import * as Log from './Log.js'
+import { Mapping } from './Mapping.js'
 import * as MathML from './MathML.js'
+import * as SheetModelEditors from './SheetModelEditors.js'
 import * as SheetView from './SheetView.js'
-import Template from './Template.js'
+import * as StoredObjects from './StoredObjects.js'
 import { THREE } from '../lib/externals.js'
-
-export const LISTENER_READY_MESSAGE = 'listener ready' // sent by visualizers on load complete
-export const STATE_LOADED_MESSAGE = 'state loaded' // sent by visualizers on model received
+import { createCayleyDiagramGenerator } from './CayleyDiagramGenerator.js'
 
 const DEFAULT = {
   NodeElement: {
@@ -53,7 +59,10 @@ const DEFAULT = {
     showDefiningPairs: false,
     showInjectionSurjection: false,
     showManyArrows: false,
-    arrowMargin: 0
+    arrowColor: 'none',
+    arrowMargin: 0,
+    useMulttableSourceTopRow: false,
+    useMulttableDestinationTopRow: false
   }
 }
 
@@ -61,7 +70,7 @@ const DEFAULT = {
 import { CayleyDiagramView } from './CayleyDiagramView.js'
 import { CycleGraphView } from './CycleGraphView.js'
 import { MulttableView } from './MulttableView.js'
-import XMLGroup from './XMLGroup.js';
+import Group from './Group.js';
 
 export type VisualizerName = 'CDElement' | 'CGElement' | 'MTElement';
 
@@ -98,11 +107,12 @@ export const sheetElements = new Map/*:: <string, SheetElement> */()
 
 export function clear () {
   sheetElements.forEach((el) => {
-    if (el instanceof NodeElement) {
-      el.destroy()
-    }
+     if (el instanceof NodeElement) {
+        el.destroy()
+     }
   })
-  SheetView.redrawAll()
+  delete CDElement.activeElement
+  delete CDElement.visualizer
 }
 
 export function toJSON () /*: Array<Obj> */ {
@@ -117,23 +127,9 @@ export function fromJSONObject (jsonObjects /*: JSONType */) {
   // remove existing elements
   clear()
 
-  // load all URLs
-  const groupURLs = Array.from(
-    jsonObjects.reduce(
-      (URLs, jsonObject) => {
-        if (jsonObject.groupURL !== undefined) {
-          URLs.add(jsonObject.groupURL)
-        }
-        return URLs
-      }, new Set()))
-
-  Promise
-    .all(groupURLs.map((url) => Library.getGroupOrDownload(url)))
-    .then(() => {
-      for (let inx = 0; inx < jsonObjects.length; inx++) {
-        addElement(jsonObjects[inx])
-      }
-    })
+  for (const jsonObject of jsonObjects) {
+    addElement(jsonObject)
+  }
 }
 
 export function addElement (options /*: Obj */, type /*: string */ = options.className) /*: SheetElement */ {
@@ -154,7 +150,9 @@ export class SheetElement {
   }
 
   destroy () {
-    this.viewElement.destroy()
+    if (this.viewElement != null) {
+      this.viewElement.destroy()
+    }
     sheetElements.delete(this.id)
   }
 
@@ -203,34 +201,6 @@ export class SheetElement {
 
     return this
   }
-
-  get $editor () {
-    return $(`#${this.className.toLowerCase().replace('element', '-editor')}`)
-  }
-
-  getEditor () {
-    const model = this // needed in eval to form data-onload attribute
-    this.$editor
-      .find('[data-onload]')
-    // Note that we don't use an arrow function here:
-    // we want 'this' to refer to the HTML element in which the 'data-onload' attribute was found
-      .each(function () { eval($(this).attr('data-onload')) })
-    return this.$editor
-  }
-
-  updateFromEditor () {
-    this.updateObjectFromEditor()
-    this.redraw()
-  }
-
-  updateObjectFromEditor () {
-    const model = this // needed in eval to form data-onupdate attribute
-    this.$editor
-      .find('[data-onupdate]')
-    // Note that we don't use an arrow function here:
-    // we want 'this' to refer to the HTML element in which the 'data-onupdate' attribute was found
-      .each(function () { eval($(this).attr('data-onupdate')) })
-  }
 }
 
 export class NodeElement extends SheetElement {
@@ -246,9 +216,16 @@ export class NodeElement extends SheetElement {
     Object.assign(this, DEFAULT.NodeElement)
   }
 
-  move (dx /*: float */, dy /*: float */) {
-    this.x += dx
-    this.y += dy
+  move (dxOrVector /*: float */, dy /*: float */) /*: this */ {
+    if (typeof dxOrVector == 'object') {
+      this.x += dxOrVector.x
+      this.y += dxOrVector.y
+    } else {
+      this.x += dxOrVector
+      this.y += dy
+    }
+
+    return this
   }
 
   moveTo (x /*: float */, y /*: float */) {
@@ -256,9 +233,16 @@ export class NodeElement extends SheetElement {
     this.y = y
   }
 
-  resize (width /*: float */, height /*: float */) {
-    this.w = width
-    this.h = height
+  resize (widthOrVector /*: float */, height /*: float */) /*: this */ {
+    if (typeof widthOrVector == 'object') {
+      this.w = widthOrVector.x || widthOrVector.width
+      this.h = widthOrVector.y || widthOrVector.height
+    } else {
+      this.w = widthOrVector
+      this.h = height
+    }
+
+    return this
   }
 
   get links () /*: Array<LinkElement> */ {
@@ -279,7 +263,9 @@ export class NodeElement extends SheetElement {
   copy () {
     const jsonObject = this.toJSON()
     delete jsonObject.id
-    addElement(jsonObject)
+    jsonObject.z = DEFAULT.NodeElement.z
+    const newElement = addElement(jsonObject)
+    newElement.moveToFront()
   }
 
   destroy () {
@@ -360,37 +346,65 @@ export class RectangleElement extends NodeElement {
 
 export class TextElement extends NodeElement {
 /*::
-    text: string;
+    _text: string;
     color: color;  // background color
     opacity: float;  // opacity in [0,1]; 0 => transparent, 1 => completely opaque
     fontSize: string;
     fontColor: color;
     alignment: 'left' | 'center' | 'right';
     isPlainText: boolean;
+    displayTextNeedsUpdate: boolean;
 */
   constructor () {
     super()
     Object.assign(this, DEFAULT.TextElement)
   }
 
-  fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: TextElement */ {
-    super.fromJSON(jsonObject, customKeys)
+   get text () {
+      return this._text
+   }
 
-    if (this.text !== '') {
-      this.w = jsonObject.w // undefined => .css('width', 'auto')
-      this.h = jsonObject.h
-    }
-    if (jsonObject.color != null) {
-      this.opacity = (jsonObject.opacity == null) ? 1 : jsonObject.opacity
-    }
+   set text (text) {
+      if (text != this._text) {
+         this._text = text
+         this.displayNeedsTextUpdate = true
+      }
+   }
 
-    return this
-  }
+   getEditor (location) {
+      new SheetModelEditors.TextEditor(this, location)
+   }
+
+   toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
+      customKeys.push('_text')
+      const jsonObject = super.toJSON(_, customKeys)
+      jsonObject.text = this.text
+
+      return jsonObject
+   }
+
+   fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: TextElement */ {
+      customKeys.push('text')
+      super.fromJSON(jsonObject, customKeys)
+
+      this.text = jsonObject.text
+      this.displayNeedsTextUpdate = true
+
+      if (this.text !== '') {
+         this.w = jsonObject.w // undefined => .css('width', 'auto')
+         this.h = jsonObject.h
+      }
+      if (jsonObject.color != null) {
+         this.opacity = (jsonObject.opacity == null) ? 1 : jsonObject.opacity
+      }
+
+      return this
+   }
 }
 
 export class VisualizerElement extends NodeElement {
 /*::
-    group: XMLGroup
+    group: Group
     URL: string
    _visualizer: CayleyDiagramView | CycleGraphView | MulttableView
    +viewElement: SheetView.VisualizerView
@@ -424,45 +438,51 @@ export class VisualizerElement extends NodeElement {
     customKeys.push('group', 'visualizer')
     super.fromJSON(jsonObject, customKeys)
 
-    this.group = ((Library.getLocalGroup(jsonObject.groupURL) /*: any */) /*: XMLGroup */)
+    this.group = ((Library.getGroupByURL(jsonObject.groupURL) /*: any */) /*: Group */)
+    if (this.group == null) {
+      Log.err(`Unable to find group ${jsonObject.groupURL}`)
+      return null
+    }
 
     return this
+  }
+
+  getEditor (_location) {
+    new SheetModelEditors.RemoteEditor(this)
   }
 }
 
 export class CDElement extends VisualizerElement {
 /*::
   static activeElement: CDElement
-  static visualizer: CayleyDiagramView
+  static visualizer: CayleyDiagramGenerator
   visualizerJSON: Obj
-  isClean: boolean
+  isShareable: boolean
 */
   get visualizer () {
-    // find element with visualizer
-    if (CDElement.activeElement !== this) {
-      // check whether visualizer can be reused
-      if (this.group.URL === CDElement.activeElement.group.URL && this.isClean && CDElement.activeElement.isClean) {
-        this.moveVisualizerToThis()
-        CDElement.visualizer.setHighlightDefinitions(this.visualizerJSON)
-        CDElement.visualizer.drawAllHighlights()
-      } else {
-        this.moveVisualizerToThis()
-        CDElement.visualizer.fromJSON(this.visualizerJSON)
-      }
-    }
-
+    this.moveVisualizerToThis()
     return CDElement.visualizer
   }
 
   moveVisualizerToThis () {
-    if (CDElement.activeElement != null) {
-      CDElement.activeElement.visualizerJSON = CDElement.visualizer.toJSON()
+    if (CDElement.activeElement != this) {
+      if (CDElement.activeElement != null) {  // delete activeElement?
+        CDElement.activeElement.visualizerJSON = CDElement.visualizer.toJSON()
+      }
+      if (this.visualizerJSON != null) {
+        if (CDElement.activeElement?.isShareable && this.isShareable) {
+          CDElement.visualizer.cayleyDiagramView.highlightColors = this.visualizerJSON.highlightColors
+          CDElement.visualizer.cayleyDiagramView.highlightControl = this.visualizerJSON.highlightControl
+        } else {
+          CDElement.visualizer.fromJSON(this.visualizerJSON)
+        }
+      }
+      CDElement.activeElement = this
     }
-    CDElement.activeElement = this
   }
 
   toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
-    customKeys.push('visualizerJSON')
+    customKeys.push('visualizerJSON', '_visualizer')
     const jsonObject = super.toJSON(_, customKeys)
 
     return jsonObject
@@ -472,51 +492,61 @@ export class CDElement extends VisualizerElement {
     customKeys.push('arrows', 'arrowColors', 'strategies', 'highlights')
     super.fromJSON(jsonObject, customKeys)
 
-    // find element with visualizer
-    const activeElement = CDElement.activeElement
-
-    this.isClean = (jsonObject.isClean != null) ? jsonObject.isClean : (jsonObject.strategies == null)
-
-    const isVisualizerElementJSON = () => {
-      return jsonObject.visualizer == null
+    if ('visualizer' in jsonObject) {
+      this.fromVisualizerJSON(jsonObject)
+    } else {
+      this.fromPassedSheetJSON(jsonObject)
     }
-    const canReuseCayleyDiagramView = () => {
-      return activeElement != null &&
-        activeElement.isClean &&
-        this.isClean &&
-        activeElement.visualizerJSON.groupURL === jsonObject.groupURL
+
+    return this
+  }
+
+  markDirty () {
+    this.isShareable = false
+  }
+
+  fromPassedSheetJSON (jsonObject) {
+    if (CDElement.visualizer == null) {
+      CDElement.visualizer = createCayleyDiagramGenerator({ display_labels: true, width: this.w, height: this.h })
+        .fromJSON(jsonObject)
+      this.isShareable = (jsonObject.strategies == null)
+    } else {
+      this.isShareable = CDElement.activeElement.isShareable && (jsonObject.groupURL == CDElement.visualizer.group.URL)
+      if (this.isShareable) {
+        CDElement.visualizer.cayleyDiagramView.highlightColors = jsonObject.highlightColors || [[],[],[]]
+      } else {
+        CDElement.visualizer.fromJSON(jsonObject)
+      }
     }
-    const generateCayleyDiagram = () => {
-      const diagramName = (this.group.cayleyDiagrams.length === 0) ? undefined : this.group.cayleyDiagrams[0].name
-      CDElement.visualizer.generateFromJSON(this.group, diagramName, jsonObject)
-      if (jsonObject.visualizer != null) {
+    this.visualizerJSON = CDElement.visualizer.toJSON()
+    CDElement.activeElement = this
+
+    return this
+  }
+
+  fromVisualizerJSON (jsonObject) {
+    // if there is no CDElement.visualizer, make one
+    if (CDElement.visualizer == null) {
+      CDElement.visualizer = createCayleyDiagramGenerator({ display_labels: true, width: this.w, height: this.h })
+        .fromJSON(jsonObject.visualizer)
+      this.visualizerJSON = CDElement.visualizer.toJSON()
+      this.isShareable = jsonObject.isShareable  // import old sheet?
+      CDElement.activeElement = this
+    } else {
+      this.isShareable = jsonObject.isShareable && (jsonObject.groupURL == CDElement.visualizer.group.URL)
+      if (  this.isShareable
+        && CDElement.activeElement.isShareable
+        && jsonObject.groupURL == CDElement.visualizer.group.URL
+      ) {
+        this.moveVisualizerToThis()
+        CDElement.visualizer.cayleyDiagramView.highlightColors = jsonObject.visualizer.highlightColors || [[],[],[]]
+      } else {
+        this.moveVisualizerToThis()
         CDElement.visualizer.fromJSON(jsonObject.visualizer)
       }
+      this.visualizerJSON = CDElement.visualizer.toJSON()
     }
 
-    // if a CayleyDiagramView instance hasn't been created yet, create one and associate it with this element
-    if (CDElement.visualizer == null) {
-      CDElement.visualizer = createLabelledCayleyDiagramView({ width: this.w, height: this.h })
-      CDElement.activeElement = this
-      generateCayleyDiagram()
-      const visualizer = CDElement.visualizer
-      visualizer.renderer.render(visualizer.scene, visualizer.camera) // need to render once to get camera right
-    }
-
-    if (canReuseCayleyDiagramView()) { // can this instance reuse the activeElement visualizer state?
-      this.moveVisualizerToThis()
-      if (isVisualizerElementJSON()) {
-        CDElement.visualizer.generateHighlights(jsonObject.highlights)
-      } else {
-        CDElement.visualizer.setHighlightDefinitions(jsonObject.visualizer)
-        CDElement.visualizer.drawAllHighlights()
-      }
-    } else { // can't reuse CDElement.visualizer state from activeElement; generate CayleyDiagram from scratch
-      this.moveVisualizerToThis()
-      generateCayleyDiagram()
-    }
-
-    this.visualizerJSON = CDElement.visualizer.toJSON()
     return this
   }
 }
@@ -526,8 +556,19 @@ export class CGElement extends VisualizerElement {
     super.fromJSON(jsonObject, customKeys)
     this._visualizer = createLabelledCycleGraphView()
     this.visualizer.group = this.group
-    this.visualizer.fromJSON(jsonObject)
+    if ('visualizer' in jsonObject) {
+       this.visualizer.fromJSON(jsonObject.visualizer)
+    } else {
+       this.visualizer.fromJSON(jsonObject)
+    }
     return this
+  }
+
+  toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
+    customKeys.push('_visualizer')
+    const jsonObject = super.toJSON(_, customKeys)
+
+    return jsonObject
   }
 
   get visualizer () {
@@ -540,8 +581,19 @@ export class MTElement extends VisualizerElement {
     super.fromJSON(jsonObject, customKeys)
     this._visualizer = createFullMulttableView()
     this.visualizer.group = this.group
-    this.visualizer.fromJSON(jsonObject)
+    if ('visualizer' in jsonObject) {
+       this.visualizer.fromJSON(jsonObject.visualizer)
+    } else {
+       this.visualizer.fromJSON(jsonObject)
+    }
     return this
+  }
+
+  toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
+    customKeys.push('_visualizer')
+    const jsonObject = super.toJSON(_, customKeys)
+
+    return jsonObject
   }
 
   get visualizer () {
@@ -612,6 +664,15 @@ export class ConnectingElement extends LinkElement {
         connectingElements.forEach((conn) => conn.updateZ())
       }
     }
+  }
+
+  getEditor (_location) {
+     const {x, y} = new SheetView.SheetUnits(
+        (this.source.x + this.source.w/2 + this.destination.x + this.destination.w/2)/2,
+        (this.source.y + this.source.h/2 + this.destination.y + this.destination.h/2)/2
+     ).toWindowUnits()
+
+     new SheetModelEditors.ConnectionEditor(this, {clientX: x, clientY: y})
   }
 
   fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: ConnectingElement */ {
@@ -712,32 +773,19 @@ export class MorphismElement extends LinkElement {
     return html
   }
 
-  getEditor () /*: JQuery */ {
-    const $editor = super.getEditor()
+  getEditor (location) {
+     const {x, y} = new SheetView.SheetUnits(
+        (this.source.x + this.source.w/2 + this.destination.x + this.destination.w/2)/2,
+        (this.source.y + this.source.h/2 + this.destination.y + this.destination.h/2)/2
+     ).toWindowUnits()
 
-    if ($('#morphism-preview-table').css('display') !== 'none') { // hide the morphism preview table, if it's displayed
-      $('#morphism-preview .toggled').toggle()
-    }
-
-    const DISPLAY_FONT_SIZE = 20
-    const domainDisplaySize = this.source.group.longestHTMLLabel * DISPLAY_FONT_SIZE
-    const codomainDisplaySize = this.destination.group.longestHTMLLabel * DISPLAY_FONT_SIZE
-
-    $('#defining-pair-table > thead > tr > th:first-child').css('min-width', domainDisplaySize)
-    $('#defining-pair-table > thead > tr > th:nth-child(2)').css('min-width', codomainDisplaySize)
-
-    $('#domain-selection').css('width', domainDisplaySize + 'px')
-    $('#codomain-selection').css('width', codomainDisplaySize + 'px')
-
-    this.setupMorphismAdd()
-
-    return $editor
+     new SheetModelEditors.MorphismEditor(this,  {clientX: x, clientY: y})
   }
 
   toJSON (_ /*: mixed */, customKeys /*: Array<string> */ = []) /*: Obj */ {
     customKeys.push('mapping')
     const jsonObject = super.toJSON(_, customKeys)
-    jsonObject.definingPairs = this.mapping.definingPairs
+    jsonObject.definingPairs = Array.from(this.mapping.definingPairs)
 
     return jsonObject
   }
@@ -755,615 +803,35 @@ export class MorphismElement extends LinkElement {
 
     return this
   }
-
-  displayPreview () {
-    if ($('#morphism-preview-table').css('display') !== 'none') {
-      $('#morphism-preview tbody').empty()
-      this.mapping.fullMapping.forEach(
-        (codomainElement, domainElement) => {
-          $('#morphism-preview tbody').append(eval(Template.HTML('morphism-preview-row-template')))
-        })
-
-      // set the column widths in the morphism preview table from the defining pairs table
-      const $firstColumn = $('#defining-pair-table th:first-child')
-      const $secondColumn = $('#defining-pair-table th:nth-child(2)')
-      const firstColumnWidth = $firstColumn.width()
-      const secondColumnWidth = $secondColumn.width()
-      const previewTableWidth = $firstColumn[0].getBoundingClientRect().width + $secondColumn[0].getBoundingClientRect().width + 17
-
-      $('#morphism-preview-table').css('width', previewTableWidth + 'px')
-      $('#morphism-preview-table th:first-child').css('width', firstColumnWidth + 'px')
-      $('#morphism-preview-table td:first-child').css('width', firstColumnWidth + 'px')
-      $('#morphism-preview-table th:nth-child(2)').css('width', secondColumnWidth + 'px')
-      $('#morphism-preview-table td:nth-child(2)').css('width', secondColumnWidth + 'px')
-    }
-  }
-
-  fillDefiningPairs () {
-    const $tbody = $('#morphism-defining-pairs')
-    $tbody.children('[id!="empty-morphism-state"]').remove()
-    if (this.mapping.definingPairs.length === 0) {
-      $tbody.children('#empty-morphism-state').show()
-    } else {
-      $tbody.children('#empty-morphism-state').hide()
-      this.mapping.definingPairs.forEach(
-        ([domainElement, codomainElement]) => {
-          $tbody.append(eval(Template.HTML('morphism-editor-defining-pair-template')))
-        })
-    }
-  }
-
-  addDefiningPair () {
-    $('#empty-morphism-state').hide()
-
-    const domainElement = parseInt($('#domain-selection').attr('data-value'))
-    const codomainElement = parseInt($('#codomain-selection').attr('data-value'))
-    this.mapping.addDefiningPair(domainElement, codomainElement)
-    $('#morphism-defining-pairs').append(eval(Template.HTML('morphism-editor-defining-pair-template')))
-
-    // propagate changes to rest of display
-    this.displayPreview()
-    this.setupMorphismAdd()
-    this.updateFromEditor()
-  }
-
-  removeDefiningPair (domainElement /*: groupElement */) {
-    const $tbody = $('#morphism-defining-pairs')
-    $tbody.find(`#defining-pair-${domainElement}`).remove()
-    this.mapping.removeDefiningPair(domainElement)
-    if (this.mapping.definingPairs.length === 0) {
-      $('#empty-morphism-state').show()
-    }
-
-    // propagate changes to rest of display
-    this.displayPreview()
-    this.setupMorphismAdd()
-    this.updateFromEditor()
-  }
-
-  setupMorphismAdd () {
-    if (this.mapping.image.includes(undefined)) {
-      // domain selection is first unmapped source
-      const domainSelection = this.mapping.image.findIndex((el) => el === undefined)
-      this.setDomain(domainSelection)
-
-      const codomainSelection = parseInt($('#codomain-selection').attr('data-value'))
-      this.setCodomain(codomainSelection)
-
-      $('#morphism-add-defining-pair').show()
-    } else {
-      $('#morphism-add-defining-pair').hide()
-    }
-  }
-
-  setDomain (domainSelection /*: groupElement */) {
-    // set domain-selection element
-    $('#domain-selection')
-      .attr('data-value', domainSelection)
-      .html(this.source.group.representation[domainSelection])
-
-    // set codomain-choices
-    const validTargets = this.mapping.validTargets(domainSelection)
-    const $targets = validTargets.reduce(
-      ($frag, element) => $frag.append(eval(Template.HTML('morphism-codomain-choice-template'))),
-      $(document.createDocumentFragment()))
-    $('#codomain-choices')
-      .html((($targets /*: any */) /*: DocumentFragment */))
-      .hide()
-
-    // if codomain-selection isn't in codomain-choices, choose smallest element of codomain-choices
-    const maybeCodomainSelection = parseInt($('#codomain-selection').attr('data-value'))
-    const codomainSelection = (validTargets.includes(maybeCodomainSelection))
-      ? maybeCodomainSelection
-      : validTargets[0]
-    $('#codomain-selection')
-      .attr('data-value', codomainSelection)
-      .html(((this.destination.group.representation[codomainSelection] /*: any */) /*: DocumentFragment */))
-  }
-
-  setCodomain (codomainSelection /*: groupElement */) {
-    // set codomain-selection element
-    $('#codomain-selection')
-      .attr('data-value', codomainSelection)
-      .html(this.destination.group.representation[codomainSelection])
-
-    // set domain-choices
-    const validSources = this.mapping.validSources(codomainSelection)
-    const $sources = validSources.reduce(
-      ($frag, element) => $frag.append(eval(Template.HTML('morphism-domain-choice-template'))),
-      $(document.createDocumentFragment()))
-    $('#domain-choices')
-      .html((($sources /*: any */) /*: DocumentFragment */))
-      .hide()
-
-    // if domain-selection isn't in domain-choices, choose smallest element of domain-choices
-    const maybeDomainSelection = parseInt($('#domain-selection').attr('data-value'))
-    const domainSelection = (validSources.includes(maybeDomainSelection))
-      ? maybeDomainSelection
-      : validSources[0]
-    $('#domain-selection')
-      .attr('data-value', domainSelection)
-      .html(this.source.group.representation[domainSelection])
-  }
 }
 
-export class Mapping {
-/*::
-    domain: XMLGroup;
-    codomain: XMLGroup;
-    definingPairs: Array<[groupElement, groupElement]>;
-    image: Array<groupElement | void>;  // image[domainElement] = codomainElement
-    fullMapping_: ?Array<groupElement | void>;
- */
-  constructor (domain /*: XMLGroup */, codomain /*: XMLGroup */, definingPairs /*: Array<[groupElement, groupElement]> */ = []) {
-    this.domain = domain
-    this.codomain = codomain
-    this.definingPairs = definingPairs
-    this.update()
-  }
-
-  update () {
-    const savedPairs = this.definingPairs
-    this.definingPairs = []
-    this.image = Array.from({ length: this.domain.order }, () => undefined)
-    this.image[0] = 0
-    savedPairs.forEach(
-      ([domainElement, codomainElement]) => this.extend(domainElement, codomainElement)
-    )
-    this.fullMapping_ = null
-  }
-
-  removeDefiningPair (domainElement /*: groupElement */) {
-    this.definingPairs.splice(this.definingPairs.findIndex(([g, h]) => g === domainElement), 1)
-    this.update()
-  }
-
-  addDefiningPair (domainElement /*: groupElement */, codomainElement /*: groupElement */) {
-    this.extend(domainElement, codomainElement)
-  }
-
-  // no element in the codomain is the image of two different domain elements
-  get isInjective () /*: boolean */ {
-    const fullMapping = this.fullMapping
-    const inverse = Array.from({ length: this.codomain.order }, () => undefined)
-    for (let domainElement = 0; domainElement < fullMapping.length; domainElement++) {
-      const codomainElement = fullMapping[domainElement]
-      if (inverse[codomainElement] !== undefined) {
-        return false
-      }
-      inverse[codomainElement] = domainElement
-    }
-
-    return true
-  }
-
-  // every codomain element has an inverse image
-  get isSurjective () /*: boolean */ {
-    const fullMapping = this.fullMapping
-    const inverse = fullMapping.reduce(
-      (inverse, codomainElement, domainElement) => {
-        inverse[codomainElement] = domainElement
-        return inverse
-      },
-      Array.from/*:: <?groupElement> */({ length: this.codomain.order }, () => undefined))
-    return !inverse.includes(undefined)
-  }
-
-  // check whether relations in G map to relations in H
-  get isHomomorphism () /*: boolean */ {
-    const G = this.domain
-    const H = this.codomain
-    const evaluateRelation = (relation) => relation.reduce(
-      ([g, gs], el) => {
-        const next = G.mult(el, g)
-        gs.push([g, el, next])
-        return [next, gs]
-      },
-      [0, []])[1]
-    const mappingPreservesRelation = (mapping, relation) => evaluateRelation(relation).every(
-      ([prev, step, next]) => mapping[next] === H.mult(mapping[step], mapping[prev])
-    )
-    return G.relations.every((relation) => mappingPreservesRelation(this.fullMapping, relation))
-  }
-
-  clone () /*: Mapping */ {
-    const mapping = new Mapping(this.domain, this.codomain, [])
-    mapping.definingPairs.push(...this.definingPairs)
-    mapping.image = [...this.image]
-    return mapping
-  }
-
-  extend (domainElement /*: groupElement */, codomainElement /*: groupElement */) /*: Mapping */ {
-    const G = this.domain
-    const H = this.codomain
-
-    const previousImage = [...this.image]
-
-    this.definingPairs.push([domainElement, codomainElement])
-
-    previousImage.forEach(
-      (h, g) => {
-        if (h !== undefined) {
-          this.image[G.mult(g, domainElement)] = H.mult(h, codomainElement)
-        }
-      })
-
-    const cosetRepresentatives = [domainElement]
-    for (const r of cosetRepresentatives) {
-      for (const [s] of this.definingPairs) {
-        const rXs = G.mult(r, s)
-        if (this.image[rXs] === undefined) {
-          cosetRepresentatives.push(rXs)
-          // $FlowFixMe -- logic is too math-y for Flow
-          this.image[rXs] = H.mult(this.image[r], this.image[s])
-          previousImage.forEach(
-            (h, g) => {
-              // $FlowFixMe -- logic is too math-y for Flow
-              if (h !== undefined) {
-                this.image[G.mult(g, rXs)] = H.mult(h, ((this.image[rXs] /*: any */) /*: groupElement */))
-              }
-            })
-        }
-      }
-    }
-
-    this.fullMapping_ = null
-    return this
-  }
-
-  validSources (codomainElement /*: groupElement */) /*: Array<groupElement> */ {
-    let validSources
-    const unmappedSources = this.domain.elements.filter((g) => this.image[g] === undefined)
-    if (codomainElement === undefined) {
-      validSources = unmappedSources
-    } else {
-      validSources = unmappedSources
-        .filter(
-          (source) => this.domain.elementOrders[source] % this.codomain.elementOrders[codomainElement] === 0
-        )
-        .reduce(
-          (validSources, maybeSource) => {
-            const copy = this.clone()
-            copy.extend(maybeSource, codomainElement)
-            if (copy.extendedMap(copy) !== undefined) {
-              validSources.push(maybeSource)
+// store argument in IndexedDB and open Sheet.html in new window
+export function createNewSheet (jsonObjectsFunction) {
+   const otherWindow = window.open()
+   new Promise((resolve, _reject) => resolve(jsonObjectsFunction()))
+      .then((jsonObjects) => {
+         // Convert highlights.background field into highlightColors
+         for (const jsonObject of jsonObjects) {
+            if ('highlights' in jsonObject && 'background' in jsonObject.highlights) {
+               jsonObject.highlightColors = [
+                  jsonObject.highlights.background.map((color) => (color == '') ? null : color),
+                  [], []
+               ]
+               delete jsonObject.highlights
             }
-            return validSources
-          }, [])
-    }
-    return validSources
-  }
+         }
 
-  validTargets (domainElement /*: groupElement */) /*: Array<groupElement> */ {
-    const validTargets = this.codomain.elements
-      .filter(
-        (target) => this.domain.elementOrders[domainElement] % this.codomain.elementOrders[target] === 0
-      )
-      .reduce(
-        (validTargets, maybeTarget) => {
-          const copy = this.clone()
-          copy.extend(domainElement, maybeTarget)
-          if (copy.extendedMap(copy) !== undefined) {
-            validTargets.push(maybeTarget)
-          }
-          return validTargets
-        }, [])
-    return validTargets
-  }
-
-  get fullMapping () /*: Array<groupElement> */ {
-    if (this.fullMapping_ == null) {
-      if (this.image.includes(undefined)) {
-        this.fullMapping_ = ((this.extendedMap(this) /*: any */) /*: Mapping */).image
-      } else {
-        this.fullMapping_ = this.image
-      }
-    }
-
-    return ((this.fullMapping_ /*: any */) /*: Array<groupElement> */)
-  }
-
-  extendedMap (mapping /*: Mapping */) /*: ?Mapping */ {
-    const G = this.domain
-    const H = this.codomain
-    const map = mapping.image
-
-    if (map.includes(undefined)) {
-      for (const maybeSource of G.generators[0].filter((maybeSource) => map[maybeSource] === undefined)) {
-        for (const maybeTarget of H.elements) {
-          const mappingCopy = mapping.clone()
-          mappingCopy.extend(maybeSource, maybeTarget)
-          const result = this.extendedMap(mappingCopy)
-          if (result !== undefined) {
-            return result
-          }
-        }
-      }
-      return undefined
-    } else {
-      return mapping.isHomomorphism ? mapping : undefined
-    }
-  }
+         StoredObjects.setPassedSheet(jsonObjects)
+            .then(() => otherWindow.location = `./Sheet.html?passedSheet`)
+      })
 }
 
-/*::
-interface IDBObjectStore_ext {
-  getAllKeys(): IDBRequest;
-}
-
-type IDBObjectStore_curr = IDBObjectStore & IDBObjectStore_ext
-*/
-
-export class StoredSheets {
-/*::
-  static indexedDb: IDBDatabase
-  static displayedSheetName: ?string
-*/
-  static async init () {
-    const openRequest = window.indexedDB.open('GE3', 1)
-
-    let migrationNeeded = false
-    const openPromise = new Promise((resolve, reject) => {
-      openRequest.onupgradeneeded = () => {
-        const result = ((openRequest.result /*: any */) /*: IDBDatabase */)
-        result.createObjectStore('StoredSheets')
-        migrationNeeded = true // migrate sheets after this completes
-      }
-      openRequest.onsuccess = () => resolve(((openRequest.result /*: any */) /*: IDBDatabase */))
-      openRequest.onerror = () => reject(openRequest.error)
-    })
-
-    StoredSheets.indexedDb = await openPromise
-
-    if (migrationNeeded) {
-      await StoredSheets.migrateSheets()
-    }
-  }
-
-  static async migrateSheets () {
-    // get old stored sheets from localStorage
-    // convert each stored sheet and save it to IndexedDB
-    const oldSheetStore = localStorage.getItem('sheets')
-    if (oldSheetStore != null) {
-      const storedSheets = StoredSheets.getStore('readwrite')
-      const oldSheets = JSON.parse(oldSheetStore)
-      if (Object.keys(oldSheets).length === 0) {
-        localStorage.removeItem('sheets')
-      } else {
-        for (const [sheetName, oldSheet] of Object.entries(oldSheets)) {
-          const newSheet = convertFromOldJSON(((oldSheet /*: any */) /*: Array<Obj> */))
-          const putRequest = storedSheets.put(JSON.stringify(newSheet), sheetName)
-          await new Promise((resolve, reject) => {
-            putRequest.onsuccess = () => resolve(putRequest.result)
-            putRequest.onerror = () => reject(putRequest.error)
-          })
-        }
-      }
-    }
-  }
-
-  static getStore (type /*: 'readonly' | 'readwrite' | 'versionchange' */ = 'readonly') /*: IDBObjectStore */ {
-    const transaction = StoredSheets.indexedDb.transaction('StoredSheets', type)
-    const storedSheets = transaction.objectStore('StoredSheets')
-    return storedSheets
-  }
-
-  // set in load, save, destroy
-  static displaySheetName (sheetName /*: ?string */ = null) {
-    StoredSheets.displayedSheetName = sheetName
-    $('#heading').html(sheetName || 'Group Explorer Sheet')
-  }
-
-  static async load (sheetName /*: string */) {
-    const storedSheets = StoredSheets.getStore()
-    const getRequest = storedSheets.get(sheetName)
-
-    const getPromise = new Promise((resolve, reject) => {
-      getRequest.onsuccess = () => {
-        const storedJsonString = ((getRequest.result /*: any */) /*: string */)
-        if (storedJsonString == null) {
-          reject(new Error(`Unable to retrieve sheet ${sheetName} from indexedDB`))
-        } else {
-          const jsonObject = JSON.parse(storedJsonString)
-          fromJSONObject(jsonObject)
-          StoredSheets.displaySheetName(sheetName)
-          resolve()
-        }
-      }
-      getRequest.onerror = () => reject(getRequest.error)
-    })
-
-    return getPromise
-  }
-
-  static async save (sheetName /*: string */) {
-    const storedSheets = StoredSheets.getStore('readwrite')
-    const sheetContent = JSON.stringify(toJSON())
-    const putRequest = storedSheets.put(sheetContent, sheetName)
-
-    const putPromise = new Promise((resolve, reject) => {
-      putRequest.onsuccess = () => resolve(putRequest.result)
-      putRequest.onerror = () => reject(putRequest.error)
-    })
-
-    return putPromise
-  }
-
-  static async destroy (sheetName /*: string */) {
-    const storedSheets = StoredSheets.getStore('readwrite')
-    const destroyRequest = storedSheets.delete(sheetName)
-
-    const destroyPromise = new Promise((resolve, reject) => {
-      destroyRequest.onsuccess = () => {
-        if (StoredSheets.displayedSheetName === sheetName) {
-          StoredSheets.displaySheetName(undefined)
-        }
-        resolve(destroyRequest.result)
-      }
-      destroyRequest.onerror = () => reject(destroyRequest.error)
-    })
-
-    return destroyPromise
-  }
-
-  static async list () {
-    const storedSheets = StoredSheets.getStore('readwrite')
-    const getAllKeysRequest = ((storedSheets /*: any */) /*: IDBObjectStore_curr */).getAllKeys()
-
-    const getAllKeysPromise = new Promise((resolve, reject) => {
-      getAllKeysRequest.onsuccess = () => resolve(((getAllKeysRequest.result /*: any */) /*: Array<string> */))
-      getAllKeysRequest.onerror = () => reject(getAllKeysRequest.error)
-    })
-
-    return getAllKeysPromise
-  }
-}
-
-export function createNewSheet (jsonObjects /*: Array<Obj> */) { // FIXME -- make more specific
-  localStorage.setItem('passedSheet', JSON.stringify(jsonObjects))
-  return window.open('./Sheet.html?passedSheet')
-}
-
+// load passed sheet from IndexedDB
 export function loadPassedSheet () {
-  // load passed sheet
-  // (don't delete it, just let it get overwritten -- good for debugging, and lets user show it again)
-  const jsonString = localStorage.getItem('passedSheet')
-  if (typeof jsonString === 'string') {
-    fromJSON(jsonString)
-  }
+   StoredObjects.getPassedSheet()
+      .then((sheetJSON) => {
+         if (sheetJSON != null) {
+            fromJSONObject(sheetJSON)
+         }
+      })
 }
-
-/*
- * Convert from original Sheet JSON to current $rev$ 2
- *    Link:
- *      fromIndex -> sourceId
- *      toIndex -> destinationId
- *    Connection:
- *      useArrowhead -> hasArrowhead
- *      arrowheadSize not used?
- *    Morphism:
- *      showInjSurj -> showInjectionSurjection
- *      showDomAndCod -> showDomainAndCodomain
- *      arrowMargin was expressed in pixels, is now a percentage of the center-to-center distance
- */
-export function convertFromOldJSON (oldJSONArray /*: Array<Obj> */) /*: Array<Obj> */ {
-  const pixelsPerModelUnit = Math.min(window.innerWidth, window.innerHeight - 71)
-  for (let inx = 0; inx < oldJSONArray.length; inx++) {
-    const json = oldJSONArray[inx]
-
-    // account for padding in old wrapper, #graphic offset from window, different padding in heading
-    json.x += 10
-    json.y += 10 - SheetView.graphicRect.y - 6
-
-    // convert arrowMargin from pixels offset to percentage of center-to-center distance
-    if (json.arrowMargin !== undefined) {
-      const from = oldJSONArray[json.fromIndex]
-      const fromCenter = new THREE.Vector2(from.x + from.w / 2, from.y + from.h / 2)
-      const to = oldJSONArray[json.toIndex]
-      const toCenter = new THREE.Vector2(to.x + to.w / 2, to.y + to.h / 2)
-      const centerToCenter = fromCenter.sub(toCenter).length() * pixelsPerModelUnit
-      json.arrowMargin *= 1 / centerToCenter
-    }
-
-    // re-write fromIndex to sourceId, toIndex to destinationId
-    if (json.fromIndex !== undefined) {
-      json.sourceId = json.fromIndex + ''
-      delete json.fromIndex
-    }
-    if (json.toIndex !== undefined) {
-      json.destinationId = json.toIndex + ''
-      delete json.toIndex
-    }
-
-    // re-write useArrowhead to hasArrowhead
-    if (json.useArrowhead !== undefined) {
-      json.hasArrowhead = json.useArrowhead
-      delete json.useArrowhead
-    }
-
-    // re-write showInjSurj to showInjectionSurjection
-    if (json.showInjSurj !== undefined) {
-      json.showInjectionSurjection = json.showInjSurj
-      delete json.showInjSurj
-    }
-
-    // re-write showDomAndCod to showDomainAndCodomain
-    if (json.showDomAndCod !== undefined) {
-      json.showDomainAndCodomain = json.showDomAndCod
-      delete json.showDomAndCod
-    }
-
-    // convert node labels from MathML to HTML
-    if (json.nodes != null) {
-      for (const node of json.nodes) {
-        node.label = MathML.toHTML(node.label)
-      }
-    }
-
-    // convert old CDElement JSON
-    if (json.className === 'CDElement' && json.camera_matrix != null) {
-      const visualizer = {
-        arrowhead_placement: json.arrowhead_placement,
-        arrows: json.arrows,
-        background: json.background,
-        cameraJSON: {
-          metadata: {
-            type: 'Object'
-          },
-          object: {
-            aspect: 1,
-            far: 2000,
-            filmGauge: 35,
-            filmOffset: 0,
-            focus: 10,
-            fov: 45,
-            layers: 1,
-            matrix: json.camera_matrix,
-            near: 0.1,
-            type: 'PerspectiveCamera',
-            zoom: 1
-          }
-        },
-        cameraUp: new THREE.Vector3(...json.camera_up),
-        chunk: json.chunk,
-        color_highlights: json.color_highlights,
-        fog_level: json.fog_level,
-        groupURL: json.groupURL,
-        label_scale_factor: json.label_scale_factor,
-        line_width: json.line_width,
-        nodes: json.nodes,
-        right_multiply: json.right_multiply,
-        ring_highlights: json.ring_highlights,
-        sphere_base_radius: json.sphere_base_radius,
-        sphere_scale_factor: json.sphere_scale_factor,
-        square_highlights: json.square_highlights,
-        strategy_parameters: json.strategy_parameters,
-        zoom_level: json.zoom_level
-      }
-      json.visualizer = visualizer
-      json.isClean = false
-      delete json.arrowhead_placement
-      delete json.arrows
-      delete json.background
-      delete json.camera_matrix
-      delete json.camera_up
-      delete json.chunk
-      delete json.color_highlights
-      delete json.fog_level
-      delete json.label_scale_factor
-      delete json.line_width
-      delete json.nodes
-      delete json.right_multiply
-      delete json.ring_highlights
-      delete json.sphere_base_radius
-      delete json.sphere_scale_factor
-      delete json.square_highlights
-      delete json.strategy_parameters
-      delete json.zoom_level
-    }
-  }
-
-  return oldJSONArray
-}
-
-export const init = StoredSheets.init
