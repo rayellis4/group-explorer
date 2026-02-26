@@ -4,13 +4,13 @@
 
 ```javascript
  */
-import BitSet from './BitSet.js';
+import {BitSet} from './BitSet.js';
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js'
 
 // $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from '../lib/externals.js';
-import CayleyDiagramView from './CayleyDiagramView.js'
+import {CayleyDiagramView} from './CayleyDiagramView.js'
 
 export {
    DIRECTION_INDEX,

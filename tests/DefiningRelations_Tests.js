@@ -2,13 +2,19 @@
 
 import * as Library from '../js/Library.js'
 import * as DefiningRelations from '../js/DefiningRelations.js'
-import IsomorphicGroups from '../js/IsomorphicGroups.js'
+import {IsomorphicGroups} from '../js/IsomorphicGroups.js'
 
 await Library.loadLibrary()
 const testGroups = Array.from(Library
    .getAllGroups()
    .filter((G) => G.order != 1)
    .sort((G, H) => G.order - H.order))
+
+describe('DefiningRelations -- check Library setup', () => {
+   it('testGroups from Library should not be empty -- see setup notes in UnitTests.html', () => {
+         chai.assert.equal(testGroups.length != 0, true)
+   })
+})
 
 describe('DefiningRelations -- test group generation from presentation', () => {
    testGroups.forEach((G) => {
@@ -18,7 +24,6 @@ describe('DefiningRelations -- test group generation from presentation', () => {
    })
 })
 
-/* Used in development */
 describe('DefiningRelations -- check definitions in groups', () => {
    testGroups.forEach((G) => {
       it(`testGroupDefinition(${G.shortName}) should be true`, () => {

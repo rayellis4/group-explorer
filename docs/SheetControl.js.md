@@ -80,7 +80,7 @@ function showGroupSelect () {
    const sortedGroups = Library
       .getAllGroups()
       .sort((g, h) => g.order - h.order)
-   const groupChoices = sortedGroups.map((g) => [g.URL, g.name])
+   const groupChoices = sortedGroups.map((g) => { return {value: g.URL, label: g.name} })
    const mockSelectGroup = document.getElementById('visualizer-select-group')
    makeMockSelect(mockSelectGroup, groupChoices)
        .then(

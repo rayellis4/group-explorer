@@ -6,15 +6,15 @@
  * Used in Sheet to check that a set mapping is a homomorphism
  */
 
-import BitSet from './BitSet.js'
-import Group from './Group.js'
+import {BitSet} from './BitSet.js'
+import {Group} from './Group.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as ShowGAPCode from './ShowGAPCode.js'
 
-export {findRelations, makePresentation, generateGroupFromPresentation, GENERATED_GROUP_PREFIX}
-
 const GENERATED_GROUP_PREFIX = "data:,//GE3/generated"
+
+export {findRelations, makePresentation, generateGroupFromPresentation, GENERATED_GROUP_PREFIX}
 
 // Returns an array of relationships as an Array<Array<integer>>, in which, for example,
 //   [[1,1], [2,2,2], [1,2,1,2]] means
@@ -55,8 +55,8 @@ function findRawRelations (group /*: Group */, generators /*: Array<groupElement
         } )
     }
 
-    const uncolored = colored
-        .reduce( (edges, marks, generator) => {
+   const uncolored = colored
+       .reduce( (edges /*: Array<[groupElement, groupElement]> */, marks, generator) => {
             edges.push(...marks.clone().complement().toArray().map( (src) => [src, generator] ));
             return edges;
         }, [])
@@ -66,7 +66,7 @@ function findRawRelations (group /*: Group */, generators /*: Array<groupElement
        } )
 
     while (uncolored.length > 0) {
-        const [source, generator] = uncolored.pop();
+        const [source, generator] = ((uncolored.pop() /*: any */) /*: [groupElement, groupElement] */)
         if (colored[generator].isSet(source))
             continue;
         colored[generator].set(source);
@@ -79,7 +79,8 @@ function findRawRelations (group /*: Group */, generators /*: Array<groupElement
         // apply relator to each node
         for (const element of G.elements) {
             // apply relator
-            const [_, uncolored_edges] = relator.reduce( ([node, uncolored_edges], gen) => {
+            const [_, uncolored_edges] /*: [groupElement, Array<[groupElement, groupElement]>] */ = relator.reduce(
+              ([node, uncolored_edges], gen) => {
                 if (gen < 0) {
                     const next = G.mult(node, G.inverses[-gen]);
                     if (!colored[-gen].isSet(next))
@@ -100,10 +101,10 @@ function findRawRelations (group /*: Group */, generators /*: Array<groupElement
     return relators
 }
 
-function makePresentation (group) /*: string */ {
+function makePresentation (group /*: Group */) /*: string */ {
    const relations = findRawRelations(group)
 
-   const characterMap = relations.reduce(
+   const characterMap /*: Map<char, string> */ = relations.reduce(
       (characterMap, relator) => {
          relator.forEach((char) => {
             if (!characterMap.has(Math.abs(char))) {
@@ -135,17 +136,22 @@ cosetTable -- group element X [generator, generator inverse]; g_i * (g_j | g_j^-
  */
 function generateGroupFromPresentation (presentation /*: string */) /*: Group */ {
    const relators = presentation.split(':')[1].split(',')
-   const generators = Array.from(
+   const generators /*: Array<string> */ = Array.from(
       relators.reduce(
-         (generatorSet, relator) => {
-            for (const char of relator) {
+         (generatorSet /*: Set<string> */, relator) => {
+            for (const char of Array.from(relator)) {
                generatorSet.add(char.toLowerCase())
             }
             return generatorSet
          }, new Set()))
       .sort()
 
-   const cosetTable /*: Array<Array<element>> */ = [Array(2 * generators.length).fill(null)]
+   /*::
+   type RowType = Array<?groupElement> & {isDead: ?boolean, isFilled: ?boolean}
+   type TableType = Array<RowType>
+    */
+
+   const cosetTable /*: TableType */ = [((Array(2 * generators.length).fill(null) /*: any */) /*: RowType */)]
 
    const relationKeys = []
    for (let relatorIndex = 0; relatorIndex < relators.length; relatorIndex++) {
@@ -156,28 +162,35 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
       }
    }
 
-   const newRelation = (groupElement) => {
-      const result = Array(relationKeys.length).fill(null)
+   function newRelation (element /*: groupElement */) /*: RowType */ {
+      const result = ((Array(relationKeys.length).fill(null) /*: any */) /*: RowType */)
       for (let relatorIndex = 0, charIndex = 0;
          relatorIndex < relators.length;
          charIndex += relators[relatorIndex++].length
       ) {
-         result[charIndex] = groupElement
+         result[charIndex] = element
       }
-      result.push(groupElement)
+      result.push(element)
       return result
    }
-   const relationTable = [newRelation(0)]
 
-   function isUpperCase (char) {
+   const relationTable /*: TableType */ = [newRelation(0)]
+
+   function isUpperCase (char /*: string */) {
       return char.toUpperCase() == char
    }
 
-   function inverseIndex (index) {
+   function inverseIndex (index /*: integer */) {
       return index + ((index % 2 == 0) ? 1 : -1)
    }
 
-   function setRule (prevElement, prevGeneratorIndex, currElement, nextGeneratorIndex, nextElement) {
+   function setRule (
+      prevElement /*: ?groupElement */,
+      prevGeneratorIndex /*: integer */,
+      currElement /*: groupElement */,
+      nextGeneratorIndex /*: integer */,
+      nextElement /*: ?groupElement */
+   ) {
       const prevGeneratorInverse = inverseIndex(prevGeneratorIndex)
       const nextGeneratorInverse = inverseIndex(nextGeneratorIndex)
 
@@ -191,7 +204,7 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
       }
    }
 
-   function *cosetTableIterator() {
+   function *cosetTableIterator () {
       for (let rowIndex = 0; rowIndex < cosetTable.length; rowIndex++) {
          for (let columnIndex = 0; columnIndex < cosetTable[0].length; columnIndex++) {
             if (cosetTable[rowIndex].isDead)
@@ -201,7 +214,7 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
       }
    }
 
-   function *relationTableIterator() {
+   function *relationTableIterator () {
       for (let rowIndex = 0; rowIndex < relationTable.length; rowIndex++) {
          for (let columnIndex = 0; columnIndex < relationTable[0].length; columnIndex++) {
             if (relationTable[rowIndex].isDead)
@@ -211,7 +224,7 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
       }
    }
 
-   function *relationTableNullIterator() {
+   function *relationTableNullIterator () {
       for (let rowIndex = 0; rowIndex < relationTable.length; rowIndex++) {
          const relation = relationTable[rowIndex]
          if (relation.isFilled || relation.isDead) {
@@ -230,9 +243,9 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
          updateMade = false
          for (const [rowIndex, columnIndex] of relationTableNullIterator()) {
             const relation = relationTable[rowIndex]
-            const prevElement = relation[columnIndex - 1]
+            const prevElement = ((relation[columnIndex - 1] /*: any */) /*: groupElement */)
             const prevIndex = relationKeys[columnIndex - 1]
-            const nextElement = relation[columnIndex + 1]
+            const nextElement = ((relation[columnIndex + 1] /*: any */) /*: groupElement */)
             const nextIndex = relationKeys[columnIndex]
             const fromPrev = cosetTable[prevElement]?.[prevIndex]
             const fromNext = cosetTable[nextElement]?.[inverseIndex(nextIndex)]
@@ -289,8 +302,8 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
             if (cosetTable[inx][jnx] != null
                && cosetTable[cosetTable[inx][jnx]][inverseIndex(jnx)] != inx
             ) {
-               Log.err(
-                  `Error in DefiningRelations.generateGroupFromPresentation processing relators ${relatorString}:\n` +
+               throw new Error(
+                  `Error in DefiningRelations.generateGroupFromPresentation processing presentation ${presentation}:\n` +
                   `coset table error at row ${inx}, column ${jnx}`)
             }
          }
@@ -299,12 +312,12 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
 
    // replace all references of larger el in relations, cosetTable with reference to lower
    // mark larger el row dead, to be garbage collected at end of update
-   const mergeReferences = (el1, el2) => {
+   const mergeReferences = (el1 /*: groupElement */, el2 /*: groupElement */) => {
       const mergeQueue = []
       mergeQueue.push((el1 < el2) ? [el1, el2] : [el2, el1])
 
       while (mergeQueue.length > 0) {
-         const [low, high] = mergeQueue.pop()
+         const [low, high] = ((mergeQueue.pop() /*: any */) /*: [groupElement, groupElement] */)
          if (low == high) {
             continue
          }
@@ -327,6 +340,7 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
          for (const qElement of mergeQueue.values()) {
             qElement[0] = (qElement[0] == high) ? low : qElement[0]
             qElement[1] = (qElement[1] == high) ? low : qElement[1]
+            // $FlowExpectedError[unsupported-syntax]
             ;[qElement[0], qElement[1]] = (qElement[0] < qElement[1]) ? qElement : [qElement[1], qElement[0]]
          }
 
@@ -370,10 +384,11 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
       }
    }
 
-   const createMulttable = () => {
+   const createMulttable = (cosetTable /*: Array<Array<groupElement>> */) => {
       const order = cosetTable.length
 
-      const multtable = Array.from({length: order}, () => Array.from({length: order}, () => null))
+      const multtable /*: Array<Array<groupElement>> */ =
+         Array.from({length: order}, () => Array(order)) // .from({length: order}, () => null))
       for (let inx = 0; inx < order; inx++) {
          multtable[inx][0] = inx
       }
@@ -417,7 +432,7 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
 
       // add new row to each element of the rules, relationTable
       const newElement = cosetTable.length
-      cosetTable.push(Array(2 * generators.length).fill(null))
+      cosetTable.push(((Array(2 * generators.length).fill(null) /*: any */) /*: RowType */))
       relationTable.push(newRelation(newElement))
 
       // add new data to rules table
@@ -437,26 +452,27 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
    // convert rules to multtable, then into group
    if (relationTable.some((relation) => !relation.isFilled)) {
       checkCosetTable()
-      Log.info(`generateGroupFromPresentation failed on ${relatorString}`)
-      return null
+      throw new Error(`DefiningRelations.generateGroupFromPresentation failed on ${presentation}`)
    }
 
-   const multtable = createMulttable()
+   // cosetTable is filled, no remaining nulls
+   const kosetTable = ((cosetTable /*: any */) /*: Array<Array<groupElement>> */)
+   const multtable = createMulttable(kosetTable)
 
    const group = Group.fromMulttable(multtable)
    decorateGeneratedGroup(group, presentation)
-   group.declaredGenerators = [generators.map((_, inx) => cosetTable[0][2 * inx])]
+   group.declaredGenerators = [generators.map((_, inx) => kosetTable[0][2 * inx])]
 
    return group
 }
 
 // fill in Definition
-function decorateGeneratedGroup (group, presentation) {
+function decorateGeneratedGroup (group /*: Group */, presentation /*: string */) {
    const relators = presentation.split(':')[1].split(',')
    const generators = Array.from(
       relators.reduce(
-         (generatorSet, relator) => {
-            for (const char of relator) {
+         (generatorSet /*: Set<string> */, relator) => {
+            for (const char of new String(relator)) {
                generatorSet.add(char.toLowerCase())
             }
             return generatorSet
@@ -468,12 +484,13 @@ function decorateGeneratedGroup (group, presentation) {
       ...Library.getGroupsByOrder(group.order)
          .filter((G) => G.name.startsWith(namePrefix))
          .map((G) => G.name.slice(namePrefix.length).match(/\d/))
-   )
-   group.names[0] = namePrefix + ((nameSuffix < 0) ? '' : ` (${nameSuffix + 1})`)
+         .map((match) => parseInt(((match /*: any */) /*: RegExp$matchResult */))),
+      -1)
+   group.names[0] = namePrefix + ` (${nameSuffix + 1})`
    group.shortName = `Generated_${group.order}`
    group.gapid = `${group.order},??`
    group.library = 'generated'
-   group.Notes = `Generated from ⟨${generators.join(', ')} : ${relators.join(', ')}⟩`
+   group.notes = `Generated from ⟨${generators.join(', ')} : ${relators.join(', ')}⟩`
    group.URL = `${GENERATED_GROUP_PREFIX}?${generators.join(',')}:${relators.join(',')}`
 
    window.setTimeout(() => ShowGAPCode.getGAPInfo(group.URL), 0)
@@ -506,7 +523,7 @@ function decorateGeneratedGroup (group, presentation) {
          return translatedRelator.join('')
       })
       .join('') + '1'
-   group.definition = `⟨${formattedGenerators} : ${formattedRelators}⟩`
+         group.definition = `⟨${formattedGenerators} : ${formattedRelators}⟩`
 
    group.representations = [Array.from({length: group.order}, (_, inx) => '' + inx)]
    group.representationIndex = 0

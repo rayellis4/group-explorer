@@ -1,6 +1,50 @@
-declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js" {
+/*
+THREE modules used in 3.7rc12:
+
+AmbientLight
+ArrowHelper
+BoxGeometry
+BufferGeometry
+CanvasTexture
+Color
+Curve
+DirectionalLight
+Fog
+FrontSide
+Group
+Line
+Line3
+LineBasicMaterial
+LineCurve3
+Matrix3
+Matrix4
+Mesh
+MeshBasicMaterial
+MeshPhongMaterial
+Object3D
+ObjectLoader
+PerspectiveCamera
+Plane
+QuadraticBezierCurve3
+Quaternion
+Raycaster
+Raycasting
+Scene
+SphereGeometry
+Sprite
+SpriteMaterial
+Texture
+Vector2
+Vector3
+WebGLRenderer
+ */
+
+declare module './three-170/build/three.module.min.js' {
     declare var DoubleSide: number;
     declare var FrontSide: number;
+
+    declare class AmbientLight extends Light {
+    }
 
     declare class ArrowHelper extends Object3D {
         constructor(dir: Vector3,
@@ -21,6 +65,10 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         isBufferGeometry: boolean;
         userData: {[key: string]: any};
         dispose(): void;
+        setFromPoints(points: Array<Vector2> | Array<Vector3>): this;
+    }
+        
+    declare class InstancedBufferGeometry extends BufferGeometry {
     }
 
     declare class Camera extends Object3D {
@@ -40,14 +88,13 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         getHSL(Obj): {h: number, s: number, l: number};
         set(value: Color | string | number): Color;
     }
-
     declare class Curve {
         getLength(): number;
         getPointAt(u: number): Vector3;
         getPoints(divisions: number): Array<Vector3>;
     }
 
-    declare class DirectionalLight extends Object3D {
+    declare class DirectionalLight extends Light {
     }
 
     declare class Fog {
@@ -59,7 +106,7 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
 
     declare class Geometry {
         isGeometry: boolean;
-        parameters: {radius: float} & any;  /* is really subclass property -- SphereGeometry */
+        parameters: any;  /* left as subclass property -- see SphereGeometry */
         uvsNeedUpdate: boolean;
         vertices: Array<Vector3>;
         verticesNeedUpdate: boolean;
@@ -71,11 +118,15 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         isGroup: boolean;
     }
 
+    declare class Light extends Object3D {
+        constructor(color: number | Color | string, intensity: number): void;
+    }
+
     declare class Line extends Object3D {
-        constructor(geometry: Geometry, material: LineBasicMaterial): void;
-        geometry: Geometry;
+        constructor(geometry: BufferGeometry, material: Material): void;
+        geometry: BufferGeometry;
         isLine: boolean;
-        material: LineBasicMaterial;
+        material: Material;
     }
 
     declare class Line3 {
@@ -102,9 +153,11 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         opacity?: number;
         side?: typeof FrontSide;
         transparent?: boolean;
+        ...
     }
 
     declare class Material {
+        clone(): this;
         depthTest: boolean;
         depthWrite: boolean;
         isLineBasicMaterial: boolean | void;
@@ -119,7 +172,8 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
 
     declare class Matrix3 {
         elements: Array<number>;
-        getInverse(m: Matrix3): Matrix3;
+        clone(): this;
+        invert(): this;
         multiply(m: Matrix3): Matrix3;
         set(n11: number, n12: number, n13: number,
             n21: number, n22: number, n23: number,
@@ -132,13 +186,15 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         decompose(position: Vector3, quaternion: Quaternion, scale: Vector3): void;  /* ?? */
         fromArray(array: Array<number>): Matrix4;
         getInverse(m: Matrix4): Matrix4;
+        identity(): this;
         makeBasis(xAxis: Vector3, yAxis: Vector3, zAxis: Vector3): Matrix4;
         makeRotationX(theta: number): Matrix4;
         makeRotationY(theta: number): Matrix4;
         makeRotationZ(theta: number): Matrix4;
         makeScale(x: number, y: number, z: number): Matrix4;
-        makeTranslation(x: number, y: number, z: number): Matrix4;
-        multiply(m: Matrix4): Matrix4;
+        makeTranslation(x: number | Vector3, y?: number, z?: number): Matrix4;
+        multiply(m: Matrix4): this;
+        premultiply(m: Matrix4): this;
         set(n11: number, n12: number, n13: number, n14: number,
             n21: number, n22: number, n23: number, n24: number,
             n31: number, n32: number, n33: number, n34: number,
@@ -154,14 +210,24 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         material: Material;
     }
 
-    declare type MeshBasicMaterialParameters = MaterialParameters & { color?: Color | string | number; }
+    declare type MeshBasicMaterialParameters = {
+       ...MaterialParameters,
+       color?: Color | string | number,
+       ...
+    }
 
     declare class MeshBasicMaterial extends Material {
         constructor(parameters?: MeshBasicMaterialParameters): void;
         color: Color;
     }
 
-    declare type MeshPhongMaterialParameters = MaterialParameters & { color?: Color | string | number; }
+declare type MeshPhongMaterialParameters = {
+       ...MaterialParameters,
+       color?: Color | string | number,
+       shininess?: number,
+       specular?: Color | string | number,
+       ...
+    }
 
     declare class MeshPhongMaterial extends Material {
         constructor(parameters?: MeshPhongMaterialParameters): void;
@@ -202,8 +268,10 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
 
     declare class Plane {
         constructor(): void;
+        applyMatrix4(matrix: Matrix4, optionalNormalMatrix?: Matrix4): this;
         normal: Vector3;
         intersectLine(line: Line3, target: Vector3): Vector3;
+        projectPoint(point: Vector3, target: Vector3): Vector3;
         setFromCoplanarPoints(a: Vector3, b: Vector3, c: Vector3): Plane;
         setFromNormalAndCoplanarPoint(normal: Vector3, point: Vector3): Plane;
     }
@@ -213,7 +281,8 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
     }
 
     declare class Quaternion {
-        constructor(x: number, y: number, z: number, w: number): void;
+        constructor(x?: number, y?: number, z?: number, w?: number): void;
+        setFromUnitVectors(vFrom: Vector3, vTo: Vector3): this;
     }
 
     declare class Ray {
@@ -243,6 +312,7 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
             radius: float;
             widthSegments: number;
             heightSegments: number;
+            ...
         };
     }
 
@@ -280,6 +350,7 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         clone(): Vector2;
         distanceTo(v: Vector2): float;
         length(): float;
+        multiply(v: Vector2): Vector2;
         multiplyScalar(s: float): Vector2;
         normalize(): Vector2;
         set(x: number, y: number): Vector2;
@@ -297,6 +368,7 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         addVectors(a: Vector3, b: Vector3): Vector3;
         applyMatrix3(m: Matrix3): Vector3;
         applyMatrix4(m: Matrix4): Vector3;
+        applyQuaternion(q: Quaternion): this;
         clone(): Vector3;
         copy(v: Vector3): Vector3;
         cross(v: Vector3): Vector3;
@@ -312,7 +384,11 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
         project(camera: Camera): Vector3;
         projectOnVector(v: Vector3): Vector3;
         set(x: float, y: float, z: float): Vector3;
+        setComponent(index: number, value: number): Vector3;
+        setFromMatrixColumn(m: Matrix4, index: number): Vector3;
+        setFromMatrixScale(m: Matrix4): Vector3;
         sub(v: Vector3): Vector3;
+        subVectors(a: Vector3, b: Vector3): Vector3;
         toArray(): Array<float>;
     }
 
@@ -332,8 +408,8 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/build/three.module.js
     }
 }
 
-
-declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/examples/jsm/controls/TrackballControls.js" {
+declare module './three-170/examples/jsm/controls/TrackballControls.js' {
+    import type {Camera} from './three-170/build/three.module.min.js'
     declare class TrackballControls {
         constructor(Camera, HTMLElement): void;
         dynamicDampingFactor: float;
@@ -341,18 +417,24 @@ declare module "https://cdn.jsdelivr.net/npm/three@0.116.1/examples/jsm/controls
     }
 }
 
-declare module 'https://cdn.jsdelivr.net/npm/three@0.116.1/examples/jsm/lines/Line2.js' {
+declare module './three-170/examples/jsm/lines/Line2.js' {
+    import {Mesh, Material} from './three-170/build/three.module.min.js'
+    import {LineGeometry} from './three-170/examples/jsm/lines/LineGeometry.js'
+    import type {LineMaterial} from './three-170/examples/jsm/lines/LineMaterial.js'
     declare class Line2 extends Mesh {
-        constructor(geometry: LineGeometry, material: LineMaterial): void;
-        material: LineMaterial;
+        constructor(geometry: LineGeometry, material: Material): void;
+        material: Material;  // really should be LineMaterial
     }
 }
 
-declare module 'https://cdn.jsdelivr.net/npm/three@0.116.1/examples/jsm/lines/LineMaterial.js' {
+declare module './three-170/examples/jsm/lines/LineMaterial.js' {
+    import {Material} from './three-170/build/three.module.min.js'
+    import type {Color, Vector2} from './three-170/build/three.module.min.js'
     declare class LineMaterial extends Material {
         constructor(parameters: ?LineMaterialParameters): void;
-        color: Color | string | number;
+        color: Color;
         linewidth: float;
+        resolution: Vector2;
     }
 
     declare type LineMaterialParameters = {
@@ -362,9 +444,9 @@ declare module 'https://cdn.jsdelivr.net/npm/three@0.116.1/examples/jsm/lines/Li
     }
 }
 
-declare module 'https://cdn.jsdelivr.net/npm/three@0.116.1/examples/jsm/lines/LineGeometry.js' {
+declare module './three-170/examples/jsm/lines/LineGeometry.js' {
+    import {InstancedBufferGeometry} from './three-170/build/three.module.min.js'
     declare class LineGeometry extends InstancedBufferGeometry {
         setPositions(Array<float>): this;
     }
 }
-

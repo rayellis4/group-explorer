@@ -4,15 +4,15 @@
 
 ```javascript
  */
-import BitSet from './BitSet.js';
+import {BitSet} from './BitSet.js';
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js'
 
 import {THREE} from '../lib/externals.js';
 import CayleyDiagramView from './CayleyDiagramView.js'
 /*::
-import Group from './Group.js'
-import Subgroup from './Subgroup.js'
+import {Group} from './Group.js'
+import {Subgroup} from './Subgroup.js'
 import type {XMLCayleyDiagram} from './XMLGroup.js';
 import type {NodeData, ArrowData, ChunkData} from './CayleyDiagramView.js';
 import {CayleyDiagramViewOptions} from './CayleyDiagramView.js'

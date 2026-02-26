@@ -1,7 +1,7 @@
 // @flow
 // math functions
 
-import BitSet from './BitSet.js'
+import {BitSet} from './BitSet.js'
 
 const primeList /*: BitSet */ = new BitSet(200,
   [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41,

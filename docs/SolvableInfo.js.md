@@ -9,9 +9,9 @@ graph, on a [Sheet](./Sheet.html.md).
 ```javascript
  */
 import {DEFAULT_SPHERE_COLOR} from './AbstractDiagramDisplay.js'
-import BitSet from './BitSet.js'
+import {BitSet} from './BitSet.js'
 import * as GEUtils from './GEUtils.js'
-import IsomorphicGroups from './IsomorphicGroups.js'
+import {IsomorphicGroups} from './IsomorphicGroups.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as SheetModel from './SheetModel.js'
@@ -19,7 +19,7 @@ import * as SheetModel from './SheetModel.js'
 export {display}
 
 /*::
-import Group from './Group.js';
+import {Group} from './Group.js';
 
 import type {
     JSONType,
@@ -203,13 +203,9 @@ function getDetailedSolvableDecomposition ( G /*: Group */) /*: ?Array<GroupWith
         const H = G.subgroups[i];
         if ( H.order == 1 ) continue;
         if ( H.order == G.order ) continue;
-        if ( !G.isNormal( H ) ) continue;
-        var pair = IsomorphicGroups.findEmbedding( G, H );
-        if ( !pair ) continue;
-        const [ N, e ] = pair;
-        pair = IsomorphicGroups.findQuotient( G, H );
-        if ( !pair ) continue;
-        const [ Q, q ] = pair;
+        if ( !H.isNormal ) continue;
+        const [ N, e ] = IsomorphicGroups.findEmbedding( G, H );
+        const [ Q, q ] = IsomorphicGroups.findQuotient( G, H );
         if ( !Q.isAbelian ) continue;
         const D = getDetailedSolvableDecomposition( N );
         if ( !D ) continue;

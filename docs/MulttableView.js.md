@@ -36,17 +36,19 @@ Sheet functions:
     toJSON/fromJSON (putToJSON/setFromJSON)
 */
 
-import BitSet from './BitSet.js'
+import {BitSet} from './BitSet.js'
 import * as GEUtils from './GEUtils.js';
 import * as SheetEditor from './SheetEditor.js'
 
-// $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from '../lib/externals.js';
 
-export {MulttableView, createMinimalMulttableView, createFullMulttableView}
+export {createMinimalMulttableView, createFullMulttableView}
 /*::
+import {Group} from './Group.js'
+import {Subgroup} from './Subgroup.js'
 import type {Tree} from './GEUtils.js';
 import {VizDisplay} from './SheetModel.js';
+import type {Highlightable, Highlighter, HighlightControlJSON} from './HighlightControl.js'
 
 export type Coloration = 'rainbow' | 'grayscale' | 'none';
 export type ColorReordering = 'topRowFixed' | 'elementColorsFixed';
@@ -58,17 +60,13 @@ export type MulttableJSON = {
    organizingSubgroup: number,
    coloration: Coloration,
    colorReordering: ColorReordering,
-   highlights: {
-      background: void | Array<color>,
-      border: void | Array<color | void>,
-      corner: void | Array<color | void>
-   }
+   highlightColors: Array<Array<color>>,
+   highlightControl: ?HighlightControlJSON,
 }
 
 type MulttableViewOptions = {
-   container?: JQuery,
-   width?: number,
-   height?: number,
+   container?: HTMLElement,
+   group?: Group
 };
 */
 
@@ -81,46 +79,38 @@ const DEFAULT_BACKGROUND = '#E5E5E5';
 const HIGHLIGHT_BACKGROUND = 0
 const HIGHLIGHT_BORDER = 1
 const HIGHLIGHT_CORNER = 2
-const highlightNames = {
-   HIGHLIGHT_BACKGROUND: 'background',
-   HIGHLIGHT_BORDER: 'border',
-   HIGHLIGHT_CORNER: 'corner'
-}
+const highlightNames = ['background', 'border', 'corner']
 
-class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
-/*::
-    is_minimal_view: boolean;
+export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
+   backgrounds /*: void | Array<color> */
+   borders /*: void | Array<color | void> */
+   canvas /*: HTMLCanvasElement */
+   _colorReordering /*: ColorReordering */
+   _coloration /*: Coloration */
+   _colors /*: ?Array<color> */
+   context /*: CanvasRenderingContext2D */
+   corners /*: void | Array<color | void> */
+   elements /*: Array<groupElement> */
+   _group /*: Group */
+   highlightColors /*: Array<Array<color>> */ = [[], [], []]
+   highlightControl /*: ?HighlightControlJSON */ = null
+   is_minimal_view /*: boolean */
+   labelCache /*: Array<HTMLCanvasElement> */
+   options /*: MulttableViewOptions */
+   organizingSubgroup /*: number */
+   permutationLabels /*: void | Array<void | Array<string>> */
+   _separation /*: number */
+   show_request /*: boolean */
+   transform /*: THREE.Matrix3 */
+   translate /*: {dx: number, dy: number} */
+   zoomFactor /*: number */
 
-    canvas: HTMLCanvasElement;
-    context: CanvasRenderingContext2D;
-    zoomFactor: number;
-    translate: {dx: number, dy: number};
-    transform: THREE.Matrix3;
-    permutationLabels: void | Array<void | Array<string>>;
-
-    _group: Group;
-    elements: Array<groupElement>;
-    _separation: number;
-    organizingSubgroup: number;
-    _coloration: Coloration;
-    _colorReordering: ColorReordering;
-    _colors: ?Array<color>;
-    backgrounds: void | Array<color>;
-    borders: void | Array<color | void>;
-    corners: void | Array<color | void>;
-
-    show_request: boolean;
-
-    labelCache: Array<HTMLCanvasElement>
- */
    constructor (options /*: MulttableViewOptions */ = {}) {
         this.canvas = ((document.createElement(`canvas`) /*: any */) /*: HTMLCanvasElement */)
         const container = options.container  || document.createElement('div')
-        if (!(container instanceof HTMLElement))  // container must be JQuery
-            container = container[0]              // convert to HTMlElement
         container.appendChild(this.canvas)
-        let width = options.width || container.offsetWidth || DEFAULT_CANVAS_WIDTH
-        let height = options.height || container.offsetHeight || DEFAULT_CANVAS_HEIGHT
+        let width = container.offsetWidth || DEFAULT_CANVAS_WIDTH
+        let height = container.offsetHeight || DEFAULT_CANVAS_HEIGHT
         this.setSize( width, height );
         this.context = this.canvas.getContext('2d');
         this.options = options;
@@ -141,7 +131,8 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         return {w: this.canvas.width, h: this.canvas.height};
     }
 
-    set size ({w, h} /*: {w: number, h: number} */) {
+    set size (newSize /*: {w: number, h: number} */) {
+       const {w, h} = newSize
         if (this.canvas.width != w || this.canvas.height != h) {
             this.canvas.width = Math.round(w)
             this.canvas.height = Math.round(h)
@@ -158,8 +149,8 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     }
 
     resize () {
-        if (this.canvas.parentNode != null) {
-           const {width, height} = this.canvas.parentNode.getBoundingClientRect()
+        if (this.canvas.parentElement != null) {
+           const {width, height} = this.canvas.parentElement.getBoundingClientRect()
            this.size = {w: width, h: height};
         }
     }
@@ -195,7 +186,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     // Simple graphic has no grouping, no labels, fits canvas exactly
     drawSimpleView () {
-        const frac = (inx, max) => Math.round(max * inx / this.group.order);
+        const frac = (inx /*: number */, max /*: number */) => Math.round(max * inx / this.group.order);
         const colors = this.colors;
 
         const width = this.canvas.width;
@@ -320,9 +311,10 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
                 this.labelCache = []
             }
 
-           this.canvas.parentElement.insertAdjacentHTML('beforeend', `<div id="scratchId" style="position: absolute;
+           const canvasParent = (this.canvas.parentElement /*:: as any as HTMLElement */)
+           canvasParent.insertAdjacentHTML('beforeend', `<div id="scratchId" style="position: absolute;
                textAlign: center; width: auto; height: auto; top: 0; z-index: -1; font-size: ${fontSize}px"></div>`)
-           scratch = this.canvas.parentElement.querySelector('#scratchId')
+           scratch = (canvasParent.querySelector('#scratchId') /*:: as any as HTMLElement */)
         }
 
         for (let inx = minX; inx < maxX; inx++) {
@@ -331,7 +323,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
                 const y = this.position(jnx);
                 const product = this.group.mult(this.elements[jnx], this.elements[inx]);
                 if (this.permutationLabels == null) {
-                    this._drawLabel(x, y, product, scale, fontSize, scratch)
+                    this._drawLabel(x, y, product, scale, fontSize, (scratch /*:: as any as HTMLElement */))
                 } else {
                     this._drawPermutationLabel(x, y, product, scale, fontSize);
                 }
@@ -373,16 +365,24 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.context.fill();
     }
 
-    _drawLabel (x /*: number */, y /*: number */, element /*: number */, scale /*: number */, fontScale /*: number */, scratch) {
+    _drawLabel (
+        x /*: number */,
+        y /*: number */,
+        element /*: number */,
+        scale /*: number */,
+        fontScale /*: number */,
+        scratch /*: HTMLElement */
+    ) {
         const label = this.group.representation[element];
 
         if (this.labelCache[element] == null) {
             scratch.innerHTML = label
 
-            this.canvas.parentElement.insertAdjacentHTML('beforeend',
+            const canvasParent = (this.canvas.parentElement /*:: as any as HTMLElement */)
+            canvasParent.insertAdjacentHTML('beforeend',
                 `<canvas id="dummy-canvas" width=${scale} height=${scale} style="position: absolute; top: 0;
                 left: 0; width: ${scale}; height: ${scale}; z-index: -1"></canvas>`)
-            const canvas = this.canvas.parentElement.querySelector('#dummy-canvas')
+           const canvas = (canvasParent.querySelector('#dummy-canvas') /*:: as any as HTMLCanvasElement */)
 
             const labelCenter = new THREE.Vector2(scale / 2, scale / 2)
             GEUtils.htmlToContext(scratch, canvas.getContext('2d'), labelCenter)
@@ -396,7 +396,13 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.context.drawImage(source, ...destLocation.toArray())
     }
 
-    _drawPermutationLabel (x /*: number */, y /*: number */, element /*: number */, scale /*: number */, fontScale /*: number */) {
+    _drawPermutationLabel (
+        x /*: number */,
+        y /*: number */,
+        element /*: number */,
+        scale /*: number */,
+        fontScale /*: number */
+    ) {
         const width = (text /*: string */) => (text === undefined) ? 0 : this.context.measureText(text).width;
 
         const label = this.group.representation[element];
@@ -455,7 +461,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.translate = {dx: 0, dy: 0};
     }
 
-    zoom (factor /*: number */) {
+    zoom (factor /*: number */) /*: this */{
         this.queueShowGraphic();
         this.zoomFactor = this.zoomFactor * factor;
         this.move(this.translate.dx * (factor - 1), this.translate.dy * (factor - 1));  // keep model centered in canvas
@@ -464,7 +470,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     }
 
     // deltaX, deltaY are in screen coordinates
-    move (deltaX /*: number */, deltaY /*: number */) {
+   move (deltaX /*: number */, deltaY /*: number */) /*: this */ {
         this.translate.dx += deltaX;
         this.translate.dy += deltaY;
         return this;
@@ -481,7 +487,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     // Be able to answer the question of where in the diagram any given element is drawn.
     // We answer in normalized coordinates, [0,1]x[0,1].
-    unitSquarePosition (element /*: number */) {
+    unitSquarePosition (element /*: groupElement */) /*: {x: number, y: number} */ {
         const max = this.position( this.group.order - 1 ) + 1;
         const index = this.elements.indexOf( element );
         return { x: 0.5 / max, y: ( this.position( index ) + 0.5 ) / max };
@@ -500,7 +506,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     ////////////////////////////////////////////////////////////////////////////////
 
-    get group () {
+   get group () /*: Group */ {
         return this._group;
     }
 
@@ -527,7 +533,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.queueShowGraphic();
 
         // returns an Array of the group elements organized by subgroup cosets
-        function org (group, subgroup) {
+        function org (group /*: Group */, subgroup /*: Subgroup */) /*: Array<groupElement> */{
             // find the largest proper subgroup of subgroup that is normal in subgroup
             const subSubGroups = subgroup.isomorphicGroup.subgroups
             const largestNormalSubgroup = subSubGroups
@@ -541,10 +547,10 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
             // order group by subgroup
             const result = group
-                .getCosets(new BitSet(group.order, subgroupElementArray), false)
-                .map((coset) => coset.first())
-                .map((rep) => subgroupElementArray.map((el) => group.mult(el, rep)))
-                .flat()
+               .getCosets(new BitSet(group.order, subgroupElementArray), false)
+               .map((coset) => (coset.first() /*:: as any as groupElement */))
+               .map((rep) => subgroupElementArray.map((el) => group.mult(el, rep)))
+               .flat()
 
             return result
         }
@@ -554,7 +560,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this._colors = null;
     }
 
-    get separation () {
+    get separation () /*: number */ {
         if (this._separation == undefined) {
             this._separation = 0;
         }
@@ -573,21 +579,22 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         } else if (this._colors != undefined) {
             result = this._colors;
         } else {
-            const frac = (inx, max, min) => Math.round(min + inx * (max - min) / this.group.order);
+            const frac = (inx /*: number */, max /*: number */, min /*: number */) =>
+                Math.round(min + inx * (max - min) / this.group.order)
 
             let fn;
             switch (this.coloration) {
             case 'rainbow':
-                fn = (inx) => GEUtils.fromRainbow(frac(inx, 100, 0)/100);
+                fn = (inx /*: number */) => GEUtils.fromRainbow(frac(inx, 100, 0)/100);
                 break;
             case 'grayscale':
-                fn = (inx) => {
+                fn = (inx /*: number */) => {
                     const lev = frac(inx, 255, 60);  // start at 60 (too dark and you can't see the label)
                     return `rgb(${lev}, ${lev}, ${lev})`;
                 };
                 break;
             case 'none':
-                fn = (inx) => DEFAULT_BACKGROUND;
+                fn = (inx /*: number */) => DEFAULT_BACKGROUND;
                 break;
             }
 
@@ -617,7 +624,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
       return this._colorReordering
     }
 
-    set colorReordering (colorReordering /*: ColorReordering */) {
+    set colorReordering (colorReordering /*: ColorReordering */) /*: ColorReordering */ {
       this.queueShowGraphic()
       this._colorReordering = colorReordering
       this._colors = null
@@ -625,7 +632,9 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     }
 
     get stride () /*: number */ {
-        return (this.organizingSubgroup == undefined) ? this.group.order : this.group.subgroups[this.organizingSubgroup].order;
+       return (this.organizingSubgroup == undefined)
+          ? this.group.order
+          : this.group.subgroups[this.organizingSubgroup].order;
     }
 
     get table_size () /*: number */ {
@@ -634,7 +643,7 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
     swap (i /*: number */, j /*: number */) {
         this.queueShowGraphic();
-        // $FlowFixMe: Flow doesn't understand this sort of deconstructing
+        // $FlowExpectedError[unsupported-syntax]
         [this.elements[i], this.elements[j]] = [this.elements[j], this.elements[i]];
         this._colors = null;
     }
@@ -660,17 +669,16 @@ class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
      *   if n colors are needed just start with hsl(0,100%,80%) and move 360/n for each new color
      */
 
-    getAllHighlighters() {
-       const highlighters = Object.entries(highlightNames)
-          .map(([typeString, name]) => {
-             const highlighter = (elementColors) => {
+    getAllHighlighters () /*: Array<Highlighter> */ {
+        const highlighters = highlightNames
+          .map((name, inx) => {
+             const highlighter /*: Highlighter */ = (elementColors)  => {
                 this.queueShowGraphic()
-                this.highlightColors[eval(typeString)] = elementColors
+                this.highlightColors[inx] = elementColors
              }
              highlighter.label = name
              return highlighter
           })
-
        return highlighters
     }
 
@@ -731,8 +739,5 @@ function createMinimalMulttableView (options /*: MulttableViewOptions */ = {}) /
 function createFullMulttableView (options /*: MulttableViewOptions */ = {})  /*: MulttableView */ {
     const view = new MulttableView(options);
     view.is_minimal_view = false;
-    if (options.json != null) {
-        view.fromJSON(options.json)
-    }
     return view;
 }

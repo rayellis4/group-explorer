@@ -4,7 +4,7 @@ import {createCayleyDiagramGenerator} from './CayleyDiagramGenerator.js'
 import * as CayleyDiagramViewUI from './CayleyDiagramViewUI.js'
 import * as CayleyDiagramControl from './CayleyDiagramControl.js'
 import * as CayleyViewControl from './CayleyViewControl.js'
-import * as ControlPanel from './ControlPanel.js'
+import {ControlPanel} from './ControlPanel.js'
 import * as Heading from './Heading.js'
 import * as HighlightControl from './HighlightControl.js'
 import * as Library from './Library.js'
@@ -42,64 +42,48 @@ async function load () {
    const graphicElement = document.getElementById('graphic')
    const cayleyDiagramGenerator = createCayleyDiagramGenerator({display_labels: true, container: graphicElement})
    const cayleyDiagramView = cayleyDiagramGenerator.cayleyDiagramView
+   cayleyDiagramView.cayleyDiagramGenerator = cayleyDiagramGenerator  // $FixMe
 
    // Draw CayleyDiagram
    const hrefURL =  new URL(window.location.href)
-   const groupURL = hrefURL.searchParams.get('groupURL')
    cayleyDiagramGenerator.group = group
 
-   // Find Cayley diagram (if it is specified)
-   const diagramName = hrefURL.searchParams.get('diagram')
+   // Get specified Cayley diagram if location URL contains one
+   let diagramName = hrefURL.searchParams.get('diagram')
    if (   diagramName != null
-      && group.cayleyDiagrams.find((cayleyDiagram) => (cayleyDiagram.name == diagramName)) == undefined) {
-         Log.err(`group ${group.shortName} has no Cayley diagram named ${diagramName} -- generating diagram instead`)
-         diagramName = null
-      }
+      && group.cayleyDiagrams.find((cayleyDiagram) => (cayleyDiagram.name == diagramName)) == undefined
+   ) {
+      Log.err(`group ${group.shortName} has no Cayley diagram named ${diagramName} -- generating diagram instead`)
+      diagramName = null
+   }
 
-   cayleyDiagramGenerator.drawFromModel(diagramName)
-
-   // Add gestures
-   CayleyDiagramViewUI.addGestures(cayleyDiagramView)
-
-   // Create Control Panel
-   const controlPanelElement = document.getElementById('control-panel')
-   ControlPanel.addPanel(controlPanelElement)
-
-   // Initialize HighlightControl
-   const highlightControlElement = document.getElementById('highlight-control')
-   HighlightControl.addControl(highlightControlElement, cayleyDiagramView)
-
-   // Create view control
-   const cayleyViewControlElement = document.getElementById('cayley-view-control')
-   CayleyViewControl.addControl(cayleyViewControlElement, cayleyDiagramView)
-
-   // Create diagram control
-   const cayleyDiagramControlElement = document.getElementById('cayley-diagram-control')
-   CayleyDiagramControl.addControl(cayleyDiagramControlElement, cayleyDiagramGenerator)
-
-   // Listen for window resize and resize visualizer
-   window.addEventListener('resize', () => cayleyDiagramView.resize())
-
-   // Set up change broadcast (if this page is an editor for a sheet)
+   // Initialize from passedJSON if this page is an editor for a sheet
    if (window.location.href.includes('SheetEditor=true')) {
       // Draw CayleyDiagram
       const initialJSON = await SheetEditor.getInitialData()
-      if (group.URL != Library.getGroupByURL(initialJSON.groupURL).URL) {
+      if (group.URL != Library.getGroupByURL(initialJSON.groupURL)?.URL) {
          Log.err('group from URL does not match group in editor initialization message')
       }
 
       cayleyDiagramGenerator.fromJSON(initialJSON)
-      HighlightControl.initializeHighlights()
-      
+
       cayleyDiagramGenerator.cayleyDiagramView.resize()  // need to fix initial aspect ratio when editing
-      SheetEditor.enableChangeBroadcast(() => {
-         const viewJSON = cayleyDiagramGenerator.toJSON()
-         const highlightControlJSON = HighlightControl.toJSON()
-         viewJSON.highlightControl = highlightControlJSON
-         return viewJSON
-      })
-      window.setInterval(() => SheetEditor.broadcastChange(), 1000)  // There's got to be a better way...
+      window.setInterval(() => SheetEditor.broadcastChange(), 1000)  // There's got to be a better way than polling...
+   } else {
+      cayleyDiagramGenerator.drawFromModel(diagramName)
    }
+
+   // Add gestures
+   CayleyDiagramViewUI.addGestures(cayleyDiagramView)
+
+   // Create Control Panel, initialize controllers
+   ControlPanel.addPanel(document.getElementById('control-panel'))
+   HighlightControl.addControl(document.getElementById('highlight-control'), cayleyDiagramView)
+   CayleyViewControl.addControl(document.getElementById('cayley-view-control'), cayleyDiagramView)
+   CayleyDiagramControl.addControl(document.getElementById('cayley-diagram-control'), cayleyDiagramGenerator)
+
+   // Listen for window resize and resize visualizer
+   window.addEventListener('resize', () => cayleyDiagramView.resize())
 }
 
 function insertHTML () {

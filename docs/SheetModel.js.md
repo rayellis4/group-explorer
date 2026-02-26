@@ -7,17 +7,17 @@ The Model parrt of the Sheet Model-View-Control structure
 ```javascript
  */
 
-import { createLabelledCycleGraphView } from './CycleGraphView.js'
-import { createFullMulttableView } from './MulttableView.js'
+import {createLabelledCycleGraphView} from './CycleGraphView.js'
+import {createFullMulttableView} from './MulttableView.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
-import { Mapping } from './Mapping.js'
+import {Mapping} from './Mapping.js'
 import * as MathML from './MathML.js'
 import * as SheetModelEditors from './SheetModelEditors.js'
 import * as SheetView from './SheetView.js'
 import * as StoredObjects from './StoredObjects.js'
-import { THREE } from '../lib/externals.js'
-import { createCayleyDiagramGenerator } from './CayleyDiagramGenerator.js'
+import {THREE} from '../lib/externals.js'
+import {createCayleyDiagramGenerator} from './CayleyDiagramGenerator.js'
 
 const DEFAULT = {
   NodeElement: {
@@ -67,10 +67,10 @@ const DEFAULT = {
 }
 
 /*::
-import { CayleyDiagramView } from './CayleyDiagramView.js'
-import { CycleGraphView } from './CycleGraphView.js'
-import { MulttableView } from './MulttableView.js'
-import Group from './Group.js';
+import {CayleyDiagramView} from './CayleyDiagramView.js'
+import {CycleGraphView} from './CycleGraphView.js'
+import {MulttableView} from './MulttableView.js'
+import {Group} from './Group.js';
 
 export type VisualizerName = 'CDElement' | 'CGElement' | 'MTElement';
 
@@ -81,15 +81,16 @@ export type ClassName =
     | 'ConnectingElement'
     | 'MorphismElement';
 
-export interface VizDisplay<VizDispJSON> {
-   group: any;
-   +getSize: any;
-   +setSize: any;
-   +getImage: any;
-   +toJSON: any;
-   +fromJSON: any;
-   +unitSquarePosition: any;
+export interface VizDisplay<VisDispJSON> {
+   group: Group;
+   getSize(): {w: number, h: number};
+   setSize(w: number, h: number): void;
+   getImage(): Image;
+   toJSON(): VizDispJSON;
+   fromJSON(VizDispJSON): void;
+   unitSquarePosition(groupElement): {x: float, y: float};
 };
+
 export type VisualizerElementJSON = any;
 export type JSONType = any;
 export type SheetElementJSON = any;

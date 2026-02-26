@@ -1,8 +1,14 @@
 <!DOCTYPE html>
+<!-- Setup:
+     Create link to this file in its parent directory, sibliing to GroupExplorer.html, and run from there
+     To run DefiningRelations tests run GroupExplorer.html as usual to fill local storage group library
+-->
 <html>
    <head>
       <title>GE3 Unit Tests</title>
       <meta charset="UTF-8">
+      <meta name="GE3-GITVersion" content="3.7rc12" />
+
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mocha/10.2.0/mocha.min.css">
       <style>
        body {
@@ -187,13 +193,13 @@
       <script type="module">
        // Unit Tests
        //   Run GE3 first to load javascript, group definitions into browser
-       import * as BitSet_Tests from './BitSet_Tests.js'  // Deepseek
-       import * as GEUtils_Tests from './GEUtils_Tests.js'
-       import * as MathUtils_Tests from './MathUtils_Tests.js'
-       import * as DefiningRelations_Tests from './DefiningRelations_Tests.js'
-       import * as BitSet_Tests2 from './BitSet_Tests_2.js'  // Claude Sonnet 4.5
-       import * as Group_Tests from './Group_Tests.js'  // Claude Sonnet 4.5
-       import * as Subgroup_Tests from './Subgroup_Tests.js'  // Claude Sonnet 4.5
+       import * as BitSet_Tests from './tests/BitSet_Tests.js'  // Deepseek
+       import * as GEUtils_Tests from './tests/GEUtils_Tests.js'
+       import * as MathUtils_Tests from './tests/MathUtils_Tests.js'
+       import * as DefiningRelations_Tests from './tests/DefiningRelations_Tests.js'
+       import * as BitSet_Tests2 from './tests/BitSet_Tests_2.js'  // Claude Sonnet 4.5
+       import * as Group_Tests from './tests/Group_Tests.js'  // Claude Sonnet 4.5
+       import * as Subgroup_Tests from './tests/Subgroup_Tests.js'  // Claude Sonnet 4.5
 
        mocha.run()
       </script>

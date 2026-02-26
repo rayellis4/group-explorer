@@ -24,8 +24,8 @@
 
 import * as AutoUpgradeManifest from './AutoUpgradeManifest.js'
 import * as DefiningRelations from './DefiningRelations.js'
-import Group from './Group.js'
-import IsomorphicGroups from './IsomorphicGroups.js'
+import {Group} from './Group.js'
+import {IsomorphicGroups} from './IsomorphicGroups.js'
 import * as Log from './Log.js'
 import * as StoredObjects from './StoredObjects.js'
 import * as XMLGroup from './XMLGroup.js'
@@ -44,11 +44,10 @@ export {
 
 /*::
 import type { MSG_loadGroup } from './SheetModel.js'
-import type { XMLGroupJSON, BriefXMLGroupJSON } from './XMLGroup.js'
-import type { GroupJSON } from './Group.js'
+export type libraryType = {[key: string]: Group}
 */
 
-let library
+let library /*: libraryType */ = {}
 
 async function loadLibrary () {
    library = await getStoredGroups()
@@ -59,26 +58,25 @@ function absoluteURL (url /*: string */) /*: string */ {
    return new URL(url, window.location.href).href
 }
 
-function dataToGroup (data /*: any */, contentType /*: ?string */) /*: void | Group */ {
+function dataToGroup (data /*: any */, contentType /*: string */ = '') /*: Group */ {
   let group /*: Group */
-  if (typeof data === 'string') {
-     if (data.startsWith('{')) {
-        group = Group.fromGroupFileJSON(JSON.parse(data))
-     } else if (data.startsWith('<!DOCTYPE groupexplorerml>')) {
-        group = XMLGroup.fromGroupFileXML(data)
-     } else {
-        throw (new Error('Unrecognizable data passed to Library:dataToGroup'))
-     }
-  } else if (contentType != null && contentType.includes('xml')) {
-     group = XMLGroup.fromGroupFileXML(data)
-  } else if (contentType != null && contentType.includes('json')) {
+  if (typeof data === 'string' && data.startsWith('{')) {
      group = Group.fromGroupFileJSON(JSON.parse(data))
+  } else if (typeof data === 'string' && data.startsWith('<!DOCTYPE groupexplorerml>')) {
+     group = XMLGroup.fromGroupFileXML(data)
+  } else if (contentType.includes('xml')) {
+     group = XMLGroup.fromGroupFileXML(data)
+  } else if (contentType.includes('json')) {
+     group = Group.fromGroupFileJSON(JSON.parse(data))
+  } else {
+     throw (new Error('Unrecognizable data in Library:dataToGroup'))
   }
+
   return group
 }
 
 // delete array of groups from library and update local store
-function deleteGroups (groups) {
+function deleteGroups (groups /*: Array<Group> */) {
    for (const group of groups) {
       delete library[group.URL]
    }
@@ -90,13 +88,13 @@ function getAllGroups () /*: Array<Group> */ {
    return ((Object.values(library) /*: any */) /*: Array<Group> */)
 }
 
-function getGroupsByOrder (order) {
+function getGroupsByOrder (order /*: integer */) /*: Array<Group> */ {
    return Object.values(library).filter((group) => group.order == order)
 }
 
 // returns group from library by URL, generating it if needed
-function getGroupByURL (url /*: string */) /*: void | Group */ {
-   let group = library[absoluteURL(url)]
+function getGroupByURL (url /*: string */) /*: ?Group */ {
+   let group /*: ?Group */ = library[absoluteURL(url)]
    if (group == null && url.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
       const presentation = new URL(url).search.slice(1)
       group = DefiningRelations.generateGroupFromPresentation(presentation)
@@ -107,7 +105,7 @@ function getGroupByURL (url /*: string */) /*: void | Group */ {
 }
 
 // Read group library from local store
-async function getStoredGroups () {
+async function getStoredGroups () /*: Promise<libraryType> */ {
    const storedGroups = (await StoredObjects.getGroupLibrary()) || {}
    Object.entries(storedGroups).forEach(([key, value]) => storedGroups[key] = Group.fromLocalCopyJSON(value))
 
@@ -120,34 +118,38 @@ function isEmpty () /*: boolean */ {
 }
 
 // get groupURL from page invocation and return promise for resolution from cache or download
-function loadFromPageURL () /*: Promise<Group> */ {
+async function loadFromPageURL () /*: Promise<Group> */ {
    const hrefURL = new URL(window.location.href)
    const groupURL = hrefURL.searchParams.get('groupURL')
+   let result
    if (groupURL != null) {
       const group = getGroupByURL(groupURL)
-      if (groupURL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
-         const maybeIsomorphicGroup = IsomorphicGroups.find(group)
-         if (maybeIsomorphicGroup != null) {
-            deleteGroups([group])
-            return maybeIsomorphicGroup
+      if (group == null) {
+         result = downloadGroup(groupURL)
+      } else {
+         if (groupURL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
+            const maybeIsomorphicGroup = IsomorphicGroups.find(group)
+            if (maybeIsomorphicGroup != null) {
+               deleteGroups([((group /*: any */) /*: Group */)])  // getGroupByURL will generate non-null group
+               result = maybeIsomorphicGroup
+            }
+         } else {
+            result = group
          }
       }
-      if (group == null) {
-         return downloadGroup(groupURL)
-      } else {
-         return group
-      }
    } else if (hrefURL.searchParams.get('waitForMessage') !== null) {
-      return waitForGroupInMessage()
-   } else {
-      return new Promise((_resolve, reject) => {
-         reject(new Error("error in URL: can't find groupURL query parameter"))
-      })
+      result = waitForGroupInMessage()
    }
 
-   async function downloadGroup (url) {
+   if (result == null) {
+      throw new Error("error in URL: can't find groupURL query parameter")
+   }
+
+   return result
+
+   async function downloadGroup (url /*: string */) /*: Promise<Group> */ {
       const groupURL = absoluteURL(url)
-      const result = new Promise((resolve, reject) => {
+      const result /*: Promise<Group> */ = new Promise((resolve, reject) => {
          window.fetch(groupURL)
             .then(async (response) => {
                try {
@@ -183,7 +185,7 @@ function loadFromPageURL () /*: Promise<Group> */ {
       return result
    }
 
-   function waitForGroupInMessage () {
+   function waitForGroupInMessage () /*: Promise<Group> */ {
       return new Promise((resolve, reject) => {
          /*
           * When this page is loaded in an iframe, the parent window can
@@ -223,17 +225,15 @@ function loadFromPageURL () /*: Promise<Group> */ {
 }
 
 // updates library group definitions and schedules local store update
-function saveGroup (...groups /*: Group */) {
-   for (const group of groups) {
-      if (group != null) {
-         library[group.URL] = group
-      }
+function saveGroup (group /*: ?Group */) {
+   if (group != null) {
+      library[group.URL] = group
    }
    scheduleLocalStoreUpdate()
 }
 
 // schedule local store group library update
-let savedTimeoutID = null
+let savedTimeoutID /*: ?TimeoutID */ = null
 function scheduleLocalStoreUpdate () {
    if (savedTimeoutID != null) {
       window.clearTimeout(savedTimeoutID)
@@ -250,12 +250,12 @@ async function updateAllGroups () {
    const updateGroup = async (groupURL /*: string */) /*: Promise<void> */ => {
       const localGroup = getGroupByURL(groupURL)
 
-      const options = { cache: 'no-cache', mode: 'no-cors' }
-      if (localGroup != null) {
+      const options /*: RequestOptions */ = { cache: 'no-cache', mode: 'no-cors' }
+      if (localGroup?.lastModifiedOnServer != null) {
          options.headers = { 'If-Modified-Since': localGroup.lastModifiedOnServer }
       }
 
-      const response = await window.fetch(groupURL, options)
+      const response /*: Response */ = await window.fetch(groupURL, options)
 
       if (response.status == 200) {  // response status == 304 if not modified
          const text = await response.text()
@@ -282,7 +282,7 @@ async function updateAllGroups () {
    const urlString = url.origin + url.pathname // trim off query string
    const baseURL = urlString.slice(0, urlString.lastIndexOf('/') + 1) // baseURL is part up to last '/'
 
-   const allURLs = new Set()
+   const allURLs /*: Set<string> */ = new Set()
    Object.values(library || {}).filter((group) => !group.isGenerated).forEach((group) => allURLs.add(group.URL))
    AutoUpgradeManifest.groupFiles.forEach((url) => allURLs.add(baseURL + url))
 

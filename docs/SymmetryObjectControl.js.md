@@ -70,7 +70,8 @@ function addControl (symmetryObjectControlElement, symmetryObjectView) {
 
    // define symmetry object control element handlers
    const displayChoices = () => {
-      const choices = symmetryObjectView.group.symmetryObjects.map((symmetryObject, index) => [index, symmetryObject.name])
+      const choices = symmetryObjectView.group.symmetryObjects
+         .map((symmetryObject, index) => { return {value: `${index}`, label: symmetryObject.name} })
 
       makeMockSelect(diagramSelect, choices)
          .then(

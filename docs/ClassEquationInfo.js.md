@@ -13,7 +13,7 @@ import * as SheetModel from './SheetModel.js';
 export {display}
 
 /*::
-import Group from './Group.js'
+import {Group} from './Group.js'
 
 import type {
     JSONType,

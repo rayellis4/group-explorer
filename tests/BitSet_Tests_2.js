@@ -1,6 +1,6 @@
 // Claude Sonnet 4.5-generated unit test for BitSet
 
-import BitSet from '../js/BitSet.js'
+import {BitSet} from '../js/BitSet.js'
 
 describe('BitSet', function () {
 
@@ -52,7 +52,7 @@ describe('BitSet', function () {
     it('parseJSON round-trips correctly', function () {
       const original = new BitSet(20, [0, 7, 19]);
       const json     = original.toJSON();
-      const restored = BitSet.parseJSON(json);
+      const restored = new BitSet().fromJSON(json);
       expect(restored.equals(original)).to.be.true;
     });
 
@@ -364,26 +364,6 @@ describe('BitSet', function () {
       expect(bitsOnly.length).to.equal(10);
       expect(bitsOnly[0]).to.equal('1');
       expect(bitsOnly[9]).to.equal('1');
-    });
-  });
-
-  // ── allElements (generator) ──────────────────────────────────────────────
-  describe('allElements generator', function () {
-    it('yields all set indices in order', function () {
-      const bs  = new BitSet(12, [2, 7, 11]);
-      const out = [...bs.allElements()];
-      expect(out).to.deep.equal([2, 7, 11]);
-    });
-
-    it('yields nothing from an empty set', function () {
-      expect([...new BitSet(8).allElements()]).to.deep.equal([]);
-    });
-
-    it('can be iterated with for-of', function () {
-      const bs  = new BitSet(8, [0, 4]);
-      const out = [];
-      for (const x of bs.allElements()) out.push(x);
-      expect(out).to.deep.equal([0, 4]);
     });
   });
 

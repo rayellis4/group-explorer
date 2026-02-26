@@ -1,7 +1,8 @@
 // @flow
 
-import * as ControlPanel from './ControlPanel.js'
+import {ControlPanel} from './ControlPanel.js'
 import * as Library from './Library.js'
+import * as Log from './Log.js'
 import * as MulttableControl from './MulttableControl.js'
 import * as MulttableViewUI from './MulttableViewUI.js'
 import {createFullMulttableView} from './MulttableView.js'
@@ -11,17 +12,21 @@ import * as SheetEditor from './SheetEditor.js'
 
 export {load}
 
+/*::
+import type {Group} from './Group.js'
+ */
+
 // Load group from invocation URL and complete setup
 async function load () {
    insertHTML()
 
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
-   const group = await Library.loadFromPageURL()
+   const group = (await Library.loadFromPageURL() /*:: as any as Group */)
 
    // Create Header
    Heading.display(
-      document.getElementById('heading'),
+      (document.getElementById('heading') /*:: as any as HTMLElement */),
       `Multiplication Table for ${group.name}`,
       () => [
          {label: 'Group Info', action: () => window.open(`GroupInfo.html?groupURL=${group.URL}`)},
@@ -33,7 +38,7 @@ async function load () {
    )
 
    // Draw Multtable
-   const graphicElement = document.getElementById('graphic')
+   const graphicElement = (document.getElementById('graphic') /*:: as any as HTMLElement */)
    const multtableView = createFullMulttableView({
       container: graphicElement,
       group: group
@@ -43,42 +48,31 @@ async function load () {
    MulttableViewUI.addGestures(multtableView)
 
    // Create Control Panel
-   const controlPanelElement = document.getElementById('control-panel')
+   const controlPanelElement = (document.getElementById('control-panel') /*:: as any as HTMLElement */)
    ControlPanel.addPanel(controlPanelElement)
-
-   // Initialize HighlightControl
-   const highlightControlElement = document.getElementById('highlight-control')
-   HighlightControl.addControl(highlightControlElement, multtableView)
-
-   // Add Multtable Control panel
-   const tableControlElement = document.getElementById('table-control')
-   MulttableControl.addControl(tableControlElement, multtableView)  // Initializes Multtable Controller directly
-
-   // Register window resize handler
-   window.addEventListener('resize', () => multtableView.resize())
 
    // If this page is editing a sheet...
    if (window.location.href.includes('SheetEditor=true')) {
+      // Get initial data from Sheet
       const initialJSON = await SheetEditor.getInitialData()
-      if (group.URL != Library.getGroupByURL(initialJSON.groupURL).URL) {
+      if (group.URL != Library.getGroupByURL(initialJSON.groupURL)?.URL) {
          Log.err('group from URL does not match group in editor initialization message')
       }
 
       // Set up initial view and highlights
       multtableView.fromJSON(initialJSON)
-      HighlightControl.initializeHighlights()
-
-      // Set up change broadcast
-      SheetEditor.enableChangeBroadcast(() => {
-         const viewJSON = multtableView.toJSON()
-         const highlightControlJSON = HighlightControl.toJSON()
-         viewJSON.highlightControl = highlightControlJSON
-         return viewJSON
-      })
-
-      // Do we really need to do this?? I don't think so...
-      SheetEditor.broadcastChange()
    }
+
+   // Initialize HighlightControl
+   const highlightControlElement = (document.getElementById('highlight-control') /*:: as any as HTMLElement */)
+   HighlightControl.addControl(highlightControlElement, multtableView)
+
+   // Add Multtable Control panel
+   const tableControlElement = (document.getElementById('table-control') /*:: as any as HTMLElement */)
+   MulttableControl.addControl(tableControlElement, multtableView)  // Initializes Multtable Controller directly
+
+   // Register window resize handler
+   window.addEventListener('resize', () => multtableView.resize())
 }
 
 function insertHTML () {

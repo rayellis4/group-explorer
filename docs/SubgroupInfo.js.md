@@ -7,7 +7,7 @@ including a table of the group's subgroups and some of their properties.
 
 ```javascript
  */
-import BitSet from './BitSet.js'
+import {BitSet} from './BitSet.js'
 import {createCayleyDiagramGenerator} from './CayleyDiagramGenerator.js'
 import * as GEUtils from './GEUtils.js'
 import {IMAGE_SIZE} from './GroupTable.js'
@@ -18,7 +18,7 @@ import * as SheetModel from './SheetModel.js'
 export {display}
 
 /*::
-import Group from './Group.js'
+import {Group} from './Group.js'
 
 import type {
     JSONType,

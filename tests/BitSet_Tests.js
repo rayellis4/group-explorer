@@ -1,6 +1,6 @@
 // DeepSeek-generated unit test for BitSet
 
-import BitSet from '../js/BitSet.js'
+import {BitSet} from '../js/BitSet.js'
 
 describe('BitSet tests', function() {
    it('should initialize correctly', function() {
@@ -370,23 +370,6 @@ describe('BitSet tests', function() {
       expect(bs.toBitString()).to.match(/ 01010 10000/);
    });
 
-   it('should iterate with allElements', function() {
-      const bs = new BitSet(10, [1, 3, 5]);
-      const elements = [];
-      for (const el of bs.allElements()) {
-         elements.push(el);
-      }
-      expect(elements).to.deep.equal([1, 3, 5]);
-
-      // Test empty
-      const empty = new BitSet(10);
-      let called = false;
-      for (const _ of empty.allElements()) {
-         called = true;
-      }
-      expect(called).to.be.false;
-   });
-
    it('should handle JSON serialization', function() {
       const bs = new BitSet(10, [1, 3, 5]);
       const json = bs.toJSON();
@@ -396,7 +379,7 @@ describe('BitSet tests', function() {
          arr: Array.from(bs.arr)
       });
 
-      const bs2 = BitSet.parseJSON(json);
+      const bs2 = new BitSet().fromJSON(json);
       expect(bs2.equals(bs)).to.be.true;
 
       // Test with empty set
@@ -404,7 +387,7 @@ describe('BitSet tests', function() {
       const emptyJson = empty.toJSON();
       expect(emptyJson).to.deep.equal({len: 0, arr: []});
 
-      const emptyBs = BitSet.parseJSON(emptyJson);
+      const emptyBs = new BitSet().fromJSON(emptyJson);
       expect(emptyBs.equals(empty)).to.be.true;
    });
 

@@ -5,19 +5,19 @@
 /*
 ```js
  */
-import BitSet from './BitSet.js';
+import {BitSet} from './BitSet.js';
 import * as DefiningRelations from './DefiningRelations.js';
 import * as MathUtils from './MathUtils.js';
-import Subgroup from './Subgroup.js';
-import SubgroupLattice from './SubgroupLattice.js';
+import {Subgroup} from './Subgroup.js';
+import {SubgroupLattice} from './SubgroupLattice.js';
 
 /*::
 import type {Tree} from './GEUtils.js';
 import type {SubgroupJSON} from './Subgroup.js';
 
 export type GroupJSON = {
-   multtable: Array<Array<groupElement>>,
-   _subgroups: Array<SubgroupJSON>
+   multtable: Array<Array<groupElement>>;
+   ...
 };
 
 // patches until these parts are annotated
@@ -37,7 +37,7 @@ type BriefXMLGroupJSON = {
    multtable: Array<Array<number>>
 };
  */
-export default class Group {
+export class Group {
    multtable /*: Array<Array<groupElement>> */
    order /*: number */
    elements /*: Array<groupElement> */
@@ -88,6 +88,7 @@ export default class Group {
    symmetryObjects /*: Array<XMLSymmetryObject> */   = []
 
    // Group properties set elsewhere
+   library /*: void | 'fgb' | 'generated' */
    lastModifiedOnServer /*: ?string */
    URL /*: string */
    userNotes /*: string */                           = ''
@@ -103,6 +104,7 @@ export default class Group {
 
       G.names = [`An unknown group of order ${G.order}`]
       G.representations = [Array.from({length: G.order}, (_, inx) => '' + inx)]
+      // $FlowExpectedError[unsupported-syntax]
       ;[G._subgroups, G._isSolvable] = SubgroupLattice.getSubgroups(G)
       G.relations = DefiningRelations.findRelations(G)
 
@@ -110,11 +112,12 @@ export default class Group {
    }
 
    static fromGroupFileJSON (json /*: GroupJSON */) /*: Group */ {
-      // $FlowFixMe[incompatible-type] -- figure out what will be stored in indexedDB
-      // $FlowExpectedError[unsafe-object-assign]
+      // $FlowFixMe[unsafe-object-assign]
       const G = Object.assign(new Group(), json)
+
       setFieldsFromMulttable(G)
 
+      // $FlowExpectedError[unsupported-syntax]
       ;[G._subgroups, G._isSolvable] = SubgroupLattice.getSubgroups(G)
       G.relations = DefiningRelations.findRelations(G)
 
@@ -154,7 +157,7 @@ export default class Group {
 	 delete json.generators
       }
 
-      // $FlowExpectedError[unsafe-object-assign]
+      // $FlowFixMe[unsafe-object-assign]
       const G = Object.assign(new Group(), json)
 
       // fix BitSets, circular reference in subgroups
@@ -166,7 +169,7 @@ export default class Group {
       // fix BitSets in
       ;['conjugacyClasses', 'elementPowers', 'elementPrimePowers', 'orderClasses']
 	 .forEach(
-            (field) => json[field].forEach((js,inx) => G[field][inx] = BitSet.parseJSON(js))
+            (field) => json[field].forEach((js,inx) => G[field][inx] = new BitSet().fromJSON(js))
 	 )
 
       return G
@@ -219,7 +222,8 @@ export default class Group {
       if (this._longestHTMLLabel == null) {
          const dummy = document.createElement('div')
          dummy.innerHTML = this.representation.reduce((html, label) => html + label + '<br>', ''),
-         Object.assign(dummy.style, { left: 0, top: `${this.order + 10}em`, position: 'absolute', fontSize: '40px' })
+         // $FlowFixMe[unsafe-object-assign]
+         Object.assign(dummy.style, { left: '0', top: `${this.order + 10}em`, position: 'absolute', fontSize: '40px' })
          document.body.append(dummy)
          this._longestHTMLLabel = dummy.offsetWidth / 40
          dummy.remove()
@@ -232,7 +236,7 @@ export default class Group {
       return this.names[0]
    }
 
-   get other_names () {
+   get other_names () /*: Array<string> */ {
       return this.names.slice(1)
    }
 
@@ -419,8 +423,7 @@ export default class Group {
          this._conjugateSubgroupClasses = []
          this.subgroups.forEach((H, hIndex) => {
             let conjugacyClass = this._conjugateSubgroupClasses.find((klass) => {
-               // $FlowFixMe -- klass is a BitSet with at least one element set 
-               const K = this.subgroups[klass.first()]
+               const K = this.subgroups[(klass.first() /*:: as any as integer */)]
                return H.order == K.order
                   && this.elements.some((g) =>
                         H.members.toArray()
@@ -485,10 +488,11 @@ export default class Group {
       const subgroupBitset = subgroup.members;
       const subgroupElements = subgroupBitset.toArray();
       const subgroupOrder = subgroupElements.length;
-      const subgroupElementInverse = subgroupElements.reduce(
-         (acc,el,inx) => { acc[el] = inx; return acc; }, new Array(this.order)
+      const subgroupElementInverse /*: Array<groupElement> */ = subgroupElements.reduce(
+         (acc, el, inx) => { acc[el] = inx; return acc; }, new Array(this.order)
       );
-      const newMult = subgroupElements.map(_ => new Array(subgroupOrder));
+      const newMult /*: Array<Array<groupElement>> */ =
+	 subgroupElements.map(_ => new Array(subgroupOrder));
       for (let i = 0; i < subgroupOrder; i++) {
          for (let j = 0; j < subgroupOrder; j++) {
             newMult[i][j] = subgroupElementInverse[
@@ -527,21 +531,6 @@ export default class Group {
          }
       }
       return result
-   }
-
-   toBriefJSON () /*: BriefXMLGroupJSON */ {
-      return {
-         name: this.name,
-         shortName: this.shortName,
-         author: this.author,
-         notes: this.notes,
-         phrase: this.phrase,
-         representations: this.representations,
-         representationIndex: this.representationIndex,
-         cayleyDiagrams: this.cayleyDiagrams,
-         symmetryObjects: this.symmetryObjects,
-         multtable: this.multtable
-      }
    }
 }
 

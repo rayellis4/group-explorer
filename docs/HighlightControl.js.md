@@ -1,20 +1,57 @@
 // @flow
 
-import BitSet from './BitSet.js';
+import {BitSet} from './BitSet.js';
 import * as GEUtils from './GEUtils.js'
 import * as SheetEditor from './SheetEditor.js'
-import SubgroupLattice from './SubgroupLattice.js';
+import {SubgroupLattice} from './SubgroupLattice.js';
 import {makeFixedMenu, makeDetachedMenu, makeDialog} from './UIComponents.js'
 import {THREE} from '../lib/externals.js'
 import {TrackballControls} from '../lib/externals.js'
 /*::
-import Group from './Group.js';
- */
+import {Group} from './Group.js'
+import type {BitSetJSON} from './BitSet.js'
 
-export {addControl, toJSON, initializeHighlights}
+export interface Highlightable {
+   getAllHighlighters(): Array<Highlighter>,
+   group: Group,
+   highlightControl: ?HighlightControlJSON,
+   highlightColors: Array<Array<color>>,
+   clearHighlights(): void,
+   toJSON(): {highlightControl?: HighlightControlJSON, ...}
+}
+export type Highlighter = {
+   (Array<color>): void,
+   label?: string,
+   ...
+}
 
-/*::
-type highlighterRoutines = Array<{handler: (Array<Array<groupElement>>) => void, label: string}>;
+export opaque type HighlightControlJSON = {
+   displayList: Array<{...SubsetJSON} | {...PartitionSubsetJSON}>,
+   highlights: Array<Array<integer>>,
+   partitionList: Array<{...AbstractPartitionJSON} | {...CosetsJSON}>
+}
+type AbstractSubsetJSON = {
+   id: number,
+   elements: BitSetJSON,
+   name: string  // implemented in subclass
+}
+type SubsetJSON = {
+   ...AbstractSubsetJSON,
+   subsetIndex: number
+}
+type PartitionSubsetJSON = {
+   ...AbstractSubsetJSON,
+   elementRepresentations: Array<string>,
+   subIndex: number
+}
+type AbstractPartitionJSON = {
+   subsetIds: Array<integer>
+}
+type CosetsJSON = {
+   ...AbstractPartitionJSON,
+   subgroopId: integer,
+   side: 'left' | 'right'
+}
 */
 
 let rootElement /*: HTMLElement */
@@ -22,17 +59,17 @@ let group /*: Group */
 let nextSubsetIndex /*: number*/
 let nextId /*: number */
 let view
-const displayList = [] /*: Array<AbstractSubset> */
-const highlighters = [] /*: highlighterRoutines */
-const highlights = [] /*: Array<Array<number>> */
+const displayList /*: Array<Subgroop | Subset | PartitionSubset> */ = []
+const highlighters /*: Array<Highlighter> */ = []
+const highlights /*: Array<Array<number>> */ = []    // Array<Array<displayListIndexes>>
 
-function addControl (highlightControlElement, visualizer) {
+export function addControl (highlightControlElement /*: HTMLElement */, visualizer /*: Highlightable */) {
    // set module variables
    rootElement = highlightControlElement
    view = visualizer
    group = view.group
    highlighters.push(...view.getAllHighlighters())
-   highlights.push(...highlighters.map(() => []))
+   highlights.push(...highlighters.map(() => ([] /*: Array<number> */)))
    displayList.splice(0)
    nextSubsetIndex = 0;
    nextId = 0;
@@ -113,14 +150,30 @@ function addControl (highlightControlElement, visualizer) {
        </div>`
    highlightControlElement.insertAdjacentHTML('beforeend', highlightControlHTML)
 
+   // $FlowExpectedError[incompatible-type] -- getElementById not null, we just added that element
    makeFixedMenu(document.getElementById('subset-page'), (action, event) => eval(action))
 
+   if (view.highlightControl != null || view.highlightColors != null) {
+      initializeHighlights()
+
+      // Set up change broadcast
+      SheetEditor.enableChangeBroadcast(() => {
+         const viewJSON = view.toJSON()  // FixMe: should be CayleyDiagramGenerator.toJSON for Cayley diagram...
+         viewJSON.highlightControl = toJSON()
+         return viewJSON
+      })
+
+      // Do we really need to do this?? I don't think so...
+      SheetEditor.broadcastChange()
+   }
+
    // create twisty details on the fly
-   const generateDetail = (event) => {
-      if (event.target.querySelector('div') == null) {
-         const subgroop = displayList[event.target.getAttribute('subgroup')]
-         event.target.insertAdjacentHTML('beforeEnd', subgroop.getInfo())
-         event.target.removeEventListener('toggle', generateDetail)
+   const generateDetail = (event /*: Event */) => {
+      const targetElement = event.target
+      if (targetElement.querySelector('div') == null) {
+         const subgroop = displayList[parseInt(targetElement.getAttribute('subgroup'))]
+         targetElement.insertAdjacentHTML('beforeend', subgroop.getInfo())
+         targetElement.removeEventListener('toggle', generateDetail)
       }
    }
    Array.from(document.getElementsByTagName('details')).forEach((element) => {
@@ -134,34 +187,41 @@ function addControl (highlightControlElement, visualizer) {
 
 // Set up global data, assuming group layout is in place
 function initializeHighlights () {
-   if (view.highlightControl != null) {
-      const highlightControlJSON = view.highlightControl
-
+   const highlightControlJSON = view.highlightControl
+   if (highlightControlJSON != null) {
       // Add Subsets to displayList
       highlightControlJSON.displayList
          .filter((displayItem) => 'subsetIndex' in displayItem)
          .forEach((displayItem) => {
             nextId = displayItem.id
             nextSubsetIndex = displayItem.subsetIndex
-            new Subset(BitSet.parseJSON(displayItem.elements))
+            new Subset(new BitSet().fromJSON(displayItem.elements))
          })
 
       // Create Partitions and add PartitionSubsets to displayList
+      const partitionSubsetsJSON = highlightControlJSON.displayList
+         .filter((displayItem) => 'subIndex' in displayItem)
       highlightControlJSON.partitionList
-         .forEach((partition) => {
-            const firstChild = highlightControlJSON.displayList.find((child) => partition.subsets[0] == child.id)
-            nextId = firstChild.id
-            if (firstChild.name.includes('CC')) {
-               new ConjugacyClasses()
-            } else if (firstChild.name.includes('OC')) {
-               new OrderClasses()
-            } else {  // must be coset, the only remaining partition option
-               new Cosets(displayList[partition.subgroop.id], partition.side)
+         .forEach((partitionJSON) => {
+            const firstChildIndex = partitionSubsetsJSON.findIndex((child) => partitionJSON.subsetIds[0] == child.id)
+            if (firstChildIndex != -1) {
+               const firstChild = partitionSubsetsJSON[firstChildIndex]
+               nextId = firstChild.id
+               if (firstChild.name.includes('CC')) {
+                  new ConjugacyClasses()
+               } else if (firstChild.name.includes('OC')) {
+                  new OrderClasses()
+               } else if ('subgroopId' in partitionJSON) {  // must be Cosets, the only remaining partition option
+                  const subgroop = displayList[partitionJSON.subgroopId]
+                  if (subgroop instanceof Subgroop) {
+                     new Cosets(subgroop, partitionJSON.side)
+                  }
+               }
             }
          })
 
       // Reset global counters
-      nextSubsetIndex = Math.max(...displayList.filter(Boolean).map((el) => 'subsetIndex' in el ? el.subsetIndex : -1)) + 1
+      nextSubsetIndex = Math.max(...displayList.filter(Boolean).map((el) => el instanceof Subset ? el.subsetIndex : -1)) + 1
       nextId = Math.max(...displayList.filter(Boolean).map((el) => el.id)) + 1
 
       // Update highlights
@@ -192,25 +252,53 @@ function initializeHighlights () {
 
 // break recursive structure in displayList to be serializable as JSON
 // remove first |group| entries from displayList (recalc from group properties)
-function toJSON () {
+function toJSON () /*: HighlightControlJSON */ {
    const displayedItems = displayList
-      .filter((displayItem) => !('subgroupIndex' in displayItem))
-      .map((displayItem) => Object.assign({}, displayItem))
-   const partitionList = displayedItems
-      .reduce((partitionList, displayedItem) => {
-         if ('parent' in displayedItem) {
-            if (!partitionList.includes(displayedItem.parent)) {
-               partitionList.push(displayedItem.parent)
+      .filter((displayItem) => !(displayItem instanceof Subgroop))  // leave Subsets, PartitionSubsets
+      .map((displayItem) => {
+         let result
+         if (displayItem instanceof PartitionSubset) {
+            result = {
+               id: displayItem.id,
+               elements: displayItem.elements.toJSON(),
+               name: displayItem.name,
+               elementRepresentations: displayItem.elementRepresentations,
+               subIndex: displayItem.subIndex
             }
-            displayedItem.parent = null
+         } else {
+            result = {
+               id: displayItem.id,
+               elements: displayItem.elements.toJSON(),
+               name: displayItem.name,
+               subsetIndex: displayItem.subsetIndex
+            }
          }
-         return partitionList
+         return result
+      })
+   const partitionList = displayList
+      .filter((displayItem) => displayItem instanceof PartitionSubset)
+      .reduce((partitions /*: Array<AbstractPartition> */, displayedItem) => {
+         if (displayedItem instanceof PartitionSubset && !partitions.includes(displayedItem.parent)) {
+            partitions.push(displayedItem.parent)
+         }
+         return partitions
       }, [])
       .map((partition) => {
-         const copy = Object.assign({}, partition)
-         copy.subsets = partition.subsets.map((subset) => subset.id)
-         return copy
+         let result
+         if (partition instanceof Cosets) {
+            result = {
+               subsetIds: partition.subsets.map((partitionSubset) => partitionSubset.id),
+               subgroopId: partition.subgroop.id,
+               side: partition.side
+             }
+         } else {
+            result = {
+               subsetIds: partition.subsets.map((partitionSubset) => partitionSubset.id)
+            }
+         }            
+         return result
       })
+
    const json = {highlights: highlights, displayList: displayedItems, partitionList: partitionList}
 
    return json
@@ -222,7 +310,7 @@ function updateHighlightMark () {
       .forEach((element) => element.classList.remove('highlight-mark'))
 
    if (highlights[0].length == 1) {
-      document.getElementById(`${highlights[0][0]}`).classList.add('highlight-mark')
+      (document.getElementById(`${highlights[0][0]}`) /*:: as any as Element */).classList.add('highlight-mark')
    }
 }
 /*
@@ -250,11 +338,11 @@ class AbstractSubset {
  */
    constructor () {
       this.id = getNextId();
-      displayList[this.id] = this;
+      displayList[this.id] = (this /*:: as any as Subgroop | Subset | PartitionSubset */)
       window.setTimeout(() => updateHighlightMark(), 0)  // update highlights after any subset is created
    }
 
-   get closure () /*: Subset */ {
+   get closure () /*: void */ {
       const subsetElements = group.closure(this.elements)
 
       const explanation =
@@ -264,30 +352,33 @@ class AbstractSubset {
       confirmSubsetSave(subsetElements, explanation)
    }
 
-   get clickAction () {
+   get clickAction () /*: html */ {
       // preventDefault keeps click from exposing details and toggling colors at the same time
       return `data-action="event.preventDefault(); toggleColorHighlight(${this.id})"`
    }
 
-   get contextAction () {
+   get contextAction () /*: html */ {
       return `data-action2="showMenu(event, ${this.id})"`
    }
 
    // delete is a javascript keyword...
    destroy () {
       // remove highlights
-      for (const [inx, highlight] of Object.entries(highlights)) {
+      for (const [inx, highlight] of highlights.entries()) {
          if (highlight.includes(this.id)) {
             highlightItem([], inx)
          }
       }
          
       delete(displayList[this.id]);
-      document.getElementById(`${this.id}`).remove();
+      const thisElement = document.getElementById(`${this.id}`)
+      if (thisElement != null) {
+         thisElement.remove()
+      }
       SheetEditor.broadcastChange()
    }
 
-   get info () {
+   get info () /*: html */ {
       const subsetElements = this.elements.toArray().map((el) => group.representation[el]);
       const subsetElementList = subsetElements.join(', <wbr>')  // .replaceAll(' ', '&nbsp;')
       const myInfo = `<div>The elements of ${this.name} are:
@@ -296,7 +387,7 @@ class AbstractSubset {
       return myInfo
    }
 
-   getInfo () {
+   getInfo () /*: html */ {
       const result = `<div>${this.info}</div>`
 
       return result
@@ -315,7 +406,7 @@ class AbstractSubset {
       confirmSubsetSave(subsetElements, explanation)
    }
 
-   intersection (other /*: AbstractSubset */) /*: Subset */ {
+   intersection (other /*: AbstractSubset */) {
       const subsetElements = BitSet.intersection(this.elements, other.elements)
 
       const explanation =
@@ -324,7 +415,7 @@ class AbstractSubset {
       confirmSubsetSave(subsetElements, explanation)
    }
 
-   elementwiseProduct (other /*: AbstractSubset */) /*: Subset */{
+   elementwiseProduct (other /*: AbstractSubset */) {
       const newElements = new BitSet(group.order);
       for (let i = 0; i < this.elements.len; i++) {
          if (this.elements.isSet(i)) {
@@ -352,7 +443,6 @@ class AbstractSubset {
 class Subgroop extends AbstractSubset {
 /*::
    subgroupIndex: number;
-  +normalizer: Subset;
   +leftCosets: Cosets;
   +rightCosets: Cosets;
  */
@@ -367,7 +457,7 @@ class Subgroop extends AbstractSubset {
       return `<i>H</i><sub>${this.subgroupIndex}</sub>`
    }
 
-   get displayLine() {
+   get displayLine() /*: html */ {
       const generators = group.subgroups[this.subgroupIndex].generators.toArray()
                                .map( el => group.representation[el] );
       let template;
@@ -402,7 +492,7 @@ class Subgroop extends AbstractSubset {
       return template
    }
 
-   get info () {
+   get info () /*: html */ {
       let subgroopInfo = ''
       const subgroup = group.subgroups[this.subgroupIndex]
 
@@ -427,7 +517,7 @@ class Subgroop extends AbstractSubset {
       return subgroopInfo + super.info
    }
 
-   get menu() {
+   get menu() /*: html */ {
       const subgroupMenuTemplate = `
          <ul id="subgroup-menu">
             <li data-action="makeSubsetEditor()">Create ${Subset.nextName()}</li>
@@ -438,9 +528,9 @@ class Subgroop extends AbstractSubset {
                   ${showingOrderClasses() ? '' : allOrderClassesHTML()}
                   <li data-action="displayList[${this.id}].normalizer">the normalizer of ${this.name}, Norm(${this.name})</li>
                   ${showingLeftCosets(this.id) ? ''
-                     : `<li data-action="displayList[${this.id}].leftCosets">all left cosets <i>g</i>${this.name} of ${this.name}</li>`}
+                     : `<li data-action="displayList[${this.id}].showLeftCosets()">all left cosets <i>g</i>${this.name} of ${this.name}</li>`}
                   ${showingRightCosets(this.id) ? ''
-                     : `<li data-action="displayList[${this.id}].rightCosets">all right cosets ${this.name}<i>g</i> of ${this.name}</li>`}
+                     : `<li data-action="displayList[${this.id}].showRightCosets()">all right cosets ${this.name}<i>g</i> of ${this.name}</li>`}
                   <li class="detached-submenu">an intersection
                      <ul id="intersection-menu">
                         ${ makeLongList(this.id, intersectionItemHTML) }
@@ -467,7 +557,7 @@ class Subgroop extends AbstractSubset {
       return subgroupMenuTemplate
    }
 
-   get normalizer () {
+   get normalizer () /*: void */ {
       const subsetElements = new SubgroupLattice(group)
          .findNormalizer(group.subgroups[this.subgroupIndex]).members
 
@@ -478,12 +568,12 @@ class Subgroop extends AbstractSubset {
       confirmSubsetSave(subsetElements, explanation)
    }
 
-   get leftCosets() {
-      return new Cosets(this, 'left');
+   showLeftCosets () {
+      new Cosets(this, 'left');
    }
 
-   get rightCosets() {
-      return new Cosets(this, 'right');
+   showRightCosets () {
+      new Cosets(this, 'right');
    }
 }
 
@@ -503,8 +593,14 @@ class Subset extends AbstractSubset {
       }
       this.subsetIndex = getNextSubsetIndex();
 
-      rootElement.querySelector('#subsets .placeholder').style.display = 'none'
-      rootElement.querySelector('#subsets ul').insertAdjacentHTML('beforeend', this.displayLine)
+      const placeholder = rootElement.querySelector('#subsets .placeholder')
+      if (placeholder != null) {
+         placeholder.style.display = 'none'
+      }
+      const subsetList = rootElement.querySelector('#subsets ul')
+      if (subsetList != null) {
+         subsetList.insertAdjacentHTML('beforeend', this.displayLine)
+      }
 
       SheetEditor.broadcastChange()
    }
@@ -533,7 +629,7 @@ class Subset extends AbstractSubset {
       return subsetTemplate
    }
 
-   getInfo () {
+   getInfo () /*: html */ {
       let subsetInfo = ''
 
       const subgroop = displayList
@@ -548,7 +644,7 @@ class Subset extends AbstractSubset {
       return subsetInfo
    }
 
-   get menu() {
+   get menu() /*: html */ {
       const subsetMenuTemplate = `
          <ul id="subset-menu">
             <li data-action="makeSubsetEditor(${this.id})">Edit list of elements in ${this.name}</li>
@@ -586,10 +682,13 @@ class Subset extends AbstractSubset {
       return subsetMenuTemplate
    }
 
-   destroy() {
+   destroy () {
       super.destroy();
       if (rootElement.querySelectorAll('#subsets li').length === 1) {
-         rootElement.querySelector('#subsets .placeholder').style.display = ''
+         const placeholder = rootElement.querySelector('#subsets .placeholder')
+         if (placeholder != null) {
+            placeholder.style.display = ''
+         }
       }
    }
 
@@ -602,11 +701,8 @@ class PartitionSubset extends AbstractSubset {
 /*::
    parent: AbstractPartition;
    subIndex: number;
-   elements: BitSet;
-   name: string;
-  +elementRepresentations: Array<string>;
  */
-   constructor(parent /*: AbstractPartition */,
+   constructor (parent /*: AbstractPartition */,
                subIndex /*: number */,
                elements /*: BitSet */,
                name /*: string */) {
@@ -620,11 +716,11 @@ class PartitionSubset extends AbstractSubset {
       SheetEditor.broadcastChange()
    }
 
-   get clickAction () {
+   get clickAction () /*: html */ {
       return `data-action="event.preventDefault(); toggleColorHighlight(${this.id})"`
    }
 
-   get elementRepresentations() {
+   get elementRepresentations () /*: Array<html> */ {
       const result = [];
       for (let i = 0; i < this.elements.len && result.length < 3; i++) {
          if (this.elements.isSet(i)) {
@@ -637,7 +733,7 @@ class PartitionSubset extends AbstractSubset {
       return result;
    }
 
-   get menu () {
+   get menu () /*: html */ {
       const partitionMenuTemplate = `
          <ul id="partition-menu">
             <li data-action="displayList[${this.id}].parent.destroy()">Delete partition ${this.parent.name}</li>
@@ -691,7 +787,7 @@ class ConjugacyClass extends PartitionSubset {
 }
 
 class OrderClass extends PartitionSubset {
-   get displayLine () {
+   get displayLine () /*: html */ {
       const orderClassTemplate =
         `<li id="${this.id}" class="orderClass">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
@@ -703,60 +799,65 @@ class OrderClass extends PartitionSubset {
 }
 
 class Coset extends PartitionSubset {
-   get displayLine () {
-      const cosetClassTemplate =
-        `<li id="${this.id}" class="${this.parent.side}coset${this.parent.subgroop.id}">
+   get displayLine () /*: html */ {
+      let cosetClassTemplate = ''
+      if (this.parent instanceof Cosets) {
+         const parentPartition = this.parent
+         cosetClassTemplate =
+            `<li id="${this.id}" class="${parentPartition.side}coset${parentPartition.subgroop.id}">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
-               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} } is the ${this.parent.isLeft ? 'left' : 'right'} coset of
-               ${this.parent.subgroop.name} by ${(group.representation[this.elements.toArray()[0]])}.
-            </span></summary>${this.getInfo()}</details>
-         </li>`
+               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} } is the ${parentPartition.isLeft ? 'left' : 'right'} coset of
+               ${parentPartition.subgroop.name} by ${(group.representation[this.elements.toArray()[0]])}.
+               </span></summary>${this.getInfo()}</details>
+               </li>`
+      }
+
       return cosetClassTemplate
    }
 }
 
 class AbstractPartition {
 /*::
-  +destroy: () => void;
-  +name: string;
    subsets: Array<PartitionSubset>;
-   +allElementString: string
  */
    constructor () {
       this.subsets = [];
 
-      rootElement.querySelector('#partitions .placeholder').style.display = 'none'
+      const placeholderElement = rootElement.querySelector('#partitions .placeholder')
+      if (placeholderElement != null) {
+         placeholderElement.style.display = 'none'
+      }
    }
 
-   get name () {
+   get name () /*: html */ {
       return `{ ${this.subsets[0].name} ... ${this.subsets[this.subsets.length-1].name} }`
-   }
-
-   toJSON () {
-      const copy = Object.assign({}, this)
-      copy.subsets = copy.subsets.map((subset) => subset.id)
-      return copy
    }
 
    destroy () {
       this.subsets.forEach((subset) => subset.destroy())
       if (rootElement.querySelectorAll('#partitions li').length === 1) {
-         rootElement.querySelector('#partitions .placeholder').style.display = ''
+         const placeholderElement = rootElement.querySelector('#partitions .placeholder')
+         if (placeholderElement != null) {
+            placeholderElement.style.display = ''
+         }
       }
    }
 
    addAllSubsets () {
       const allSubsetsHTML = this.subsets.map((subset) => subset.displayLine).join('')
-      rootElement.querySelector('#partitions ul').insertAdjacentHTML('beforeend', allSubsetsHTML)
+      const partitionsList = rootElement.querySelector('#partitions ul')
+      if (partitionsList != null) {
+         partitionsList.insertAdjacentHTML('beforeend', allSubsetsHTML)
+      }
    }
 
-   get allElementString() {
+   get allElementString () /*: html */ {
       return '[[' + this.subsets.map( (el) => el.elements.toString() ).join('],[') + ']]';
    }
 }
 
 class ConjugacyClasses extends AbstractPartition {
-   constructor() {
+   constructor () {
       super()
 
       this.subsets = group.conjugacyClasses.map((conjugacyClass, inx) =>
@@ -767,7 +868,7 @@ class ConjugacyClasses extends AbstractPartition {
 }
 
 class OrderClasses extends AbstractPartition {
-   constructor() {
+   constructor () {
       super();
 
       this.subsets = group
@@ -785,9 +886,9 @@ class Cosets extends AbstractPartition {
 /*::
   subgroop: Subgroop;
   isLeft: boolean;
-  side: string;
+  side: 'left' | 'right';
  */
-   constructor(subgroop /*: Subgroop */, side /*: string */) {
+   constructor (subgroop /*: Subgroop */, side /*: 'left' | 'right' */) {
       super();
 
       this.subgroop = subgroop;
@@ -808,16 +909,18 @@ class Cosets extends AbstractPartition {
    }
 }
 
-function makeSubsetEditor (displayId) {
-   const subsetFromId = (displayId === undefined) ? undefined : displayList[displayId];
-   const setElements = (subsetFromId === undefined) ? new BitSet(group.order) : subsetFromId.elements;
-   const setName = (subsetFromId === undefined) ? Subset.nextName() : subsetFromId.name;
+function makeSubsetEditor (displayId /*: integer */) /*: SubsetEditor */ {
+   const subsetFromId = (displayId == null) ? undefined : displayList[displayId];
+   const setElements = (subsetFromId == null) ? new BitSet(group.order) : subsetFromId.elements;
+   const setName = (subsetFromId == null) ? Subset.nextName() : subsetFromId.name;
 
    return new SubsetEditor(setName, setElements)
 }
 
 class SubsetEditor {
-   constructor (setName, setElements) {
+   editorDialog /*: HTMLElement */
+
+   constructor (setName /*: html */, setElements /*: BitSet */) {
       const subset = []
       const complement = []
       for (const el of group.elements) {
@@ -901,10 +1004,12 @@ class SubsetEditor {
 
       // Center grid
       const subsetEditor = document.getElementById('subset-editor')
-      subsetEditor.style.left =
-         `${Math.max(0.1 * window.innerWidth, 0.5 * (window.innerWidth - subsetEditor.offsetWidth))}px`
-      subsetEditor.style.top =
-         `${Math.max(0.1 * window.innerHeight, 0.2 * (window.innerHeight - subsetEditor.offsetHeight))}px`
+      if (subsetEditor != null) {
+         subsetEditor.style.left =
+            `${Math.max(0.1 * window.innerWidth, 0.5 * (window.innerWidth - subsetEditor.offsetWidth))}px`
+         subsetEditor.style.top =
+            `${Math.max(0.1 * window.innerHeight, 0.2 * (window.innerHeight - subsetEditor.offsetHeight))}px`
+      }
 
       // register action handler
       GEUtils.createActionHandler(this.editorDialog, (action) => eval(action))
@@ -929,14 +1034,17 @@ class SubsetEditor {
       }
    }
 
-   swapElement (elementNumber) {
+   swapElement (elementNumber /*: groupElement */) {
       const li = this.editorDialog.querySelector(`[data-element="${elementNumber}"]`)
-      const toList = (li.closest('ul').getAttribute('id') == 'subset-elements')
+      const toList = (li?.closest('ul')?.getAttribute('id') == 'subset-elements')
          ? this.editorDialog.querySelector('#complement-elements')
          : this.editorDialog.querySelector('#subset-elements')
+      if (li == null || toList == null) {
+         return
+      }
       // sort the toList? find location to insert li?
       const toListElements = Array
-         .from(toList.querySelectorAll('li'))
+         .from(toList.children)
          .map((el) => parseInt(el.getAttribute('data-element')))
       if (   toListElements.length == 0
           || toListElements[toListElements.length - 1] < elementNumber
@@ -951,7 +1059,10 @@ class SubsetEditor {
 /*
  * Utility functions
  */
-async function confirmSubsetSave (subsetElements, explanation) {
+async function confirmSubsetSave (
+   subsetElements /*: BitSet */,
+   explanation /*: html */
+) /*: Promise<boolean> | Promise<unknown> */ {
    const matchingSubsets = displayList
       .filter((displayElement) => displayElement.parent == null && displayElement.elements.equals(subsetElements))
 
@@ -1022,11 +1133,17 @@ function showingRightCosets (id /*: groupElement */) /*: boolean */ {
    return rootElement.querySelector('#partitions li.rightCoset' + id) != null
 }
 
-function makeLongList (id /*: groupElement */, htmlGenerator /*: string */) /*: html */ {
+function makeLongList (id /*: groupElement */, htmlGenerator /*: (integer, integer) => html */) /*: html */ {
    const result = displayList.reduce(
-      (list, item, other_id) => ((other_id == id) ? null : list.push(htmlGenerator(id, other_id)), list), [] )
-         .join('');
-   return result;
+      (list /*: Array<html> */, _listItem, index) => {
+         if (index != id) {
+            list.push(htmlGenerator(id, index))
+         }
+         return list
+      }, [])
+      .join('')
+
+   return result
 }
 
 function showHeaderMenu (event /*: MouseEvent */) {
@@ -1050,17 +1167,20 @@ function showHeaderMenu (event /*: MouseEvent */) {
 
 function showMenu (event /*: MouseEvent */, id /*: number */) {
    const menu = displayList[id].menu
-   event.target.closest('[data-action]').style.backgroundColor = 'var(--list-highlight)'
-   makeDetachedMenu(menu, event)
-      .then(
-         (action) => {
-            // clear highlight
-            event.target.closest('[data-action]').style.backgroundColor = ''
-            eval(action)
-         })
+   const dataActionElement = (event.target instanceof Element) ? event.target.closest('[data-action]') : null
+   if (dataActionElement instanceof HTMLElement) {
+      dataActionElement.style.backgroundColor = 'var(--list-highlight)'
+      makeDetachedMenu(menu, event)
+         .then(
+            (action) => {
+               // clear highlight
+               dataActionElement.style.backgroundColor = ''
+               eval(action)
+            })
+   }
 }
 
-function toggleColorHighlight (id) {
+function toggleColorHighlight (id /*: integer */) {
    if (  highlights[0].length == 0
       || !(displayList[id] instanceof PartitionSubset) && (highlights[0][0] != id)
       || (displayList[id] instanceof PartitionSubset) && (displayList[highlights[0][0]]?.parent != displayList[id].parent)
@@ -1105,7 +1225,7 @@ function allOrderClassesHTML () {
    return html
 }
 
-function intersectionItemHTML (id, other_id) {
+function intersectionItemHTML (id /*: integer */, other_id /*: integer */) /*: html */ {
    const html =
       `<li data-action="displayList[${id}].intersection(displayList[${other_id}])">
           the intersection of ${displayList[id].name} with ${displayList[other_id].name}
@@ -1113,7 +1233,7 @@ function intersectionItemHTML (id, other_id) {
    return html
 }
 
-function unionItemHTML (id, other_id) {
+function unionItemHTML (id /*: integer */, other_id /*: integer */) /*: html */ {
    const html =
       `<li data-action="displayList[${id}].union(displayList[${other_id}])">
           the union of ${displayList[id].name} with ${displayList[other_id].name}
@@ -1121,7 +1241,7 @@ function unionItemHTML (id, other_id) {
    return html
 }
 
-function elementwiseProductItemHTML (id, other_id) {
+function elementwiseProductItemHTML (id /*: integer */, other_id /*: integer */) /*: html */ {
    const html =
       `<li data-action="displayList[${id}].elementwiseProduct(displayList[${other_id}])">
           the elementwise product of ${displayList[id].name} with ${displayList[other_id].name}
@@ -1129,14 +1249,14 @@ function elementwiseProductItemHTML (id, other_id) {
    return html
 }
 
-function highlightItemMenuHTML (subset) {
+function highlightItemMenuHTML (subset /*: AbstractSubset */) /*: html */ {
    const html = [
       '<ul id="highlight-item-menu">'
    ]
-   for (const [inx, highlighter] of Object.entries(highlighters)) {
+   for (const [inx, highlighter] of highlighters.entries()) {
       html.push(
          `<li data-action="highlightItem([${subset.id}], ${inx})">
-             by ${highlighter.label}
+             by ${highlighter.label || ''}
           </li>`
       )
    }
@@ -1147,14 +1267,14 @@ function highlightItemMenuHTML (subset) {
    return html.join('')
 }
 
-function highlightPartitionMenuHTML (partition) {
+function highlightPartitionMenuHTML (partition /*: AbstractPartition */) /*: html */ {
    const html = [
       '<ul id="highlight-partition-menu">'
    ]
-   for (const [inx, highlighter] of Object.entries(highlighters)) {
+   for (const [inx, highlighter] of highlighters.entries()) {
       html.push(
-         `<li data-action="highlightItem([${partition.subsets.map((el) => el.id)}], ${inx})">
-             by ${highlighter.label}
+         `<li data-action="highlightItem([${partition.subsets.map((el) => el.id.toString()).join(',')}], ${inx})">
+             by ${highlighter.label || ''}
           </li>`
       )
    }
@@ -1166,8 +1286,12 @@ function highlightPartitionMenuHTML (partition) {
 }
 
 // Set highlight color as a function of visualizer, highlight type
-function highlightItem (displayListIndexes, highlighterIndex, colors) {
-   const elementArray = (displayListIndexes.length == 0) ? [] : Array(group.order).fill(null)
+function highlightItem (
+   displayListIndexes /*: Array<integer> */,
+   highlighterIndex /*: integer */,
+   colors /*:: ?: Array<color> */
+) {
+   const elementArray /*: Array<color> */ = (displayListIndexes.length == 0) ? [] : Array(group.order).fill(null)
    for (const [inx, displayId] of displayListIndexes.entries()) {
       let color
       if (colors != null) {

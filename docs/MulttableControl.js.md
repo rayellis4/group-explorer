@@ -13,15 +13,17 @@ Display input elements that configure the MulttableView:
 
 import {makeMockSelect} from './UIComponents.js'
 
-export {addControl}
+/*::
+import {MulttableView} from './MulttableView.js'
+ */
 
-function addControl (multtableControlElement, multtableView) {
+export function addControl (multtableControlElement /*: HTMLElement */, multtableView /*: MulttableView */) {
    // create elements for view control and initialize values from MulttableView
    const subgroupIndex =
       (multtableView.organizingSubgroup === multtableView.group.subgroups.length - 1)
          ? 0
          : multtableView.organizingSubgroup
-   const formatSubgroupChoice = (subgroupIndex) => {
+   const formatSubgroupChoice = (subgroupIndex /*: integer */) => {
       const subgroup = multtableView.group.subgroups[subgroupIndex]
       return (subgroupIndex === 0)
          ? 'none'
@@ -77,28 +79,28 @@ function addControl (multtableControlElement, multtableView) {
        </div>
 
        <style>
-          #${multtableControlElement.getAttribute('id')} > *:first-child {
+          #${(multtableControlElement.getAttribute('id') /*:: as any as string */)} > *:first-child {
              margin-top: 0.5em;
           }
        </style>`
 
 
    // define multtable control element names
-   const organizationSelect = document.getElementById('organization_select')
-   const separationSlider = document.getElementById('separation_slider')
-   const colorationRainbow = document.getElementById('coloration_rainbow')
-   const colorationGrayscale = document.getElementById('coloration_grayscale')
-   const colorationNone = document.getElementById('coloration_none')
-   const colorOrderTopRowFixed = document.getElementById('color_order_top_row_fixed')
-   const colorOrderElementColorsFixed = document.getElementById('color_order_element_colors_fixed')
-
+   const organizationSelect = (document.getElementById('organization_select') /*:: as any as HTMLElement */)
+   const separationSlider = (document.getElementById('separation_slider') /*:: as any as HTMLInputElement */)
+   const colorationRainbow = (document.getElementById('coloration_rainbow') /*:: as any as HTMLInputElement */)
+   const colorationGrayscale = (document.getElementById('coloration_grayscale') /*:: as any as HTMLInputElement */)
+   const colorationNone = (document.getElementById('coloration_none') /*:: as any as HTMLInputElement */)
+   const colorOrderTopRowFixed = (document.getElementById('color_order_top_row_fixed') /*:: as any as HTMLInputElement */)
+   const colorOrderElementColorsFixed =
+      (document.getElementById('color_order_element_colors_fixed') /*:: as any as HTMLInputElement */)
 
    // define multtable control element input handlers
 
    // Display organization choices in mock select
    const displayChoices = () => {
-      const choices = multtableView.group.subgroups.slice(0, -1)
-         .map((_subgroup, index) => [index, formatSubgroupChoice(index)])
+      const choices /*: Array<{value: string, label?: html}> */ = multtableView.group.subgroups.slice(0, -1)
+         .map((_subgroup, index) => { return {value: `${index}`, label: formatSubgroupChoice(index)} })
       makeMockSelect(organizationSelect, choices)
          .then(
             (choice) => multtableView.organizeBySubgroup(parseInt(choice)),

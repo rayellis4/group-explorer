@@ -4,15 +4,17 @@
  */
 
 import * as MathUtils from './MathUtils.js';
-import BitSet from './BitSet.js';
-import Subgroup from './Subgroup.js';
+import {BitSet} from './BitSet.js';
+import {Subgroup} from './Subgroup.js';
 
-export default
-class SubgroupLattice {
 /*::
-   group: Group;
-   z_generators: BitSet;
+import {Group} from './Group.js'
  */
+
+export class SubgroupLattice {
+   group /*: Group */
+   z_generators /*: BitSet */
+
    constructor (group /*: Group */) {
       this.group = group;
       this.z_generators = new BitSet(group.order);
@@ -23,24 +25,21 @@ class SubgroupLattice {
       }
    }
 
-   static getSubgroups(group /*: Group */) /*: [Array<Subgroup>, boolean] */ {
-      let allSubgroups,
-          isSolvable = true,
-          subgroupFinder = new SubgroupLattice(group);
+   static getSubgroups (group /*: Group */) /*: [Array<Subgroup>, boolean] */ {
+      const subgroupFinder = new SubgroupLattice(group)
+      const allSubgroups /*: Array<Subgroup> */ = []
+      let isSolvable  = true
 
       // special case cyclic groups, trivial group
       if (group.order == 1) {
-         allSubgroups = [ new Subgroup(group, [0], [0]) ];
+         allSubgroups.push(new Subgroup(group, [0], [0]))
       } else if (MathUtils.isPrime(group.order)) {
-         allSubgroups = [
-            new Subgroup(group, [0], [0]),
-            new Subgroup(group, [1]).setAllMembers(),
-         ];
+         allSubgroups.push(new Subgroup(group, [0], [0]), new Subgroup(group, [1]).setAllMembers())
       } else {
-         allSubgroups = subgroupFinder.findAllSubgroups();
+         allSubgroups.push(...subgroupFinder.findAllSubgroups())
       }
 
-      allSubgroups.sort((a,b) => a.members.popcount() - b.members.popcount());
+      allSubgroups.sort((a, b) => a.members.popcount() - b.members.popcount());
       const last_subgroup_found = allSubgroups[allSubgroups.length - 1];
       if (last_subgroup_found.members.popcount() != group.order) {
          isSolvable = false;
@@ -52,53 +51,12 @@ class SubgroupLattice {
          allSubgroups.push(new_subgroup);
       }
 
-      SubgroupLattice.addSubgroupLattice(allSubgroups);
-
       return [allSubgroups, isSolvable];
    }
 
-   // Add subgroup containment lattice to subgroups
-   // contains/containedIn are fields in the Sugroup object
-   // of BitSets of indexes into the group.subgroups array
-   // indicating subgroups immediately contained by/containing this subgroup
-   static addSubgroupLattice(subgroups /*: Array<Subgroup> */) {
-      const numSubgroups = subgroups.length;
 
-      // initialize contains, containedIn fields
-      subgroups.forEach( (h) => {
-         h.contains = new BitSet(numSubgroups);
-         h.containedIn = new BitSet(numSubgroups);
-      } )
-
-      // Set fields to indirect as well as direct containment
-      // Note the starting index of the inner loop: subgroups are ordered by increasing size,
-      //   and containers are bigger than containees
-      for (let containeeIndex = 0; containeeIndex < numSubgroups; containeeIndex++) {
-         const containee = subgroups[containeeIndex];
-         for (let containerIndex = containeeIndex + 1; containerIndex < numSubgroups; containerIndex++) {
-            const container = subgroups[containerIndex];
-            if (container.members.contains(containee.members)) {
-               container.contains.set(containeeIndex);
-               containee.containedIn.set(containerIndex);
-            }
-         }
-      }
-
-      // Clear indirect containment
-      for (let containeeIndex = 0; containeeIndex < numSubgroups; containeeIndex++) {
-         const containee = subgroups[containeeIndex];
-         for (let containerIndex = containeeIndex + 1; containerIndex < numSubgroups; containerIndex++) {
-            const container = subgroups[containerIndex];
-            if (container.contains.isSet(containeeIndex)) {
-               container.contains.subtract(containee.contains);
-            }
-         }
-      }
-   }
-
-
-   findAllSubgroups() /*: Array<Subgroup> */ {
-      const subgroups = [];
+   findAllSubgroups () /*: Array<Subgroup> */ {
+      const subgroups /*: Array<Subgroup> */ = [];
 
       let currLayer = [new Subgroup(this.group, [0], [0])];  // 0-th layer is trivial group
       for (;;) {
@@ -117,7 +75,7 @@ class SubgroupLattice {
       Cyclic extension algorithm from
       "Fundamental Algorithms for Permutation Groups" by Greg Butler (1991)
     */
-   findNextLayer(currLayer /*: Array<Subgroup> */) /*: Array<Subgroup> */ {
+   findNextLayer (currLayer /*: Array<Subgroup> */) /*: Array<Subgroup> */ {
       const nextLayer = [];
 
       for (let i = 0; i < currLayer.length; i++) {
@@ -137,7 +95,7 @@ class SubgroupLattice {
             if (! BitSet.intersection(this.group.elementPrimePowers[g],
                                       currSubgroup.members)
                         .isEmpty()) {
-               let nextSubgroup = currSubgroup.clone();
+               const nextSubgroup = currSubgroup.clone()
                this.extendSubgroup(nextSubgroup, g);
                this.minimizeGenerators(nextSubgroup, g);
                nextLayer.push(nextSubgroup);
@@ -166,7 +124,7 @@ class SubgroupLattice {
       end if
       end while
     */
-   findNormalizer(subgroup /*: Subgroup */) /*: Subgroup */ {
+   findNormalizer (subgroup /*: Subgroup */) /*: Subgroup */ {
       let normalizer = subgroup.clone(),
           todo = new BitSet(this.group.order).setAll().subtract(subgroup.members);
 
@@ -186,8 +144,8 @@ class SubgroupLattice {
       return normalizer;
    }
 
-   normalizes(subgroup /*: Subgroup */, g /*: number */) /*: boolean */{
-      const mult = (a,b) => this.group.multtable[a][b];
+   normalizes (subgroup /*: Subgroup */, g /*: groupElement */) /*: boolean */{
+      const mult = (a /*: groupElement */, b /*: groupElement */) => this.group.multtable[a][b];
       const g_inverse = this.group.inverses[g];
       for (let i = 0; i < this.group.order; i++) {
          if (subgroup.generators.isSet(i)) {
@@ -199,7 +157,7 @@ class SubgroupLattice {
       return true;
    }
 
-   extendSubgroup(subgroup /*: Subgroup */, normalizer /*: number */) {
+   extendSubgroup (subgroup /*: Subgroup */, normalizer /*: number */) {
       const todo = this.group.elementPowers[normalizer];
       for (let i = 0; i < subgroup.members.len; i++) {
          if (subgroup.members.isSet(i)) {
@@ -212,7 +170,7 @@ class SubgroupLattice {
       }
    }
 
-   minimizeGenerators(subgroup /*: Subgroup */, extension /*: number */) {
+   minimizeGenerators (subgroup /*: Subgroup */, extension /*: number */) {
       // 1) find an element that will generate what extension and an existing generator do now
       const generators = subgroup.generators.toArray();
       for (let i = 0; i < generators.length; i++) {

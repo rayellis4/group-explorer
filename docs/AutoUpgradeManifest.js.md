@@ -6,9 +6,7 @@ Lists of files to be refreshed on version upgrade
 
 ```javascript
 */
-export {codeFiles, groupFiles}
-
-const codeFiles = [
+export const codeFiles = [
    './GroupExplorer.html',
    './GroupInfo.html',
    './CayleyDiagram.html',
@@ -84,7 +82,8 @@ const codeFiles = [
    'style/ge3.css',
 ]
 
-const groupFiles = [
+export const groupFiles = [
+   // Default library
    'groups/Trivial.group',
    'groups/Z_2.group',
    'groups/Z_3.group',
@@ -145,10 +144,8 @@ const groupFiles = [
    'groups/Z_2%20x%20Z_2%20x%20Z_2%20x%20Z_3.group',
    'groups/A_5.group',
    'groups/Z_2%20x%20Z_3%20x%20Z_3%20x%20Z_4.group',
-   /*
-   'groups/168.group',
-   'groups/Tesseract.group',
-    */
+
+   // fgb_groups, named by GAP id
    'groups/22,1.group',
    'groups/24,10.group',
    'groups/24,11.group',
@@ -236,4 +233,9 @@ const groupFiles = [
    'groups/40,6.group',
    'groups/40,7.group',
    'groups/40,8.group',
+
+   /* Large groups, used in testing but not normally loaded
+   'groups/168.group',
+   'groups/Tesseract.group',
+    */
 ]

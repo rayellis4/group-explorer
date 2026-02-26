@@ -1,8 +1,8 @@
 // Claude Sonnet 4.5-generated unit test for Group
 
-import Group from '../js/Group.js'
-import Subgroup from '../js/Subgroup.js'
-import BitSet from '../js/BitSet.js'
+import {Group} from '../js/Group.js'
+import {Subgroup} from '../js/Subgroup.js'
+import {BitSet} from '../js/BitSet.js'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -11,8 +11,8 @@ let Z4, S3;
 before(async function () {
   this.timeout(5000);
   const [z4json, s3json] = await Promise.all([
-    fetch('../groups/Z_4.group').then(r => r.json()),
-    fetch('../groups/S_3.group').then(r => r.json()),
+    fetch('./groups/Z_4.group').then(r => r.json()),
+    fetch('./groups/S_3.group').then(r => r.json()),
   ]);
   Z4 = Group.fromGroupFileJSON(z4json);
   S3 = Group.fromGroupFileJSON(s3json);

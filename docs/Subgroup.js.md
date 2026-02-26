@@ -1,34 +1,26 @@
 // @flow
 /*
- *   subgroup structure -- containing group, and generator, member, contains, containedIn bitsets
+ *   subgroup structure -- containing group, and generator, member, bitsets
  */
-import BitSet from './BitSet.js';
-import IsomorphicGroups from './IsomorphicGroups.js'
+import {BitSet} from './BitSet.js';
+import {IsomorphicGroups} from './IsomorphicGroups.js'
 import * as Library from './Library.js'
 
 /*::
-import type Group from './Group.js'
+import type {Group} from './Group.js'
 import type {BitSetJSON} from './BitSet.js';
 
 export type SubgroupJSON = {
+   group: string,
    generators: BitSetJSON,
    members: BitSetJSON,
-   _isNormal: boolean,
-   contains: BitSetJSON,
-   containedIn: BitSetJSON
 };
 */
-
-export default
-class Subgroup {
-/*::
-   group: Group;
-   generators: BitSet;
-   members: BitSet;
-   _isNormal: boolean;
-   contains: BitSet;
-   containedIn: BitSet;
- */
+export class Subgroup {
+   group /*: Group */
+   generators /*: BitSet */
+   members /*: BitSet */
+   _isNormal /*: boolean */
    _isomorphicGroup /*: Group */
    _isomorphicGroupEmbedding /*: Array<groupElement> */
    _isomorphicQuotientGroup /*: Group */
@@ -48,24 +40,36 @@ class Subgroup {
    // reference to containing group is useful,
    //   but it creates a circular data structure that can't be serialized in JSON
    //   we replace that reference here with group.URL and resolve it later
-   toJSON () {
-      const result = {}
-      for (const [key, value] of Object.entries(this)) {
-         if (value?.constructor?.name === 'Group') {
-            result[key] = value.URL
-         } else {
-            result[key] = value
-         }
+   toJSON () /*: SubgroupJSON */ {
+      const result = {
+         group: this.group.URL,
+         generators: this.generators.toJSON(),
+         members: this.members.toJSON()
       }
+
       return result
    }
 
    static parseJSON (jsonObject /*: SubgroupJSON */) /*: Subgroup */ {
-      const subgroup = Object.assign(new Subgroup(), jsonObject)
-      subgroup.generators = BitSet.parseJSON(jsonObject.generators)
-      subgroup.members = BitSet.parseJSON(jsonObject.members)
+      const subgroup = new Subgroup()
+      const maybeGroup = Library.getAllGroups().find((G) => G.URL == jsonObject.group)
+      if (maybeGroup != null) {
+         subgroup.group = maybeGroup
+      }
+      subgroup.generators = new BitSet().fromJSON(jsonObject.generators)
+      subgroup.members = new BitSet().fromJSON(jsonObject.members)
 
       return subgroup;
+   }
+
+   // clone/copy all fields
+   clone () /*: Subgroup */ {
+      const clone = new Subgroup()
+      clone.group = this.group
+      clone.generators = this.generators.clone()
+      clone.members = this.members.clone()
+
+      return clone
    }
 
    setAllMembers() /*: Subgroup */ {
@@ -97,19 +101,18 @@ class Subgroup {
       return this._isNormal;
    }
 
-   get isomorphicGroup () /*: Group */ {
-      if (this._isomorphicGroup == null) {
+   setIsomorphicGroupAndEmbedding () {
+      if (this._isomorphicGroup == null || this._isomorphicGroupEmbedding == null) {
+         // $FlowExpectedError[unsupported-syntax]
          [this._isomorphicGroup, this._isomorphicGroupEmbedding] =
             IsomorphicGroups.findEmbedding(this.group, this)
          Library.saveGroup(this.group)
-      } else if (   typeof this._isomorphicGroup == 'object'
-                 && this._isomorphicGroup?.constructor.name != 'Group'
-      ) {
-         this._isomorphicGroup = Library.getGroupByURL(this._isomorphicGroup.URL)
-         Library.saveGroup(this.group)
-      } else if (typeof this._isomorphicGroup == 'string') {
-         this._isomorphicGroup = Library.getGroupByURL(this._isomorphicGroup)
-         Library.saveGroup(this.group)
+      }
+   }
+
+   get isomorphicGroup () /*: Group */ {
+      if (this._isomorphicGroup == null) {
+         this.setIsomorphicGroupAndEmbedding()
       }
 
       return this._isomorphicGroup
@@ -117,52 +120,38 @@ class Subgroup {
 
    get isomorphicGroupEmbedding () /*: Array<groupElement> */ {
       if (this._isomorphicGroupEmbedding == null) {
-         this._isomorphicGroup = null
-         this.isomorphicGroup
+         this.setIsomorphicGroupAndEmbedding()
       }
 
       return this._isomorphicGroupEmbedding
    }
 
-   get isomorphicQuotientGroup () /*: Group */ {
-      if (!this.isNormal)
-         return null
-
-      if (this._isomorphicQuotientGroup == null) {
+   setQuotientGroupAndMap () {
+      if (this._isomorphicQuotientGroup == null || this._isomorphicQuotientMap == null) {
+         // $FlowExpectedError[unsupported-syntax]
          [this._isomorphicQuotientGroup, this._isomorphicQuotientMap] =
             IsomorphicGroups.findQuotient(this.group, this)
          Library.saveGroup(this.group)
-      } else if (   typeof this._isomorphicQuotientGroup == 'object'
-                 && this._isomorphicQuotientGroup?.constructor.name != 'Group'
-      ) {
-         this._isomorphicQuotientGroup = Library.getGroupByURL(this._isomorphicQuotientGroup.URL)
-         Library.saveGroup(this.group)
-      } else if (typeof this._isomorphicQuotientGroup == 'string') {
-         this._isomorphicQuotientGroup = Library.getGroupByURL(this._isomorphicQuotientGroup)
-         Library.saveGroup(this.group)
+      }
+   }
+
+   get isomorphicQuotientGroup () /*: ?Group */ {
+      if (!this.isNormal) {
+         return null
+      } else if (this._isomorphicQuotientGroup == null) {
+         this.setQuotientGroupAndMap()
       }
 
       return this._isomorphicQuotientGroup
    }
 
-   get isomorphicQuotientMap () /*: Array<groupElement> */ {
-      if (this._isomorphicQuotientMap == null) {
-         this._isomorphicQuotientGroup = null
-         this.isomorphicQuotientGroup
+   get isomorphicQuotientMap () /*: ?Array<groupElement> */ {
+      if (!this.isNormal) {
+         return null
+      } else if (this._isomorphicQuotientMap == null) {
+         this.setQuotientGroupAndMap()
       }
 
       return this._isomorphicQuotientMap
-   }
-
-   // clone/copy all fields
-   clone () /*: Subgroup */ {
-      const clone = Subgroup.parseJSON(JSON.parse(JSON.stringify(this)))
-      for (const [key, value] of Object.entries(this)) {
-         if (value?.constructor?.name === 'Group') {
-            clone[key] = this[key]
-         }
-      }
-
-      return clone
    }
 }

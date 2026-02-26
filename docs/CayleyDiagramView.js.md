@@ -33,7 +33,7 @@ import {THREE} from '../lib/externals.js'
 export {DEFAULT_SPHERE_COLOR as DEFAULT_NODE_COLOR} from './AbstractDiagramDisplay.js'
 
 /*::
-import Group from './Group.js';
+import {Group} from './Group.js';
 import type {Tree} from './GEUtils.js';
 import {VizDisplay} from './SheetModel.js';
 import type {VisualizerElementJSON} from './SheetModel.js';
@@ -151,8 +151,7 @@ const highlightNames = {
    HIGHLIGHT_RING: 'a ring around the node',
    HIGHLIGHT_SQUARE: 'a square around the node'
 }
-export default
-class CayleyDiagramView extends AbstractDiagramDisplay {
+export class CayleyDiagramView extends AbstractDiagramDisplay {
 /*::
     display_labels: boolean;
     _label_scale_factor: float;
@@ -165,6 +164,8 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
     ring_highlights: Array<?css_color> | void;
     square_highlights: Array<?css_color> | void;
 */
+    cayleyDiagramGenerator /*: CayleyDiagramGenerator */
+
     constructor (options /*: CayleyDiagramViewOptions */ = {}) {
        super(options);
 
@@ -213,6 +214,10 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
         this.deleteAllChunks();
         super.deleteAllObjects();
     }
+
+   toJSON () /*: any */ {
+      return this.cayleyDiagramGenerator.toJSON()
+   }
 
     ////////////////////////////   Sphere routines   ////////////////////////////////
 

@@ -15,8 +15,11 @@ Display input elements that configure the CayleyDiagramView:
 import * as GEUtils from './GEUtils.js'
 
 export {addControl}
+/*::
+import type {CayleyDiagramView} from './CayleyDiagramView.js'
+ */
 
-function addControl (cayleyViewControlElement, cayleyDiagramView) {
+function addControl (cayleyViewControlElement /*: HTMLElement */, cayleyDiagramView /*: CayleyDiagramView */) {
    // create view control elements and initialize values from cayleyDiagramView
    // n.b.: data-name attributes are just documentation, they aren't used in the code
    const fogLevel = cayleyDiagramView.fog_level
@@ -71,14 +74,14 @@ function addControl (cayleyViewControlElement, cayleyDiagramView) {
       </div>`
 
    // define view control element names
-   const zoomLevelSlider = document.getElementById('zoom-level-slider')
-   const lineThicknessSlider = document.getElementById('line-thickness-slider')
-   const nodeRadiusSlider = document.getElementById('node-radius-slider')
-   const useFogCheckbox = document.getElementById('use-fog-checkbox')
-   const fogLevelSlider = document.getElementById('fog-level-slider')
-   const showLabelsCheckbox = document.getElementById('show-labels-checkbox')
-   const labelSizeSlider = document.getElementById('label-size-slider')
-   const arrowheadPlacementSlider = document.getElementById('arrowhead-placement-slider')
+   const zoomLevelSlider = (document.getElementById('zoom-level-slider') /*:: as any as HTMLInputElement */)
+   const lineThicknessSlider = (document.getElementById('line-thickness-slider') /*:: as any as HTMLInputElement */)
+   const nodeRadiusSlider = (document.getElementById('node-radius-slider') /*:: as any as HTMLInputElement */)
+   const useFogCheckbox = (document.getElementById('use-fog-checkbox') /*:: as any as HTMLInputElement */)
+   const fogLevelSlider = (document.getElementById('fog-level-slider') /*:: as any as HTMLInputElement */)
+   const showLabelsCheckbox = (document.getElementById('show-labels-checkbox') /*:: as any as HTMLInputElement */)
+   const labelSizeSlider = (document.getElementById('label-size-slider') /*:: as any as HTMLInputElement */)
+   const arrowheadPlacementSlider = (document.getElementById('arrowhead-placement-slider') /*:: as any as HTMLInputElement */)
 
    // define view control element input handlers
    const setZoomLevel = () => {

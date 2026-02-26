@@ -12,7 +12,7 @@ import * as Library from './Library.js'
 export {setup, executeCommands}
 
 /*::
-import Group from './Group.js'
+import {Group} from './Group.js'
 */
 
 /*
@@ -99,7 +99,7 @@ const codeForPurpose = new Map/*:: <string, string> */([
 
 // executed in parent context: setup iframe in wrapper, invoke iframe routine to show code
 async function setup (purpose /*: string */, group /*: Group */) {
-  const iframeElement = document.getElementById('gap-iframe')
+   const iframeElement = ((document.getElementById('gap-iframe') /*: any */) /*: HTMLIFrameElement */)
 
   // load iframe on first time through
   if (iframeElement.contentWindow.GAPCell == null) {
@@ -119,13 +119,13 @@ async function setup (purpose /*: string */, group /*: Group */) {
 
 function getCode (purpose /*: string */, group /*: Group */) /*: string */ {
   // converting an arbitrary string to a JS identifier (not injective)
-  function toIdent (str) {
+  function toIdent (str /*: string */) {
     if (!/^[a-zA-Z_]/.test(str)) str = '_' + str
     return str.replace(/[^a-zA-Z0-9_]/g, '')
   }
 
   const G = toIdent(group.shortName)
-  const [ord, idx] = group.gapid.split(',')
+  const [ord, idx] = group.gapid?.split(',') || [-1, -1]
   const gpdef = `SmallGroup( ${ord}, ${idx} )`
 
   const code = ((codeForPurpose.get(purpose) /*: any */) /*: string */)
@@ -134,7 +134,7 @@ function getCode (purpose /*: string */, group /*: Group */) /*: string */ {
   return newCode
 }
 
-function executeCommands (gapCommands) {
+function executeCommands (gapCommands /*: string */) /*: Promise<string> */ {
    return new Promise((resolve, reject) => {
       const iframeElement = document.body.appendChild(document.createElement('iframe'))
       iframeElement.style.display = 'none'
@@ -157,7 +157,7 @@ function executeCommands (gapCommands) {
    })
 }
 
-export async function getGAPInfo (groupURL) {
+export async function getGAPInfo (groupURL /*: string */) {
    const checkGroup = () => Library.getAllGroups().find((G) => G.URL == groupURL)
    if (checkGroup() != null) {
       const presentation = new URL(groupURL).search.slice(1)
@@ -178,12 +178,12 @@ export async function getGAPInfo (groupURL) {
    }
 }
 
-export async function getGAPId (presentation) {
+export async function getGAPId (presentation /*: string */) /*: Promise<?string> */ {
    const relators = presentation.split(':')[1].split(',')
    const generators = Array.from(
       relators.reduce(
-         (generatorSet, relator) => {
-            for (const char of relator) {
+         (generatorSet /*: Set<string> */, relator) => {
+            for (const char of [...new String(relator)]) {
                generatorSet.add(char.toLowerCase())
             }
             return generatorSet
@@ -204,7 +204,7 @@ export async function getGAPId (presentation) {
    try {
       const gapIdOutput = await executeCommands(printGAPIdCommand)
       if (gapIdOutput != null) {
-         result = gapIdOutput.match(/(\d+)/g).join(',')
+         result = gapIdOutput?.match(/(\d+)/g)?.join(',')
       }
    } catch (_error) { }
 

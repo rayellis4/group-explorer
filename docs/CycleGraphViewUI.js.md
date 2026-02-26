@@ -14,8 +14,11 @@ import {recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizeZo
 import {makeTooltip} from './UIComponents.js'
 
 export {addGestures}
+/*::
+import type {CycleGraphView} from './CycleGraphView.js'
+ */
 
-function addGestures (cycleGraphView) {
+function addGestures (cycleGraphView /*: CycleGraphView */) {
    cycleGraphView.reset()
    addSelect(cycleGraphView)
    addContextMenu(cycleGraphView)
@@ -27,7 +30,7 @@ function addGestures (cycleGraphView) {
 ### select
 ```javascript
 */
-function addSelect (cycleGraphView) {
+function addSelect (cycleGraphView /*: CycleGraphView */) {
    recognizeSelect(cycleGraphView.canvas,
       (event) => {
          const boundingRectangle = cycleGraphView.canvas.getBoundingClientRect()
@@ -48,7 +51,7 @@ function addSelect (cycleGraphView) {
 ### contextMenu
 ```javascript
 */
-function addContextMenu (cycleGraphView) {
+function addContextMenu (cycleGraphView /*: CycleGraphView */) {
    recognizeContextMenu(cycleGraphView.canvas,
       (_event) => {
          cycleGraphView.reset()
@@ -59,7 +62,7 @@ function addContextMenu (cycleGraphView) {
 ### move
 ```javascript
 */
-function addMove (cycleGraphView) {
+function addMove (cycleGraphView /*: CycleGraphView */) {
    recognizeDragAndDrop(cycleGraphView.canvas,
       (startEvent, _previousEvent, currentEvent, isDrop) => {
          const dx = currentEvent.clientX - startEvent.clientX
@@ -78,7 +81,7 @@ function addMove (cycleGraphView) {
 ### zoom
 ```javascript
 */
-function addZoom (cycleGraphView) {
+function addZoom (cycleGraphView /*: CycleGraphView */) {
    let totalZoom = 1
    recognizeZoom(cycleGraphView.canvas,
       (scaleFactor, isLastEvent) => {

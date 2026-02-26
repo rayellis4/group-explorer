@@ -1,6 +1,8 @@
 // @flow
 
 import * as Log from './Log.js'
+import * as MathML from './MathML.js'
+import {THREE} from '../lib/externals.js'
 
 export {
    // Group library routines
@@ -24,6 +26,10 @@ export {
    setPassedJSON,
 }
 
+/*::
+import type {libraryType} from './Library.js'
+ */
+
 const DB_NAME = 'GE3'
 const DB_VERSION = 2
 const GENERAL_STORE = 'GeneralStore'
@@ -33,7 +39,7 @@ const PREFERENCES_KEY = 'Preferences'
 const PASSED_SHEET_KEY = 'PassedSheet'
 const PASSED_JSON_KEY = 'PassedJSON'
 
-async function getObjectStore (objectStoreName, mode) {
+async function getObjectStore (objectStoreName /*: string */, mode /*: 'readwrite' | 'readonly' */) {
    const db = await openDatabase()
    const result = db
       .transaction(objectStoreName, mode)  // if this fails then we might need to retry once
@@ -41,9 +47,9 @@ async function getObjectStore (objectStoreName, mode) {
    return result
 }
 
-async function openDatabase () {
+async function openDatabase () /*: Promise<IDBDatabase> */ {
    return new Promise((resolve, reject) => {
-      const request = window.indexedDB.open(DB_NAME, DB_VERSION)
+      const request /*: IDBOpenDBRequest */ = window.indexedDB.open(DB_NAME, DB_VERSION)
       request.onupgradeneeded = async (ev) => {
          switch (ev.oldVersion) {
          case 0: await migrateToV1(ev)
@@ -51,7 +57,7 @@ async function openDatabase () {
          }
       }
       request.onsuccess = (ev) => {
-         const database = ev.target.result
+         const database /*: IDBDatabase */ = ev.target.result
          resolve(database)
       }
       request.onerror = (ev) => {
@@ -65,7 +71,7 @@ async function openDatabase () {
    })
 }
 
-function completeRequest (request) {
+function completeRequest (request /*: IDBRequest */) /*: Promise<mixed> */ {
   const result = new Promise((resolve, reject) => {
       request.transaction.oncomplete = () => resolve(request.result)
       request.transaction.onerror = () => reject(request.error)
@@ -74,8 +80,10 @@ function completeRequest (request) {
    return result
 }
    
-function cleanColorList (colorList, nullish = null) {
-   const result = (colorList == null) ? [] : colorList.map((color) => (color == nullish) ? null : color)
+function cleanColorList (colorList /*: Array<?color> */, nullish /*: ?color */ = null) /*: Array<?color> */ {
+   const result /*: Array<?color> */ =
+      (colorList == null) ? [] : colorList.map((color) => (color == nullish) ? null : color)
+
    return result
 }
 
@@ -83,35 +91,35 @@ function cleanColorList (colorList, nullish = null) {
 // Generic access routines
 //////////
 
-async function get (objectStoreName, key) {
+async function get (objectStoreName /*: string */, key /*: string */) /*: Promise<mixed> */ {
    const request = (await getObjectStore(objectStoreName, 'readonly')).get(key)
    return completeRequest(request)
 }
 
-async function put (objectStoreName, key, value) {
+async function put (objectStoreName /*: string */, key /*: string */, value /*: mixed */) {
    const request = (await getObjectStore(objectStoreName, 'readwrite')).put(value, key)
    return completeRequest(request)
 }
 
-async function remove (objectStoreName, key) {  // since 'delete' is a javascript keyword
+async function remove (objectStoreName /*: string */, key /*: string */) {  // since 'delete' is a javascript keyword
    const request = (await getObjectStore(objectStoreName, 'readwrite')).delete(key)
    return completeRequest(request)
 }
 
-async function getAllKeys (objectStoreName) {
+async function getAllKeys (objectStoreName /*: string */) /*: Promise<Array<string>> */ {
    const request = (await getObjectStore(objectStoreName, 'readonly')).getAllKeys()
-   return completeRequest(request)
+   return ((completeRequest(request) /*: any */) /*: Promise<Array<string>> */)
 }
 
 //////////
 // Group library routines
 //////////
 
-async function getGroupLibrary () {
-   return get(GENERAL_STORE, GROUP_LIBRARY_KEY)
+async function getGroupLibrary () /*: Promise<libraryType> */ {
+   return ((get(GENERAL_STORE, GROUP_LIBRARY_KEY) /*: any */) /*: Promise<libraryType> */)
 }
 
-async function saveGroupLibrary (groupLibrary) {
+async function saveGroupLibrary (groupLibrary /*: libraryType */) /*: Promise<mixed> */ {
    return put(GENERAL_STORE, GROUP_LIBRARY_KEY, groupLibrary)
 }
 
@@ -120,23 +128,28 @@ async function saveGroupLibrary (groupLibrary) {
 //////////
 
 // cache preferences locally to enable client code serialization
-const preferences = (await get(GENERAL_STORE, PREFERENCES_KEY)) || {}
+let preferences /*: {[key: string]: mixed} */ = {}
 
-function getPreference (key) {
+// workaround to avoid flow parse error on top-level await
+;(async () => {
+   preferences = ((await get(GENERAL_STORE, PREFERENCES_KEY) /*: any */) /*: {[key: string]: mixed} */) || {}
+})()
+
+function getPreference (key /*: string */) /*: mixed */ {
    return preferences[key]
 }
 
-function setPreference (key, value) {
+function setPreference (key /*: string */, value /*: mixed */) /*: Promise<mixed> */ {
    preferences[key] = value
    return updatePreferences()
 }
 
-function removePreference (key) {
+function removePreference (key /*: string */) /*: Promise<mixed> */ {
    delete(preferences[key])
    return updatePreferences()
 }
 
-async function updatePreferences () {
+async function updatePreferences () /*: Promise<mixed> */ {
    return put(GENERAL_STORE, PREFERENCES_KEY, preferences)
 }
 
@@ -144,20 +157,20 @@ async function updatePreferences () {
 // Stored Sheet routines
 //////////
 
-async function getStoredSheet (sheetName) {
+async function getStoredSheet (sheetName /*: string */) /*: Promise<mixed> */ {
    return get(SHEET_STORE, sheetName)
 }
 
-async function saveStoredSheet (sheetName, sheet) {
+async function saveStoredSheet (sheetName /*: string */, sheet /*: mixed */) /*: Promise<mixed> */ {
    const sheetJSON = (typeof sheet == 'string') ? migrateSheetToV2(sheet) : sheet
    return put(SHEET_STORE, sheetName, sheetJSON)
 }
 
-async function removeStoredSheet (sheetName) {
+async function removeStoredSheet (sheetName /*: string */) /*: Promise<mixed> */ {
    return remove(SHEET_STORE, sheetName)
 }
 
-async function listStoredSheets () {
+async function listStoredSheets () /*: Promise<Array<string>> */ {
    return getAllKeys(SHEET_STORE)
 }
 
@@ -165,23 +178,23 @@ async function listStoredSheets () {
 // Passed Sheet routines
 //////////
 
-async function getPassedSheet () {
+async function getPassedSheet () /*: Promise<mixed> */ {
    return get(GENERAL_STORE, PASSED_SHEET_KEY)
 }
 
-async function setPassedSheet (passedSheet) {
+async function setPassedSheet (passedSheet /*: mixed */) /*: Promise<mixed> */ {
    return put(GENERAL_STORE, PASSED_SHEET_KEY, passedSheet)
 }
 
 //////////
-// Passed JSON routines
+// Passed JSON routine
 //////////
 
-async function getPassedJSON () {
+async function getPassedJSON () /*: Promise<mixed> */ {
    return get(GENERAL_STORE, PASSED_JSON_KEY)
 }
 
-async function setPassedJSON (passedJSON) {
+async function setPassedJSON (passedJSON /*: mixed */) /*: Promise<mixed> */ {
    return put(GENERAL_STORE, PASSED_JSON_KEY, passedJSON)
 }
 
@@ -191,12 +204,12 @@ async function setPassedJSON (passedJSON) {
 
 // Create version 2 IndexedDB with SHEET_STORE
 // Migrate 'groups' object from localStorage to GROUP_LIBRARY_KEY in GENERAL_STORE
-function migrateToV2 (ev) {
+function migrateToV2 (ev /*: any */) {
    migrateGroupsToV2 (ev)
    migrateSheetsToV2 (ev)
 }
 
-async function migrateGroupsToV2 (ev) {
+async function migrateGroupsToV2 (ev /*: any */) {
    // create GENERAL_STORE objectStore
    const objectStore = ev.target.result.createObjectStore(GENERAL_STORE)
 
@@ -214,10 +227,11 @@ async function migrateGroupsToV2 (ev) {
    localStorage.removeItem('groups')
 }
 
-async function migrateSheetsToV2 (ev) {
+async function migrateSheetsToV2 (ev /*: any */) {
    const objectStore = await getObjectStore(SHEET_STORE, 'readwrite')
 
-   const sheetNames = await completeRequest(objectStore.getAllKeys())
+   const sheetNames =
+      ((await completeRequest(objectStore.getAllKeys()) /*: any */) /*: Array<string> */)
    for (const sheetName of sheetNames) {
       const v1SheetJSONString = await completeRequest(objectStore.get(sheetName))
       const v2SheetJSON = migrateSheetToV2(v1SheetJSONString)
@@ -227,7 +241,7 @@ async function migrateSheetsToV2 (ev) {
 
 // Exported sheet upgrade anticipates other use cases in SheetControl.js
 // Can also get here from Sheet when importing from the clipboard or a file
-function migrateSheetToV2 (sheet) {
+function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
    if (typeof sheet != 'string') {
       return sheet
    }
@@ -244,7 +258,7 @@ function migrateSheetToV2 (sheet) {
    for (const jsonObject of upgradeCandidates) {
       const visualizer = jsonObject.visualizer
       delete jsonObject._visualizer  // delete _visualizer
-      let newHighlights = []
+      let newHighlights /*: Array<Array<?color>> */ = []
       switch (jsonObject.className) {
       case 'CDElement':
          visualizer.line_width = null  // material has changed meaning of 'line width', just use default
@@ -282,7 +296,7 @@ function migrateSheetToV2 (sheet) {
 
 // initializes indexedDB database ('migrate from revision 0')
 // sets up IDBObjectStore and migrates data from localstore 'sheets' value
-async function migrateToV1 (versionChangeEvent) {
+async function migrateToV1 (versionChangeEvent /*: any */) {
    // Create IDBObjectStore where Key is sheet name, Value is sheet JSON ($rev$ 2)
    versionChangeEvent.target.result.createObjectStore(SHEET_STORE)
 

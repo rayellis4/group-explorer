@@ -1,6 +1,6 @@
 // @flow
 
-import * as ControlPanel from './ControlPanel.js'
+import {ControlPanel} from './ControlPanel.js'
 import * as Heading from './Heading.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'

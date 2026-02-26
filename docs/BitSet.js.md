@@ -16,19 +16,18 @@ BitSets are used throughout GE3, and some implementation decisions were made wit
     * default JSON is different from previous Array implementation, requiring `parseJSON` and `toJSON` shims
 ```js
 */
-export {BitSet as default}
+
 /*::
 export type BitSetJSON = {
    len: number,
    arr: Array<number>
 };
 */
-class BitSet {
-/*::
-   len: number;
-   arr: Uint32Array;
- */
-   constructor (length /*: number */, init /*:: ?: Array<groupElement> */ = []) {
+export class BitSet {
+   len /*: number */
+   arr /*: Uint32Array */
+
+   constructor (length /*: number */ = 0, init /*:: ?: Array<groupElement> */ = []) {
       this.len = length;
       this.arr = new Uint32Array(length === 0 ? 0 : (((length - 1) >>> 5) + 1));
       this.arr.fill(0);
@@ -37,13 +36,16 @@ class BitSet {
       }
    }
 
-   // ensure that to/from JSON routines are compatible with previous Array<number> implementation
-   static parseJSON (jsonObject /*: BitSetJSON */) /*: BitSet */ {
-      return Object.assign(new BitSet(0), { len: jsonObject.len, arr: Uint32Array.from(jsonObject.arr) })
-   }
-
    toJSON () /*: BitSetJSON */ {
       return { len: this.len, arr: Array.from(this.arr) }
+   }
+
+   fromJSON (json /*: string | BitSetJSON */) /*: this */ {
+      const jsonObject = (typeof json == 'string') ? JSON.parse(json) : json
+      this.len = jsonObject.len
+      this.arr = Uint32Array.from(jsonObject.arr)
+
+      return this
    }
 
    static intersection (a /*: BitSet */, b /*: BitSet */) /*: BitSet */ {
@@ -95,7 +97,7 @@ class BitSet {
       return other;
    }
 
-   setFrom (other /*: BitSet */) {
+   setFrom (other /*: BitSet */) /*: this */ {
       this.len = other.len
       this.arr = Uint32Array.from(other.arr)
       return this;
@@ -226,13 +228,5 @@ class BitSet {
          str += this.get(i);
       }
       return str;
-   }
-
-   *allElements () /*: Generator<number, void, void> */ {
-      for (let inx = 0; inx < this.len; inx++) {
-         if (this.isSet(inx)) {
-            yield inx;
-         }
-      }
    }
 }

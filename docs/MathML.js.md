@@ -9,6 +9,13 @@ A legacy routine no longer used in the body of GE3, `mathml2text` is maintained 
 export { toHTML, htmlToUnicode }
 export { mathml2text } // used in ge-lib-endmatter.js
 
+/*::
+declare class XSLTProcessor {
+   importStylesheet(Node): void;
+   transformToFragment(Node, Document): DocumentFragment;
+}
+ */
+
 // Unicode characters for numeric subscripts, superscripts
 const Subscripts /*: {[key: string]: string} */ = {
   '0': '\u2080',
@@ -37,7 +44,7 @@ const Superscripts /*: {[key: string]: string } */ = {
   '-': '\u207B'
 }
 
-let xsltProcessor /*: ?XSLTProcessor */ = null
+let xsltProcessor /*: XSLTProcessor */
 
 // XSLT to transform MathML subset into HTML
 const MATHML_2_HTML =
@@ -134,7 +141,11 @@ const MATHML_2_HTML =
 
 ```js
 */
-function toHTML (mathml /*: mathml */) /*: html */ {
+function toHTML (mathml /*: ?string */) /*: ?html */ {
+  if (mathml == null) {
+    return null
+  }
+
   const domParser = new DOMParser()
 
   if (xsltProcessor == null) {
@@ -148,7 +159,7 @@ function toHTML (mathml /*: mathml */) /*: html */ {
   return result
 }
 
-function htmlToUnicode (html /*: html */) /*: string */ {
+function htmlToUnicode (html /*: html */) /*: ?string */ {
   const domParser = new DOMParser()
   const document = domParser.parseFromString(html, 'text/html')
 
@@ -159,13 +170,14 @@ function htmlToUnicode (html /*: html */) /*: string */ {
      sub.textContent = sub.textContent.split('').map(ch => Superscripts[ch]).join('')
   })
 
-  const result = document.body.textContent
+  const result = document.body?.textContent
 
   return result
 }
 
-function mathml2text (mathml /*: mathml */) /*: string */ {
-  return htmlToUnicode(toHTML(mathml))
+function mathml2text (mathml /*: string */) /*: ?string */ {
+  const htmlFromMathML = toHTML(mathml)
+  return (htmlFromMathML == null) ? null : htmlToUnicode(htmlFromMathML)
 }
 /*
 ```

@@ -1,33 +1,25 @@
 // @flow
 
-import BitSet from './BitSet.js';
+import {BitSet} from './BitSet.js';
 import * as DefiningRelations from './DefiningRelations.js'
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js';
 
-export default
-class IsomorphicGroups {
 /*::
-   static map: Array<Array<Group>>;
+import {Group} from './Group.js'
+import {Subgroup} from './Subgroup.js'
  */
-   static init() {
-   }
 
-   static findForSubgroup(group /*: Group */, subgroup /*: Subgroup */) /*: ?Group */ {
-      const subgroupAsGroup = group.getSubgroupAsGroup(subgroup);
-      const isomorphicGroup = (group.order == subgroup.members.popcount()) ?
-                              group :
-                              IsomorphicGroups.find(subgroupAsGroup);
-      return isomorphicGroup;
-   }
+export class IsomorphicGroups {
+   static find (G /*: Group */) /*: ?Group */ {
+      function subgroupOrders (subgroups /*: Array<Subgroup> */) {
+         return subgroups.reduce((acc /*: Array<number> */, H) => {
+            acc[H.order] = (acc[H.order] == null) ? 1 : ++acc[H.order]
+            return acc
+         }, []).filter((order) => order != null)
+      }
 
-   static find(G /*: Group */) /*: ?Group */ {
-      // filter by candidate group properties, isomorphism
-      const subgroupOrders = (subgroups) => subgroups.reduce((acc, H) => {
-         acc[H.order] = (acc[H.order] == null) ? 1 : ++acc[H.order]
-         return acc
-      }, []).filter((order) => order != null)
-
+      // filter by candidate group properties
       const isomorphicCandidates = Library.getGroupsByOrder(G.order)
          .filter( H => GEUtils.equals(G.orderClassSizes, H.orderClassSizes) )
          .filter( H => GEUtils.equals(subgroupOrders(G.subgroups), subgroupOrders(H.subgroups)) )
@@ -41,9 +33,9 @@ class IsomorphicGroups {
    }
 
    // returns isomorphism from G to H, or undefined if none can be found
-   static isomorphism(G /*: Group */, H /*: Group */) /*: void | Array<groupElement> */ {
+   static isomorphism (G /*: Group */, H /*: Group */) /*: ?Array<groupElement> */ {
       if (G.order != H.order || G == H) {
-         return undefined;
+         return null;
       }
 
       if (G.order == 1) {
@@ -51,12 +43,16 @@ class IsomorphicGroups {
       }
 
       // returns arrays of generators for H that match orders in req
-      const matchingGenerators = function* (req /*: Array<groupElement> */, avail /*: Array<BitSet> */, sel /*:: ?: Array<groupElement> */ = []) {
+      function* matchingGenerators (
+         req /*: Array<groupElement> */,
+         avail /*: Array<BitSet> */,
+         sel /*: Array<groupElement> */ = []
+      ) /*: Generator<Array<groupElement>, ?Array<groupElement>, Array<groupElement>> */ {
          if (req.length == 0) {
             yield sel;
          } else if (!avail[req[0]].isEmpty()) {
             // pick one from avail according to order in req and add it to sel
-            for (const el of avail[req[0]].allElements()) {
+            for (const el of avail[req[0]].toArray()) { // allElements()) {
                const newReq = req.slice(1);
                const newAvail = avail.slice();
                newAvail[req[0]] = newAvail[req[0]].clone();
@@ -73,7 +69,7 @@ class IsomorphicGroups {
       const G_gens = G.generators;
       const requiredOrders = G_gens.map(el => G.elementOrders[el]);
       const availableElements = H.elementOrders.reduce(
-         (acc, order, el) => {
+         (acc /*: Array<BitSet> */, order, el) => {
             if (acc[order] === undefined) {
                acc[order] = new BitSet(G.order);
             }
@@ -96,14 +92,14 @@ class IsomorphicGroups {
 
          const rslt = new BitSet(G.order).set(0);
 
-         const gensUsed = [g_gens.pop()];
+         const gensUsed = [g_gens.pop() /*:: as any as groupElement */]
          for (let g = gensUsed[0], s = g; g != 0; g = G.mult(g, s)) {
             rslt.set(g);
             g2h[G.mult(g, s)] = H.mult(g2h[g], g2h[s]);
          }
 
          while (g_gens.length != 0) {
-            gensUsed.push(g_gens.pop());
+            gensUsed.push(g_gens.pop() /*:: as any as groupElement */)
             const prevRslt = rslt.toArray();  // H_{i-1}
             const coset_reps = [0];
             for (const g of coset_reps) {
@@ -143,14 +139,14 @@ class IsomorphicGroups {
          return g2h;
       }
 
-      return undefined;
+      return null
    }
 
    // findEmbedding(G,H), with H a subgroup of G, returns a pair [H',f]
    // such that H' is in the groups library and f is an embedding of H'
    // into G and onto H.  f is stored as an array such that f[i] means f(i),
    // for all i in H'.
-   static findEmbedding(G /*: Group */, H /*: Subgroup */) /*: null | [Group, Array<groupElement>] */ {
+   static findEmbedding (G /*: Group */, H /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
       const [groupH, indexInParent] = G.getSubgroupAsGroup( H )
       let libraryH = IsomorphicGroups.find( groupH )
       if ( libraryH == null ) {
@@ -159,15 +155,22 @@ class IsomorphicGroups {
          Library.saveGroup(libraryH)
       }
       const almostF = IsomorphicGroups.isomorphism( libraryH, groupH );
-      return [ libraryH, almostF?.map( elt => indexInParent[elt] ) ]
+      if (almostF == null) {
+         throw new Error('IsomorphicGroup.findEmbedding error:\n' +
+            `error finding subgroup embedding in ${G.shortName} (${G.gapid || ''})`)
+      }
+
+      return [ libraryH, almostF.map( elt => indexInParent[elt] ) ]
    }
 
    // findQuotient(G,N), with N a normal subgroup of G, returns a pair [Q,q]
    // such that Q is in the groups library and q is an onto map from G to Q
    // with kernel K.  q is stored as an array such that q[i] means q(i),
    // for all i in G.
-   static findQuotient(G /*: Group */, N /*: Subgroup */) /*: null | [Group, Array<groupElement>] */ {
-      if ( !G.isNormal( N ) ) return null;
+   static findQuotient (G /*: Group */, N /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
+      if ( !N.isNormal )
+         throw new Error('IsomorphicGroup.findQuotient error:\n' +
+            `called to find quotient of non-normal subgroup of ${G.shortName} (${G.gapid || ''})`)
       const [groupQ, cosetIndices] = G.getQuotientGroup( N.members )
       let libraryQ = IsomorphicGroups.find( groupQ )
       if ( libraryQ == null ) {
@@ -176,6 +179,11 @@ class IsomorphicGroups {
          Library.saveGroup(libraryQ)
       }
       const almostMap = IsomorphicGroups.isomorphism( groupQ, libraryQ );
-      return [ libraryQ, G.elements.map( elt => almostMap?.[cosetIndices[elt]] ) ]
+      if (almostMap == null) {
+         throw new Error('IsomorphicGroup.findQuotient error:\n' +
+            `error finding quotient map in ${G.shortName} (${G.gapid || ''})`)
+      }
+
+      return [ libraryQ, G.elements.map( elt => almostMap[cosetIndices[elt]] ) ]
    }
 }

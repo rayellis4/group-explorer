@@ -8,13 +8,12 @@ A collection of utility routines used throughout GE3.
  * [fromRainbow](#fromrainbow) -- returns hsl color string
  * [isTouchDevice](#istouchdevice) -- determine whether current device supports a touch interface
  * [htmlToContext](#htmltocontext) -- copy characters from HTML to `<canvas>` context
- * [version](#version) -- generate GE3 version number from <meta> tag in top-level web page
  * [generateElements](#generateElements) -- create DOM elements from HTML
  * [createActionHandler](#createActionHandler) -- create handler to eval data-action attribute on click
+ * [version](#version) -- generate GE3 version number from <meta> tag in top-level web page
 
 ```javascript
  */
-
 export {
    equals,
    flatten,
@@ -23,14 +22,10 @@ export {
    htmlToContext,
    generateElements,
    createActionHandler,
-   executeWhenDocumentLoaded,
 }
 
 export {version} from './AutoUpgrade.js'
-
 /*::
-import { THREE } from '../lib/externals.js'
-
 export type Tree<T> = Array< T | Tree<T> >;
  */
 
@@ -41,15 +36,15 @@ Determine whether two arrays are equal according to whether their elements are =
 ```javascript
 */
 function equals (a /*: Array<any> */, b /*: Array<any> */) /*: boolean */ {
-  if (Array.isArray(a) && Array.isArray(b) && a.length == b.length) {
-    for (let inx = 0; inx < a.length; inx++) {
-      if (a[inx] != b[inx]) {
-        return false;
+   if (Array.isArray(a) && Array.isArray(b) && a.length == b.length) {
+      for (let inx = 0; inx < a.length; inx++) {
+         if (a[inx] != b[inx]) {
+            return false;
+         }
       }
-    }
-    return true;
-  }
-  return false;
+      return true;
+   }
+   return false;
 }
 /*
 ```
@@ -58,15 +53,15 @@ Flatten an arbitrarily nested array to a single level.
 ```javascript
 */
 function flatten/*:: <T> */(tree /*: Tree<T> */) /*: Array<T> */ {
-  return tree.reduce(
-    (flattened, el) => {
-      if (Array.isArray(el)) {
-        flattened.push(...flatten(((el /*: any */) /*: Tree<T> */)))
-      } else {
-        flattened.push(el)
-      }
-      return flattened;
-    }, []);
+   return tree.reduce(
+      (flattened, el) => {
+         if (Array.isArray(el)) {
+            flattened.push(...flatten(((el /*: any */) /*: Tree<T> */)))
+         } else {
+            flattened.push(el)
+         }
+         return flattened;
+      }, []);
 }
 /*
 ```
@@ -77,9 +72,9 @@ Return an hsl string given hue, saturation, and lightness values
    // All arguments, including hue, are fractional values 0 <= val <= 1.0
 function fromRainbow (
    hue /*: float */,
-   saturation /*:: ?: float */ = 1.0,
-   lightness /*:: ?: float */ = .8,
-   offset /*:: ?: float */ = 0
+   saturation /*: float */ = 1.0,
+   lightness /*: float */ = .8,
+   offset /*: float */ = 0
 ) /*: css_color */ {
    const h = Math.round(360 * ((hue + offset) - Math.floor(hue + offset)))
    return `hsl(${h}, ${Math.round(100 * saturation)}%, ${Math.round(100 * lightness)}%)`
@@ -91,7 +86,7 @@ Determine whether the current device supports a touch interface
 ```javascript
 */
 function isTouchDevice () /*: boolean */ {
-  return 'ontouchstart' in window;
+   return 'ontouchstart' in window;
 }
 /*
 ```
@@ -107,43 +102,47 @@ are determined using the `getClientRects()` interface on each of the source tree
 
 ```javascript
 */
-function htmlToContext (source /*: HTMLElement */, context /*: CanvasRenderingContext2D */, center /*: THREE.Vector2 */) {
-  // find all text nodes in source element
-  const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT)
-  const textNodes = []
-  for (let nextNode = walker.nextNode(); nextNode != undefined; nextNode = walker.nextNode()) {
-    textNodes.push(nextNode)
-  }
+function htmlToContext (
+   source /*: HTMLElement */,
+   context /*: CanvasRenderingContext2D */,
+   center /*: interface {x: number, y: number} */
+) {
+   // find all text nodes in source element
+   const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT)
+   const textNodes = []
+   for (let nextNode = walker.nextNode(); nextNode != undefined; nextNode = walker.nextNode()) {
+      textNodes.push(nextNode)
+   }
 
-  const range = document.createRange()
-  const nodesAndRects =
-    Array.from(textNodes)
-      .reduce((nodes, node) => {
-        range.selectNodeContents(node)
-        const rects = Array.from(range.getClientRects())
-        if (rects.length != 0) {
-          nodes.push(...rects.map((rect) => { return { node: node, rect: rect } }))
-        }
-        return nodes
-      }, [])
+   const range = document.createRange()
+   const nodesAndRects /*: Array<{+node: Node, rect: ClientRect}> */ =
+      Array.from(textNodes)
+         .reduce((nodes, node) => {
+            range.selectNodeContents(node)
+            const rects = Array.from(range.getClientRects())
+            if (rects.length != 0) {
+               nodes.push(...rects.map((rect) => { return { node: node, rect: rect } }))
+            }
+            return nodes
+         }, [])
 
-  const { left: xMin, top: yMin, right: xMax, bottom: yMax } = source.getBoundingClientRect()
+   const { left: xMin, top: yMin, right: xMax, bottom: yMax } = source.getBoundingClientRect()
 
-  // set up canvas context
-  context.fillStyle = (source.style.color != undefined && source.style.color != '') ? source.style.color : 'black'
-  context.textAlign = 'start'
-  context.textBaseline = 'bottom'
+   // set up canvas context
+   context.fillStyle = (source.style.color != undefined && source.style.color != '') ? source.style.color : 'black'
+   context.textAlign = 'start'
+   context.textBaseline = 'bottom'
 
-  // copy node text into context at rect location, offset to place center of text at specified point
-  for (const { node, rect } of nodesAndRects) {
-    const parent = node.parentElement
-    const parentStyle = window.getComputedStyle(parent)
-    context.font = `${parentStyle.fontStyle} ${parentStyle.fontWeight} ${parentStyle.fontSize} ${parentStyle.fontFamily}`
+   // copy node text into context at rect location, offset to place center of text at specified point
+   for (const { node, rect } of nodesAndRects) {
+      const parent = node.parentElement
+      const parentStyle = window.getComputedStyle(parent)
+      context.font = `${parentStyle.fontStyle} ${parentStyle.fontWeight} ${parentStyle.fontSize} ${parentStyle.fontFamily}`
 
-    const x = rect.left - xMin + center.x - (xMax - xMin) / 2
-    const y = rect.top + rect.height - yMin + center.y - (yMax - yMin) / 2
-    context.fillText(node.textContent, x, y)
-  }
+      const x = rect.left - xMin + center.x - (xMax - xMin) / 2
+      const y = rect.top + rect.height - yMin + center.y - (yMax - yMin) / 2
+      context.fillText(node.textContent, x, y)
+   }
 }
 /*
 ```
@@ -152,7 +151,7 @@ function htmlToContext (source /*: HTMLElement */, context /*: CanvasRenderingCo
 Create elements from HTML, return results as HTMLCollection
 ```javascript
  */
-function generateElements (html) {
+function generateElements (html /*: html */ ) /*: HTMLCollection<HTMLElement> */ {
    const template = document.createElement('template');
    template.innerHTML = html.trim();
    return template.content.children;
@@ -164,28 +163,12 @@ function generateElements (html) {
 Creates handler to eval data-action attribute on click event
 ```javascript
  */
-function createActionHandler (element, actionCallback) {
+function createActionHandler (element /*: Element */, actionCallback /*: (string) => void */) {
    element.addEventListener('click', (event) => {
-      const action = event.target.closest('[data-action]')?.getAttribute('data-action')
+      const action = ((event.target /*: any */) /*: Element */).closest('[data-action]')?.getAttribute('data-action')
       if (action != null) {
          event.preventDefault()
          actionCallback(action)
       }
    })
-}
-/*
-```
-### executeWhenDocumentLoaded
-
-Executes fn if document load is complete, otherwise listens for load event and executes then
-
-Used by top-level pages to ensure that load routine runs when, and only when, load is complete
-```javascript
- */
-function executeWhenDocumentLoaded (fn) {
-   if (document.readyState === 'complete') {
-      fn()
-   } else {
-      window.addEventListener('load', () => fn(), {once: true})
-   }
 }

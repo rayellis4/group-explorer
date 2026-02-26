@@ -9,15 +9,15 @@ reason graphically in a [Sheet](./Sheet.html.md).
 ```javascript
  */
 import * as GEUtils from './GEUtils.js'
-import Group from './Group.js'
-import IsomorphicGroups from './IsomorphicGroups.js'
+import {Group} from './Group.js'
+import {IsomorphicGroups} from './IsomorphicGroups.js'
 import * as MathUtils from './MathUtils.js'
 import * as SheetModel from './SheetModel.js'
 
 export {display}
 
 /*::
-import Group from './Group.js';
+import {Group} from './Group.js';
 
 import type {StrategyParameters, Layout, Direction} from './CayleyDiagramView.js';
 */
