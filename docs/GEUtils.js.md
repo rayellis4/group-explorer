@@ -22,6 +22,7 @@ export {
    htmlToContext,
    generateElements,
    createActionHandler,
+   createModelProxy,
 }
 
 export {version} from './AutoUpgrade.js'
@@ -171,4 +172,127 @@ function createActionHandler (element /*: Element */, actionCallback /*: (string
          actionCallback(action)
       }
    })
+}
+/*::
+export interface Updatable {
+   update(string, any): void,
+}
+export type SubscriptionProxy<T> = T & {
+   $subscribe: (subscriber: Updatable, field: string) => void,
+   $unsubscribe: (subscriber: Updatable, field: string) => void
+}
+
+type Subscription = {
+   field: string,
+   subscriber: WeakRef<Updatable>,
+}
+type SubscriptionMap = Map<string, Array<Subscription>>
+ */
+// Creates proxy for model, in which 'set' invokes update notifications
+// DIY notifications via callback to subscriber.update
+// Also handles Map-valued fields: mutations via .set()/.delete()/.clear() trigger notifications
+function createModelProxy/*:: <T: Object> */ (
+   model /*: T */
+) /*: SubscriptionProxy<T> */ {
+   const subscriptionMap /*: SubscriptionMap */ = new Map()
+   const proxyCache /*: Map<string, Map<any,any>> */ = new Map()
+
+   const handler /*: Proxy$traps<T> */ = {
+      get(model /*: T */, property /*: string */, _receiver /*: Proxy<T> */) {
+         if (property == '$subscribe') {
+            return (subscriber /*: Updatable */, field /*: string */) => {
+               if (field in model) {
+                  subscribe(subscriptionMap, subscriber, field)
+                  subscriber.update(field, model[field])  // initialize subscriber upon subscription
+               } else {
+                  // programming error here!!
+               }
+            }
+         }
+         if (property == '$unsubscribe') {
+            return (subscriber /*: Updatable */, field /*: string */) => unsubscribe(subscriptionMap, subscriber, field)
+         }
+
+         const value = Reflect.get(model, property)
+         if (value instanceof Map) {
+            if (!proxyCache.has(property)) {
+               proxyCache.set(property, createMapProxy(value, property))
+            }
+            return proxyCache.get(property)
+         }
+
+         return value
+      },
+      set(model /*: T */, property /*: string */, value /*: any */, receiver /*: Proxy<T> */) {
+         if (Object.getOwnPropertyNames(model).includes(property)) {
+            Reflect.set(model, property, value)
+            if (value instanceof Map) {
+               proxyCache.delete(property)  // invalidate cached proxy if Map field is replaced
+            }
+            notifySubscribers(subscriptionMap, property, value)
+         }
+
+         return Reflect.set(model, property, value, receiver)
+      }
+   }
+
+   return (new Proxy(model, handler) /*:: as any as SubscriptionProxy<T> */)
+
+   function createMapProxy (map /*: Map<any,any> */, fieldName /*: string */) /*: Map<any,any> */ {
+      const MAP_MUTATING_METHODS = ['set', 'delete', 'clear']
+      return new Proxy(map, {
+         get (target /*: Map<any,any> */, method /*: string */) {
+            const value = Reflect.get(target, method)
+            if (typeof value === 'function') {
+               if (MAP_MUTATING_METHODS.includes(method)) {
+                  return (...args /*: Array<any> */) => {
+                     const result = value.apply(target, args)
+                     notifySubscribers(subscriptionMap, fieldName, {map: target, key: args[0]})
+                     return result
+                  }
+               }
+               return value.bind(target)  // correct 'this' binding for non-mutating methods
+            }
+            return value
+         }
+      })
+   }
+
+   function subscribe (subscriptionMap /*: SubscriptionMap */, subscriber /*: Updatable */, field /*: string */) {
+      const newSubscription = {field: field, subscriber: new WeakRef(subscriber)}
+      if (!subscriptionMap.has(field)) {
+         subscriptionMap.set(field, [])
+      }
+      subscriptionMap.get(field)?.push(newSubscription)
+   }
+
+   // ToDo: unsubscribe from a single field or all fields
+   function unsubscribe (subscriptionMap /*: SubscriptionMap */, subscriber /*: Updatable */, _field /*: string */) {
+      const subscription = Array.from(subscriptionMap.values()).flat()
+         .reduce((subscription, curr) => {
+            return (curr.subscriber == subscriber) ? curr : subscription
+         }, (null /*: ?Subscription */))
+      if (subscription != null) {
+         const mappedSubscriptions = (subscriptionMap.get(subscription.field) /*:: as any as Array<Subscription> */)
+         const mappedSubscriptionIndex = mappedSubscriptions.findIndex((sub) => sub.subscriber == subscriber)
+         mappedSubscriptions.splice(mappedSubscriptionIndex, 1)
+         subscriptionMap.set(subscription.field, mappedSubscriptions)
+      }
+   }
+
+   function notifySubscribers (subscriptionMap /*: SubscriptionMap */, property /*: string */, value /*: any */) {
+      const subscriptions = subscriptionMap.get(property)
+      if (subscriptions?.length) {
+         window.setTimeout(() => {
+            for (let inx = subscriptions.length - 1; inx >= 0; inx--) {
+               const subscriber = subscriptions[inx].subscriber.deref()
+               if (subscriber == null) {
+                  subscriptions.splice(inx, 1)
+               } else {
+                  subscriber.update(property, value)
+               }
+            }
+         }, 0)
+      }
+   }
 }
