@@ -35,28 +35,35 @@ export function setAlertLevel (levelString /*: string */) {
   }
 }
 
+export function isActive (levelString /*: logLevelType */) /*: boolean */ {
+  const level /*: number */ = logLevels[(levelString /*: any */)]
+  return level !== undefined && level >= logLevel
+}
+
 export function debug (...args /*: Array<mixed> */) {
-  log(logLevels.debug, args)
+  log('debug', args)
 }
 
 export function info (...args /*: Array<mixed> */) {
-  log(logLevels.info, args)
+  log('info', args)
 }
 
 export function warn (...args /*: Array<mixed> */) {
-  log(logLevels.warn, args)
+  log('warn', args)
 }
 
 export function err (...args /*: Array<mixed> */) {
-  log(logLevels.err, args)
+  log('err', args)
 }
 
-function log (level /*: number */, args /*: Array<any> */) {
-  if (level >= logLevel) {
-    logFunctions[level](...args)
-  }
-  if (level >= alertLevel && alertsRemaining-- > 0) {
-    alert(args)
+function log (levelString /*: logLevelType */, args /*: Array<any> */) {
+  const level /*: number */ = logLevels[(levelString /*: any */)]
+  const needsLog = isActive(levelString)
+  const needsAlert = level >= alertLevel && alertsRemaining > 0
+  if (needsLog || needsAlert) {
+    const resolved = (args.length === 1 && typeof args[0] === 'function') ? [args[0]()] : args
+    if (needsLog) logFunctions[level](...resolved)
+    if (needsAlert) { alertsRemaining--; alert(resolved) }
   }
 }
 /*
