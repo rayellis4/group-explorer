@@ -46,6 +46,8 @@ export const codeFiles = [
    'js/GroupTableUI.js',
    'js/Heading.js',
    'js/HighlightControl.js',
+   'js/HighlightControlView.js',
+   'js/HighlightControlViewModel.js',
    'js/IsomorphicGroups.js',
    'js/Library.js',
    'js/Log.js',

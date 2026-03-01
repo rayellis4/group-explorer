@@ -40,6 +40,7 @@ module.file_ext=.md
 <PROJECT_ROOT>/docs/ClassEquationInfo.js.md
 #<PROJECT_ROOT>/docs/ControlPanel.js.md
 #<PROJECT_ROOT>/docs/CycleGraph.js.md
+#<PROJECT_ROOT>/docs/CycleGraphModel.js.md
 #<PROJECT_ROOT>/docs/CycleGraphView.js.md
 #<PROJECT_ROOT>/docs/CycleGraphViewUI.js.md
 <PROJECT_ROOT>/docs/CyclicInfo.js.md
@@ -55,6 +56,8 @@ module.file_ext=.md
 <PROJECT_ROOT>/docs/GroupTableUI.js.md
 #<PROJECT_ROOT>/docs/Heading.js.md
 #<PROJECT_ROOT>/docs/HighlightControl.js.md
+#<PROJECT_ROOT>/docs/HighlightControlViewModel.js.md
+#<PROJECT_ROOT>/docs/HighlightControlView.js.md
 #<PROJECT_ROOT>/docs/IsomorphicGroups.js.md
 #<PROJECT_ROOT>/docs/Library.js.md
 #<PROJECT_ROOT>/docs/Log.js.md
@@ -63,6 +66,7 @@ module.file_ext=.md
 #<PROJECT_ROOT>/docs/MathUtils.js.md
 #<PROJECT_ROOT>/docs/MulttableControl.js.md
 #<PROJECT_ROOT>/docs/Multtable.js.md
+#<PROJECT_ROOT>/docs/MulttableModel.js.md
 #<PROJECT_ROOT>/docs/MulttableView.js.md
 #<PROJECT_ROOT>/docs/MulttableViewUI.js.md
 <PROJECT_ROOT>/docs/NamingSchemeInfo.js.md

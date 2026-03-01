@@ -8,7 +8,7 @@ export type CycleGraphJSON = {
     highlightControl?: any
     ...
 }
-import type {ViewModel as HighlightControlViewModel} from './HighlightControl.js'
+import type {HighlightControlViewModel} from './HighlightControlViewModel.js'
  */
 export class CycleGraphModel {
    group /*: Group */

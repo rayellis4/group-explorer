@@ -12,7 +12,7 @@ export type MulttableJSON = {
     colorReordering: 'topRowFixed' | 'elementColorsFixed'
     ...
 }
-import type {ViewModel as HighlightControlViewModel} from './HighlightControl.js'
+import type {HighlightControlViewModel} from './HighlightControlViewModel.js'
  */
 export class MulttableModel {
    group /*: Group */

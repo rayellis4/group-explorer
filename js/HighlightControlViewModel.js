@@ -1,0 +1,1 @@
+../docs/HighlightControlViewModel.js.md
