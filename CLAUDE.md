@@ -60,15 +60,33 @@ Pub/sub between layers uses `createModelProxy` from `js/GEUtils.js`, which retur
 
 ### Sheet System
 
-`Sheet.html` is the most mathematically significant page in the application — it is where relationships *between* groups are shown, specifically homomorphisms (structure-preserving maps). The standalone visualizer pages (CycleGraph, Multtable, etc.) show properties of a single group; Sheet is where group theory at the level of morphisms lives. It is only partially converted from an older MVC-ish design; `CycleGraph` and `Multtable` are further along.
+`Sheet.html` is the most mathematically significant page in the application — it is where relationships *between* groups are shown, specifically homomorphisms (structure-preserving maps). The standalone visualizer pages show properties of a single group; Sheet is where group theory at the level of morphisms lives.
 
-**Current state of `SheetModel.js`:** Not yet a proper MVVM Model — element classes hold direct references to their view objects and actively drive them (`redraw()`, `updateTransform()`, `updateZ()`). `addElement()` creates the view at the same time as the model. Module-level global state (`sheetElements` Map) rather than a class. `SheetViewUI.js` acts as a controller but isn't named as one.
+**Current state:** `SheetModel.js` is mid-refactor — not yet proper MVVM. Element classes hold direct view references and actively drive them (`redraw()`, `updateTransform()`, `updateZ()`). `addElement()` creates model and view together. Module-level global `sheetElements` Map rather than a class. `SheetViewUI.js` acts as a controller but isn't named as one.
 
-**Visualizer elements in Sheet:**
-- `CGElement` and `MTElement` — each instance owns its own model and view (2D canvas is cheap). `CGElement` uses a hand-rolled adapter object to bridge `CycleGraphModel`/`CycleGraphView` into Sheet's older interface; this is the seam where the MVVM conversion meets the unconverted Sheet code.
-- `CDElement` (Cayley diagram, WebGL/Three.js) — the static shared visualizer is **load-bearing**, not a design lag. Browsers support ~16 WebGL contexts; a sheet may contain dozens of Cayley diagrams. All `CDElement` instances share one renderer. The `activeElement`/`moveVisualizerToThis()` state machine time-shares it, caching each inactive element's state as JSON in `visualizerJSON`. `isShareable` is an optimization: when adjacent CDElements share the same group and diagram settings, the renderer skips re-initialization. Any future MVVM conversion of `CDElement` must preserve this constraint.
+**Target MVVM architecture:**
 
-**Sheet ↔ Editor roundtrip:** When a user edits a visualizer embedded in a Sheet, the Sheet opens the corresponding visualizer page (e.g. `CycleGraph.html`) in a new browser tab with `?SheetEditor=true`. `SheetEditor.js` handles both sides: `getInitialData()` retrieves the initial model JSON passed from the Sheet; `enableChangeBroadcast()` diffs and posts changes back via `window.postMessage`. The visualizer model's `toJSON()` is the serialization contract between the two pages. The cross-tab communication could be redesigned. More importantly, as the MVVM conversion progresses, some editing functionality could move directly into the Sheet — e.g. `HighlightControl` could be displayed within the Sheet panel for a selected visualizer, eliminating the need to open a new tab just to choose a highlighted subset.
+- **Model** — owns `sheetElements: Map<id, SheetElement>`, pure data: id, position (x,y,w,h,z), element type, and for visualizer elements an opaque `visualizer` JSON blob. No view references.
+- **ViewModel** — mediates model↔view; drives view additions/removals on model changes. Clear must be sequenced explicitly: ViewModel calls `view.clear()` *before* clearing the model map — the subscription notification arrives after the map is already empty, too late for the view to know what to tear down.
+- **View** (`SheetView`) — owns `elementViews: Map<id, SheetViewElement>`, the view-side parallel tracking map. Owns all live visualizer objects (canvases, WebGL contexts). Draws morphism arrows by computing endpoints from `unitSquarePositions` of source/destination visualizer view elements — no model involvement in geometry. CDElement WebGL context time-sharing (`activeElement`, `moveVisualizerToThis`) belongs here.
+- **Control panel** (right-hand panel) — pure controller: manipulates model only, never touches view directly. Add element/visualizer → appends to `sheetElements`. Clear → coordinated clear (view first, then model). Import/Load → `fromJSON()`. Export/Save → `toJSON()`.
+
+**Single entry point:** `fromJSON()` on the Model is the common path for all sheet data — control panel Import (textarea JSON paste), IndexedDB Load, and external generators (SolvableInfo, GroupInfo, etc.) all call it. It clears existing state then populates `sheetElements`.
+
+**Element types:** NodeElements (CGElement/MTElement/CDElement visualizers, TextElement, RectangleElement) and LinkElements (ConnectingElement, MorphismElement). Each has its own editor: visualizer elements open the full visualizer page in a new browser tab (`?SheetEditor=true`) with changes posted back via `postMessage` as the user interacts; all other element types use inline dialogs on the Sheet page.
+
+**CDElement WebGL constraint** (load-bearing, not a design lag): browsers support ~16 WebGL contexts; a sheet may contain dozens of Cayley diagrams. All CDElements share one renderer via `activeElement`/`moveVisualizerToThis()` time-sharing, caching inactive state as JSON. This constraint must be preserved in any refactor — it moves from model to view side, but stays.
+
+**`visualizer` blob is opaque to Sheet** — the Model never inspects its contents. The stable interface Sheet needs from each visualizer: `groupURL`, `highlightColors` (read by MorphismView for many-arrows coloring and by generators for initial highlights), `toJSON()`/`fromJSON()`, `setSize()`.
+
+**Sheet ↔ Editor roundtrip:** `SheetEditor.js` handles both sides of the cross-tab edit using `window.postMessage`; `toJSON()` is the wire format crossing the tab boundary. The CayleyDiagram editor currently polls rather than diffs — camera state is internal to THREE and not well-captured by `toJSON()`.
+
+**Serialization cleanup needed:**
+- Redundant top-level `groupURL` in VisualizerElement (already inside `visualizer` blob)
+- `isShareable` in CDElement — WebGL optimization that leaks into persistent format
+- `displayNeedsTextUpdate: false` in TextElement — runtime flag, not persistent state
+- `diagram_name: null`, `chunk: null`, `highlightControl: null` — absent optionals cluttering JSON
+- z-index values are artifact of insertion-order formula, not meaningful as stored values
 
 ### Core Data Layer
 
