@@ -34,7 +34,7 @@ the [ControlPanel](#controlpanel) class generates the following HTML and inserts
                 <button>Subsets</button>         <!-- button name from data-button attribute -->
                 <button>Table</button>
              </div>
-             <div id="control-all-controls">
+             <div id="control-container">
                 <div id="highlight-control" data-button="Subsets"></div>
                 <div id="table-control" data-button="Table"></div>
              </div>
@@ -82,8 +82,8 @@ export class ControlPanel {
           <div id="control-contents" class="flex-v stretch">
              <div id="control-container" class="stretch"></div>
           </div>`)
-      this.controlContainer = (document.getElementById('control-container') /*:: as any as HTMLElement */)
-      this.grabHandle = (document.getElementById('control-grab-handle') /*:: as any as HTMLElement */)
+      this.controlContainer = document.getElementById('control-container')
+      this.grabHandle = document.getElementById('control-grab-handle')
 
       // controllers from 'control-panel' to 'control-container'
       controls.forEach((el) => this.controlContainer.appendChild(el))

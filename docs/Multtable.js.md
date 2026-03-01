@@ -1,13 +1,13 @@
 // @flow
 
 import {ControlPanel} from './ControlPanel.js'
-import * as Library from './Library.js'
-import * as Log from './Log.js'
-import * as MulttableControl from './MulttableControl.js'
-import * as MulttableViewUI from './MulttableViewUI.js'
-import {createFullMulttableView} from './MulttableView.js'
+import {createModelProxy} from './GEUtils.js'
 import * as Heading from './Heading.js'
 import * as HighlightControl from './HighlightControl.js'
+import * as Library from './Library.js'
+import * as MulttableControl from './MulttableControl.js'
+import {MulttableModel} from'./MulttableModel.js'
+import {createInteractiveMulttableView} from './MulttableView.js'
 import * as SheetEditor from './SheetEditor.js'
 
 export {load}
@@ -22,7 +22,20 @@ async function load () {
 
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
-   const group = (await Library.loadFromPageURL() /*:: as any as Group */)
+   // If this page is editing a sheet...
+   const initialJSON /*: unknown */ =
+      await (window.location.href.includes('SheetEditor=true') ? SheetEditor.getInitialData() : null)
+
+   // Get group, either from page URL or data from Sheet
+   const group /*: Group */ = await ((initialJSON?.groupURL == null)
+      ? Library.loadFromPageURL()
+      : Library.getGroupByURL(initialJSON.groupURL))
+
+   // Create Multtable model
+   const multtableModel /*: SubscriptionProxy<MulttableModel> */ = createModelProxy(new MulttableModel(group))
+   if (initialJSON != null) {
+      multtableModel.fromJSON(initialJSON)
+   }
 
    // Create Header
    Heading.display(
@@ -37,43 +50,38 @@ async function load () {
       ]
    )
 
-   // Draw Multtable
-   const graphicElement = (document.getElementById('graphic') /*:: as any as HTMLElement */)
-   const multtableView = createFullMulttableView({
-      container: graphicElement,
-      group: group
+   // Create multtableView in graphic div and attach to multtableModel
+   const multtableView = createInteractiveMulttableView(multtableModel, {
+      container: document.getElementById('graphic')
    })
 
-   // Add gestures
-   MulttableViewUI.addGestures(multtableView)
-
    // Create Control Panel
-   const controlPanelElement = (document.getElementById('control-panel') /*:: as any as HTMLElement */)
-   ControlPanel.addPanel(controlPanelElement)
-
-   // If this page is editing a sheet...
-   if (window.location.href.includes('SheetEditor=true')) {
-      // Get initial data from Sheet
-      const initialJSON = await SheetEditor.getInitialData()
-      if (group.URL != Library.getGroupByURL(initialJSON.groupURL)?.URL) {
-         Log.err('group from URL does not match group in editor initialization message')
-      }
-
-      // Set up initial view and highlights
-      multtableView.fromJSON(initialJSON)
-   }
+   ControlPanel.addPanel(document.getElementById('control-panel'))
 
    // Initialize HighlightControl
-   const highlightControlElement = (document.getElementById('highlight-control') /*:: as any as HTMLElement */)
-   HighlightControl.addControl(highlightControlElement, multtableView)
+   const highlightControlElement = document.getElementById('highlight-control')
+   HighlightControl.addControl(highlightControlElement, multtableModel, initialJSON?.highlightControl)
 
    // Add Multtable Control panel
-   const tableControlElement = (document.getElementById('table-control') /*:: as any as HTMLElement */)
-   MulttableControl.addControl(tableControlElement, multtableView)  // Initializes Multtable Controller directly
+   const tableControlElement = document.getElementById('table-control')
+   MulttableControl.addControl(tableControlElement, multtableModel)  // Initializes Multtable Controller directly
+
+   // Set up change broadcast if editing a sheet
+   if (initialJSON != null) {  // window.location.href.includes('SheetEditor=true')) {
+      SheetEditor.enableChangeBroadcast(() => {
+         return multtableModel.toJSON()
+      })
+
+      // run SheetEditor.broadcastChange() when 'highlights' is changed
+      multtableModel.$subscribe(broadcastChangeUpdater, 'highlights')
+   }
 
    // Register window resize handler
    window.addEventListener('resize', () => multtableView.resize())
 }
+
+// an unexported module const, so it won't be garbage collected
+const broadcastChangeUpdater = {update: (_field, _value) => SheetEditor.broadcastChange()}
 
 function insertHTML () {
    document.body.classList.add('flex-v')

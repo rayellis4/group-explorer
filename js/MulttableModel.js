@@ -1,0 +1,1 @@
+../docs/MulttableModel.js.md

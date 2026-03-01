@@ -14,20 +14,28 @@ well as thumbnails in the main [GroupExplorer](./GroupExplorer.html.md) and
 
 ```javascript
  */
-import * as SheetEditor from './SheetEditor.js'
+import {CycleGraphModel} from './CycleGraphModel.js'
+import * as CycleGraphViewUI from './CycleGraphViewUI.js'
 import * as GEUtils from './GEUtils.js'
-
+import * as Log from './Log.js'
+import * as SheetEditor from './SheetEditor.js'
 import {THREE} from '../lib/externals.js';
 
-export {createUnlabelledCycleGraphView, createLabelledCycleGraphView}
+export {
+   createUnlabelledCycleGraphView,
+   createLabelledCycleGraphView,
+   createLargeCycleGraphView /* CycleGraphView */,
+   createInteractiveCycleGraphView /* CycleGraphView */
+}
 /*::
 import {Group} from './Group.js'
 import type {VizDisplay} from './SheetModel.js';
-import type {Highlightable, Highlighter, HighlightControlJSON} from './HighlightControl.js'
+import type {Updatable, SubscriptionProxy} from './GEUtils.js'
+import {CycleGraphModel} from './CycleGraphModel.js'
 
 export type CycleGraphJSON = {
     groupURL: string,
-    highlightColors: Array<Array<color>>,
+    highlightColors: Array<Array<?color>>,
     highlightControl: any,
 };
 
@@ -51,15 +59,102 @@ const DEFAULT_MIN_CANVAS_HEIGHT = 200;
 const DEFAULT_MIN_CANVAS_WIDTH = 200;
 const DEFAULT_MIN_RADIUS = 30;
 const DEFAULT_ZOOM_STEP = 0.002
-const DEFAULT_CANVAS_WIDTH = 50;
-const DEFAULT_CANVAS_HEIGHT = 50;
+const DEFAULT_CANVAS_WIDTH = 96
+const DEFAULT_CANVAS_HEIGHT = 96
 
 const HIGHLIGHT_BACKGROUND = 0
 const HIGHLIGHT_BORDER = 1
 const HIGHLIGHT_TOP = 2
 const highlightNames = ['background', 'border', 'top']
 
-export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON>, Highlightable */ {
+/*
+ViewModel
+View
+ */
+export class CycleGraphViewModel /*:: implements Updatable */ {
+   #model /*: CycleGraphModel */
+   #view /*: CycleGraphView */
+   highlightColors /*: Array<Array<?color>> */
+   modelFields /*: Array<string> */ = [
+      'group',
+      'highlights'
+   ]
+
+   get group () /*: Group */ {
+      return this.model.group
+   }
+
+   get view () /*: CycleGraphView */ {
+      return this.#view
+   }
+
+   set view (view /*: CycleGraphView */) {
+      this.#view = view
+      view.group = this.group
+   }
+
+   get model () /*: CycleGraphModel */ {
+      return this.#model
+   }
+
+   set model (cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */) {
+      this.#model = cycleGraphModel
+      this.modelFields.forEach((field) => cycleGraphModel.$subscribe(this, field))
+   }
+
+   updateModel (field /*: string */, value /*: any */) {
+      // $FlowExpectedError[prop-missing] --
+      this.model[field] = value
+   }
+
+   update (field /*: string */, value /*: any */) {
+      if (this.view == null) {
+         return
+      }
+      switch (field) {
+      case 'group':
+         this.view[field] = value
+         break
+      case 'highlights':
+         this.view['highlightColors'] = value ?? [[], [], []]
+         this.view.queueShowGraphic()
+         break
+      default:
+         Log.info(`unsupported field ${field} in CycleGraphView.CycleGraphViewModel.updateView`)
+      }
+   }
+
+   setSize (x /*: number */, y /*: number */) {
+      this.view.setSize(x, y)
+   }
+
+   showGraphic () {
+      this.view.queueShowGraphic()
+   }
+
+   unitSquarePositions () {
+      return this.view.unitSquarePositions()
+   }
+
+   get canvas () /*: HTMLCanvasElement */ {
+      return this.view.canvas
+   }
+
+   toJSON () {
+      return this.model.toJSON()
+   }
+
+   fromJSON (jsonObject) {
+      if (jsonObject != null) {
+         this.model.fromJSON(jsonObject)
+         this.model.highlightControl = jsonObject.highlightControl
+      }
+   }
+}
+
+export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
+    viewModel /*: CycleGraphViewModel */
+
     bbox /*: {left: number, right: number, top: number, bottom: number} */
     canvas /*: HTMLCanvasElement */
     closestTwoPositions /*: number */
@@ -70,7 +165,6 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON>, Highligh
     elements /*: Array<groupElement> */
     _group /*: Group */
     highlightColors /*: Array<Array<color>> */ = [[], [], []]
-    highlightControl /*: ?HighlightControlJSON */ = null
     options /*: CycleGraphOptions */
     partIndices /*: Array<number> */
     positions /*: Array<Coordinate> */
@@ -81,8 +175,8 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON>, Highligh
     translate /*: {dx: number, dy: number} */ = {dx: 0, dy: 0}  // user-supplied translation, in screen coordinates
     zoomFactor /*: number */ = 1  // user-supplied scale factor multiplier
 
-    constructor(options /*: CycleGraphOptions */ = {}) {
-        this.canvas = ((document.createElement(`canvas`) /*: any */) /*: HTMLCanvasElement */)
+   constructor (options /*: CycleGraphOptions */ = {}) {
+        this.canvas = (document.createElement(`canvas`) /*:: as any as HTMLCanvasElement */)
         const container = options.container  || document.createElement('div')
         container.appendChild(this.canvas)
         let width = container.offsetWidth || DEFAULT_CANVAS_WIDTH
@@ -90,9 +184,11 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON>, Highligh
         this.setSize( width, height );
         this.context = this.canvas.getContext('2d');
         this.options = options;
-
-        if (options.group != null)
-          this.group = options.group
+        this.zoomFactor = 1;  // user-supplied scale factor multiplier
+        this.translate = {dx: 0, dy: 0};  // user-supplied translation, in screen coordinates
+        this.transform = new THREE.Matrix3();  // current cycleGraph -> screen transformation
+        this.highlightColors = [[], [], []]
+        this.show_request = false;
     }
 
     get size () /*: {w: number, h: number} */ {
@@ -142,7 +238,6 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON>, Highligh
 
         if (this.group != undefined) {
             this.drawGraphic();
-            SheetEditor.broadcastChange()
         }
     }
 
@@ -388,33 +483,6 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON>, Highligh
         } );
 
         return unit_square_positions;
-    }
-
-    // two serialization functions
-    toJSON () /*: CycleGraphJSON */ {
-       const jsonObject = {
-           groupURL: this.group.URL,
-           highlightColors: this.highlightColors,
-           highlightControl: this.highlightControl
-       }
-       return jsonObject
-    }
-
-    fromJSON (json /*: CycleGraphJSON */) {
-       if (json != null) {
-          ;['highlightColors', 'highlightControl']
-             .forEach((field) => {
-                switch (field) {
-                case 'highlightColors':
-                   this[field] = json[field] || [[], [], []]
-                   this.queueShowGraphic()
-                   break
-                case 'highlightControl':
-                   this[field] = json[field] || null
-                   break
-                }
-             })
-       }
     }
 
     get group () /*: Group */ {
@@ -705,19 +773,6 @@ export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON>, Highligh
         }
     }
 
-   getAllHighlighters () /*: Array<Highlighter> */ {
-       const highlighters = highlightNames
-          .map((name, inx) => {
-             const highlighter /*: Highlighter */ = (elementColors)  => {
-                this.queueShowGraphic()
-                this.highlightColors[inx] = elementColors
-             }
-             highlighter.label = name
-             return highlighter
-          })
-       return highlighters
-    }
-
     clearHighlights () {
         this.queueShowGraphic();
         this.highlightColors = [[], [], []]
@@ -767,4 +822,38 @@ function createLabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) /*
     const view = new CycleGraphView(options);
     view.displays_labels = true;
     return view;
+}
+
+function createLargeCycleGraphView (
+   group /*: Group */,
+   options /*: CycleGraphOptions */ = {}
+) /*: CycleGraphViewModel */ {
+   const model = GEUtils.createModelProxy(new CycleGraphModel(group))
+   const viewModel = new CycleGraphViewModel()
+   const view = new CycleGraphView(options)
+   view.displays_labels = true
+
+   // assemble parts
+   viewModel.model = model
+   viewModel.view = view
+   view.viewModel = viewModel
+
+   return viewModel  // now how does this get used? should it be the viewModel instead? or maybe model?
+}
+
+function createInteractiveCycleGraphView (
+   model /*: SubscriptionProxy<CycleGraphModel> */,
+   options /*: CycleGraphOptions */ = {}
+) /*: CycleGraphViewModel */ {
+   const viewModel = new CycleGraphViewModel()
+   const view = new CycleGraphView(options)
+   view.displays_labels = true
+   CycleGraphViewUI.addGestures(view)
+
+   // assemble parts
+   viewModel.model = model
+   viewModel.view = view
+   view.viewModel = viewModel
+
+   return view  // now how does this get used? should it be the viewModel instead? or maybe model?
 }

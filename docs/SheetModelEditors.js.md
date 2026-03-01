@@ -570,7 +570,9 @@ class MorphismEditor extends SheetElementEditor {
    showDomainChoices () {
       const codomainChoice = parseInt(document.getElementById('codomain-select').getAttribute('data-value'))
       const validSources = this.modelElement.mapping.validSources(codomainChoice)
-      const choices = validSources.map((source) => [source, this.modelElement.source.group.representation[source]])
+      const choices = validSources.map((source) => {
+         return {value: source, label: this.modelElement.source.group.representation[source]}
+      })
       makeMockSelect(document.getElementById('domain-select'), choices)
          .then(
             (domainChoice) => this.setupCodomainChoice(domainChoice),
@@ -581,7 +583,9 @@ class MorphismEditor extends SheetElementEditor {
    showCodomainChoices () {
       const domainChoice = parseInt(document.getElementById('domain-select').getAttribute('data-value'))
       const validTargets = this.modelElement.mapping.validTargets(domainChoice)
-      const choices = validTargets.map((target) => [target, this.modelElement.destination.group.representation[target]])
+      const choices = validTargets.map((target) => {
+         return {value: target, label: this.modelElement.destination.group.representation[target]}
+      })
       makeMockSelect(document.getElementById('codomain-select'), choices)
          .then(
             (codomainChoice) => this.setupDomainChoice(codomainChoice),

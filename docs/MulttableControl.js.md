@@ -10,126 +10,202 @@ Display input elements that configure the MulttableView:
 
 ```javascript
  */
-
 import {makeMockSelect} from './UIComponents.js'
 
+export {addControl}
 /*::
 import {MulttableView} from './MulttableView.js'
  */
 
-export function addControl (multtableControlElement /*: HTMLElement */, multtableView /*: MulttableView */) {
-   // create elements for view control and initialize values from MulttableView
-   const subgroupIndex =
-      (multtableView.organizingSubgroup === multtableView.group.subgroups.length - 1)
-         ? 0
-         : multtableView.organizingSubgroup
-   const formatSubgroupChoice = (subgroupIndex /*: integer */) => {
-      const subgroup = multtableView.group.subgroups[subgroupIndex]
+function addControl (multtableControlElement /*: HTMLElement */, modelProxy /*: SubscriptionProxy<MulttableModel> */) {
+   const viewModel = new ViewModel(modelProxy)
+   new View(viewModel, multtableControlElement)
+}
+
+class ViewModel /*: implements Updatable */ {
+   #model /*: MulttableModel */
+   #view /*: View */
+   modelFields /*: Array<string> */ = [
+      'organizingSubgroup',
+      'separation',
+      'coloration',
+      'colorReordering'
+   ]
+
+
+   constructor (model /*: SubscriptionProxy<MulttableModel> */) {
+      this.model = model
+   }
+
+   get group () /*: Group */ {
+      return this.model.group
+   }
+
+   get view () /*: View */ {
+      return this.#view
+   }
+
+   set view (view /*: View */) {
+      this.#view = view
+      this.modelFields.forEach((field) => this.update(field, this.model[field]))
+   }
+
+   get model () /*: MulttableModel */ {
+      return this.#model
+   }
+
+   set model (multtableModel /*: SubscriptionProxy<MulttableProxy> */) {
+      this.#model = multtableModel
+      this.modelFields.forEach((field) => multtableModel.$subscribe(this, field))
+   }
+
+   update (field /*: string */, value /*: any */) {
+      if (this.view == null) {
+         return
+      }
+      switch (field) {
+      case 'organizingSubgroup':
+         this.view['subgroupIndex'] = value ?? 0
+         break
+      case 'coloration':
+      case 'colorReordering':
+         this.view[field] = value
+         break
+      case 'separation':
+         this.view[field] = 100 * value
+         break
+      }
+   }
+
+   updateFromView (field /*: string */, value /*: any */) {
+      switch (field) {
+      case 'subgroupIndex':
+         this.model['organizingSubgroup'] = (value == '0') ? null : parseInt(value)
+         break
+      case 'coloration':
+      case 'colorReordering':
+         this.model[field] = value
+         break
+      case 'separation':
+         this.model[field] = value / 100
+         break
+      }
+   }
+}
+
+class View {
+   viewModel /*: ViewModel */
+   rootElement /*: HTMLElement */
+
+   constructor (viewModel /*: ViewModel */, rootElement /*: HTMLElement */) {
+      this.viewModel = viewModel
+      this.rootElement = rootElement
+      rootElement.innerHTML = View.getViewHTML(rootElement.getAttribute('id'))
+      rootElement.querySelector('#organization-select')
+         .addEventListener('click', (clickEvent) => this.displayOrganizationChoices(clickEvent.target))
+      rootElement.addEventListener('change', (changeEvent) => this.handleChangeEvent(changeEvent))
+   }
+
+   displayOrganizationChoices (target /*: HTMLElement */) {
+      const choices /*: Array<{value: string, label?: html}> */ = this.viewModel.group.subgroups.slice(0, -1)
+         .map((_subgroup, index) => { return {value: `${index}`, label: this.formatSubgroupChoice(index)} })
+      makeMockSelect(target, choices)
+         .then(
+            (choice) => this.updateViewModel('subgroupIndex', choice),
+            () => {}
+         )
+   }
+
+   formatSubgroupChoice (subgroupIndex /*: integer */) {
+      const subgroup = this.viewModel.group.subgroups[subgroupIndex]
       return (subgroupIndex === 0)
          ? 'none'
          : `<span style="color: ${subgroup.isNormal ? 'blue' : 'black'}"><i>H</i><sub>${subgroupIndex}</sub>,
                a subgroup of order ${subgroup.order}</span>`
    }
 
-   multtableControlElement.innerHTML =
-      `<div>
-           Organize by subgroup:
-           <div id="organization_select" class="mock-select" data-index="${subgroupIndex}">
-              ${formatSubgroupChoice(subgroupIndex)}
-           </div>
-       </div>
-
-       <div>
-           Separate cosets by:
-           <input id="separation_slider" type="range" min="0" max="100"
-              value="${100 * multtableView.separation}">
-       </div>
-
-       <div>
-           Default coloration:
-           <div>
-               <input id="coloration_rainbow" name="coloration" value="rainbow" type="radio"
-                  ${(multtableView.coloration === 'rainbow') ? 'checked' : ''}>
-               <label for="coloration_rainbow">Spectrum/rainbow</label>
-           </div>
-           <div>
-               <input id="coloration_grayscale" name="coloration" value="grayscale" type="radio"
-                  ${(multtableView.coloration === 'grayscale') ? 'checked' : ''}>
-               <label for="coloration_grayscale">Grayscale</label>
-           </div>
-           <div>
-               <input id="coloration_none" name="coloration" value="none" type="radio"
-                  ${(multtableView.coloration === 'none') ? 'checked' : ''}>
-               <label for="coloration_none">None</label>
-           </div>
-       </div>
-
-       <div>
-           Element coloring on reorganization:
-           <div>
-               <input id="color_order_top_row_fixed" name="color-order" value="topRowFixed" type="radio"
-                  ${(multtableView.colorReordering === 'topRowFixed') ? 'checked' : ''}>
-               <label for="color_order_top_row_fixed">Top row colors don't change</label>
-           </div>
-           <div>
-               <input id="color_order_element_colors_fixed" name="color-order" value="elementColorsFixed" type="radio"
-                  ${(multtableView.colorReordering === 'elementColorsFixed') ? 'checked' : ''}>
-               <label for="color_order_element_colors_fixed">Element colors don't change</label>
-           </div>
-       </div>
-
-       <style>
-          #${(multtableControlElement.getAttribute('id') /*:: as any as string */)} > *:first-child {
-             margin-top: 0.5em;
-          }
-       </style>`
-
-
-   // define multtable control element names
-   const organizationSelect = (document.getElementById('organization_select') /*:: as any as HTMLElement */)
-   const separationSlider = (document.getElementById('separation_slider') /*:: as any as HTMLInputElement */)
-   const colorationRainbow = (document.getElementById('coloration_rainbow') /*:: as any as HTMLInputElement */)
-   const colorationGrayscale = (document.getElementById('coloration_grayscale') /*:: as any as HTMLInputElement */)
-   const colorationNone = (document.getElementById('coloration_none') /*:: as any as HTMLInputElement */)
-   const colorOrderTopRowFixed = (document.getElementById('color_order_top_row_fixed') /*:: as any as HTMLInputElement */)
-   const colorOrderElementColorsFixed =
-      (document.getElementById('color_order_element_colors_fixed') /*:: as any as HTMLInputElement */)
-
-   // define multtable control element input handlers
-
-   // Display organization choices in mock select
-   const displayChoices = () => {
-      const choices /*: Array<{value: string, label?: html}> */ = multtableView.group.subgroups.slice(0, -1)
-         .map((_subgroup, index) => { return {value: `${index}`, label: formatSubgroupChoice(index)} })
-      makeMockSelect(organizationSelect, choices)
-         .then(
-            (choice) => multtableView.organizeBySubgroup(parseInt(choice)),
-            () => {}
-         )
+   handleChangeEvent (changeEvent /*: Event */) {
+      const inputElement = changeEvent.target
+      if (inputElement != null) {
+         const field = inputElement.getAttribute('data-bind')
+         const value = inputElement.value
+         this.updateViewModel(field, value)
+      }
    }
 
-   // Set separation between cosets in multtable display
-   const setSeparation = () => {
-      multtableView.separation = parseInt(separationSlider.value) / 100
+   updateViewModel (field /*: string */, value /*: any */) {
+      this.viewModel.updateFromView(field, value)
    }
 
-   // Set coloration option in multtable
-   const setColoration = (coloration /*: 'rainbow' | 'grayscale' | 'none' */) => {
-      multtableView.coloration = coloration
+   set subgroupIndex (subgroupIndex /*: number */) {
+      const organizationSelectElement = rootElement.querySelector('#organization-select')
+      organizationSelectElement.setAttribute('data-index', subgroupIndex)
+      organizationSelectElement.innerHTML = this.formatSubgroupChoice(subgroupIndex)
    }
 
-   // Set color order option in multtable
-   const setColorReordering = (colorReordering /*: 'topRowFixed' | 'elementColorsFixed' */) => {
-      multtableView.colorReordering = colorReordering
+   set separation (separation /*: number */) {
+      rootElement.querySelector('#separation-slider').setAttribute('value', separation)
    }
 
+   set coloration (coloration /*: 'rainbow' | 'grayscale' | 'none' */) {
+      rootElement.querySelectorAll('[name="coloration"]')
+         .forEach((radioButton) => radioButton.setAttribute('checked', false))
+      rootElement.querySelector(`[value="${coloration}"]`).setAttribute('checked', true)
+   }
 
-   // Add input handlers to control elements
-   organizationSelect.addEventListener('click', displayChoices)
-   separationSlider.addEventListener('input', setSeparation)
-   colorationRainbow.addEventListener('click', () => setColoration('rainbow'))
-   colorationGrayscale.addEventListener('click', () => setColoration('grayscale'))
-   colorationNone.addEventListener('click', () => setColoration('none'))
-   colorOrderTopRowFixed.addEventListener('click', () => setColorReordering('topRowFixed'))
-   colorOrderElementColorsFixed.addEventListener('click', () => setColorReordering('elementColorsFixed'))
+   set colorReordering (colorReordering /*: 'topRowFixed' | 'elementColorsFixed' */) {
+      rootElement.querySelectorAll('[name="color-order"]')
+         .forEach((radioButton) => radioButton.setAttribute('checked', false))
+      rootElement.querySelector(`[value="${colorReordering}"]`).setAttribute('checked', true)
+   }
+
+   static getViewHTML (rootId /*: string */) {
+      return `
+          <style>
+             #${rootId} > *:first-child {
+                margin-top: 0.5em;
+             }
+          </style>
+
+          <div>
+             Organize by subgroup:
+             <div id="organization-select" class="mock-select" data-bind="subgroupIndex">none</div>
+          </div>
+
+          <div>
+             Separate cosets by:
+             <input id="separation-slider" type="range" min="0" max="100" data-bind="separation" value="0">
+          </div>
+
+          <div>
+             Default coloration:
+             <div>
+                 <input id="coloration-rainbow" name="coloration" value="rainbow" type="radio" data-bind="coloration"
+                    checked>
+                 <label for="coloration-rainbow">Spectrum/rainbow</label>
+             </div>
+             <div>
+                 <input id="coloration-grayscale" name="coloration" value="grayscale" type="radio" data-bind="coloration">
+                 <label for="coloration-grayscale">Grayscale</label>
+             </div>
+             <div>
+                 <input id="coloration-none" name="coloration" value="none" type="radio" data-bind="coloration">
+                 <label for="coloration-none">None</label>
+             </div>
+          </div>
+
+          <div>
+             Element coloring on reorganization:
+             <div>
+                 <input id="color-order-top-row-fixed" name="color-order" value="topRowFixed" type="radio"
+                    data-bind="colorReordering" checked>
+                 <label for="color-order-top-row-fixed">Top row colors don't change</label>
+             </div>
+             <div>
+                 <input id="color-order-element-colors-fixed" name="color-order" value="elementColorsFixed"
+                    type="radio" data-bind="colorReordering">
+                 <label for="color-order-element-colors-fixed">Element colors don't change</label>
+             </div>
+          </div>`
+   }
 }

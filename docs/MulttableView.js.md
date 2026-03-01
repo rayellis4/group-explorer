@@ -37,12 +37,21 @@ Sheet functions:
 */
 
 import {BitSet} from './BitSet.js'
-import * as GEUtils from './GEUtils.js';
+import {createModelProxy} from './GEUtils.js'
+import * as Log from './Log.js'
+import {MulttableModel} from './MulttableModel.js'
+import * as MulttableViewUI from './MulttableViewUI.js'
+import * as GEUtils from './GEUtils.js'
 import * as SheetEditor from './SheetEditor.js'
 
-import {THREE} from '../lib/externals.js';
+import {THREE} from '../lib/externals.js'
 
-export {createMinimalMulttableView, createFullMulttableView}
+export {
+   createMinimalMulttableView,
+   createFullMulttableView,
+   createLargeMulttableView,
+   createInteractiveMulttableView,
+}
 /*::
 import {Group} from './Group.js'
 import {Subgroup} from './Subgroup.js'
@@ -70,8 +79,8 @@ type MulttableViewOptions = {
 };
 */
 
-const DEFAULT_CANVAS_HEIGHT = 100;
-const DEFAULT_CANVAS_WIDTH = 100;
+const DEFAULT_CANVAS_HEIGHT = 96
+const DEFAULT_CANVAS_WIDTH = 96
 const ZOOM_STEP = 0.002
 const MINIMUM_FONT = 6
 const DEFAULT_BACKGROUND = '#E5E5E5';
@@ -80,6 +89,97 @@ const HIGHLIGHT_BACKGROUND = 0
 const HIGHLIGHT_BORDER = 1
 const HIGHLIGHT_CORNER = 2
 const highlightNames = ['background', 'border', 'corner']
+
+export class MulttableViewModel /*:: implements Updatable */ {
+   #model /*: MulttableModel */
+   #view /*: MulttableView */
+   modelFields /*: Array<string> */ = [
+      'group',
+      'elements',
+      'separation',
+      'organizingSubgroup',
+      'coloration',
+      'colorReordering',
+      'highlights'
+   ]
+
+   get group () /*: Group */ {
+      return this.model.group
+   }
+
+   get view () /*: MulttableView */ {
+      return this.#view
+   }
+
+   set view (view /*: MulttableView */) {
+      this.#view = view
+      view.group = this.group
+   }
+
+   get model () /*: MulttableModel */ {
+      return this.#model
+   }
+
+   set model (multtableModel /*: SubscriptionProxy<MulttableModel> */) {
+      this.#model = multtableModel
+      this.modelFields.forEach((field) => multtableModel.$subscribe(this, field))
+   }
+
+   updateModel (field /*: string */, value /*: any */) {
+      // $FlowExpectedError[prop-missing] --
+      this.model[field] = value
+   }
+
+   update (field /*: string */, value /*: any */) {
+      if (this.view == null) {
+         return
+      }
+      switch (field) {
+      case 'group':
+      case 'elements':
+      case 'separation':
+      case 'coloration':
+      case 'colorReordering':
+      case 'organizingSubgroup':
+         this.view[field] = value
+         break
+      case 'highlights':
+         this.view['highlightColors'] = value ?? [[], [], []]
+         this.view.queueShowGraphic()
+         break
+      default:
+         Log.info(`unsupported field ${field} in MulttableView.MulttableViewModel.updateView`)
+         break
+      }
+   }
+
+   setSize (x /*: number */, y /*: number */) {
+      this.view.setSize(x, y)
+   }
+
+   showGraphic () {
+      this.view.queueShowGraphic()
+   }
+
+   unitSquarePositions () {
+      return this.view.unitSquarePositions()
+   }
+
+   get canvas () /*: HTMLCanvasElement */ {
+      return this.view.canvas
+   }
+
+   toJSON () {
+      return this.model.toJSON()
+   }
+
+   fromJSON (jsonObject) {
+      if (jsonObject != null) {
+         this.model.fromJSON(jsonObject)
+         this.model.highlightControl = jsonObject.highlightControl
+      }
+   }
+}
 
 export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
    backgrounds /*: void | Array<color> */
@@ -97,7 +197,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
    is_minimal_view /*: boolean */
    labelCache /*: Array<HTMLCanvasElement> */
    options /*: MulttableViewOptions */
-   organizingSubgroup /*: number */
+   #organizingSubgroup /*: number */
    permutationLabels /*: void | Array<void | Array<string>> */
    _separation /*: number */
    show_request /*: boolean */
@@ -116,7 +216,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.options = options;
         this.zoomFactor = 1;  // user-supplied scale factor multiplier
         this.translate = {dx: 0, dy: 0};  // user-supplied translation, in screen coordinates
-        this.transform = new THREE.Matrix3();  // current cycleGraph -> screen transformation
+        this.transform = new THREE.Matrix3();
         this.highlightColors = [[], [], []]
 
         this.show_request = false;
@@ -522,14 +622,20 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     reset() {
         this.permutationLabels = this.group.representation[0].startsWith('(') ? Array(this.group.order) : undefined;
         this.separation = 0;
-        this.organizeBySubgroup(this.group.subgroups.length - 1);
+        this.organizingSubgroup = null
         this.coloration = 'rainbow';
         this.colorReordering = 'topRowFixed'
         this.clearHighlights();
     }
 
-    organizeBySubgroup (subgroupIndex /*: number */) {
-        subgroupIndex = (subgroupIndex === 0) ? this.group.subgroups.length - 1 : subgroupIndex
+    get organizingSubgroup () {
+        return this.#organizingSubgroup
+    }
+
+    set organizingSubgroup (subgroupIndex /*: ?number */) {
+        this.#organizingSubgroup = subgroupIndex
+
+        const index = subgroupIndex ?? this.group.subgroups.length - 1
         this.queueShowGraphic();
 
         // returns an Array of the group elements organized by subgroup cosets
@@ -554,9 +660,8 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
 
             return result
         }
-        this.elements = org(this.group, this.group.subgroups[subgroupIndex])
+        this.elements = org(this.group, this.group.subgroups[index])
 
-        this.organizingSubgroup = subgroupIndex;
         this._colors = null;
     }
 
@@ -632,7 +737,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     }
 
     get stride () /*: number */ {
-       return (this.organizingSubgroup == undefined)
+       return (this.organizingSubgroup == null)
           ? this.group.order
           : this.group.subgroups[this.organizingSubgroup].order;
     }
@@ -740,4 +845,38 @@ function createFullMulttableView (options /*: MulttableViewOptions */ = {})  /*:
     const view = new MulttableView(options);
     view.is_minimal_view = false;
     return view;
+}
+
+function createLargeMulttableView (
+   group /*: Group */,
+   options /*: MulttableOptions */ = {}
+) /*: MulttableView */ {
+   const model = createModelProxy(new MulttableModel(group))
+   const viewModel = new MulttableViewModel()
+   const view = new MulttableView(options)
+   view.displays_labels = true
+
+   // assemble parts
+   viewModel.model = model
+   viewModel.view = view
+   view.viewModel = viewModel
+
+   return view
+}
+
+function createInteractiveMulttableView (
+   model /*: SubscriptionProxy<MulttableModel> */,
+   options /*: MulttableOptions */ = {}
+) /*: MulttableView */ {
+   const viewModel = new MulttableViewModel()
+   const view = new MulttableView(options)
+   view.displays_labels = true
+   MulttableViewUI.addGestures(view)
+
+   // assemble parts
+   viewModel.model = model
+   viewModel.view = view
+   view.viewModel = viewModel
+
+   return view
 }

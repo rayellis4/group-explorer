@@ -320,15 +320,15 @@ class Generator {
 
       const axisMenu = [
          `<ul>
-             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'X')">${this.AXIS_LABELS['linear']['X']}</li> 
-             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'Y')">${this.AXIS_LABELS['linear']['Y']}</li> 
+             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'X')">${this.AXIS_LABELS['linear']['X']}</li>
+             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'Y')">${this.AXIS_LABELS['linear']['Y']}</li>
              <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'Z')">${this.AXIS_LABELS['linear']['Z']}</li>`,
          (curvable)
           ? `<li data-action="this.updateAxes(${strategyIndex}, 'circular', 'XY')">${this.AXIS_LABELS['circular']['XY']}</li>
              <li data-action="this.updateAxes(${strategyIndex}, 'circular', 'XZ')">${this.AXIS_LABELS['circular']['XZ']}</li>
              <li data-action="this.updateAxes(${strategyIndex}, 'circular', 'YZ')">${this.AXIS_LABELS['circular']['YZ']}</li>
-             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'XY')">${this.AXIS_LABELS['rotated']['XY']}</li>  
-             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'XZ')">${this.AXIS_LABELS['rotated']['XZ']}</li>  
+             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'XY')">${this.AXIS_LABELS['rotated']['XY']}</li>
+             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'XZ')">${this.AXIS_LABELS['rotated']['XZ']}</li>
              <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'YZ')">${this.AXIS_LABELS['rotated']['YZ']}</li>`
           : '',
          `   <hr>
@@ -338,14 +338,14 @@ class Generator {
           </ul>`
       ].join('')
 
-      
+
       makeDetachedMenu(axisMenu, clickLocation)
          .then( (action) => eval(action) )
    }
 
    showOrderMenu (clickLocation /*: NumberLocation */, strategyIndex /*: number */) {
       const numStrategies = cayleyDiagramGenerator.strategies.length
-      
+
       const orderList = cayleyDiagramGenerator.strategies.map((_strategy, order) =>
          `<li data-action="this.updateOrder(${strategyIndex}, ${order})"
              >${this.ORDER_LABELS[numStrategies][order]}</li>`)
@@ -386,7 +386,7 @@ class Generator {
       const generatorsUsed = new BitSet(group.order)
       const elementsGenerated = new BitSet(group.order, [0])
       const strategies /*: Array<StrategyParameters> */ = []
-      
+
       newStrategies.forEach((strategy) => {
          // don't include new strategies if they don't generate new elements
          if (!elementsGenerated.isSet(strategy.generator)) {
@@ -550,7 +550,7 @@ class Arrow {
 
    get arrowRemoveButton () /*: HTMLButtonElement */ {
       return (document.getElementById('arrow-remove-button') /*:: as any as HTMLButtonElement */)
-   }   
+   }
 
    clearHighlights () {
       this.arrowListElement.querySelectorAll('li').forEach((el) => el.classList.remove('highlighted'))
@@ -679,7 +679,7 @@ class Multiplication {
    get rightMultiplicationElement () /*: HTMLInputElement */{
       return (document.getElementById('right-multiplication') /*:: as any as HTMLInputElement */)
    }
-   
+
    setMult (rightOrLeft /*: string */) {
       cayleyDiagramGenerator.rightMultiply = (rightOrLeft == 'right')
    }
@@ -720,7 +720,7 @@ class Chunking {
    get chunkSelect () /*: HTMLElement */ {
       return document.getElementById('chunk-select')
    }
-   
+
    get chunkingFog () /*: HTMLElement */ {
       return document.getElementById('chunking-fog')
    }
@@ -739,7 +739,7 @@ class Chunking {
       if (this.chunkingIsPossible) {
           const strategies = cayleyDiagramGenerator.strategies
           const chunkingChoices = cayleyDiagramGenerator.getChunkingChoices()
-          
+
           chunkingChoices.forEach((chunkingChoice) => {
               const subgroupIndex = group.subgroups.findIndex((H) => H.members.equals(chunkingChoice.elements))
               const strategyIndex = strategies.findIndex((strategy) => strategy == chunkingChoice)

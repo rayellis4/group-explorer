@@ -6,7 +6,7 @@ import * as CayleyDiagramControl from './CayleyDiagramControl.js'
 import * as CayleyViewControl from './CayleyViewControl.js'
 import {ControlPanel} from './ControlPanel.js'
 import * as Heading from './Heading.js'
-import * as HighlightControl from './HighlightControl.js'
+//import * as HighlightControl from './HighlightControl.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as SheetEditor from './SheetEditor.js'
@@ -57,7 +57,31 @@ async function load () {
       diagramName = null
    }
 
-   // Initialize from passedJSON if this page is an editor for a sheet
+   cayleyDiagramGenerator.drawFromModel(diagramName)
+
+   // Add gestures
+   CayleyDiagramViewUI.addGestures(cayleyDiagramView)
+
+   // Create Control Panel
+   const controlPanelElement = document.getElementById('control-panel')
+   ControlPanel.addPanel(controlPanelElement)
+
+   // Initialize HighlightControl
+   const highlightControlElement = document.getElementById('highlight-control')
+   //   HighlightControl.addControl(highlightControlElement, cayleyDiagramView)
+
+   // Create view control
+   const cayleyViewControlElement = document.getElementById('cayley-view-control')
+   CayleyViewControl.addControl(cayleyViewControlElement, cayleyDiagramView)
+
+   // Create diagram control
+   const cayleyDiagramControlElement = document.getElementById('cayley-diagram-control')
+   CayleyDiagramControl.addControl(cayleyDiagramControlElement, cayleyDiagramGenerator)
+
+   // Listen for window resize and resize visualizer
+   window.addEventListener('resize', () => cayleyDiagramView.resize())
+
+   // Set up change broadcast (if this page is an editor for a sheet)
    if (window.location.href.includes('SheetEditor=true')) {
       // Draw CayleyDiagram
       const initialJSON = await SheetEditor.getInitialData()
@@ -73,6 +97,7 @@ async function load () {
       cayleyDiagramGenerator.drawFromModel(diagramName)
    }
 
+   /* Create/initialize model, then add these features?
    // Add gestures
    CayleyDiagramViewUI.addGestures(cayleyDiagramView)
 
@@ -84,6 +109,7 @@ async function load () {
 
    // Listen for window resize and resize visualizer
    window.addEventListener('resize', () => cayleyDiagramView.resize())
+    */
 }
 
 function insertHTML () {

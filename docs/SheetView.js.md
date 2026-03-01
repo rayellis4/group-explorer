@@ -224,11 +224,29 @@ function makeCssTransform (
                  ${position.x}, ${position.y})`
 }
 
+export class View {
+   viewModel
+
+   constructor (viewModel) {
+      this.viewModel = viewModel
+      this.viewModel.view = this
+   }
+
+   addElement (modelElement) {
+   }
+
+   clear () {
+      // clear all elements -- just search the dom and remove?
+   }
+   
+   removeElement (modelElement) {
+   }
+}
+
 export class SheetView {
-  /*::
-    +modelElement: SheetModel.SheetElement
-    +domElement: HTMLElement
-  */
+   modelElement /*: SheetModel.SheetElement */
+   domElement /*: HTMLElement */
+
   constructor (modelElement /*: SheetModel.SheetElement */, domElement /*: HTMLElement */) {
     this.modelElement = modelElement
 

@@ -7,12 +7,12 @@ The Model parrt of the Sheet Model-View-Control structure
 ```javascript
  */
 
-import {createLabelledCycleGraphView} from './CycleGraphView.js'
-import {createFullMulttableView} from './MulttableView.js'
+import {createLargeCycleGraphView} from './CycleGraphView.js'
+import {createModelProxy} from './GEUtils.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import {Mapping} from './Mapping.js'
-import * as MathML from './MathML.js'
+import {createLargeMulttableView} from './MulttableView.js'
 import * as SheetModelEditors from './SheetModelEditors.js'
 import * as SheetView from './SheetView.js'
 import * as StoredObjects from './StoredObjects.js'
@@ -104,7 +104,94 @@ export type MSG_external<VizType: any> = any;
 export type MSG_editor<VizType: any> = any;
 */
 
-export const sheetElements = new Map/*:: <string, SheetElement> */()
+
+
+// this will get assembled in Sheet.js
+function createSheet () {
+   const model = createModelProxy(new Model())
+   const viewModel = new ViewModel(model)
+   const view = new SheetView.View(viewModel)
+}
+
+class Model {
+   sheetElements /*: Map<string, SheetElement> */ = new Map()
+
+   toJSON () {
+      return Array.from(sheetElements.values()).map((el) => el.toJSON())
+   }
+
+   fromJSON (json /*: string | Obj */) {
+      const jsonObjects = (typeof json == 'string')
+         ? JSON.parse(json)
+         : json
+
+      this.sheetElements.clear()  // remove existing elements (?) or build on existing
+
+      for (const jsonObject of jsonObjects) {
+         sheetElements.set(jsonObject.id, jsonObject)  // not right
+      }      
+   }
+}
+
+const sheetModel /*: SubscriptionProxy<Model> */ = createModelProxy(new Model())
+export const sheetElements /*: Map<string, SheetElement> */ = sheetModel.sheetElements
+
+class ViewModel {
+   #model /*: Model */
+   view /*: SheetView.View */
+
+   constructor (model /*: ?SubscriptionProxy<Model> */) {
+      if (model != null) {
+         this.model = model
+      }
+   }
+
+   get model () /*: Model */ {
+      return this.#model
+   }
+
+   set model (model /*: SubscriptionProxy<Model> */) {
+      this.model = model
+      model.$subscribe(this, 'sheetElements')
+   }
+
+   update (field, value) {
+      if ('map' in  value) {
+         const {map, key} = value
+         if (key == null && map.size == 0) {  // => clear
+            // destroy all elements
+         } else if (map.has(key)) {
+            // something added
+         } else {
+            // something destroyed
+            this.destroy()
+         }
+      } else if (value instanceof 'Map') {  // happens on initial subscribe
+         this.model.sheetElements.forEach((value, key) => this.addElement(/* whatever */))
+      } else {
+         // we'd get here if new fields were added to Model
+      }
+   }
+
+   addElement (type /*: ClassName */ = options.className, options) {
+      const newElement = classMap[type](options)
+      this.model.sheetElements.set(newElement.id, newElement)
+      this.view.add(newElement)
+   }
+
+   clear () {
+      this.view.clear()
+   }
+
+   removeElement (elementId) {
+      if (this.model.sheetElements.has(elementId)) {
+         const sheetElement = this.model.sheetElements.get(elementId)
+         sheetElement.destroy()
+         this.view.destroy(sheetElement)
+         this.model.sheetElements.delete(elementId)
+      }
+   }
+}
 
 export function clear () {
   sheetElements.forEach((el) => {
@@ -555,8 +642,7 @@ export class CDElement extends VisualizerElement {
 export class CGElement extends VisualizerElement {
   fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: CGElement */ {
     super.fromJSON(jsonObject, customKeys)
-    this._visualizer = createLabelledCycleGraphView()
-    this.visualizer.group = this.group
+    this._visualizer /*: CycleGraphViewModel */ = createLargeCycleGraphView(this.group, {})
     if ('visualizer' in jsonObject) {
        this.visualizer.fromJSON(jsonObject.visualizer)
     } else {
@@ -580,8 +666,7 @@ export class CGElement extends VisualizerElement {
 export class MTElement extends VisualizerElement {
   fromJSON (jsonObject /*: Obj */, customKeys /*: Array<string> */ = []) /*: MTElement */ {
     super.fromJSON(jsonObject, customKeys)
-    this._visualizer = createFullMulttableView()
-    this.visualizer.group = this.group
+    this._visualizer /*: MulttableViewModel */ = createLargeMulttableView(this.group, {})
     if ('visualizer' in jsonObject) {
        this.visualizer.fromJSON(jsonObject.visualizer)
     } else {
@@ -835,4 +920,16 @@ export function loadPassedSheet () {
             fromJSONObject(sheetJSON)
          }
       })
+}
+
+
+
+const classMap /*: {[string]: Class<SheetElement>} */ = {
+   RectangleElement: RectangleElement,
+   TextElement: TextElement,
+   CDElement: CDElement,
+   CGElement: CGElement,
+   MTElement: MTElement,
+   ConnectingElement: ConnectingElement,
+   MorphismElement: MorphismElement
 }
