@@ -5,12 +5,15 @@ import {Group} from './Group.js'
 export type CycleGraphJSON = {
     groupURL: string,
     highlights?: Array<Array<?color>>,
-    highlightControl?: any
     ...
 }
-import type {HighlightControlViewModel} from './HighlightControlViewModel.js'
  */
 export class CycleGraphModel {
+   static builtinProperties /*: Array<string> */ = [
+      'group',
+      'highlights',
+      'highlightConfiguration'
+   ]
    group /*: Group */
    highlights /*: Array<Array<?color>> */ = [[], [], []]
    highlightConfiguration = {  // visualizer-specific highlight parameters
@@ -19,7 +22,6 @@ export class CycleGraphModel {
       lightness /*: Array<number> */: [0.8, 0.8, 0.8],
       hueOffset /*: Array<number> */: [0, 1/3, 2/3]
    }
-   highlightControl /*: ?HighlightControlViewModel */
 
    constructor (group /*: Group */) {
       this.group = group
@@ -28,20 +30,38 @@ export class CycleGraphModel {
    toJSON () /*: CycleGraphJSON */ {
       const json /*: CycleGraphJSON */ = {
          groupURL: this.group.URL,
-         highlights: this.highlights,
-         highlightControl: (this.highlightControl == null || this.highlightControl.constructor.name == 'Object')
-            ? this.highlightControl
-            : this.highlightControl.toJSON()
+         highlights: this.highlights
       }
+
+      Object.getOwnPropertyNames(this)
+         .filter((property) => !this.constructor.builtinProperties.includes(property))
+         .forEach((property) => {
+            json[property] = (this[property]?.toJSON == null)
+               ? this[property]
+               : this[property].toJSON()
+         })
+
       return json
    }
 
    fromJSON (json /*: CycleGraphJSON */) {
-      // $FlowFixMe[incompatible-type] -- check that we have the required group, figure out what to do
       if (this.group.URL != json.groupURL) {
          this.group = Library.getGroupByURL(json.groupURL)
       }
       this.highlights = json.highlights ?? [[], [], []]
+
+      Object.getOwnPropertyNames(this)
+         .filter((property) => !this.constructor.builtinProperties.includes(property))
+         .forEach((property) => {
+            if (json[property] != null) {
+               if (this[property]?.fromJSON == null) {
+                  this[property] =  json[property]
+               } else {
+                  this[property].fromJSON(json[property])
+               }
+            }
+         })
+
       return this
    }
 }

@@ -6,6 +6,7 @@
 
 ```javascript
  */
+import * as Log from './Log.js'
 import * as StoredObjects from './StoredObjects.js'
 
 export {broadcastChange, getInitialData, enableChangeBroadcast}
@@ -42,7 +43,7 @@ function enableChangeBroadcast (jsonGenerator) {
                source: 'editor',
                json: currentJson,
             };
-            console.log('message posted')
+            Log.debug(`message posted: ${currentJsonString}`)
             window.postMessage(msg, new URL(window.location.href).origin)
          }
       }

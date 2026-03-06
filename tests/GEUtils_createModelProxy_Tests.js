@@ -4,17 +4,6 @@ describe('createModelProxy tests', function () {
 
    describe('plain object proxying (regression)', function () {
 
-      it('initializes subscriber with current value on subscription', function (done) {
-         const proxy = createModelProxy({x: 7})
-         proxy.$subscribe({
-            update (field, value) {
-               expect(field).to.equal('x')
-               expect(value).to.equal(7)
-               done()
-            }
-         }, 'x')
-      })
-
       it('notifies subscriber when property is set', function (done) {
          const proxy = createModelProxy({x: 0})
          let initialized = false

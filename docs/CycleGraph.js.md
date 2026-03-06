@@ -25,7 +25,6 @@ async function load () {
    // If this page is editing a sheet...
    const initialJSON /*: unknown */ =
       await (window.location.href.includes('SheetEditor=true') ? SheetEditor.getInitialData() : null)
-      // JSON.parse(testJSON)  // Comment out previous line and uncomment this line to use testJSON below
 
    // Get group, either from page URL or data from Sheet
    const group /*: Group */ = await ((initialJSON?.groupURL == null)
@@ -34,9 +33,6 @@ async function load () {
 
    // Create CycleGraph model
    const cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */ = createModelProxy(new CycleGraphModel(group))
-   if (initialJSON != null) {
-      cycleGraphModel.fromJSON(initialJSON)
-   }
 
    // Create Header
    Heading.display (
@@ -61,16 +57,19 @@ async function load () {
 
    // Initialize HighlightControl
    const highlightControlElement = document.getElementById('highlight-control')
-   HighlightControl.addControl(highlightControlElement, cycleGraphModel, initialJSON?.highlightControl)
+   HighlightControl.addControl(highlightControlElement, cycleGraphModel)
 
-   // Set up change broadcast if editing a sheet
+   // Initialize CycleGraph model, change broadcast if editing a sheet
    if (initialJSON != null) {  // window.location.href.includes('SheetEditor=true')) {
+      cycleGraphModel.fromJSON(initialJSON)
+
       SheetEditor.enableChangeBroadcast(() => {
          return cycleGraphModel.toJSON()
       })
 
-      // run SheetEditor.broadcastChange() when 'highlights' is changed
+      // run SheetEditor.broadcastChange() when 'highlights' or HighlightControl structure changes
       cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlights')
+      cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlightControl')
    }
 
    // Register window resize handler
@@ -91,6 +90,3 @@ function insertHTML () {
          </div>
       </div>`)
 }
-
-const testJSON =
-'{"groupURL":"https://192.168.1.100:8080/integrate-group-explorer/groups/D_4.group","highlights":[[],[],[]],"highlightControl":{"nextId":22,"nextSubsetIndex":1,"displayItems":[{"class":"Subgroop","id":0,"elements":{"len":8,"arr":[1]},"subgroupIndex":0},{"class":"Subgroop","id":1,"elements":{"len":8,"arr":[5]},"subgroupIndex":1},{"class":"Subgroop","id":2,"elements":{"len":8,"arr":[17]},"subgroupIndex":2},{"class":"Subgroop","id":3,"elements":{"len":8,"arr":[33]},"subgroupIndex":3},{"class":"Subgroop","id":4,"elements":{"len":8,"arr":[65]},"subgroupIndex":4},{"class":"Subgroop","id":5,"elements":{"len":8,"arr":[129]},"subgroupIndex":5},{"class":"Subgroop","id":6,"elements":{"len":8,"arr":[15]},"subgroupIndex":6},{"class":"Subgroop","id":7,"elements":{"len":8,"arr":[85]},"subgroupIndex":7},{"class":"Subgroop","id":8,"elements":{"len":8,"arr":[165]},"subgroupIndex":8},{"class":"Subgroop","id":9,"elements":{"len":8,"arr":[255]},"subgroupIndex":9},{"class":"ConjugacyClasses","id":10},{"class":"ConjugacyClass","id":11,"elements":{"len":8,"arr":[1]},"partitioningScheme":10,"subIndex":0},{"class":"ConjugacyClass","id":12,"elements":{"len":8,"arr":[4]},"partitioningScheme":10,"subIndex":1},{"class":"ConjugacyClass","id":13,"elements":{"len":8,"arr":[10]},"partitioningScheme":10,"subIndex":2},{"class":"ConjugacyClass","id":14,"elements":{"len":8,"arr":[80]},"partitioningScheme":10,"subIndex":3},{"class":"ConjugacyClass","id":15,"elements":{"len":8,"arr":[160]},"partitioningScheme":10,"subIndex":4},{"class":"Cosets","id":16,"subgroop":3,"side":"left"},{"class":"Coset","id":17,"elements":{"len":8,"arr":[33]},"partitioningScheme":16,"subIndex":0},{"class":"Coset","id":18,"elements":{"len":8,"arr":[18]},"partitioningScheme":16,"subIndex":1},{"class":"Coset","id":19,"elements":{"len":8,"arr":[132]},"partitioningScheme":16,"subIndex":2},{"class":"Coset","id":20,"elements":{"len":8,"arr":[72]},"partitioningScheme":16,"subIndex":3},{"class":"Subset","id":21,"elements":{"len":8,"arr":[6]},"subsetIndex":0}]}}'

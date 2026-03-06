@@ -25,7 +25,7 @@ function addControl (multtableControlElement /*: HTMLElement */, modelProxy /*: 
 class ViewModel /*: implements Updatable */ {
    #model /*: MulttableModel */
    #view /*: View */
-   modelFields /*: Array<string> */ = [
+   #modelFields /*: Array<string> */ = [
       'organizingSubgroup',
       'separation',
       'coloration',
@@ -47,7 +47,7 @@ class ViewModel /*: implements Updatable */ {
 
    set view (view /*: View */) {
       this.#view = view
-      this.modelFields.forEach((field) => this.update(field, this.model[field]))
+      this.#modelFields.forEach((field) => this.update(field, this.model[field]))
    }
 
    get model () /*: MulttableModel */ {
@@ -56,7 +56,10 @@ class ViewModel /*: implements Updatable */ {
 
    set model (multtableModel /*: SubscriptionProxy<MulttableProxy> */) {
       this.#model = multtableModel
-      this.modelFields.forEach((field) => multtableModel.$subscribe(this, field))
+      this.#modelFields.forEach((field) => {
+         multtableModel.$subscribe(this, field)
+         this.update(field, this.model[field])
+      })
    }
 
    update (field /*: string */, value /*: any */) {

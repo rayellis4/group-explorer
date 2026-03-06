@@ -67,9 +67,9 @@ class HighlightControlView {
       subsetView /*: AbstractSubsetView */,
       htmlGenerator /*: (AbstractSubsetView, AbstractSubsetView) => string */
    ) /*: html */ {
-      const result = this.viewModel.displayItems.reduce(
+      const result = Array.from(this.viewModel.displayMap.values()).reduce(
          (list /*: Array<html> */, item) => {
-            if (['Subgroop', 'Subset', 'ConjugacyClass', 'OrderClass', 'Coset'].includes(item?.kind) && subsetView.id != item.id) {
+            if (['Subgroop', 'Subset', 'ConjugacyClass', 'OrderClass', 'Coset'].includes(item?.className) && subsetView.id != item.id) {
                const itemView = this.itemMap[item.id]
                list.push(htmlGenerator(subsetView, itemView))
             }
@@ -161,8 +161,8 @@ class HighlightControlView {
          document.querySelectorAll('#subset-page .highlight-mark')
             .forEach((element) => element.classList.remove('highlight-mark'))
 
-         if (this.viewModel.highlightedItem != null) {
-            this.itemMap[this.viewModel.highlightedItem.id].highlight()
+         if (this.viewModel.highlightedItems[0] != null) {
+            this.itemMap[this.viewModel.highlightedItems[0].id].highlight()
          }
       }, 0)
    }
@@ -235,9 +235,9 @@ class HighlightControlView {
    }
 
    makeSubsetEditor (subsetId /*: ?integer */) {
-      const subset = (subsetId == null) ? null : this.viewModel.displayItems[subsetId]
+      const subset = (subsetId == null) ? null : this.viewModel.displayMap.get(subsetId)
 
-      if (subset?.kind === 'Subset') {
+      if (subset?.className === 'Subset') {
          new SubsetEditor(this.viewModel, this.itemMap[subsetId].name, subset.elements)
       } else {
          new SubsetEditor(this.viewModel, this.nextSubsetName(), new BitSet(this.viewModel.group.order))
@@ -347,9 +347,9 @@ class DisplayItemView {
       this.schemeView = schemeView
       view.itemMap[item.id] = this
 
-      if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(item.kind)) {
+      if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(item.className)) {
          this.#buildScheme()
-      } else if (item.kind === 'Subgroop' || item.kind === 'Subset') {
+      } else if (item.className === 'Subgroop' || item.className === 'Subset') {
          this.htmlElement = GEUtils.generateElements(this.displayLine)[0]
          this.#appendToSection()
       }
@@ -365,7 +365,7 @@ class DisplayItemView {
    get name () /*: html */ {
       const item = this.item
       let name = ''
-      switch (item.kind) {
+      switch (item.className) {
       case 'Subgroop':       name = `<i>H</i><sub>${item.subgroupIndex}</sub>`;   break
       case 'Subset':         name = `<i>S</i><sub>${item.subsetIndex}</sub>`;     break
       case 'ConjugacyClass': name = `<i>CC</i><sub>${item.subIndex}</sub>`;       break
@@ -381,7 +381,7 @@ class DisplayItemView {
       case 'Cosets':
          name = `{ ${this.partitionViews[0].name} ... ${this.partitionViews.at(-1).name} }`
          break
-      default: throw new Error(`DisplayItemView.name: unknown kind '${item.kind}'`)
+      default: throw new Error(`DisplayItemView.name: unknown class '${item.className}'`)
       }
       return name
    }
@@ -389,8 +389,8 @@ class DisplayItemView {
    // ---- displayLine ---------------------------------------------------------
 
    get displayLine () /*: html */ {
-      let displayLine = ''   // PartitioningScheme kinds have no line of their own; children have lines
-      switch (this.item.kind) {
+      let displayLine = ''   // PartitioningScheme classes have no line of their own; children have lines
+      switch (this.item.className) {
       case 'Subgroop':         displayLine = this.#subgroopDisplayLine();         break
       case 'Subset':           displayLine = this.#subsetDisplayLine();           break
       case 'ConjugacyClass':   displayLine = this.#conjugacyClassDisplayLine();   break
@@ -399,7 +399,7 @@ class DisplayItemView {
       case 'ConjugacyClasses':
       case 'OrderClasses':
       case 'Cosets':                                                               break
-      default: throw new Error(`DisplayItemView.displayLine: unknown kind '${this.item.kind}'`)
+      default: throw new Error(`DisplayItemView.displayLine: unknown class '${this.item.className}'`)
       }
       return displayLine
    }
@@ -408,7 +408,7 @@ class DisplayItemView {
 
    get menu () /*: html */ {
       let menu = ''
-      switch (this.item.kind) {
+      switch (this.item.className) {
       case 'Subgroop':         menu = this.#subgroopMenu();    break
       case 'Subset':           menu = this.#subsetMenu();      break
       case 'ConjugacyClass':
@@ -417,7 +417,7 @@ class DisplayItemView {
       case 'ConjugacyClasses':
       case 'OrderClasses':
       case 'Cosets':                                           break
-      default: throw new Error(`DisplayItemView.menu: unknown kind '${this.item.kind}'`)
+      default: throw new Error(`DisplayItemView.menu: unknown class '${this.item.className}'`)
       }
       return menu
    }
@@ -425,12 +425,12 @@ class DisplayItemView {
    // ---- lifecycle -----------------------------------------------------------
 
    destroy () {
-      if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(this.item.kind)) {
+      if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(this.item.className)) {
          this.partitionViews.forEach((pv) => pv.destroy())
          if (this.rootElement.querySelectorAll('#partitions li').length == 1) {
             this.rootElement.querySelectorAll('#partitions .placeholder').forEach((el) => el.style.display = '')
          }
-      } else if (this.item.kind === 'Subset') {
+      } else if (this.item.className === 'Subset') {
          if (this.htmlElement.parentElement.querySelectorAll('li').length == 2) {
             this.htmlElement.parentElement.querySelectorAll('li.placeholder')
                .forEach((el) => el.style.display = '')
@@ -442,7 +442,7 @@ class DisplayItemView {
    }
 
    highlight () {
-      if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(this.item.kind)) {
+      if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(this.item.className)) {
          this.partitionViews.forEach((pv) => pv.highlight())
       } else {
          this.htmlElement?.classList.add('highlight-mark')
@@ -451,8 +451,10 @@ class DisplayItemView {
 
    // ---- helpers shared by displayLine / menu --------------------------------
 
+   // toggle over partition element toggles highlighting the entire partition
    get clickAction () /*: html */ {
-      return `data-action="event.preventDefault(); this.viewModel.toggleColorHighlight(${this.id})"`
+      const itemId = this.item.partitioningScheme?.id ?? this.id
+      return `data-action="event.preventDefault(); this.viewModel.toggleColorHighlight(${itemId})"`
    }
 
    get contextAction () /*: html */ {
@@ -468,7 +470,7 @@ class DisplayItemView {
          </div>`
       })()
 
-      if (this.item.kind === 'Subgroop') {
+      if (this.item.className === 'Subgroop') {
          const subgroup = this.viewModel.group.subgroups[this.item.subgroupIndex]
          let subgroopInfo = `<div>${this.name} is a ${subgroup.isNormal ? 'normal' : ''} subgroup of ${this.viewModel.group.name}`
          if (subgroup.isomorphicGroup == null) {
@@ -489,9 +491,9 @@ class DisplayItemView {
          return subgroopInfo + baseInfo
       }
 
-      if (this.item.kind === 'Subset') {
-         const subgroop = this.viewModel.displayItems
-            .filter((el) => el?.kind === 'Subgroop')
+      if (this.item.className === 'Subset') {
+         const subgroop = Array.from(this.viewModel.displayMap.values())
+            .filter((el) => el?.className === 'Subgroop')
             .find((subgroop) => this.viewModel.group.subgroups[subgroop.subgroupIndex].members.equals(this.elements))
          if (subgroop == null) {
             return baseInfo
@@ -554,12 +556,12 @@ class DisplayItemView {
    }
 
    #appendToSection () {
-      if (this.item.kind === 'Subgroop') {
+      if (this.item.className === 'Subgroop') {
          this.rootElement.querySelector('#subgroups ul').append(this.htmlElement)
          this.htmlElement.querySelector('details').addEventListener('toggle', (event) => {
             event.target.insertAdjacentHTML('beforeend', this.info)
          }, {once: true})
-      } else if (this.item.kind === 'Subset') {
+      } else if (this.item.className === 'Subset') {
          this.rootElement.querySelector('#subsets ul')?.append(this.htmlElement)
          this.rootElement.querySelectorAll('#subsets li.placeholder').forEach((el) => el.style.display = 'none')
       }

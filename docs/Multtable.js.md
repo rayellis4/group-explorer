@@ -33,9 +33,6 @@ async function load () {
 
    // Create Multtable model
    const multtableModel /*: SubscriptionProxy<MulttableModel> */ = createModelProxy(new MulttableModel(group))
-   if (initialJSON != null) {
-      multtableModel.fromJSON(initialJSON)
-   }
 
    // Create Header
    Heading.display(
@@ -60,20 +57,23 @@ async function load () {
 
    // Initialize HighlightControl
    const highlightControlElement = document.getElementById('highlight-control')
-   HighlightControl.addControl(highlightControlElement, multtableModel, initialJSON?.highlightControl)
+   HighlightControl.addControl(highlightControlElement, multtableModel)
 
    // Add Multtable Control panel
    const tableControlElement = document.getElementById('table-control')
    MulttableControl.addControl(tableControlElement, multtableModel)  // Initializes Multtable Controller directly
 
-   // Set up change broadcast if editing a sheet
+   // Initialize Multtable model, change broadcast if editing a sheet
    if (initialJSON != null) {  // window.location.href.includes('SheetEditor=true')) {
+      multtableModel.fromJSON(initialJSON)
+
       SheetEditor.enableChangeBroadcast(() => {
          return multtableModel.toJSON()
       })
 
-      // run SheetEditor.broadcastChange() when 'highlights' is changed
+      // run SheetEditor.broadcastChange() when 'highlights' or HighlightControl structure changes
       multtableModel.$subscribe(broadcastChangeUpdater, 'highlights')
+      multtableModel.$subscribe(broadcastChangeUpdater, 'highlightControl')
    }
 
    // Register window resize handler

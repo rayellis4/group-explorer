@@ -20,8 +20,8 @@ import {Group} from './Group.js'
 type HighlightControlJSON = {
   nextId: number,
   nextSubsetIndex: number,
-  highlightedItem: number | void,
-  displayItems: Array<any>,
+  highlightedItems: Array<number | void>,
+  displayMap: Array<any>
   ...
 }
  */
@@ -29,6 +29,15 @@ export {HighlightControlViewModel}
 /*
 ```
 ## ViewModel
+
+**Instance Variables**:
+  *  [displayItem](#viewmodel-helper-classes) -- objects displayed in the HighlightControl user interface
+  *  model -- the visualizer-wide Model in this MVVM pattern to which this ViewModel subscribes
+  *  view -- the View in this MVVM pattern which this ViewModel manages and from which it receives events
+  *  nextId -- the next id that will be assigned to a displayItem
+  *  nextSubsetIndex -- the next subgroup id that will be assigned to a subset (e.g., S_n)
+  *  highlightedItems -- array of highlighted
+  *  displayMap -- a map of all display items by id
 ```js
  */
 class HighlightControlViewModel /*:: implements Updatable */ {
@@ -37,8 +46,8 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 
    nextId /*: number */
    nextSubsetIndex /*: number */
-   highlightedItem /*: ?DisplayItem */ = null
-   displayItems /*: Array<?DisplayItem> */ = []
+   highlightedItems /*: Array<?DisplayItem> */ = [null, null, null]
+   displayMap /*: Map<number, DisplayItem> */ = new Map()
 
    constructor (model /*: SubscriptionProxy<CycleGraphModel> */) {
       this.model = model
@@ -62,11 +71,11 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 
    set view (view /*: HighlightControlView */) {
       this.#view = view
-      this.displayItems
+      Array.from(this.displayMap.values())
          .filter((item) => item instanceof Subgroop || item instanceof Subset || item instanceof PartitioningScheme)
          .forEach((item) => view.addElement(item))
-      if (this.highlightedItem != null) {
-         this.highlightItem(this.highlightedItem.id, 0)
+      if (this.highlightedItems[0] != null) {
+         this.highlightItem(this.highlightedItems[0].id, 0)
       }
    }
 
@@ -82,16 +91,17 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       this.group.subgroups.forEach((_subgroup, inx) => this.#createItem(new Subgroop(this, inx)))
       this.#model = (model /*:: as any as CycleGraphModel */)
 
-      model.highlightControl = this  // enter a reference to us in the model (this could also add it to an Array or Map)
-      model.$subscribe(this, 'highlights')
+      this.model.highlightControl = this  // enter a reference to us in the model
+      this.model.$subscribe(this, 'highlights')  // subscribe to changes in 'highlights' field
+      this.update('highlights', this.model.highlights)
    }
 
    toJSON () /*: HighlightControlJSON */ {
       const highlightControlJSON = {
          nextId: this.nextId,
          nextSubsetIndex: this.nextSubsetIndex,
-         highlightedItem: this.highlightedItem?.id,
-         displayItems: this.displayItems.map((item) => item?.toJSON())
+         highlightedItems: this.highlightedItems.map((item) => item?.id),
+         displayMap: Array.from(this.displayMap.values()).map((item) => item.toJSON())
       }
 
       return highlightControlJSON
@@ -99,15 +109,11 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 
    fromJSON (jsonObject /*: HighlightControlJSON */) {
       const classMap /*: {[string]: Class<DisplayItem>} */ = {
-         DisplayItem: DisplayItem,
-         AbstractSubset: AbstractSubset,
          Subgroop: Subgroop,
          Subset: Subset,
-         Partition: Partition,
          ConjugacyClass: ConjugacyClass,
          OrderClass: OrderClass,
          Coset: Coset,
-         PartitioningScheme: PartitioningScheme,
          ConjugacyClasses: ConjugacyClasses,
          OrderClasses: OrderClasses,
          Cosets: Cosets
@@ -115,44 +121,45 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 
       this.nextId = jsonObject.nextId
       this.nextSubsetIndex = jsonObject.nextSubsetIndex
-      this.displayItems.length = 0
-      jsonObject.displayItems.forEach((jsonObject, inx) => {
-         const displayItem = new (classMap[jsonObject.class])(this)
-         this.displayItems[inx] = displayItem.fromJSON(jsonObject)
+      this.displayMap.clear()
+      jsonObject.displayMap.forEach((displayItemJSON) => {
+         const displayItem = new (classMap[displayItemJSON.className])(this).fromJSON(displayItemJSON)
+         this.displayMap.set(displayItemJSON.id, displayItem)
       })
-      if (jsonObject.highlightedItem != null) {
-         this.highlightItem(jsonObject.highlightedItem, 0)
-      } else {
-         this.highlightedItem = null
-      }
+      this.highlightedItems = jsonObject.highlightedItems.map((item) => this.displayMap.get(item))
+
+      this.#updateHighlights()
 
       if (this.view != null) {
          this.view.clearAll()
          this.view = this.view  // triggers download of all displayItems to this.view
       }
    }
-
-/************************************************************/
-
+/**
+```
+### Create / Destroy display items
+```js
+ */
    #createItem (item /*: DisplayItem */) /*: DisplayItem */ {
       item.id = this.nextId++
-      this.displayItems[item.id] = item
+      this.displayMap.set(item.id, item)
 
       if (item instanceof Subset) {
          item.subsetIndex = this.nextSubsetIndex++
       } else if (item instanceof PartitioningScheme) {
          item.partitions.forEach((partition) => {
             partition.id = this.nextId++
-            this.displayItems[partition.id] = partition
+            this.displayMap.set(partition.id, partition)
          })
       }
 
+      this.#triggerModelUpdate()
       this.view?.addElement(item)
       return item
    }
 
    #matchingSubsets (elements /*: BitSet */) /*: Array<Subgroop | Subset>*/ {
-      const matchingSubsets = this.displayItems
+      const matchingSubsets = Array.from(this.displayMap.values())
          .filter((displayItem) =>
             (displayItem instanceof Subgroop || displayItem instanceof Subset) && elements.equals(displayItem.elements))
 
@@ -186,7 +193,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
    }
 
    createCosets (subgroopId /*: integer */, side /*: string */) {
-      const subgroop = this.displayItems[subgroopId]
+      const subgroop = this.displayMap.get(subgroopId)
       if (subgroop instanceof Subgroop) {
          this.#createItem(new Cosets(this, subgroop, side))
       }
@@ -197,8 +204,8 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       subsetId /*: integer */,
       subset2Id /*: integer */
    ) {
-      const subset = this.displayItems[subsetId]
-      const subset2 = this.displayItems[subset2Id]
+      const subset = this.displayMap.get(subsetId)
+      const subset2 = this.displayMap.get(subset2Id)
       if (subset instanceof AbstractSubset && (subset2 == null || subset2 instanceof AbstractSubset)) {
          const derivedSubset = (subset2 == null) ? subset[type] : subset[type](subset2)
          const matchingSubsets = this.#matchingSubsets(derivedSubset)
@@ -212,94 +219,109 @@ class HighlightControlViewModel /*:: implements Updatable */ {
    }
 
    destroyItem (itemId /*: integer */) {
-      const item = this.displayItems[itemId]
+      const clearItemHighlight = (item /*: DisplayItem */) => {
+         this.highlightedItems = this.highlightedItems.map((highlightedItem) => {
+            return (highlightedItem == item) ? null : highlightedItem
+         })            
+      }
+
+      const item = this.displayMap.get(itemId)
       if (item != null) {
+         if (item instanceof PartitioningScheme) {
+            item.partitions.forEach((partition) => {
+               this.view.removeElement(partition)
+               this.displayMap.delete(partition.id)
+               clearItemHighlight(partition)
+            })
+         }
+         clearItemHighlight(item)
          this.view.removeElement(item)
-         this.displayItems[itemId] = null
+         this.displayMap.delete(itemId)
+         this.#updateHighlights()
       }
    }
-
-/************************************************************/
-
-   #generateHighlights (item /*: DisplayItem */, highlightTypeIndex /*: integer */) /*: Array<?color> */ {
-      let highlights /*: Array<?color> */ = []
-
-      const s = this.model.highlightConfiguration.saturation[highlightTypeIndex]
-      const l = this.model.highlightConfiguration.lightness[highlightTypeIndex]
-      const offset = this.model.highlightConfiguration.hueOffset[highlightTypeIndex]
-      if (item instanceof PartitioningScheme) {
-         item.partitions.forEach((partition, inx) => {
-            const h = inx / item.partitions.length
+/**
+```
+### Manage display item highlighting
+```js
+ */
+   #updateHighlights () {
+      const highlights = this.highlightedItems.map((item, inx) => {
+         let highlight = []
+         if (item == null) {
+            return highlight
+         }
+         const s = this.model.highlightConfiguration.saturation[inx]
+         const l = this.model.highlightConfiguration.lightness[inx]
+         const offset = this.model.highlightConfiguration.hueOffset[inx]
+         if (item instanceof PartitioningScheme) {
+            item.partitions.forEach((partition, jnx) => {
+               const h = jnx / item.partitions.length
+               const color = '#' + new THREE.Color(GEUtils.fromRainbow(h, s, l, offset)).getHexString()
+               partition.elements.toArray().forEach((element) => highlight[element] = color)
+            })
+         } else if (item instanceof AbstractSubset) {
+            const h = 0
             const color = '#' + new THREE.Color(GEUtils.fromRainbow(h, s, l, offset)).getHexString()
-            partition.elements.toArray().forEach((element) => highlights[element] = color)
-         })
-      } else if (item instanceof AbstractSubset) {
-         const h = 0
-         const color = '#' + new THREE.Color(GEUtils.fromRainbow(h, s, l, offset)).getHexString()
-         item.elements.toArray().forEach((element) => highlights[element] = color)
-      }
+            item.elements.toArray().forEach((element) => highlight[element] = color)
+         }
 
-      return highlights
+         return highlight
+      })
+
+      this.view.updateHighlightMark()
+      this.updateModel('highlights', highlights)
    }
 
    highlightItem (itemId /*: integer */, highlightTypeIndex /*: integer */) {
-      const item = this.displayItems[itemId]
-      if (item == null) {
-         return
-      }
-
-      this.highlights[highlightTypeIndex] = this.#generateHighlights(item, highlightTypeIndex)
-      this.updateModel('highlights', this.highlights)
-      this.highlightedItem = (highlightTypeIndex == 0) ? item : this.highlightedItem
+      const item = this.displayMap.get(itemId)
+      this.highlightedItems[highlightTypeIndex] = item
+      this.#updateHighlights()
    }
 
-   toggleColorHighlight (subsetId /*: integer */) {
-      const maybeItem = this.displayItems[subsetId]
-      if (maybeItem == null) {
-         return
-      }
-
-      const item = (maybeItem instanceof Partition) ? maybeItem.partitioningScheme : maybeItem
-      const maybeHighlights = this.#generateHighlights(item, 0)
-      if (  this.highlights[0].length != maybeHighlights.length
-         || this.highlights[0].some((val, inx) => val != maybeHighlights[inx])
-      ) {
-         this.highlights[0] = maybeHighlights
-         this.updateModel('highlights', this.highlights)
-         this.highlightedItem = item
-      } else {  // clear highlights
-         this.updateModel('highlights', [[], this.highlights[1], this.highlights[2]])
-         this.highlightedItem = null
-      }
+   toggleColorHighlight (itemId /*: integer */) {
+      const item = this.displayMap.get(itemId)
+      this.highlightedItems[0] = (this.highlightedItems[0] == item) ? null : item
+      this.#updateHighlights()
    }
 
    clearAllHighlights () {
-      this.updateModel('highlights', [[], [], []])
+      this.highlightedItems = [null, null, null]
+      this.#updateHighlights()
    }
-
-/************************************************************/
-
+   /**
+```
+### Predicates for displaying various partitioning schemes
+```js
+ */
    canShowConjugacyClasses () /*: boolean */ {
-      return this.displayItems.find((item) => item instanceof ConjugacyClasses) == null
+      return Array.from(this.displayMap.values()).find((item) => item instanceof ConjugacyClasses) == null
    }
 
    canShowOrderClasses () /*: boolean */ {
-      return this.displayItems.find((item) => item instanceof OrderClasses) == null
+      return Array.from(this.displayMap.values()).find((item) => item instanceof OrderClasses) == null
    }
 
    canShowCosets (subgroopId /*: number */, side /*: string */) /*: boolean */ {
-      return this.displayItems
+      return Array.from(this.displayMap.values())
          .find((item) => item instanceof Cosets && item.subgroop.id == subgroopId && item.side == side) == null
    }
-
-/************************************************************/
-
+/**
+```
+### Receiving and pushing updates to/from this.#model
+```js
+ */
    updateModel (field /*: string */, value /*: any */) {
       switch (field) {
       case 'highlights':
          this.model['highlights'] = value
          break
       }
+   }
+
+   // notify highlightControl subscribers (e.g. SheetEditor broadcast) that structural state changed
+   #triggerModelUpdate () {
+      this.model.$touch('highlightControl')
    }
 
    update (field /*: string */, value /*: any */) {
@@ -340,8 +362,8 @@ class DisplayItem {
 
    toJSON () {
       const jsonObject = {
-         class: 'DisplayItem',
-         id: this.id
+         id: this.id,
+         className: this.className
       }
       return jsonObject
    }
@@ -383,7 +405,6 @@ class AbstractSubset extends DisplayItem {
 
    toJSON () {
       const jsonObject = super.toJSON()
-      jsonObject.class = 'AbstractSubset'
       jsonObject.elements = this.elements.toJSON()
       return jsonObject
    }
@@ -396,14 +417,14 @@ class AbstractSubset extends DisplayItem {
 }
 
 class Subgroop extends AbstractSubset {
-   kind = 'Subgroop'
+   className = 'Subgroop'
    subgroupIndex /*: number */
 
    constructor(viewModel /*: HighlightControlViewModel */, subgroupIndex /*: number */) {
       super(viewModel)
 
       this.subgroupIndex = subgroupIndex
-      this.elements = viewModel.group.subgroups[subgroupIndex].members
+      this.elements = viewModel.group.subgroups[subgroupIndex]?.members
    }
 
    get normalizer () /*: BitSet */ {
@@ -423,7 +444,6 @@ class Subgroop extends AbstractSubset {
 
    toJSON () {
       const jsonObject = super.toJSON()
-      jsonObject.class = 'Subgroop'
       jsonObject.subgroupIndex = this.subgroupIndex
       return jsonObject
    }
@@ -436,7 +456,7 @@ class Subgroop extends AbstractSubset {
 }
 
 class Subset extends AbstractSubset {
-   kind = 'Subset'
+   className = 'Subset'
    subsetIndex /*: number */
 
    constructor (viewModel /*: HighlightControlViewModel */, elements /*: void | Array<groupElement> | BitSet */) {
@@ -455,7 +475,6 @@ class Subset extends AbstractSubset {
 
    toJSON () {
       const jsonObject = super.toJSON()
-      jsonObject.class = 'Subset'
       jsonObject.subsetIndex = this.subsetIndex
       return jsonObject
    }
@@ -486,7 +505,6 @@ class Partition extends AbstractSubset {
 
    toJSON () {
       const jsonObject = super.toJSON()
-      jsonObject.class = 'Partition'
       jsonObject.partitioningScheme = this.partitioningScheme.id
       jsonObject.subIndex = this.subIndex
       return jsonObject
@@ -495,51 +513,31 @@ class Partition extends AbstractSubset {
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
       this.subIndex = jsonObject.subIndex
-      this.partitioningScheme = this.viewModel.displayItems.find((item) => item?.id == jsonObject.partitioningScheme)
+      this.partitioningScheme = Array.from(this.viewModel.displayMap.values())
+         .find((item) => item.id == jsonObject.partitioningScheme)
       this.partitioningScheme.partitions[jsonObject.subIndex] = this
       return this
    }
 }
 
 class ConjugacyClass extends Partition {
-   kind = 'ConjugacyClass'
-   toJSON () {
-      const jsonObject = super.toJSON()
-      jsonObject.class = 'ConjugacyClass'
-      return jsonObject
-   }
+   className = 'ConjugacyClass'
 }
 
 class OrderClass extends Partition {
-   kind = 'OrderClass'
-   toJSON () {
-      const jsonObject = super.toJSON()
-      jsonObject.class = 'OrderClass'
-      return jsonObject
-   }
+   className = 'OrderClass'
 }
 
 class Coset extends Partition {
-   kind = 'Coset'
-   toJSON () {
-      const jsonObject = super.toJSON()
-      jsonObject.class = 'Coset'
-      return jsonObject
-   }
+   className = 'Coset'
 }
 
 class PartitioningScheme extends DisplayItem {
    partitions /*: Array<Partition> */ = []
-
-   toJSON () {
-      const jsonObject = super.toJSON()
-      jsonObject.class = 'PartitioningScheme'
-      return jsonObject
-   }
 }
 
 class ConjugacyClasses extends PartitioningScheme {
-   kind = 'ConjugacyClasses'
+   className = 'ConjugacyClasses'
    constructor (viewModel /*: HighlightControlViewModel */) {
       super(viewModel)
 
@@ -549,16 +547,10 @@ class ConjugacyClasses extends PartitioningScheme {
             this.partitions.push(newConjugacyClass)
          })
    }
-
-   toJSON () {
-      const jsonObject = super.toJSON()
-      jsonObject.class = 'ConjugacyClasses'
-      return jsonObject
-   }
 }
 
 class OrderClasses extends PartitioningScheme {
-   kind = 'OrderClasses'
+   className = 'OrderClasses'
    constructor (viewModel /*: HighlightControlViewModel */) {
       super(viewModel)
 
@@ -569,16 +561,10 @@ class OrderClasses extends PartitioningScheme {
             this.partitions.push(newOrderClass)
          })
    }
-
-   toJSON () {
-      const jsonObject = super.toJSON()
-      jsonObject.class = 'OrderClasses'
-      return jsonObject
-   }
 }
 
 class Cosets extends PartitioningScheme {
-   kind = 'Cosets'
+   className = 'Cosets'
    subgroop /*: Subgroop */
    side /*: string */
 
@@ -603,7 +589,6 @@ class Cosets extends PartitioningScheme {
 
    toJSON () {
       const jsonObject = super.toJSON()
-      jsonObject.class = 'Cosets'
       jsonObject.subgroop = this.subgroop.id
       jsonObject.side = this.side
       return jsonObject
@@ -611,7 +596,8 @@ class Cosets extends PartitioningScheme {
 
    fromJSON (jsonObject) /*: this */ {
       super.fromJSON(jsonObject)
-      this.subgroop = this.viewModel.displayItems.find((item) => item?.id == jsonObject.subgroop)
+      this.subgroop = Array.from(this.viewModel.displayMap.values())
+         .find((item) => item.id == jsonObject.subgroop)
       this.side = jsonObject.side
       return this
    }

@@ -18,10 +18,11 @@ import {CycleGraphModel} from './CycleGraphModel.js'
 import * as CycleGraphViewUI from './CycleGraphViewUI.js'
 import * as GEUtils from './GEUtils.js'
 import * as Log from './Log.js'
-import * as SheetEditor from './SheetEditor.js'
 import {THREE} from '../lib/externals.js';
 
 export {
+   CycleGraphViewModel,
+   CycleGraphView,
    createUnlabelledCycleGraphView,
    createLabelledCycleGraphView,
    createLargeCycleGraphView /* CycleGraphView */,
@@ -54,7 +55,6 @@ type Path = {
     pathIndex?: number,
 };
 */
-
 const DEFAULT_MIN_CANVAS_HEIGHT = 200;
 const DEFAULT_MIN_CANVAS_WIDTH = 200;
 const DEFAULT_MIN_RADIUS = 30;
@@ -65,17 +65,14 @@ const DEFAULT_CANVAS_HEIGHT = 96
 const HIGHLIGHT_BACKGROUND = 0
 const HIGHLIGHT_BORDER = 1
 const HIGHLIGHT_TOP = 2
-const highlightNames = ['background', 'border', 'top']
-
 /*
 ViewModel
 View
  */
-export class CycleGraphViewModel /*:: implements Updatable */ {
+class CycleGraphViewModel /*:: implements Updatable */ {
    #model /*: CycleGraphModel */
    #view /*: CycleGraphView */
-   highlightColors /*: Array<Array<?color>> */
-   modelFields /*: Array<string> */ = [
+   #modelFields /*: Array<string> */ = [
       'group',
       'highlights'
    ]
@@ -99,7 +96,10 @@ export class CycleGraphViewModel /*:: implements Updatable */ {
 
    set model (cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */) {
       this.#model = cycleGraphModel
-      this.modelFields.forEach((field) => cycleGraphModel.$subscribe(this, field))
+      this.#modelFields.forEach((field) => {
+         this.model.$subscribe(this, field)
+         this.update(field, this.model[field])
+      })
    }
 
    updateModel (field /*: string */, value /*: any */) {
@@ -128,6 +128,10 @@ export class CycleGraphViewModel /*:: implements Updatable */ {
       this.view.setSize(x, y)
    }
 
+   resize () {
+      this.view.resize()
+   }
+
    showGraphic () {
       this.view.queueShowGraphic()
    }
@@ -152,7 +156,7 @@ export class CycleGraphViewModel /*:: implements Updatable */ {
    }
 }
 
-export class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
+class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     viewModel /*: CycleGraphViewModel */
 
     bbox /*: {left: number, right: number, top: number, bottom: number} */
@@ -838,7 +842,7 @@ function createLargeCycleGraphView (
    viewModel.view = view
    view.viewModel = viewModel
 
-   return viewModel  // now how does this get used? should it be the viewModel instead? or maybe model?
+   return viewModel
 }
 
 function createInteractiveCycleGraphView (
@@ -855,5 +859,5 @@ function createInteractiveCycleGraphView (
    viewModel.view = view
    view.viewModel = viewModel
 
-   return view  // now how does this get used? should it be the viewModel instead? or maybe model?
+   return viewModel
 }

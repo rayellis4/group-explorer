@@ -179,7 +179,8 @@ export interface Updatable {
 }
 export type SubscriptionProxy<T> = T & {
    $subscribe: (subscriber: Updatable, field: string) => void,
-   $unsubscribe: (subscriber: Updatable, field: string) => void
+   $unsubscribe: (subscriber: Updatable, field: string) => void,
+   $touch: (field: string) => void
 }
 
 type Subscription = {
@@ -201,16 +202,17 @@ function createModelProxy/*:: <T: Object> */ (
       get(model /*: T */, property /*: string */, _receiver /*: Proxy<T> */) {
          if (property == '$subscribe') {
             return (subscriber /*: Updatable */, field /*: string */) => {
+               // should you be able to subscribe to a field that doesn't exist yet? not wrong, but no use case yet
                if (field in model) {
                   subscribe(subscriptionMap, subscriber, field)
-                  subscriber.update(field, model[field])  // initialize subscriber upon subscription
-               } else {
-                  // programming error here!!
                }
             }
          }
          if (property == '$unsubscribe') {
             return (subscriber /*: Updatable */, field /*: string */) => unsubscribe(subscriptionMap, subscriber, field)
+         }
+         if (property == '$touch') {
+            return (field /*: string */) => notifySubscribers(subscriptionMap, field, Reflect.get(model, field))
          }
 
          const value = Reflect.get(model, property)

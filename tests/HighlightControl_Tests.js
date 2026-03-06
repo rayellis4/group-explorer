@@ -51,13 +51,13 @@ describe('HighlightControl', function () {
    describe('ViewModel initialization', function () {
 
       it('creates one Subgroop per subgroup', function () {
-         const subgroops = viewModel.displayItems.filter((item) => item?.kind === 'Subgroop')
+         const subgroops = Array.from(viewModel.displayMap.values()).filter((item) => item?.className === 'Subgroop')
          expect(subgroops.length).to.equal(S3.subgroups.length)
       })
 
       it('Subgroop items reference the correct subgroup index', function () {
-         viewModel.displayItems
-            .filter((item) => item?.kind === 'Subgroop')
+         Array.from(viewModel.displayMap.values())
+            .filter((item) => item?.className === 'Subgroop')
             .forEach((item, inx) => expect(item.subgroupIndex).to.equal(inx))
       })
 
@@ -73,9 +73,9 @@ describe('HighlightControl', function () {
 
    describe('createSubset', function () {
 
-      it('returns a Subset with kind Subset', function () {
+      it('returns a Subset with className Subset', function () {
          const subset = viewModel.createSubset(new BitSet(S3.order, [1, 2]))
-         expect(subset.kind).to.equal('Subset')
+         expect(subset.className).to.equal('Subset')
       })
 
       it('assigns sequential subsetIndex values', function () {
@@ -87,28 +87,28 @@ describe('HighlightControl', function () {
 
       it('adds subset to displayItems', function () {
          const subset = viewModel.createSubset(new BitSet(S3.order, [1, 2]))
-         expect(viewModel.displayItems[subset.id]).to.equal(subset)
+         expect(viewModel.displayMap.get(subset.id)).to.equal(subset)
       })
 
    })
 
    describe('createConjugacyClasses', function () {
 
-      it('adds a ConjugacyClasses item with kind ConjugacyClasses', function () {
+      it('adds a ConjugacyClasses item with className ConjugacyClasses', function () {
          viewModel.createConjugacyClasses()
-         const cc = viewModel.displayItems.find((item) => item?.kind === 'ConjugacyClasses')
+         const cc = Array.from(viewModel.displayMap.values()).find((item) => item?.className === 'ConjugacyClasses')
          expect(cc).to.exist
       })
 
-      it('ConjugacyClasses partitions have kind ConjugacyClass', function () {
+      it('ConjugacyClasses partitions have className ConjugacyClass', function () {
          viewModel.createConjugacyClasses()
-         const cc = viewModel.displayItems.find((item) => item?.kind === 'ConjugacyClasses')
-         cc.partitions.forEach((partition) => expect(partition.kind).to.equal('ConjugacyClass'))
+         const cc = Array.from(viewModel.displayMap.values()).find((item) => item?.className === 'ConjugacyClasses')
+         cc.partitions.forEach((partition) => expect(partition.className).to.equal('ConjugacyClass'))
       })
 
       it('partition count matches group conjugacy classes', function () {
          viewModel.createConjugacyClasses()
-         const cc = viewModel.displayItems.find((item) => item?.kind === 'ConjugacyClasses')
+         const cc = Array.from(viewModel.displayMap.values()).find((item) => item?.className === 'ConjugacyClasses')
          expect(cc.partitions.length).to.equal(S3.conjugacyClasses.length)
       })
 
@@ -116,11 +116,11 @@ describe('HighlightControl', function () {
 
    describe('destroyItem', function () {
 
-      it('sets displayItems entry to null', function () {
+      it('clears displayMap entry', function () {
          const subset = viewModel.createSubset(new BitSet(S3.order, [1]))
          const id = subset.id
          viewModel.destroyItem(id)
-         expect(viewModel.displayItems[id]).to.be.null
+         expect(viewModel.displayMap.has(id)).to.be.false
       })
 
       it('removes the item from the DOM', function () {
@@ -137,7 +137,7 @@ describe('HighlightControl', function () {
 
       it('Subgroop names are H₀, H₁, ...', function () {
          S3.subgroups.forEach((_sg, inx) => {
-            const subgroop = viewModel.displayItems[inx]
+            const subgroop = viewModel.displayMap.get(inx)
             expect(view.itemMap[subgroop.id].name).to.equal(`<i>H</i><sub>${inx}</sub>`)
          })
       })
@@ -151,7 +151,7 @@ describe('HighlightControl', function () {
 
       it('ConjugacyClass names are CC₀, CC₁, ...', function () {
          viewModel.createConjugacyClasses()
-         const cc = viewModel.displayItems.find((item) => item?.kind === 'ConjugacyClasses')
+         const cc = Array.from(viewModel.displayMap.values()).find((item) => item?.className === 'ConjugacyClasses')
          cc.partitions.forEach((partition, inx) => {
             expect(view.itemMap[partition.id].name).to.equal(`<i>CC</i><sub>${inx}</sub>`)
          })

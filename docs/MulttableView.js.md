@@ -122,7 +122,10 @@ export class MulttableViewModel /*:: implements Updatable */ {
 
    set model (multtableModel /*: SubscriptionProxy<MulttableModel> */) {
       this.#model = multtableModel
-      this.modelFields.forEach((field) => multtableModel.$subscribe(this, field))
+      this.modelFields.forEach((field) => {
+         multtableModel.$subscribe(this, field)
+         this.update(field, this.model[field])
+      })
    }
 
    updateModel (field /*: string */, value /*: any */) {
@@ -155,6 +158,10 @@ export class MulttableViewModel /*:: implements Updatable */ {
 
    setSize (x /*: number */, y /*: number */) {
       this.view.setSize(x, y)
+   }
+
+   resize () {
+      this.view.resize()
    }
 
    showGraphic () {
@@ -750,6 +757,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.queueShowGraphic();
         // $FlowExpectedError[unsupported-syntax]
         [this.elements[i], this.elements[j]] = [this.elements[j], this.elements[i]];
+        this.viewModel.updateModel('elements', this.elements)
         this._colors = null;
     }
 
@@ -861,7 +869,7 @@ function createLargeMulttableView (
    viewModel.view = view
    view.viewModel = viewModel
 
-   return view
+   return viewModel
 }
 
 function createInteractiveMulttableView (
@@ -878,5 +886,5 @@ function createInteractiveMulttableView (
    viewModel.view = view
    view.viewModel = viewModel
 
-   return view
+   return viewModel
 }
