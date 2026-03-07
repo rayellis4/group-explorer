@@ -1,9 +1,11 @@
 // @flow
 
 import {ControlPanel} from './ControlPanel.js'
+import {createModelProxy} from './GEUtils.js'
 import * as Heading from './Heading.js'
-import * as SheetModel from './SheetModel.js'
-import * as SheetView from './SheetView.js'
+import {SheetModel, loadPassedSheet} from './SheetModel.js'
+import {SheetViewModel} from './SheetViewModel.js'
+import {View as SheetView} from './SheetView.js'
 import * as SheetViewUI from './SheetViewUI.js'
 import * as SheetControl from './SheetControl.js'
 
@@ -27,8 +29,10 @@ async function load () {
    )
 
    // initialize Sheet components
-   SheetView.init()
-   SheetViewUI.init()
+   const sheetModel = createModelProxy(new SheetModel())
+   const sheetViewModel = new SheetViewModel(sheetModel)
+   new SheetView(sheetViewModel, document.getElementById('graphic'))
+   SheetViewUI.init(sheetViewModel)
 
    // Create Control Panel
    const controlPanelElement = document.getElementById('control-panel')
@@ -36,12 +40,12 @@ async function load () {
 
    // Initialize Sheet Control
    const sheetControlElement = document.getElementById('sheet-control')
-   SheetControl.addControl(sheetControlElement)
+   SheetControl.addControl(sheetControlElement, sheetModel)
 
    // check for passedSheet in URL, load it if present
    const invokeParameters = new URL(window.location.href).searchParams
    if (invokeParameters.get('passedSheet') != null) {
-      SheetModel.loadPassedSheet()
+      loadPassedSheet(sheetModel)
    }
 }
 
@@ -89,9 +93,8 @@ function insertHTML () {
           outline: 2px dotted #AA0000;
           outline-offset: 10px;
        }
-      </style>`)
-   document.body.insertAdjacentHTML('beforeend',
-     `<div id="heading"></div>
+      </style>
+      <div id="heading"></div>
       <div id="display" class="position:relative stretch">
          <div id="graphic" class="position:absolute fill-v fill-h"></div>
          <div id="control-panel" class="position:absolute flex-h">

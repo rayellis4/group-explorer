@@ -63,7 +63,7 @@ export { init }
 Top level sheet controller, recognizes top-level user inputs
 ````javascript
  */
-function init () {
+function init (viewModel) {
    const displayElement = document.getElementById('graphic')
 
    let domElement = null
@@ -75,11 +75,12 @@ function init () {
       (event) => {
          const domElement = document.elementFromPoint(event.clientX, event.clientY)
          if (domElement.closest('.NodeElement') != null) {
-            const modelElement = Model.sheetElements.get(domElement.closest('.NodeElement').getAttribute('id'))
+            const id = domElement.closest('.NodeElement').getAttribute('id')
+            const modelElement = viewModel.modelElements.get(id)
             const maybeSummary = document.elementFromPoint(event.clientX, event.clientY).closest('summary')
             if (maybeSummary == null) {
-               if (modelElement != null) {
-                  resizeElement(modelElement)
+               if (id != null) {
+                  resizeElement(id)
                }
             } else {
                maybeSummary.closest('details').addEventListener('toggle', (ev) => {
@@ -139,12 +140,10 @@ function init () {
    recognizeMoveResize (displayElement,
       (dx, dy, _dw, _dh, _isDrop, domElement) => {
          if (domElement != null && redrawTimerId == null) {
-            const modelElement = Model.sheetElements.get(domElement.getAttribute('id'))
+            const id = domElement.getAttribute('id')
             redrawTimerId = window.setTimeout(() => {
                if (dx != 0 || dy != 0) {
-                  const logicalMovement = new View.WindowUnits(dx, dy).toLogicalUnits()
-                  modelElement.move(logicalMovement)
-                  modelElement.redraw()
+                  viewModel.move(id, dx, dy)
                }
 
                redrawTimerId = null
@@ -198,9 +197,10 @@ function init () {
 ## resize
 ```javascript
  */
-function resizeElement (modelElement) {
+function resizeElement (id) {
+   const modelElement = viewModel.modelElements.get(id)
    // raise domElement z-index to show above other elements
-   const domElement = modelElement.viewElement.domElement
+   const domElement = viewModel.view.viewElements.get(id).domElement
    const originalZIndex = domElement.style.zIndex
    domElement.style.zIndex = 1000
 
@@ -226,7 +226,7 @@ function resizeElement (modelElement) {
       (_clickEvent) => {
          sheetResizeModal.remove()
          domElement.style.zIndex = originalZIndex
-         modelElement.redraw()
+         viewModel.view.viewElements.get(id)?.redraw()
       })
 
    const ghostElement = document.getElementById('sheet-resize-ghost')
@@ -238,16 +238,13 @@ function resizeElement (modelElement) {
       if (timerId == null) {
          timerId = window.setTimeout(() => {
             if (dx != 0 || dy != 0) {
-               const logicalMovement = new View.WindowUnits(dx, dy).toLogicalUnits()
-               modelElement.move(logicalMovement)
+               viewModel.move(modelElement.id, dx, dy)
             }
 
             if (dw != 0 || dh != 0) {
-               const logicalResize = modelElement.size.add(new View.WindowUnits(dw, dh).toLogicalUnits())
-               modelElement.resize(logicalResize)
+               viewModel.resize(modelElement.id, dw, dh)
             }
 
-            modelElement.redraw()
             syncGhostWithModel()
 
             timerId = null

@@ -48,7 +48,6 @@ import {THREE} from '../lib/externals.js'
 
 export {
    createMinimalMulttableView,
-   createFullMulttableView,
    createLargeMulttableView,
    createInteractiveMulttableView,
 }
@@ -841,7 +840,6 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
     }
 }
 
-
 // no labels, no separation, no zoom, no translate, no highlights
 function createMinimalMulttableView (options /*: MulttableViewOptions */ = {}) /*: MulttableView */ {
     const view = new MulttableView(options);
@@ -849,16 +847,10 @@ function createMinimalMulttableView (options /*: MulttableViewOptions */ = {}) /
     return view;
 }
 
-function createFullMulttableView (options /*: MulttableViewOptions */ = {})  /*: MulttableView */ {
-    const view = new MulttableView(options);
-    view.is_minimal_view = false;
-    return view;
-}
-
 function createLargeMulttableView (
    group /*: Group */,
    options /*: MulttableOptions */ = {}
-) /*: MulttableView */ {
+) /*: MulttableViewModel */ {
    const model = createModelProxy(new MulttableModel(group))
    const viewModel = new MulttableViewModel()
    const view = new MulttableView(options)
@@ -873,18 +865,11 @@ function createLargeMulttableView (
 }
 
 function createInteractiveMulttableView (
-   model /*: SubscriptionProxy<MulttableModel> */,
+   group /*: Group */,
    options /*: MulttableOptions */ = {}
-) /*: MulttableView */ {
-   const viewModel = new MulttableViewModel()
-   const view = new MulttableView(options)
-   view.displays_labels = true
-   MulttableViewUI.addGestures(view)
-
-   // assemble parts
-   viewModel.model = model
-   viewModel.view = view
-   view.viewModel = viewModel
+) /*: MulttableViewModel */ {
+   const viewModel = createLargeMulttableView(group, options)
+   MulttableViewUI.addGestures(viewModel.view)
 
    return viewModel
 }

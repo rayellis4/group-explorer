@@ -9,6 +9,8 @@ The View part of the Sheet Model-View-Controller structure.
 /* global DOMRect MouseEvent ResizeObserver TouchEvent Touch */
 
 import { THREE } from '../lib/externals.js'
+import {createLargeCycleGraphView} from './CycleGraphView.js'
+import {createLargeMulttableView} from './MulttableView.js'
 import * as SheetModel from './SheetModel.js'
 
 export let Graphic /*: HTMLElement */ = null
@@ -17,10 +19,29 @@ export let PixelsPerModelUnit /*: float */ = 0
 export let zoomFactor /*: float */ = 1
 export let panVector /*: PhysicalUnits */ // pan expressed in window pixels
 
+
+/*
+```
+## Units
+
+Routines to annotate basis for pixel measures that expose THREE.Vector2 methods.
+
+model unit -- #graphic is [0,1+x] x [0,1+y], where x * y = 0
+
+zoomFactor -- size of physical display / size of logical display
+
+```
+Units
+├─ PhysicalUnits     pixels as displayed (includes effect of zooming, panning)
+│  ├─ WindowUnits    PhysicalUnits relative to window
+│  └─ GraphicUnits   PhysicalUnits relative to #graphic (WindowUnits offset by #graphic(top, left))
+├─ LogicalUnits      pixels before zooming (PhysicalUnits scaled by zoomFactor)
+│  └─ SheetUnits     pixels before zooming relative to Sheet display
+
+```js
+ */
 export class PhysicalUnits extends THREE.Vector2 {
   /*::
-    // Expose THREE.Vector2 methods to Flow as outputting a PhysicalUnits type,
-
     // $FlowFixMe
     multiplyScalar: (float) => PhysicalUnits
   */
@@ -48,7 +69,9 @@ export class WindowUnits extends PhysicalUnits {
     // $FlowFixMe
     multiplyScalar: (float) => WindowUnits
     // $FlowFixMe
-    sub: (PhysicalUnits) => WindowUnits
+       sub: (PhysicalUnits) => WindowUnits
+
+   Events from the system come in these units
   */
   constructor (
     arg1 /*: ?number | MouseEvent | TouchEvent | Touch | WindowUnits | DOMRect |  THREE.Vector2 */,
@@ -226,39 +249,62 @@ function makeCssTransform (
 
 export class View {
    viewModel
+   viewElements /*: Map<string, SheetView> */ = new Map()
 
-   constructor (viewModel) {
+   constructor (viewModel, rootElement) {
+      init()
       this.viewModel = viewModel
-      this.viewModel.view = this
+      this.viewModel.view = this  // do we need a more general way to hook a View to a ViewModel?
    }
+
+   get zoomFactor () /*: float */ { return zoomFactor }
 
    addElement (modelElement) {
-   }
-
-   clear () {
-      // clear all elements -- just search the dom and remove?
+      let newElement
+      switch (modelElement.className) {
+      case 'TextElement':        newElement = new TextView(this, modelElement);        break
+      case 'CGElement':          newElement = new CGView(this, modelElement);          break
+      case 'MTElement':          newElement = new MTView(this, modelElement);          break
+      case 'ConnectingElement':  newElement = new ConnectingView(this, modelElement);  break
+      case 'MorphismElement':    newElement = new MorphismView(this, modelElement);    break
+      }        
+      if (newElement != null) {
+         this.viewElements.set(modelElement.id, newElement)
+      }
    }
    
    removeElement (modelElement) {
+      const sheetViewElement = this.viewElements.get(modelElement.id)
+      sheetViewElement.destroy()
+   }
+
+   updateTransform (modelElement) {
+      this.viewElements.get(modelElement.id)?.updateTransform()
+   }
+
+   redraw (modelElement) {
+      this.viewElements.get(modelElement.id)?.redraw()
    }
 }
 
 export class SheetView {
+   view /*: View */
    modelElement /*: SheetModel.SheetElement */
    domElement /*: HTMLElement */
 
-  constructor (modelElement /*: SheetModel.SheetElement */, domElement /*: HTMLElement */) {
-    this.modelElement = modelElement
+   constructor (view /*: View */, modelElement /*: SheetModel.SheetElement */, domElement /*: HTMLElement */) {
+      this.view = view
+      this.modelElement = modelElement
 
-    this.domElement = domElement || document.createElement('div')
-    this.domElement.setAttribute('id', this.modelElement.id)
-    this.domElement.classList.add(this.modelElement.className)
-    this.domElement.style.position = 'absolute'
-    this.domElement.style.left = 0
-    this.domElement.style.top = 0
-    this.domElement.style.zIndex = modelElement.z
-    this.domElement.style.transformOrigin = 'top left'
-    Graphic.append(this.domElement)
+      this.domElement = domElement || document.createElement('div')
+      this.domElement.setAttribute('id', this.modelElement.id)
+      this.domElement.classList.add(this.modelElement.className)
+      this.domElement.style.position = 'absolute'
+      this.domElement.style.left = 0
+      this.domElement.style.top = 0
+      this.domElement.style.zIndex = modelElement.z
+      this.domElement.style.transformOrigin = 'top left'
+      Graphic.append(this.domElement)
   }
 
   // redraw element
@@ -280,14 +326,15 @@ export class NodeView extends SheetView {
   /*::
     +modelElement: SheetModel.NodeElement
   */
-  constructor (modelElement /*: SheetModel.NodeElement */, domElement /*: HTMLElement */) {
-    super(modelElement, domElement)
+   constructor (view /*: View */, modelElement /*: SheetModel.NodeElement */, domElement /*: HTMLElement */) {
+      super(view, modelElement, domElement)
 
-    this.domElement.classList.add('draggable')
-    this.domElement.classList.add('NodeElement')
-  }
+      this.domElement.classList.add('draggable')
+      this.domElement.classList.add('NodeElement')
+   }
 
-  get center () /*: SheetUnits */ {
+   get center () /*: SheetUnits */ {
+      return this.position.addScaledVector(this.size, 0.5)
     return this.modelElement.position.addScaledVector(this.modelElement.size, 0.5)
   }
 
@@ -296,11 +343,11 @@ export class NodeView extends SheetView {
   }
 
   get position () /*: SheetUnits */ {
-    return this.modelElement.position
+     return new SheetUnits(this.modelElement.x, this.modelElement.y)
   }
 
   get size () /*: LogicalUnits */ {
-    return this.modelElement.size
+     return new LogicalUnits(this.modelElement.w, this.modelElement.h)
   }
 }
 
@@ -309,11 +356,11 @@ export class RectangleView extends NodeView {
     +modelElement: SheetModel.RectangleElement
     color: color
   */
-  constructor (modelElement /*: SheetModel.RectangleElement */, domElement /*: HTMLElement */) {
-    super(modelElement, domElement)
+   constructor (view /*: View */, modelElement /*: SheetModel.RectangleElement */, domElement /*: HTMLElement */) {
+      super(view, modelElement, domElement)
 
-    this.redraw()
-  }
+      this.redraw()
+   }
 
   updateTransform () {
     this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits())
@@ -333,15 +380,15 @@ export class TextView extends NodeView {
   /*::
     +modelElement: SheetModel.TextElement
   */
-  constructor (modelElement /*: SheetModel.TextElement */, domElement /*: HTMLElement */) {
-    super(modelElement, domElement)
-    this.domElement.style.display = 'flex'
-    this.domElement.style.flexDirection = 'column'
-    this.domElement.style.justifyContent = 'center'
-    this.domElement.insertAdjacentHTML('afterbegin', '<div class="content" style="padding: 0 0.5em">')
-    this.redraw()
-    this.updateZ()
-  }
+   constructor (view /*: View */, modelElement /*: SheetModel.TextElement */, domElement /*: HTMLElement */) {
+      super(view, modelElement, domElement)
+      this.domElement.style.display = 'flex'
+      this.domElement.style.flexDirection = 'column'
+      this.domElement.style.justifyContent = 'center'
+      this.domElement.insertAdjacentHTML('afterbegin', '<div class="content" style="padding: 0 0.5em">')
+      this.redraw()
+      this.updateZ()
+   }
 
   updateTransform () {
     this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits())
@@ -389,6 +436,7 @@ export class TextView extends NodeView {
         }
         this.modelElement.displayNeedsTextUpdate = false
      }
+     contentElement.innerHTML = this.modelElement.text
 
      // create scratch element to determine text content size
      const scratch = this.domElement.cloneNode(true)
@@ -426,17 +474,17 @@ export class TextView extends NodeView {
 }
 
 export class VisualizerView extends NodeView {
+   unitSquarePositions /*: Array<THREE.Vector2> */
+   lastZoom /*: float */
   /*::
    +modelElement: SheetModel.VisualizerElement
    +domElement: HTMLCanvasElement
-    unitSquarePositions: Array<THREE.Vector2>
-    lastZoom: float
   */
-  constructor (modelElement /*: SheetModel.VisualizerElement */, domElement /*: HTMLElement */) {
-    super(modelElement, domElement)
+   constructor (view /*: View */, modelElement /*: SheetModel.VisualizerElement */, domElement /*: HTMLElement */) {
+      super(view, modelElement, domElement)
 
-    this.domElement.classList.add('VisualizerElement')
-  }
+      this.domElement.classList.add('VisualizerElement')
+   }
 
   updateTransform () {
     const transformZoom = zoomFactor / this.lastZoom
@@ -452,38 +500,50 @@ export class VisualizerView extends NodeView {
 export class CGView extends VisualizerView {
   /*::
     +modelElement: SheetModel.CGElement
+    cgViewModel: any
   */
-  constructor (modelElement /*: SheetModel.CGElement */) {
-    super(modelElement, modelElement.visualizer.canvas)
-    this.redraw()
-  }
+   constructor (view /*: View */, modelElement /*: SheetModel.CGElement */) {
+      const cgViewModel = createLargeCycleGraphView(modelElement.group)
+      if (modelElement.visualizer != null) {
+         cgViewModel.model.fromJSON(modelElement.visualizer)
+      }
+      super(view, modelElement, cgViewModel.canvas)
+      this.cgViewModel = cgViewModel
+      this.redraw()
+   }
 
   redraw () {
     super.redraw()
 
-    this.modelElement.visualizer.setSize(this.size.x * zoomFactor, this.size.y * zoomFactor)
-    this.modelElement.visualizer.showGraphic()
+    this.cgViewModel.setSize(this.size.x * zoomFactor, this.size.y * zoomFactor)
+    this.cgViewModel.showGraphic()
 
-    this.unitSquarePositions = this.modelElement.visualizer.unitSquarePositions()
+    this.unitSquarePositions = this.cgViewModel.unitSquarePositions()
   }
 }
 
 export class MTView extends VisualizerView {
   /*::
     +modelElement: SheetModel.MTElement
+    mtViewModel: any
   */
-  constructor (modelElement /*: SheetModel.MTElement */) {
-    super(modelElement, modelElement.visualizer.canvas)
-    this.redraw()
-  }
+   constructor (view /*: View */, modelElement /*: SheetModel.MTElement */) {
+      const mtViewModel = createLargeMulttableView(modelElement.group)
+      if (modelElement.visualizer != null) {
+         mtViewModel.model.fromJSON(modelElement.visualizer)
+      }
+      super(view, modelElement, mtViewModel.canvas)
+      this.mtViewModel = mtViewModel
+      this.redraw()
+   }
 
   redraw () {
     super.redraw()
 
-    this.modelElement.visualizer.setSize(this.size.x * zoomFactor, this.size.y * zoomFactor)
-    this.modelElement.visualizer.showGraphic()
+    this.mtViewModel.setSize(this.size.x * zoomFactor, this.size.y * zoomFactor)
+    this.mtViewModel.showGraphic()
 
-    this.unitSquarePositions = this.modelElement.visualizer.unitSquarePositions()
+    this.unitSquarePositions = this.mtViewModel.unitSquarePositions()
   }
 }
 
@@ -491,10 +551,10 @@ export class CDView extends VisualizerView {
   /*::
     +modelElement: SheetModel.CDElement
   */
-  constructor (modelElement /*: SheetModel.CDElement */) {
-    super(modelElement, document.createElement('canvas'))
-    this.redraw()
-  }
+   constructor (view /*: View */, modelElement /*: SheetModel.CDElement */) {
+      super(view, modelElement, document.createElement('canvas'))
+      this.redraw()
+   }
 
   redraw () {
     super.redraw()
@@ -636,17 +696,17 @@ export class LinkView extends SheetView {
   /*::
     +modelElement: SheetModel.LinkElement
   */
-  constructor (modelElement /*: SheetModel.LinkElement */) {
-    super(modelElement)
-    this.domElement.classList.add('LinkElement')
-  }
+   constructor (view /*: View */, modelElement /*: SheetModel.LinkElement */) {
+      super(view, modelElement)
+      this.domElement.classList.add('LinkElement')
+   }
 
   get destination () {
-    return this.modelElement.destination
+     return this.modelElement.destination
   }
 
   get destinationView () {
-    return this.destination.viewElement
+     return this.view.viewElements.get(this.destination.id)
   }
 
   get source () {
@@ -654,25 +714,27 @@ export class LinkView extends SheetView {
   }
 
   get sourceView () {
-    return this.source.viewElement
+     return this.view.viewElements.get(this.source.id)
   }
 
   getCrossingEndpoints () /*: [SheetUnits, SheetUnits] */ {
     const source = this.source
     const destination = this.destination
 
-    const sourceCenter = source.position.addScaledVector(source.size, 0.5)
-    const destinationCenter = destination.position.addScaledVector(destination.size, 0.5)
+    const sourceSize = new LogicalUnits(source.w, source.h)
+    const destinationSize = new LogicalUnits(destination.w, destination.h)
+    const sourceCenter = new SheetUnits(source.x, source.y).addScaledVector(sourceSize, 0.5)
+    const destinationCenter = new SheetUnits(destination.x, destination.y).addScaledVector(destinationSize, 0.5)
 
     const entryInterpolationFactor = Math.min(
-      Math.abs(source.size.x / (2 * (destinationCenter.x - sourceCenter.x))),
-      Math.abs(source.size.y / (2 * (destinationCenter.y - sourceCenter.y))))
+      Math.abs(sourceSize.x / (2 * (destinationCenter.x - sourceCenter.x))),
+      Math.abs(sourceSize.y / (2 * (destinationCenter.y - sourceCenter.y))))
     const entry =
       new SheetUnits().lerpVectors(sourceCenter, destinationCenter, entryInterpolationFactor)
 
     const exitInterpolationFactor = Math.min(
-      Math.abs(destination.size.x / (2 * (destinationCenter.x - sourceCenter.x))),
-      Math.abs(destination.size.y / (2 * (destinationCenter.y - sourceCenter.y))))
+      Math.abs(destinationSize.x / (2 * (destinationCenter.x - sourceCenter.x))),
+      Math.abs(destinationSize.y / (2 * (destinationCenter.y - sourceCenter.y))))
     const exit =
       new SheetUnits().lerpVectors(destinationCenter, sourceCenter, exitInterpolationFactor)
 
@@ -686,17 +748,17 @@ export class ConnectingView extends LinkView {
     +modelElement: SheetModel.ConnectingElement
     arrow: Arrow
   */
-  constructor (modelElement /*: SheetModel.ConnectingElement */) {
-    super(modelElement)
+   constructor (view /*: View */, modelElement /*: SheetModel.ConnectingElement */) {
+      super(view, modelElement)
 
-    Graphic.append(this.domElement)
+      Graphic.append(this.domElement)
 
-    this.arrow = new Arrow(this.domElement, modelElement.thickness, modelElement.color)
+      this.arrow = new Arrow(this.domElement, modelElement.thickness, modelElement.color)
 
-    this.redraw()
+      this.redraw()
 
-    this.updateTransform()
-  }
+      this.updateTransform()
+   }
 
   updateTransform () {
     this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, new SheetUnits().toGraphicUnits())
@@ -734,29 +796,29 @@ export class MorphismView extends LinkView {
     position: SheetUnits
     labelContent: html
   */
-  constructor (modelElement /*: SheetModel.MorphismElement */) {
-    super(modelElement)
+   constructor (view /*: View */, modelElement /*: SheetModel.MorphismElement */) {
+      super(view, modelElement)
 
-    this.domElement.style.pointerEvents = 'none'
+      this.domElement.style.pointerEvents = 'none'
 
-    this.label = document.createElement('div')
-    this.label.style.width = 'auto'
-    this.label.style.height = 'auto'
-    this.label.style.backgroundColor = 'white'
-    this.label.style.border = '2px solid black'
-    this.label.style.padding = '5px 10px'
-    this.label.style.color = 'black'
-    this.label.style.fontSize = '16px'
-    this.label.style.textAlign = 'center'
-    this.label.style.whiteSpace = 'nowrap'
-    this.label.style.position = 'absolute'
-    this.label.style.pointerEvents = 'auto'
-    this.label.style.transformOrigin = 'top left'
-    this.label.style.zIndex = 1
-    this.domElement.append(this.label)
+      this.label = document.createElement('div')
+      this.label.style.width = 'auto'
+      this.label.style.height = 'auto'
+      this.label.style.backgroundColor = 'white'
+      this.label.style.border = '2px solid black'
+      this.label.style.padding = '5px 10px'
+      this.label.style.color = 'black'
+      this.label.style.fontSize = '16px'
+      this.label.style.textAlign = 'center'
+      this.label.style.whiteSpace = 'nowrap'
+      this.label.style.position = 'absolute'
+      this.label.style.pointerEvents = 'auto'
+      this.label.style.transformOrigin = 'top left'
+      this.label.style.zIndex = 1
+      this.domElement.append(this.label)
 
-    this.redraw()
-  }
+      this.redraw()
+   }
 
   updateTransform () {
     const source = this.source
@@ -779,7 +841,7 @@ export class MorphismView extends LinkView {
   }
 
   drawLabel () {
-    const modelLabel = this.modelElement.getLabel()
+    const modelLabel = this.getLabel()
     if (this.labelContent !== modelLabel) {
       this.labelContent = modelLabel
       this.label.innerHTML = modelLabel
@@ -791,6 +853,29 @@ export class MorphismView extends LinkView {
     const topLeftCorner = center.clone().addScaledVector(labelSize, -0.5)
 
     this.label.style.transform = makeCssTransform(1, undefined, topLeftCorner)
+  }
+
+  getLabel () /*: string */ {
+    let html = this.modelElement.name
+    if (this.modelElement.showDomainAndCodomain) {
+      html += ` : ${this.modelElement.source.group.name} ⟶ ${this.modelElement.destination.group.name}`
+    }
+
+    if (this.modelElement.showDefiningPairs) {
+      html += this.modelElement.mapping
+       ?.definingPairs
+        .map(([g, h]) => {
+          return `<br>${this.name}(${this.source.group.representation[g]}) = ${this.destination.group.representation[h]}`
+        })
+        .join('')
+    }
+
+    if (this.modelElement.showInjectionSurjection) {
+      html += '<br>' + (this.modelElement.mapping?.isInjective ? '' : 'not ') + '1-1'
+      html += '<br>' + (this.modelElement.mapping?.isSurjective ? '' : 'not ') + 'onto'
+    }
+
+    return html
   }
 
   drawSingleLine () {
@@ -859,18 +944,18 @@ export class MorphismView extends LinkView {
     this.domElement.style.zIndex = this.modelElement.z
 
     // get mapping
-    const mapping = this.modelElement.getMapping()
+    const mapping = this.modelElement.mapping.fullMapping
 
     // get unitSquarePosition for source and destination visualizers
     // (adjust for using top row of source, destination multtables)
     const sources = (this.modelElement.useMulttableSourceTopRow)
-      ? source.viewElement.unitSquarePositions
+      ? this.sourceView.unitSquarePositions
           .map((pos, _inx, arr) => new THREE.Vector2(arr[0].x + pos.y - arr[0].y, arr[0].y))
-      : source.viewElement.unitSquarePositions
+      : this.sourceView.unitSquarePositions
     const destinations = (this.modelElement.useMulttableDestinationTopRow)
-      ? destination.viewElement.unitSquarePositions
+      ? this.destinationView.unitSquarePositions
           .map((pos, _inx, arr) => new THREE.Vector2(arr[0].x + pos.y - arr[0].y, arr[0].y))
-      : destination.viewElement.unitSquarePositions
+      : this.destinationView.unitSquarePositions
 
     // get transforms from visualizer unit squares to sheet
     const sourceRect = this.sourceView.rect
@@ -915,10 +1000,10 @@ export class MorphismView extends LinkView {
       if (this.modelElement.arrowColor != 'none') {
          let highlightColor
          if (this.modelElement.arrowColor == 'source') {
-            highlightColor = this.modelElement.source.visualizer.toJSON()?.highlightColors?.[0]?.[inx]
+            highlightColor = this.modelElement.source.visualizer?.highlightColors?.[0]?.[inx]
          } else {
             const destinationIndex = this.modelElement.mapping.image[inx]
-            highlightColor = this.modelElement.destination.visualizer.toJSON()?.highlightColors?.[0]?.[destinationIndex]
+            highlightColor = this.modelElement.destination.visualizer?.highlightColors?.[0]?.[destinationIndex]
          }
 
          if (highlightColor == null) {

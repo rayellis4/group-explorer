@@ -167,9 +167,9 @@ export class Group {
       })
 
       // fix BitSets in
-      ;['conjugacyClasses', 'elementPowers', 'elementPrimePowers', 'orderClasses']
+      ;['conjugacyClasses', '_conjugateSubgroupClasses', 'elementPowers', 'elementPrimePowers', 'orderClasses']
 	 .forEach(
-            (field) => json[field].forEach((js,inx) => G[field][inx] = new BitSet().fromJSON(js))
+            (field) => json[field]?.forEach((js,inx) => G[field][inx] = new BitSet().fromJSON(js))
 	 )
 
       return G

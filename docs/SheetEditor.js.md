@@ -6,8 +6,8 @@
 
 ```javascript
  */
-import * as Log from './Log.js'
 import * as StoredObjects from './StoredObjects.js'
+import * as Log from './Log.js'
 
 export {broadcastChange, getInitialData, enableChangeBroadcast}
 

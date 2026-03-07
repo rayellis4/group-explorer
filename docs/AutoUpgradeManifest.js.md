@@ -67,6 +67,7 @@ export const codeFiles = [
    'js/SheetModel.js',
    'js/SheetModelEditors.js',
    'js/SheetView.js',
+   'js/SheetViewModel.js',
    'js/SheetViewUI.js',
    'js/ShowGAPCode.js',
    'js/SolvableInfo.js',

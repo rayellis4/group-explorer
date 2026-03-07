@@ -32,7 +32,6 @@ The HTML for the control panel, including its CSS styling, is in
 import * as Library from './Library.js'
 import * as GEUtils from './GEUtils.js'
 import * as Heading from './Heading.js'
-import * as SheetModel from './SheetModel.js'
 import * as StoredObjects from './StoredObjects.js'
 import * as View from './SheetView.js'
 import {makeFixedMenu, makeDetachedMenu, makeMockSelect, makeDialog} from './UIComponents.js'
@@ -46,7 +45,10 @@ Factory method adds this
 
 ```javascript
  */
-function addControl (sheetControlElement) {
+let sheetModel
+
+function addControl (sheetControlElement, _sheetModel) {
+   sheetModel = _sheetModel
    sheetControlElement.innerHTML = sheetControlHTML
 
    // setup initial group selection in visualizer-select-group MockSelect
@@ -109,7 +111,7 @@ function addElement (className /*: string */) {
   } else if (className === 'CDElement') {
      element.highlightColors = {}
   }
-  SheetModel.addElement(element, className)
+   sheetModel.addObjectAsElement(element, className)
 }
 /*
 ```
@@ -165,18 +167,18 @@ function displaySheetName (sheetName /*: ?string */ = null) {
 }
 
 function loadSheet (sheetName /*: string */) {
-   SheetModel.clear()
+   sheetModel.sheetElements.clear()
    View.redrawAll()
    displaySheetName(sheetName)
    StoredObjects.getStoredSheet(sheetName)
       .then((jsonObject) => {
-         SheetModel.fromJSONObject(jsonObject)
+         sheetModel.fromJSON(jsonObject)
       })
 }
 
 function saveSheet (sheetName /*: string */) {
    displaySheetName(sheetName)
-   StoredObjects.saveStoredSheet(sheetName, SheetModel.toJSON())
+   StoredObjects.saveStoredSheet(sheetName, sheetModel.toJSON())
 }
 
 async function renameSheet (sheetName /*: string */, location) {
@@ -203,7 +205,7 @@ function deleteSheet (sheetName /*: string */) {
  */
 
 function showCreateSheetDialog (location) {
-   showNameSheetDialog(location, null, SheetModel.toJSON())
+   showNameSheetDialog(location, null, sheetModel.toJSON())
 }
 
 async function showNameSheetDialog (location, sheetName, sheetContent) {
@@ -268,7 +270,7 @@ async function showNameSheetDialog (location, sheetName, sheetContent) {
 ```javascript
  */
 function showExportSheetDialog (location) {
-   const modelJSON = JSON.stringify(SheetModel.toJSON())
+   const modelJSON = JSON.stringify(sheetModel.toJSON())
 
    const exportSheetDialogHTML =
       `<div id="export-sheet-dialog" class="flex-v" style="min-height: 15em; min-width: 60ch; overflow: hidden">
@@ -314,7 +316,7 @@ function showImportSheetDialog (location) {
    function importFromTextarea () {
       const jsonString = document.getElementById('import-sheet-value').value
       if (jsonString !== '') {
-         SheetModel.fromJSONObject(StoredObjects.migrateSheetToV2(jsonString))
+         sheetModel.fromJSON(StoredObjects.migrateSheetToV2(jsonString))
       }
       dialog.remove()
    }
@@ -538,7 +540,7 @@ async function showRestoreSheetsDialog (location) {
 }
 
 function clearCurrentSheet () {
-   SheetModel.clear()
+   sheetModel.sheetElements.clear()
    displaySheetName()
 }
 /*

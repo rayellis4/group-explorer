@@ -24,7 +24,6 @@ export {
    CycleGraphViewModel,
    CycleGraphView,
    createUnlabelledCycleGraphView,
-   createLabelledCycleGraphView,
    createLargeCycleGraphView /* CycleGraphView */,
    createInteractiveCycleGraphView /* CycleGraphView */
 }
@@ -822,12 +821,6 @@ function createUnlabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) 
     return view;
 }
 
-function createLabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) /*: CycleGraphView */ {
-    const view = new CycleGraphView(options);
-    view.displays_labels = true;
-    return view;
-}
-
 function createLargeCycleGraphView (
    group /*: Group */,
    options /*: CycleGraphOptions */ = {}
@@ -846,18 +839,11 @@ function createLargeCycleGraphView (
 }
 
 function createInteractiveCycleGraphView (
-   model /*: SubscriptionProxy<CycleGraphModel> */,
+   group /*: Group */,
    options /*: CycleGraphOptions */ = {}
 ) /*: CycleGraphViewModel */ {
-   const viewModel = new CycleGraphViewModel()
-   const view = new CycleGraphView(options)
-   view.displays_labels = true
-   CycleGraphViewUI.addGestures(view)
-
-   // assemble parts
-   viewModel.model = model
-   viewModel.view = view
-   view.viewModel = viewModel
+   const viewModel = createLargeCycleGraphView(group, options)
+   CycleGraphViewUI.addGestures(viewModel.view)
 
    return viewModel
 }

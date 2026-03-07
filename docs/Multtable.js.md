@@ -31,9 +31,6 @@ async function load () {
       ? Library.loadFromPageURL()
       : Library.getGroupByURL(initialJSON.groupURL))
 
-   // Create Multtable model
-   const multtableModel /*: SubscriptionProxy<MulttableModel> */ = createModelProxy(new MulttableModel(group))
-
    // Create Header
    Heading.display(
       (document.getElementById('heading') /*:: as any as HTMLElement */),
@@ -48,9 +45,12 @@ async function load () {
    )
 
    // Create multtableView in graphic div and attach to multtableModel
-   const multtableView = createInteractiveMulttableView(multtableModel, {
+   const multtableViewModel = createInteractiveMulttableView(group, {
       container: document.getElementById('graphic')
    })
+
+   // Create Multtable model
+   const multtableModel /*: SubscriptionProxy<MulttableModel> */ = multtableViewModel.model
 
    // Create Control Panel
    ControlPanel.addPanel(document.getElementById('control-panel'))
@@ -77,7 +77,7 @@ async function load () {
    }
 
    // Register window resize handler
-   window.addEventListener('resize', () => multtableView.resize())
+   window.addEventListener('resize', () => multtableViewModel.resize())
 }
 
 // an unexported module const, so it won't be garbage collected
@@ -90,9 +90,8 @@ function insertHTML () {
         #graphic {
            background-color: var(--multtable-background);
         }
-       </style>`)
-   document.body.insertAdjacentHTML('beforeend',
-      `<div id="heading"></div>
+       </style>
+       <div id="heading"></div>
        <div id="display" class="position:relative stretch">
           <div id="graphic" class="position:absolute fill-h fill-v"></div>
           <div id="control-panel" class="position:absolute flex-h">

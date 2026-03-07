@@ -31,9 +31,6 @@ async function load () {
       ? Library.loadFromPageURL()
       : Library.getGroupByURL(initialJSON.groupURL))
 
-   // Create CycleGraph model
-   const cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */ = createModelProxy(new CycleGraphModel(group))
-
    // Create Header
    Heading.display (
       (document.getElementById('heading') /*:: as any as HTMLElement */),
@@ -48,9 +45,12 @@ async function load () {
    )
 
    // Create cycleGraphView in graphic div and attach to cycleGraphModel
-   const cycleGraphView = createInteractiveCycleGraphView(cycleGraphModel, {
+   const cycleGraphViewModel = createInteractiveCycleGraphView(group, {
       container: document.getElementById('graphic')
    })
+
+   // Create CycleGraph model
+   const cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */ = cycleGraphViewModel.model
 
    // Create Control Panel
    ControlPanel.addPanel(document.getElementById('control-panel'))
@@ -73,7 +73,7 @@ async function load () {
    }
 
    // Register window resize handler
-   window.addEventListener('resize', () => cycleGraphView.resize())
+   window.addEventListener('resize', () => cycleGraphViewModel.resize())
 }
 
 // an unexported module const, so it won't be garbage collected
