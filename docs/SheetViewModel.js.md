@@ -73,8 +73,7 @@ class SheetViewModel /*: Updatable */ {
       if (element == null) return
       element.x += dx / this.#view.zoomFactor
       element.y += dy / this.#view.zoomFactor
-      this.#view.updateTransform(element)
-      element.links.forEach((link) => this.#view.redraw(link))
+      this.#view.moveElement(element)
    }
 
    resize (id /*: string */, dw /*: number */, dh /*: number */) {
@@ -82,8 +81,7 @@ class SheetViewModel /*: Updatable */ {
       if (element == null) return
       element.w += dw / this.#view.zoomFactor
       element.h += dh / this.#view.zoomFactor
-      this.#view.updateTransform(element)
-      element.links.forEach((link) => this.#view.redraw(link))
+      this.#view.moveElement(element)
    }
 
    removeElement (element /*: SheetElement */) {

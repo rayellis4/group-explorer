@@ -132,11 +132,6 @@ class NodeElement extends SheetElement {
       this.z = 2 * (model.sheetElements.size + 1)
    }
 
-   get links () {
-      return Array.from(this.model.sheetElements.values())
-         .filter((el) => el.isLink && (el.source === this || el.destination === this))
-   }
-
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
       this.x = jsonObject.x ?? this.x

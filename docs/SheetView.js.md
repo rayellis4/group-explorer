@@ -278,12 +278,15 @@ export class View {
       sheetViewElement.destroy()
    }
 
-   updateTransform (modelElement) {
+   moveElement (modelElement) {
       this.viewElements.get(modelElement.id)?.updateTransform()
-   }
-
-   redraw (modelElement) {
-      this.viewElements.get(modelElement.id)?.redraw()
+      this.viewElements.forEach((viewEl) => {
+         if (   viewEl.modelElement?.isLink
+             && (   viewEl.modelElement.source?.id === modelElement.id
+                 || viewEl.modelElement.destination?.id === modelElement.id)) {
+            viewEl.redraw()
+         }
+      })
    }
 }
 
