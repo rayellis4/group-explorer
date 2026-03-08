@@ -40,7 +40,7 @@ async function load () {
 
    // Initialize Sheet Control
    const sheetControlElement = document.getElementById('sheet-control')
-   SheetControl.addControl(sheetControlElement, sheetModel)
+   SheetControl.addControl(sheetControlElement, sheetModel, sheetViewModel)
 
    // check for passedSheet in URL, load it if present
    const invokeParameters = new URL(window.location.href).searchParams

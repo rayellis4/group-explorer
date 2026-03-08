@@ -259,6 +259,14 @@ export class View {
 
    get zoomFactor () /*: float */ { return zoomFactor }
 
+   viewportOrigin () /*: SheetUnits */ {
+      return new GraphicUnits(0, 0).toSheetUnits()
+   }
+
+   viewportScale () /*: float */ {
+      return Math.min(graphicRect.width, graphicRect.height) / zoomFactor
+   }
+
    addElement (modelElement) {
       let newElement
       switch (modelElement.className) {

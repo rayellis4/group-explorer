@@ -68,6 +68,14 @@ class SheetViewModel /*: Updatable */ {
       this.modelElements.forEach((element) => this.removeElement(element))
    }
 
+   viewportOrigin () /*: SheetUnits */ {
+      return this.#view.viewportOrigin()
+   }
+
+   viewportScale () /*: float */ {
+      return this.#view.viewportScale()
+   }
+
    move (id /*: string */, dx /*: number */, dy /*: number */) {
       const element = this.modelElements.get(id)
       if (element == null) return
@@ -87,7 +95,7 @@ class SheetViewModel /*: Updatable */ {
    removeElement (element /*: SheetElement */) {
       // if element is the source or destination of a link, then remove the link also
       if (element.isNode) {
-         this.modelElements
+         Array.from(this.modelElements.values())
             .filter((element) => element.isLink)
             .forEach((link) => {
                if ((link.source.id == element.id || link.destination.id == element.id)) {

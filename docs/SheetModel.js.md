@@ -109,6 +109,7 @@ class SheetElement {
    }
 
    toJSON () {
+      return {id: this.id, className: this.className}
    }
 
    fromJSON (jsonObject) {
@@ -132,6 +133,10 @@ class NodeElement extends SheetElement {
       this.z = 2 * (model.sheetElements.size + 1)
    }
 
+   toJSON () {
+      return {...super.toJSON(), x: this.x, y: this.y, w: this.w, h: this.h, z: this.z}
+   }
+
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
       this.x = jsonObject.x ?? this.x
@@ -146,12 +151,18 @@ class NodeElement extends SheetElement {
 class TextElement extends NodeElement {
    className = 'TextElement'
    text /*: string */ = ''
-   color /*: color */ = '#000000'  // background color
-   opacity /*: float */ = 0  // opacity in [0,1]: 0 => transparent, 1 => completely opaque
+   color /*: color */ = '#ffffff'  // background color
+   opacity /*: float */ = 1  // opacity in [0,1]: 0 => transparent, 1 => completely opaque
    fontSize /*: string */ = '16px'
    fontColor /*: color */ = 'black'
    alignment /*: 'left' | 'center' | 'right' */ = 'left'
    isPlainText /*: boolean */ = false  // but take care for characters <, >, &
+
+   toJSON () {
+      return {...super.toJSON(), text: this.text, color: this.color, opacity: this.opacity,
+         fontSize: this.fontSize, fontColor: this.fontColor, alignment: this.alignment,
+         isPlainText: this.isPlainText}
+   }
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
@@ -170,6 +181,10 @@ class VisualizerElement extends NodeElement {
    group /*: Group */
    visualizer /*: any */  // opaque JSON blob; live visualizer object lives in SheetView
    isVisualizer = true
+
+   toJSON () {
+      return {...super.toJSON(), groupURL: this.group.URL, visualizer: this.visualizer}
+   }
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
@@ -191,6 +206,13 @@ class MTElement extends VisualizerElement {
    className = 'MTElement'
 }
 
+class RectangleElement extends TextElement {
+   className = 'RectangleElement'
+   text = ''
+   color = '#DDDDDD'
+   opacity = 1
+}
+
 // check canConnect on creation?
 class LinkElement extends SheetElement {
    source /*: NodeElement */  // not covariant
@@ -198,6 +220,10 @@ class LinkElement extends SheetElement {
    isLink = true
 
    // z level of link is determined from z levels of source/destination
+
+   toJSON () {
+      return {...super.toJSON(), sourceId: this.source.id, destinationId: this.destination.id}
+   }
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
@@ -218,6 +244,10 @@ class ConnectingElement extends LinkElement {
    thickness /*: number */ = 4  // 'width'? 'lineWidth'?
    color /*: color */ = '#000000'
    hasArrowhead /*: boolean */ = true // 'directed'?
+
+   toJSON () {
+      return {...super.toJSON(), thickness: this.thickness, color: this.color, hasArrowhead: this.hasArrowhead}
+   }
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
@@ -245,6 +275,22 @@ class MorphismElement extends LinkElement {
       return this.showManyArrows
          ? Math.max(this.source.z, this.destination.z) + 1
          : Math.min(this.source.z, this.destination.z) - 1
+   }
+
+   toJSON () {
+      return {
+         ...super.toJSON(),
+         name: this.name,
+         showDomainAndCodomain: this.showDomainAndCodomain,
+         showDefiningPairs: this.showDefiningPairs,
+         showInjectionSurjection: this.showInjectionSurjection,
+         showManyArrows: this.showManyArrows,
+         arrowColor: this.arrowColor,
+         arrowMargin: this.arrowMargin,
+         useMulttableSourceTopRow: this.useMulttableSourceTopRow,
+         useMulttableDestinationTopRow: this.useMulttableDestinationTopRow,
+         definingPairs: this.mapping.definingPairs,
+      }
    }
 
    fromJSON (jsonObject) {
@@ -297,6 +343,7 @@ function loadPassedSheet (sheetModel) {
 }
 
 const classMap /*: Map<string, Class<SheetElement> */ = {
+   RectangleElement: RectangleElement,
    TextElement: TextElement,
    CDElement: CDElement,
    CGElement: CGElement,
