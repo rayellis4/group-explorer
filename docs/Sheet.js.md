@@ -31,8 +31,9 @@ async function load () {
    // initialize Sheet components
    const sheetModel = createModelProxy(new SheetModel())
    const sheetViewModel = new SheetViewModel(sheetModel)
-   new SheetView(sheetViewModel, document.getElementById('graphic'))
-   SheetViewUI.init(sheetViewModel)
+   const graphicElement = document.getElementById('graphic')
+   new SheetView(sheetViewModel, graphicElement)
+   SheetViewUI.init(sheetViewModel, graphicElement)
 
    // Create Control Panel
    const controlPanelElement = document.getElementById('control-panel')

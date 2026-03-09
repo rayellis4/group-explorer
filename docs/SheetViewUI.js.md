@@ -63,24 +63,40 @@ export { init }
 Top level sheet controller, recognizes top-level user inputs
 ````javascript
  */
-function init (viewModel) {
-   const displayElement = document.getElementById('graphic')
+function init (viewModel, displayElement) {
+   new SheetEventUI(viewModel, displayElement)
+}
 
-   let domElement = null
-   let modelElement = null
-   let redrawTimer = null
+class SheetEventUI {
+   viewModel /*: SheetViewModel */
+   rootElement /*: HTMLElement */
+   #redrawTimer /*: ?TimeoutID */ = null
 
+   constructor (viewModel, rootElement) {
+      this.viewModel = viewModel
+      this.rootElement = rootElement
+
+      this.setupSelect()
+      this.setupContextMenu()
+      this.setupMove()
+      this.setupDragAndDrop()
+      this.setupZoom()
+   }
+
+   // Click / tap, then drag to move; or drag resize handle / pinch-spread to resize
+   setupSelect () {
    // Select element for resize
-   recognizeSelect(displayElement,
+   recognizeSelect(this.rootElement,
       (event) => {
-         const domElement = document.elementFromPoint(event.clientX, event.clientY)
-         if (domElement.closest('.NodeElement') != null) {
-            const id = domElement.closest('.NodeElement').getAttribute('id')
-            const modelElement = viewModel.modelElements.get(id)
+         const selectedElement = document
+            .elementFromPoint(event.clientX, event.clientY)  // element under mouse click
+            .closest('.NodeElement, .LinkElement')  // closest containing Node/Link
+         const modelElement = this.viewModel.modelElements.get(selectedElement?.getAttribute('id'))
+         if (modelElement?.isNode) {
             const maybeSummary = document.elementFromPoint(event.clientX, event.clientY).closest('summary')
             if (maybeSummary == null) {
-               if (id != null) {
-                  resizeElement(id)
+               if (modelElement != null) {
+                  this.resizeElement(modelElement)
                }
             } else {
                maybeSummary.closest('details').addEventListener('toggle', (ev) => {
@@ -110,291 +126,306 @@ function init (viewModel) {
                   }
                }, {once: true})
             }
-         } else if (domElement.closest('.LinkElement') != null) {
-            const modelElement = Model.sheetElements.get(domElement.closest('.LinkElement').getAttribute('id'))
+         } else if (modelElement?.isLink) {
+            const clickedElement = document.elementFromPoint(event.clientX, event.clientY)
             const viewElement = modelElement.viewElement
-            const arrow = viewElement.arrows?.find((arrow) => arrow.line == domElement || arrow.head == domElement)
-                  || viewElement.arrow
+            const arrow = viewElement?.arrows?.find((arrow) => arrow.line == clickedElement || arrow.head == clickedElement)
+                  ?? viewElement?.arrow
             if (arrow != null) {
-               arrow.highlightColor = (arrow.highlightColor == null) ? '#00ff00' : null  // toggle arrow highlight color
+               arrow.highlightColor = (arrow.highlightColor == null) ? '#00ff00' : null
+               viewElement.redraw()
             }
-            modelElement.redraw()
          }
       })
+   }
 
-   // Right click / long tap to display context menu or raise editor directly
-   recognizeContextMenu(displayElement,
-      (event) => {
-         domElement = document.elementFromPoint(event.clientX, event.clientY).closest('.NodeElement, .LinkElement')
-         modelElement = domElement ? Model.sheetElements.get(domElement.getAttribute('id')) : null
-         if (modelElement instanceof Model.LinkElement) {
-            modelElement.getEditor(event)
-         } else if (modelElement instanceof Model.NodeElement) {
-            makeContextMenu(modelElement, event)
-         } else if (modelElement == null) {
-            View.redrawAll()
-         }
-      })
+   resizeElement (modelElement) {
+      // raise domElement z-index to show above other elements
+      const domElement = document.querySelector(`[id="${modelElement.id}"]`)
+      const originalZIndex = domElement.style.zIndex
+      domElement.style.zIndex = 1000
 
-   let redrawTimerId = null
-   recognizeMoveResize (displayElement,
-      (dx, dy, _dw, _dh, _isDrop, domElement) => {
-         if (domElement != null && redrawTimerId == null) {
-            const id = domElement.getAttribute('id')
-            redrawTimerId = window.setTimeout(() => {
+      // create modal shield above entire #graphic or #display or body
+      const {left: ghostLeft, top: ghostTop, width: ghostWidth, height: ghostHeight} = domElement.getBoundingClientRect()
+      const resizeHTML =
+         `<div id="sheet-resize-ghost" style="width: ${ghostWidth}px; height: ${ghostHeight}px;">
+             <style>
+                #sheet-resize-ghost {
+                   position: absolute;
+                   background-color: var(--clear);
+                   outline: 2px dotted #AAAAFF;
+                   outline-offset: 10px;
+                   border-radius: unset;
+                }
+                #sheet-resize-ghost > .resize-handle {
+                   display: ${GEUtils.isTouchDevice() ? 'none' : 'block'};
+                }
+             </style>
+          </div>`
+      const sheetResizeModal = makeDialog(resizeHTML,
+         {clientX: ghostLeft, clientY: ghostTop},
+         (_clickEvent) => {
+            sheetResizeModal.remove()
+            domElement.style.zIndex = originalZIndex
+            this.viewModel.view.viewElements.get(modelElement.id)?.redraw()
+         })
+
+      let timerId = null
+      const onMoveResize = (dx, dy, dw, dh, _isDrop) => {
+         if (timerId == null) {
+            timerId = window.setTimeout(() => {
                if (dx != 0 || dy != 0) {
-                  viewModel.move(id, dx, dy)
+                  this.viewModel.move(modelElement.id, dx, dy)
                }
 
-               redrawTimerId = null
+               if (dw != 0 || dh != 0) {
+                  this.viewModel.resize(modelElement.id, dw, dh)
+               }
+
+               syncGhostWithModel()
+
+               timerId = null
             }, 0)
          }
-      })
+      }
 
-   // Drag and drop to pan sheet
-   recognizeDragAndDrop (displayElement,
-      (_startEvent, previousEvent, endEvent, _isDrop) => {
-         const previousPosition = new View.WindowUnits(previousEvent)
-         const newPosition = new View.WindowUnits(endEvent)
-         const movement = previousPosition.sub(newPosition)
-         View.pan(-movement.x, -movement.y)
+      const ghostElement = document.getElementById('sheet-resize-ghost')
+      recognizeMoveResize(ghostElement, onMoveResize)
 
-         scheduleRedraw()
-      },
-      {rightClick: true}
-   )
+      function syncGhostWithModel () {
+         const domElementPosition = domElement.getBoundingClientRect()
+         ghostElement.style.left = `${domElementPosition.left}px`
+         ghostElement.style.top = `${domElementPosition.top}px`
+         ghostElement.style.width = `${domElementPosition.width}px`
+         ghostElement.style.height = `${domElementPosition.height}px`
+      }
+   }
 
-   // Resize sheet from mouse wheel
-   recognizeZoom(displayElement,
+   // Right click / long tap to display context menu on Node or raise editor directly on Link
+   setupContextMenu () {
+      recognizeContextMenu(this.rootElement,
+         (event) => {
+            const selectedElement = document.elementFromPoint(event.clientX, event.clientY)
+            const domElement = selectedElement.closest('.NodeElement, .LinkElement')
+            const elementId = domElement?.getAttribute('id')
+            const modelElement = this.viewModel.modelElements.get(elementId)
+            if (modelElement == null) {
+               View.redrawAll()
+            } else if (modelElement.isLink) {
+               modelElement.getEditor(event)
+            } else if (modelElement.isNode) {
+               this.makeContextMenu(modelElement, event)
+            }
+         })
+   }
+
+   // Displays and executes functions from [SheetView](./SheetView.js.md) context menu (right-click/long tap).
+   makeContextMenu (modelElement, event) {
+      const contextMenuHTML = [
+         `<ul id="element-context-menu" data-action="() => void 0">
+         <li data-action="this.resizeElement(modelElement)">Resize</li>
+         <li data-action="modelElement.getEditor(event)">Edit</li>`,
+         (modelElement.isVisualizer)
+            ? '<li data-action="openInfo()">Group Info</li>'
+            : '',
+         `<li data-action="modelElement.copy()">Copy</li>
+         <hr>
+         <li data-action="this.createConnection(modelElement, event)">Create Connection</li>`,
+         (modelElement.isVisualizer)
+            ? `<li data-action="this.createMorphism(modelElement, event)">Create Map</li>`
+            : '',
+         `<hr>
+         <li data-action="this.moveForward(modelElement)">Move Forward</li>
+         <li data-action="this.moveBackward(modelElement)">Move Backward</li>
+         <li data-action="this.moveToFront(modelElement)">Move to Front</li>
+         <li data-action="this.moveToBack(modelElement)">Move to Back</li>
+         <hr>
+         <li data-action="this.viewModel.removeElement(modelElement)">Delete</li>
+         </ul>`
+      ].join('')
+
+      const openInfo = () => window.open('./GroupInfo.html?groupURL=' + modelElement.group.URL)
+      makeDetachedMenu(contextMenuHTML, event)
+         .then((action) => {
+            eval(action)
+         })
+   }
+
+   // Left click drag to move element
+   setupMove () {
+      let redrawTimerId = null
+      recognizeMoveResize (this.rootElement,
+         (dx, dy, _dw, _dh, _isDrop, domElement) => {
+            if (domElement != null && redrawTimerId == null) {
+               const id = domElement.getAttribute('id')
+               redrawTimerId = window.setTimeout(() => {
+                  if (dx != 0 || dy != 0) {
+                     this.viewModel.move(id, dx, dy)
+                  }
+
+                  redrawTimerId = null
+               }, 0)
+            }
+         })
+   }
+
+   // Right click drag to pan sheet
+   setupDragAndDrop () {
+      recognizeDragAndDrop (this.rootElement,
+         (_startEvent, previousEvent, endEvent, _isDrop) => {
+            const previousPosition = new View.WindowUnits(previousEvent)
+            const newPosition = new View.WindowUnits(endEvent)
+            const movement = previousPosition.sub(newPosition)
+            View.pan(-movement.x, -movement.y)
+
+            this.scheduleRedraw()
+         },
+         {rightClick: true}
+      )
+   }
+
+   // Resize sheet with mouse wheel if no element is selected
+   setupZoom () {
+      recognizeZoom(this.rootElement,
       (zoomFactor) => {
          View.zoom(1 + zoomFactor)
-         scheduleRedraw()
+         this.scheduleRedraw()
       })
+   }
 
-   // Operations that may be performed repeatedly in rapid succession, like zoom and pan,
+   // For operations that may be performed repeatedly in rapid succession, like zoom and pan,
    // don't attempt to redraw the sheet on every event, but only periodically
-   function scheduleRedraw () {
-      if (redrawTimer != null) {
-         window.clearTimeout(redrawTimer)
+   scheduleRedraw () {
+      if (this.#redrawTimer != null) {
+         window.clearTimeout(this.#redrawTimer)
       }
 
-      const redrawNodes = (nodes) => {
-         nodes.forEach((node) => node.redraw())
-         redrawTimer = null
-      }
-
-      const allNodes = Array
-         .from(((Model.sheetElements.values() /*: any */) /*: Iterator<Model.VisualizerElement> */))
-         .filter((el) => el instanceof Model.VisualizerElement)
-         .map((el) => ((el /*: any */) /*: Model.VisualizerElement */))
+      const allVisualizerElements = Array
+         .from(this.viewModel.modelElements.values())
+         .filter((el) => el.isVisualizer)
          .sort((a, b) => (a?.group?.URL == b?.group?.URL) ? 0 : (a?.group?.URL < b?.group?.URL) ? -1 : 1)
 
-      redrawTimer = window.setTimeout(redrawNodes, 250, allNodes)
+      this.#redrawTimer = window.setTimeout((els) => {
+         els.forEach((el) => el.viewElement?.redraw())
+         this.#redrawTimer = null
+      }, 250, allVisualizerElements)
    }
-}
-/*
-```
-## resize
-```javascript
- */
-function resizeElement (id) {
-   const modelElement = viewModel.modelElements.get(id)
-   // raise domElement z-index to show above other elements
-   const domElement = viewModel.view.viewElements.get(id).domElement
-   const originalZIndex = domElement.style.zIndex
-   domElement.style.zIndex = 1000
 
-   // create modal shield above entire #graphic or #display or body
-   const {left: ghostLeft, top: ghostTop, width: ghostWidth, height: ghostHeight} = domElement.getBoundingClientRect()
-   const resizeHTML =
-      `<div id="sheet-resize-ghost" style="width: ${ghostWidth}px; height: ${ghostHeight}px;">
-          <style>
-             #sheet-resize-ghost {
-                position: absolute;
-                background-color: var(--clear);
-                outline: 2px dotted #AAAAFF;
-                outline-offset: 10px;
-                border-radius: unset;
-             }
-             #sheet-resize-ghost > .resize-handle {
-                display: ${GEUtils.isTouchDevice() ? 'none' : 'block'};
-             }
-          </style>
-       </div>`
-   const sheetResizeModal = makeDialog(resizeHTML,
-      {clientX: ghostLeft, clientY: ghostTop},
-      (_clickEvent) => {
-         sheetResizeModal.remove()
-         domElement.style.zIndex = originalZIndex
-         viewModel.view.viewElements.get(id)?.redraw()
-      })
-
-   const ghostElement = document.getElementById('sheet-resize-ghost')
-
-   recognizeMoveResize(ghostElement, onMoveResize)
-
-   let timerId = null
-   function onMoveResize (dx, dy, dw, dh, _isDrop) {
-      if (timerId == null) {
-         timerId = window.setTimeout(() => {
-            if (dx != 0 || dy != 0) {
-               viewModel.move(modelElement.id, dx, dy)
-            }
-
-            if (dw != 0 || dh != 0) {
-               viewModel.resize(modelElement.id, dw, dh)
-            }
-
-            syncGhostWithModel()
-
-            timerId = null
-         }, 0)
+   moveForward (modelElement) {
+      const above = this.#nodesSortedByZ().find((el) => el.z > modelElement.z)
+      if (above != null) {
+         ;[modelElement.z, above.z] = [above.z, modelElement.z]
+         modelElement.viewElement?.updateZ()
+         above.viewElement?.updateZ()
       }
    }
 
-   function syncGhostWithModel () {
-      const domElementPosition = domElement.getBoundingClientRect()
-      ghostElement.style.left = `${domElementPosition.left}px`
-      ghostElement.style.top = `${domElementPosition.top}px`
-      ghostElement.style.width = `${domElementPosition.width}px`
-      ghostElement.style.height = `${domElementPosition.height}px`
+   moveBackward (modelElement) {
+      const below = this.#nodesSortedByZ().reverse().find((el) => el.z < modelElement.z)
+      if (below != null) {
+         ;[modelElement.z, below.z] = [below.z, modelElement.z]
+         modelElement.viewElement?.updateZ()
+         below.viewElement?.updateZ()
+      }
    }
-}
-/*
-```
-## makeContextMenu
 
-Displays and executes functions from [SheetView](./SheetView.js.md) context menu (right-click/long tap).
-
-```javascript
- */
-function makeContextMenu (modelElement, event) {
-   const contextMenuHTML = [
-      `<ul id="element-context-menu" data-action="() => void 0">
-              <li data-action="resizeElement(modelElement)">Resize</li>
-              <li data-action="modelElement.getEditor(event)">Edit</li>`,
-      (modelElement instanceof Model.VisualizerElement)
-         ? '<li data-action="openInfo(event)">Group Info</li>'
-         : '',
-      `<li data-action="modelElement.copy()">Copy</li>
-              <hr>
-              <li data-action="createConnection(modelElement, event)">Create Connection</li>`,
-      (modelElement instanceof Model.VisualizerElement)
-         ? `<li data-action="createMorphism(modelElement, event)">Create Map</li>`
-         : '',
-      `<hr>
-              <li data-action="modelElement.moveForward()">Move Forward</li>
-              <li data-action="modelElement.moveBackward()">Move Backward</li>
-              <li data-action="modelElement.moveToFront()">Move to Front</li>
-              <li data-action="modelElement.moveToBack()">Move to Back</li>
-              <hr>
-              <li data-action="modelElement.destroy()">Delete</li>
-          </ul>`
-   ].join('')
-   makeDetachedMenu(contextMenuHTML, event)
-      .then((action) => {
-         eval(action)
-      })
-
-   const openInfo = (event) => {
-      window.open('./GroupInfo.html?groupURL=' + modelElement.group.URL)
+   moveToFront (modelElement) {
+      const nodes = this.#nodesSortedByZ()
+      const maxZ = nodes[nodes.length - 1]?.z ?? modelElement.z
+      if (modelElement.z < maxZ) {
+         modelElement.z = maxZ + 2
+         modelElement.viewElement?.updateZ()
+      }
    }
-}
-/*
-```
-## Link functions
 
-### createConnection
-```javascript
- */
-function createConnection (source, event) {
-   createLink(source, event, 'ConnectingElement')
-}
-/*
-```
-### createMorphism
-```javascript
- */
-function createMorphism (source, event) {
-   createLink(source, event, 'MorphismElement', (destination) => destination instanceof Model.VisualizerElement)
-}
-/*
-```
-### createLink
-```javascript
- */
-function createLink (source, event, linkType, targetTest = () => true) {
-    const linkingDialogHTML =
-       `<div id=linking-dialog style="resize: none">
-           <center>Select target</center>
-           <center><button data-action="{}">Cancel</button></center>
-        </div>`
+   moveToBack (modelElement) {
+      const nodes = this.#nodesSortedByZ()
+      const minZ = nodes[0]?.z ?? modelElement.z
+      if (modelElement.z > minZ) {
+         modelElement.z = Math.max(2, minZ - 2)
+         modelElement.viewElement?.updateZ()
+      }
+   }
 
-   const linkingDialog = makeDialog(linkingDialogHTML, event, (ev) => onclick(ev))
+   #nodesSortedByZ () {
+      return Array.from(this.viewModel.modelElements.values())
+         .filter((el) => el.isNode)
+         .sort((a, b) => a.z - b.z)
+   }
 
-   linkingDialog.addEventListener('pointermove',
-      (event) => {
-         // element under event
-         const maybeTarget = document
-            .elementsFromPoint(event.clientX, event.clientY)
-            .find((element) => element.classList.contains('NodeElement'))
+   createConnection (source, event) {
+      this.createLink(source, event, 'ConnectingElement')
+   }
 
-         // if cursor is not over an element clear all outlines and return
-         if (maybeTarget == null) {
-            document.querySelectorAll('.outlined').forEach((element) => element.classList.remove('outlined'))
-            return
-         }
+   createMorphism (source, event) {
+      this.createLink(source, event, 'MorphismElement', (dest) => dest.isVisualizer)
+   }
 
-         // if maybeTarget is already outlined there's nothing to do
-         if (!maybeTarget.classList.contains('outlined')) {
-            // clear all outlines and outline this element if it's a valid target
-            document.querySelectorAll('.outlined').forEach((element) => element.classList.remove('outlined'))
-            const destination = getValidDestination(maybeTarget)
-            if (destination != null) {
-               maybeTarget.classList.add('outlined')
+   createLink (source, event, linkType, targetTest = () => true) {
+      const linkingDialogHTML =
+         `<div id=linking-dialog style="resize: none">
+             <center>Select target</center>
+             <center><button data-action="{}">Cancel</button></center>
+          </div>`
+
+      const linkingDialog = makeDialog(linkingDialogHTML, event, (ev) => onclick(ev))
+
+      linkingDialog.addEventListener('pointermove',
+         (event) => {
+            const maybeTarget = document
+               .elementsFromPoint(event.clientX, event.clientY)
+               .find((element) => element.classList.contains('NodeElement'))
+
+            if (maybeTarget == null) {
+               document.querySelectorAll('.outlined').forEach((el) => el.classList.remove('outlined'))
+               return
             }
-         }
-      })
 
-   const onclick = (event) => {
-         document.querySelectorAll('.outlined').forEach((element) => element.classList.remove('outlined'))
-      const actionElement = event.target.closest('[data-action]')
-      const action = actionElement?.getAttribute('data-action')
-      if (linkingDialog.contains(actionElement) && action != null) {
-         linkingDialog.remove()
-         eval(action)
-      } else {
-         // find candidate target as topmost element at event coordinates
-         const maybeTarget = document
-            .elementsFromPoint(event.clientX, event.clientY)
-            .find((element) => element.classList.contains('NodeElement'))
-         // if it's a valid target
-         if (maybeTarget != null) {
-            const destination = getValidDestination(maybeTarget)
-            if (destination != null) {
-               linkingDialog.remove()
+            if (!maybeTarget.classList.contains('outlined')) {
+               document.querySelectorAll('.outlined').forEach((el) => el.classList.remove('outlined'))
+               if (this.getValidDestination(maybeTarget, source, targetTest) != null) {
+                  maybeTarget.classList.add('outlined')
+               }
+            }
+         })
 
-               // create a connection from source to candidate target
-               const linkJson = { sourceId: source.id, destinationId: destination.id }
-               const link = Model.addElement(linkJson, linkType)
+      const onclick = (event) => {
+         document.querySelectorAll('.outlined').forEach((el) => el.classList.remove('outlined'))
+         const actionElement = event.target.closest('[data-action]')
+         const action = actionElement?.getAttribute('data-action')
+         if (linkingDialog.contains(actionElement) && action != null) {
+            linkingDialog.remove()
+            eval(action)
+         } else {
+            const maybeTarget = document
+               .elementsFromPoint(event.clientX, event.clientY)
+               .find((element) => element.classList.contains('NodeElement'))
+            if (maybeTarget != null) {
+               const destination = this.getValidDestination(maybeTarget, source, targetTest)
+               if (destination != null) {
+                  linkingDialog.remove()
 
-               // create and place editor
-               const editPosition = source.viewElement.center
-                  .add(destination.viewElement.center)
-                  .multiplyScalar(0.5)
-                  .toWindowUnits()
-               link.getEditor(editPosition)
+                  const linkJson = { sourceId: source.id, destinationId: destination.id }
+                  const link = this.viewModel.addObjectAsElement(linkJson, linkType)
+
+                  // TODO: link.getEditor(editPosition) -- needs SheetModelEditors
+                  // const editPosition = source.viewElement.center
+                  //    .add(destination.viewElement.center)
+                  //    .multiplyScalar(0.5).toWindowUnits()
+               }
             }
          }
       }
    }
 
-   function getValidDestination (maybeTarget) {
-      const maybeDestinationId = maybeTarget.getAttribute('id')
-      const maybeDestination = Model.sheetElements.get(maybeDestinationId)
-      const isSource = (maybeDestination === source)
-      const isLinkedToSource =
-         maybeDestination.links.some((link) => link.source === source || link.destination === source)
+   getValidDestination (maybeTarget, source, targetTest) {
+      const maybeDestination = this.viewModel.modelElements.get(maybeTarget.getAttribute('id'))
+      if (maybeDestination == null) return null
+      const isSource = maybeDestination === source
+      const isLinkedToSource = Array.from(this.viewModel.modelElements.values())
+         .some((el) => el.isLink &&
+            ((el.source === source && el.destination === maybeDestination) ||
+             (el.source === maybeDestination && el.destination === source)))
       return (targetTest(maybeDestination) && !isSource && !isLinkedToSource) ? maybeDestination : null
    }
 }

@@ -18,6 +18,7 @@ export let graphicRect /*: DOMRect */ = new DOMRect(0, 0, 0, 0)
 export let PixelsPerModelUnit /*: float */ = 0
 export let zoomFactor /*: float */ = 1
 export let panVector /*: PhysicalUnits */ // pan expressed in window pixels
+let _view /*: ?View */ = null  // set by View constructor; used by module-level functions
 
 
 /*
@@ -214,25 +215,20 @@ export function redrawAll () {
   zoomFactor = 1
   updateTransforms()
 
-  SheetModel.sheetElements.forEach((modelElement /*: SheetModel.SheetElement */) => {
-    if (modelElement instanceof SheetModel.LinkElement) {
-      modelElement.viewElement.redraw()
-    }
+  _view?.viewElements.forEach((viewEl) => {
+    if (viewEl.modelElement?.isLink) viewEl.redraw()
   })
 
   setTimeout(() => redrawNodes(), 0)
 }
 
 function updateTransforms () {
-  SheetModel.sheetElements.forEach((modelElement /*: SheetModel.SheetElement */) => {
-    modelElement.viewElement.updateTransform()
-  })
+  _view?.viewElements.forEach((viewEl) => viewEl.updateTransform())
 }
 
 export function redrawNodes () {
-  document.querySelectorAll('.NodeElement').forEach((htmlElement) => {
-    const modelElement = ((SheetModel.sheetElements.get(htmlElement.id) /*: any */) /*: SheetModel.SheetElement */)
-    modelElement.viewElement.redraw()
+  _view?.viewElements.forEach((viewEl) => {
+    if (viewEl.modelElement?.isNode) viewEl.redraw()
   })
 }
 
@@ -253,6 +249,7 @@ export class View {
 
    constructor (viewModel, rootElement) {
       init()
+      _view = this
       this.viewModel = viewModel
       this.viewModel.view = this  // do we need a more general way to hook a View to a ViewModel?
    }
@@ -288,6 +285,15 @@ export class View {
 
    moveElement (modelElement) {
       this.viewElements.get(modelElement.id)?.updateTransform()
+      this.#redrawLinks(modelElement)
+   }
+
+   resizeElement (modelElement) {
+      this.viewElements.get(modelElement.id)?.redraw()
+      this.#redrawLinks(modelElement)
+   }
+
+   #redrawLinks (modelElement) {
       this.viewElements.forEach((viewEl) => {
          if (   viewEl.modelElement?.isLink
              && (   viewEl.modelElement.source?.id === modelElement.id

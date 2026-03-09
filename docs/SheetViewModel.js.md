@@ -60,6 +60,28 @@ class SheetViewModel /*: Updatable */ {
       if (!this.model.sheetElements.has(element.id)) {
          this.model.sheetElements.set(element.id, element)
       }
+      Object.defineProperty(element, 'viewElement', {
+         get: () => this.#view?.viewElements.get(element.id),
+         configurable: true,
+      })
+      Object.defineProperty(element, 'move', {
+         value: (dx, dy) => this.move(element.id, dx, dy),
+         configurable: true,
+      })
+      Object.defineProperty(element, 'resize', {
+         value: (dw, dh) => this.resize(element.id, dw, dh),
+         configurable: true,
+      })
+      Object.defineProperty(element, 'copy', {
+         value: () => {
+            const json = element.toJSON()
+            delete json.id
+            json.x = (json.x ?? 0) + 10
+            json.y = (json.y ?? 0) + 10
+            this.addObjectAsElement(json, element.className)
+         },
+         configurable: true,
+      })
       this.modelElements.set(element.id, element)
       this.view?.addElement(element)
    }
@@ -89,7 +111,11 @@ class SheetViewModel /*: Updatable */ {
       if (element == null) return
       element.w += dw / this.#view.zoomFactor
       element.h += dh / this.#view.zoomFactor
-      this.#view.moveElement(element)
+      this.#view.resizeElement(element)
+   }
+
+   addObjectAsElement (plainObject /*: Obj */, className /*: string */) /*: SheetElement */ {
+      return this.#model.addObjectAsElement(plainObject, className)
    }
 
    removeElement (element /*: SheetElement */) {
@@ -109,8 +135,11 @@ class SheetViewModel /*: Updatable */ {
    }
 }
 
+
 /*
 ToDo:
 
-add methods like move, etc. from old SheetModel -- to manipulate Model from Events fielded from View
+Z change
+zoom / pan
+finish links
  */

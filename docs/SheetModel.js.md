@@ -74,6 +74,7 @@ class SheetModel {
    addObjectAsElement (plainObject, className) {
       const newElement = new (classMap[className])(this).fromJSON(plainObject)
       this.sheetElements.set(newElement.id, newElement)
+      return newElement
    }
 
    canConnect (
@@ -206,13 +207,6 @@ class MTElement extends VisualizerElement {
    className = 'MTElement'
 }
 
-class RectangleElement extends TextElement {
-   className = 'RectangleElement'
-   text = ''
-   color = '#DDDDDD'
-   opacity = 1
-}
-
 // check canConnect on creation?
 class LinkElement extends SheetElement {
    source /*: NodeElement */  // not covariant
@@ -343,7 +337,6 @@ function loadPassedSheet (sheetModel) {
 }
 
 const classMap /*: Map<string, Class<SheetElement> */ = {
-   RectangleElement: RectangleElement,
    TextElement: TextElement,
    CDElement: CDElement,
    CGElement: CGElement,
