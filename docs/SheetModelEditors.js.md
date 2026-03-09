@@ -14,12 +14,11 @@
 
 import * as Log from './Log.js'
 import * as GEUtils from './GEUtils.js'
-import * as SheetModel from './SheetModel.js'
 import * as StoredObjects from './StoredObjects.js'
 import {THREE} from '../lib/externals.js'
 import {makeDialog, makeMockSelect} from './UIComponents.js'
 
-export {RectangleEditor, TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor}
+export {TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor}
 /*
 ```
 ### SheetElementEditor
@@ -28,7 +27,7 @@ export {RectangleEditor, TextEditor, ConnectionEditor, MorphismEditor, RemoteEdi
 class SheetElementEditor {
    constructor (modelElement, dialogHTML, location) {
       this.modelElement = modelElement
-      this.initialJSON = modelElement.toJSON()
+      this.initialJSON = JSON.parse(JSON.stringify(modelElement.toJSON()))
       this.location = location
 
       this.editor = makeDialog(dialogHTML, location)
@@ -49,7 +48,7 @@ class SheetElementEditor {
             })
       }
       this.updateModelElement()
-      this.modelElement.redraw()
+      this.modelElement.viewElement?.redraw()
    }
 
    commit () {
@@ -63,7 +62,7 @@ class SheetElementEditor {
 
    rollback () {
       this.modelElement.fromJSON(this.initialJSON)
-      this.modelElement.redraw()
+      this.modelElement.viewElement?.redraw()
       this.exit()
    }
 
@@ -73,32 +72,6 @@ class SheetElementEditor {
 
    exit () {
       this.editor.remove()
-   }
-}
-/*
-```
-### RectangleEditor
-```javascript
- */
-class RectangleEditor extends SheetElementEditor {
-   constructor (rectangleElement, location) {
-      const rectangleEditorHTML = `
-         <div id="rectangle-editor" style="padding: 0 1em">
-            <p>Background color:<br>
-               <input id="rectangle-editor-color" type="color" style="margin-left: 1em"
-                  value="#${new THREE.Color(rectangleElement.color).getHexString()}">
-            </p>
-            <p>
-               <button data-action="this.commit()">OK</button>
-               <button data-action="this.rollback()">Cancel</button>
-            </p>
-         </div>`
-      super(rectangleElement, rectangleEditorHTML, location)
-   }
-
-   updateModelElement () {
-      const rectangle = this.modelElement
-      rectangle.color = document.getElementById('rectangle-editor-color').value.trim()
    }
 }
 /*
@@ -294,14 +267,14 @@ class MorphismEditor extends SheetElementEditor {
                   ${morphismElement.showManyArrows ? 'checked="true"' : ''}>
                  <label for="morphism-editor-show-many-arrows">Draw multiple arrows</label>
              </div>` +
-            ((morphismElement.source instanceof SheetModel.MTElement)
+            ((morphismElement.source .className === 'MTElement')
                ? `<div><input id="morphism-editor-multtable-source-top-row" type="checkbox"
                      ${morphismElement.useMulttableSourceTopRow ? 'checked="true"' : ''}>
                     <label for="morphism-editor-multtable-source-top-row"
                        >Use top row of source multtable for morphisms</label>
                   </div>`
                : '') +
-            ((morphismElement.destination instanceof SheetModel.MTElement)
+            ((morphismElement.destination .className === 'MTElement')
                ? `<div><input id="morphism-editor-multtable-destination-top-row" type="checkbox"
                      ${morphismElement.useMulttableDestinationTopRow ? 'checked="true"' : ''}>
                     <label for="morphism-editor-multtable-destination-top-row"
@@ -517,11 +490,11 @@ class MorphismEditor extends SheetElementEditor {
             : 'none'
 
       morphism.arrowMargin = parseFloat(document.getElementById('morphism-editor-arrow-margin').value)/100
-      if (morphism.source instanceof SheetModel.MTElement) {
+      if (morphism.source .className === 'MTElement') {
          morphism.useMulttableSourceTopRow =
             document.getElementById('morphism-editor-multtable-source-top-row').checked
       }
-      if (morphism.destination instanceof SheetModel.MTElement) {
+      if (morphism.destination .className === 'MTElement') {
          morphism.useMulttableDestinationTopRow =
             document.getElementById('morphism-editor-multtable-destination-top-row').checked
       }
@@ -644,7 +617,7 @@ class MorphismEditor extends SheetElementEditor {
       this.updatePreview()
       this.setupMorphismAdd()
       this.updateModelElement()
-      this.modelElement.redraw()
+      this.modelElement.viewElement?.redraw()
    }
 
    removeDefiningPair(domainElement /*: groupElement */) {
@@ -655,7 +628,7 @@ class MorphismEditor extends SheetElementEditor {
       this.updatePreview()
       this.setupMorphismAdd()
       this.updateModelElement()
-      this.modelElement.redraw()
+      this.modelElement.viewElement?.redraw()
    }
 }
 /*
@@ -677,19 +650,15 @@ class RemoteEditor {
         // open visualizer/editor window
         const otherWin = window.open(editPageURL)
 
-        // save modelElement.visualizer JSON in indexedDB
-        // open visualizer/editor window
-        // and add message handler to receive updates from editor
-        StoredObjects.setPassedJSON(modelElement.visualizer.toJSON())
+        // save modelElement.visualizer JSON in indexedDB,
+        // then add message handler to receive updates from editor
+        StoredObjects.setPassedJSON(modelElement.visualizer ?? modelElement.viewElement?.toJSON())
             .then(() => {
-                otherWin.addEventListener('message', (messageEvent) => {
+                window.addEventListener('message', (messageEvent) => {
                     Log.debug('SheetModelEditor received msg', messageEvent.data)
                     if (messageEvent.data != null) {
-                        modelElement.visualizer.fromJSON(messageEvent.data.json)
-                        modelElement.redraw()
-                        if (modelElement instanceof SheetModel.CDElement) {
-                            modelElement.markDirty()  // mark model element 'dirty'
-                        }
+                        modelElement.visualizer = messageEvent.data.json
+                        modelElement.viewElement?.applyJSON(modelElement.visualizer)
                     }
                  })
              })

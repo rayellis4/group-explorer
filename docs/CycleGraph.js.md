@@ -8,6 +8,7 @@ import * as Heading from './Heading.js'
 import * as HighlightControl from './HighlightControl.js';
 import * as Library from './Library.js'
 import * as SheetEditor from './SheetEditor.js'
+import * as Log from './Log.js'
 
 export {load}
 
@@ -60,8 +61,12 @@ async function load () {
    HighlightControl.addControl(highlightControlElement, cycleGraphModel)
 
    // Initialize CycleGraph model, change broadcast if editing a sheet
-   if (initialJSON != null) {  // window.location.href.includes('SheetEditor=true')) {
-      cycleGraphModel.fromJSON(initialJSON)
+   if (window.location.href.includes('SheetEditor=true')) {
+      if (initialJSON != null) {
+         cycleGraphModel.fromJSON(initialJSON)
+      } else {
+         Log.warn('CycleGraph: SheetEditor mode but no initial JSON in IndexedDB')
+      }
 
       SheetEditor.enableChangeBroadcast(() => {
          return cycleGraphModel.toJSON()

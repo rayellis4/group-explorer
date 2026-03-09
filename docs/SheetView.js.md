@@ -529,6 +529,15 @@ export class CGView extends VisualizerView {
       this.redraw()
    }
 
+  toJSON () {
+    return this.cgViewModel.model.toJSON()
+  }
+
+  applyJSON (json) {
+    this.cgViewModel.model.fromJSON(json)
+    this.redraw()
+  }
+
   redraw () {
     super.redraw()
 
@@ -553,6 +562,15 @@ export class MTView extends VisualizerView {
       this.mtViewModel = mtViewModel
       this.redraw()
    }
+
+  toJSON () {
+    return this.mtViewModel.model.toJSON()
+  }
+
+  applyJSON (json) {
+    this.mtViewModel.model.fromJSON(json)
+    this.redraw()
+  }
 
   redraw () {
     super.redraw()

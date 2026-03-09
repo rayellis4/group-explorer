@@ -35,6 +35,7 @@
 import * as GEUtils from './GEUtils.js'
 import * as Model from './SheetModel.js'
 import * as View from './SheetView.js'
+import {TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor} from './SheetModelEditors.js'
 import {
    makeDetachedMenu,
    makeDialog
@@ -212,7 +213,7 @@ class SheetEventUI {
             if (modelElement == null) {
                View.redrawAll()
             } else if (modelElement.isLink) {
-               modelElement.getEditor(event)
+               this.getEditor(modelElement, event)
             } else if (modelElement.isNode) {
                this.makeContextMenu(modelElement, event)
             }
@@ -224,7 +225,7 @@ class SheetEventUI {
       const contextMenuHTML = [
          `<ul id="element-context-menu" data-action="() => void 0">
          <li data-action="this.resizeElement(modelElement)">Resize</li>
-         <li data-action="modelElement.getEditor(event)">Edit</li>`,
+         <li data-action="this.getEditor(modelElement, event)">Edit</li>`,
          (modelElement.isVisualizer)
             ? '<li data-action="openInfo()">Group Info</li>'
             : '',
@@ -309,6 +310,16 @@ class SheetEventUI {
          els.forEach((el) => el.viewElement?.redraw())
          this.#redrawTimer = null
       }, 250, allVisualizerElements)
+   }
+
+   getEditor (modelElement, event) {
+      if (modelElement.isVisualizer) {
+         new RemoteEditor(modelElement)
+      } else if (modelElement.className === 'ConnectingElement' || modelElement.className === 'MorphismElement') {
+         new (modelElement.className === 'MorphismElement' ? MorphismEditor : ConnectionEditor)(modelElement, event)
+      } else {
+         new TextEditor(modelElement, event)  // TextElement and RectangleElement
+      }
    }
 
    moveForward (modelElement) {
@@ -408,10 +419,10 @@ class SheetEventUI {
                   const linkJson = { sourceId: source.id, destinationId: destination.id }
                   const link = this.viewModel.addObjectAsElement(linkJson, linkType)
 
-                  // TODO: link.getEditor(editPosition) -- needs SheetModelEditors
-                  // const editPosition = source.viewElement.center
-                  //    .add(destination.viewElement.center)
-                  //    .multiplyScalar(0.5).toWindowUnits()
+                  const editPosition = source.viewElement.center
+                     .add(destination.viewElement.center)
+                     .multiplyScalar(0.5).toWindowUnits()
+                  this.getEditor(link, editPosition)
                }
             }
          }

@@ -44,7 +44,7 @@ function enableChangeBroadcast (jsonGenerator) {
                json: currentJson,
             };
             Log.debug(`message posted: ${currentJsonString}`)
-            window.postMessage(msg, new URL(window.location.href).origin)
+            window.opener?.postMessage(msg, new URL(window.location.href).origin)
          }
       }
 

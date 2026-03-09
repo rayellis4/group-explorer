@@ -184,7 +184,7 @@ class VisualizerElement extends NodeElement {
    isVisualizer = true
 
    toJSON () {
-      return {...super.toJSON(), groupURL: this.group.URL, visualizer: this.visualizer}
+      return {...super.toJSON(), groupURL: this.group.URL, visualizer: this.visualizer ?? this.viewElement?.toJSON()}
    }
 
    fromJSON (jsonObject) {
@@ -224,10 +224,11 @@ class LinkElement extends SheetElement {
       this.source = this.model.sheetElements.get(jsonObject.sourceId)
       this.destination = this.model.sheetElements.get(jsonObject.destinationId)
 
-      if (!this.model.canConnect(this.className, this.source, this.destination)) {
+      if (   this.model.sheetElements.get(this.id) !== this
+          && !this.model.canConnect(this.className, this.source, this.destination)) {
          throw new Error(`SheetViewModel.addElement: improper ${this.className} ` +
             `between ${this.source.id} and ${this.destination.id}`)
-      }      
+      }
 
       return this
    }
@@ -245,7 +246,7 @@ class ConnectingElement extends LinkElement {
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
-      this.thickness = jsonObject.thickness ?? this.thickness4
+      this.thickness = jsonObject.thickness ?? this.thickness
       this.color = jsonObject.color ?? this.color
       this.hasArrowhead = jsonObject.hasArrowhead ?? this.hasArrowhead
       return this

@@ -82,6 +82,10 @@ class SheetViewModel /*: Updatable */ {
          },
          configurable: true,
       })
+      Object.defineProperty(element, 'destroy', {
+         value: () => this.removeElement(element),
+         configurable: true,
+      })
       this.modelElements.set(element.id, element)
       this.view?.addElement(element)
    }

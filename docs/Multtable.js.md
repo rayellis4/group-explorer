@@ -9,6 +9,7 @@ import * as MulttableControl from './MulttableControl.js'
 import {MulttableModel} from'./MulttableModel.js'
 import {createInteractiveMulttableView} from './MulttableView.js'
 import * as SheetEditor from './SheetEditor.js'
+import * as Log from './Log.js'
 
 export {load}
 
@@ -64,8 +65,12 @@ async function load () {
    MulttableControl.addControl(tableControlElement, multtableModel)  // Initializes Multtable Controller directly
 
    // Initialize Multtable model, change broadcast if editing a sheet
-   if (initialJSON != null) {  // window.location.href.includes('SheetEditor=true')) {
-      multtableModel.fromJSON(initialJSON)
+   if (window.location.href.includes('SheetEditor=true')) {
+      if (initialJSON != null) {
+         multtableModel.fromJSON(initialJSON)
+      } else {
+         Log.warn('Multtable: SheetEditor mode but no initial JSON in IndexedDB')
+      }
 
       SheetEditor.enableChangeBroadcast(() => {
          return multtableModel.toJSON()
