@@ -285,16 +285,14 @@ function createModelProxy/*:: <T: Object> */ (
    function notifySubscribers (subscriptionMap /*: SubscriptionMap */, property /*: string */, value /*: any */) {
       const subscriptions = subscriptionMap.get(property)
       if (subscriptions?.length) {
-         window.setTimeout(() => {
-            for (let inx = subscriptions.length - 1; inx >= 0; inx--) {
-               const subscriber = subscriptions[inx].subscriber.deref()
-               if (subscriber == null) {
-                  subscriptions.splice(inx, 1)
-               } else {
-                  subscriber.update(property, value)
-               }
+         for (let inx = subscriptions.length - 1; inx >= 0; inx--) {
+            const subscriber = subscriptions[inx].subscriber.deref()
+            if (subscriber == null) {
+               subscriptions.splice(inx, 1)
+            } else {
+               subscriber.update(property, value)
             }
-         }, 0)
+         }
       }
    }
 }

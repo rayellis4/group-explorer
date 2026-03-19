@@ -4,31 +4,57 @@
 
 ```javascript
  */
-import {BitSet} from './BitSet.js';
-import * as GEUtils from './GEUtils.js';
-import * as Library from './Library.js'
-
-// $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from '../lib/externals.js';
-import {CayleyDiagramView} from './CayleyDiagramView.js'
+import {BitSet} from './BitSet.js';
 
 export {
    DIRECTION_INDEX,
    AXIS_NAME,
-   createCayleyDiagramGenerator,
+   ARROW_COLORS,
+   layoutCayleyDiagram,
+   getDefaultStrategies
 }
 /*::
 import type {Tree} from './GEUtils.js';
 import XMLGroup from './XMLGroup.js';
 import type {XMLCayleyDiagram} from './XMLGroup.js';
 import type {NodeData, ArrowData, ChunkData} from './CayleyDiagramView.js';
-import {CayleyDiagramGenerator} from './CayleyDiagramView.js';
 
 export type Layout = 'linear' | 'circular' | 'rotated';
 type LineDirection = 'X' | 'Y' | 'Z';
 type PlaneDirection = 'YZ' | 'XZ' | 'XY';
 export type Direction = LineDirection | PlaneDirection;
 export type StrategyParameters = {generator: groupElement, layout: Layout, direction: Direction, nestingLevel: number};
+export type ArrowGenerator = {generator: groupElement, color: color}
+
+type NodeType = {
+   position: THREE.Vector3,
+   element: groupElement,
+   label: html,
+   color: color
+}
+type ArrowType = {
+   start_node: NodeType,
+   end_node: NodeType,
+   generator: groupElement,
+   bidirectional: boolean,
+   thirdPoint: THREE.Vector3
+   keepCurved: boolean,
+   offset: number,
+   color: color
+}
+type ChunkType = {
+   box: THREE.Matrix4,
+   name: html,
+   widths: THREE.Vector3,
+   nodes: Array<NodeType>
+}
+type Layout = {
+   pov: { position: THREE.Vector3, up: THREE.Vector3 },
+   nodes: Array<NodeType>,
+   arrows: Array<ArrowType>,
+   chunks: Array<ChunkType>
+}
 */
 
 const DEFAULT_ARC_OFFSET = 0.15
@@ -37,682 +63,439 @@ const DIRECTION_INDEX = { X: 0, Y: 1, Z: 2, YZ: 0, XZ: 1, XY: 2 };
 const AXIS_NAME = ['X', 'Y', 'Z'];
 const ARROW_COLORS = ['#5c0e55', '#0b3864', '#552d00', '#004100', '#0d0db0', '#750000']
 
-function createCayleyDiagramGenerator (options) {
-   const cayleyDiagramView = new CayleyDiagramView(options)
-   return new CayleyGenerator(cayleyDiagramView)
+function layoutCayleyDiagram (
+   group /*: Group */,
+   nameOrStrategies /*: void | string | Array<StrategyParameters> */,
+   arrowGenerators /*: ?Array<ArrowGenerator> */,
+   rightMultiply /*: ?boolean */,
+   chunkSubgroupIndex /*: ?number */
+) /*: Layout */ {
+   if (nameOrStrategies == null) {
+      return drawDefault(group)
+   } else if (typeof nameOrStrategies == 'string') {
+      return drawDiagram(group, nameOrStrategies, arrowGenerators, rightMultiply)
+   } else {
+      return drawFromStrategy(group, nameOrStrategies, arrowGenerators, rightMultiply, chunkSubgroupIndex)
+   }
 }
 
-class CayleyGenerator {
-   cayleyDiagramView
-   #group
-   arrowGenerators
-   arrows
-   #chunk
-   chunkTree
-   #diagramName
-   #rightMultiply
-   strategies
-   #strategyParameters
+function getDefaultStrategies (group /*: Group */) /*: Array<StrategyParameters> */ {
+   return generateStrategy(group)
+}
 
-   constructor (cayleyDiagramView) {
-      this.cayleyDiagramView = cayleyDiagramView
-      this.clearAll()
+function drawDefault (group) {
+   if (group.elements.length == 1) {
+      const nodes = [{position: new THREE.Vector3(), element: 0, label: group.representation[0]}]
+      const chunkTree = new Chunk(nodes, null)
+      return makeLayout(chunkTree, [], true)
    }
 
-   get chunk () {
-      return this.#chunk
+   const strategyParameters = generateStrategy(group)
+   const strategies = strategyParameters.map(
+      ({generator, layout, direction, nestingLevel}) =>
+         new STRATEGY_BY_LAYOUT[layout](generator, direction, nestingLevel)
+   )
+
+   const chunkTree = generateTree(group, strategies)
+   chunkTree.strategy.layoutChunk(chunkTree)
+   normalizeScene(chunkTree)
+
+   const arrowGeneratorElements = strategies.map((strategy) => strategy.generator).reverse()
+   const arrows = createArrows(group, chunkTree, arrowGeneratorElements, true)
+   setArrowColors(arrows, null)
+
+   return makeLayout(chunkTree, arrows, true)
+}
+
+function drawDiagram (group, diagramName, arrowGenerators, rightMultiply = true) {
+   const cayleyDiagram = group.cayleyDiagrams.find((cd) => cd.name == diagramName)
+   const nodes = cayleyDiagram.points.map((point, element) => createNode(group, element, point))
+   const chunkTree = new Chunk(nodes, null).setPositionFromChildren()
+   const arrowGeneratorElements = (arrowGenerators == null)
+      ? cayleyDiagram.arrows
+      : arrowGenerators.map((ag) => ag.generator)
+   const arrows = createArrows(group, chunkTree, arrowGeneratorElements, rightMultiply)
+   setArrowColors(arrows, arrowGenerators)
+
+   return makeLayout(chunkTree, arrows, false)
+}
+
+function drawFromStrategy (group, strategyParameters, arrowGenerators, rightMultiply = true, chunkSubgroupIndex) {
+   if (group.elements.length == 1) {
+      const nodes = [{position: new THREE.Vector3(), element: 0, label: group.representation[0]}]
+      const chunkTree = new Chunk(nodes, null)
+      return makeLayout(chunkTree, [], true)
    }
 
-   set chunk (chunk) {
-      this.#chunk = chunk
-      this.cayleyDiagramView.createChunks(this.createChunks())
-   }
+   const strategies = strategyParameters.map(
+      ({generator, layout, direction, nestingLevel}) =>
+         new STRATEGY_BY_LAYOUT[layout](generator, direction, nestingLevel)
+   )
 
-   get diagramName () {
-      return this.#diagramName
-   }
+   const chunkTree = generateTree(group, strategies)
+   chunkTree.strategy.layoutChunk(chunkTree)
+   normalizeScene(chunkTree)
 
-   set diagramName (diagramName /*: string */) {
-      this.clearAll()
+   const arrowGeneratorElements = (arrowGenerators == null)
+      ? strategies.map((strategy) => strategy.generator).reverse()
+      : arrowGenerators.map((ag) => ag.generator)
 
-      this.#diagramName = diagramName
-      const cayleyDiagram =
-         ((this.group.cayleyDiagrams.find((cd) => cd.name == diagramName) /*: any */) /*: XMLCayleyDiagram */)
-      const nodes = cayleyDiagram.points.map((point, element) => createNode(this.group, element, point))
-      this.chunkTree = new Chunk(nodes, null).setPositionFromChildren()
-      this.arrowGenerators = cayleyDiagram.arrows
-      this.arrows = this.createArrows(this.arrowGenerators)
-   }
+   const arrows = createArrows(group, chunkTree, arrowGeneratorElements, rightMultiply)
+   setArrowColors(arrows, arrowGenerators)
 
-   get generatesFromStrategy () {
-      return this.#strategyParameters != null
-   }
+   const chunks = createChunks(group, chunkTree, chunkSubgroupIndex)
+   return { pov: getPOV(chunkTree, true), nodes: chunkTree.allChildNodes, arrows, chunks }
+}
 
-   get group () {
-      return this.#group
-   }
+function makeLayout (chunkTree, arrows, generatesFromStrategy) {
+   return { pov: getPOV(chunkTree, generatesFromStrategy), nodes: chunkTree.allChildNodes, arrows }
+}
 
-   set group (group) {
-      this.#group = group
-      this.cayleyDiagramView.group = group
-   }
-
-   get nodes () {
-      return this.chunkTree.allChildNodes.sort((a, b) => a.element - b.element)
-   }
-
-   get rightMultiply () {
-      return this.#rightMultiply
-   }
-
-   set rightMultiply (rightMultiply) {
-      if (this.#rightMultiply != rightMultiply) {
-         this.#rightMultiply = rightMultiply
-         this.cayleyDiagramView.removeArrows()
-         this.arrows = []
-         this.arrows = this.createArrows(this.arrowGenerators)
-         this.cayleyDiagramView.addArrows(this.arrows)
+/*
+ * Position the camera and point it at the center of the scene
+ *
+ * Camera positioned to match point of view in GE2 for user-specified (not generated) diagrams:
+ *   If diagram lies entirely in the y-z plane (all x == 0)
+ *     place camera on x-axis, y-axis up (z-axis to the left)
+ *   If diagram lies entirely in the x-z plane (all y == 0)
+ *     place camera on y-axis, z-axis down (x-axis to the right)
+ *   If diagram lies entirely in the x-y plane (all z == 0)
+ *     place camera on z-axis, y-axis up (x-axis to the right)
+ *   Otherwise place camera with y-axis up, offset a bit from
+ *     the (1,1,1) vector so that opposite corners don't line up
+ *     and make cubes look flat; look at origin, and adjust camera
+ *     distance so that diagram fills field of view
+ */
+function getPOV (chunkTree, generatesFromStrategy) {
+   const pov = {position: new THREE.Vector3(), up: new THREE.Vector3()}
+   const nodePositions = chunkTree.allChildNodes.map((node) => node.position)
+   if (generatesFromStrategy) {
+      // GE3 3.6 defaults for generated layout
+      if (nodePositions.every((position) => position.x == 0.0)) {
+         pov.position.set(3, 0, 0)
+         pov.up.set(0, -1, 0)
+      } else if (nodePositions.every((position) => position.y == 0.0)) {
+         pov.position.set(0, -3, 0)
+         pov.up.set(0, 0, 1)
+      } else if (nodePositions.every( (position) => position.z == 0.0 )) {
+         pov.position.set(0, 0, -3)
+         pov.up.set(0, -1, 0)
+      } else {
+         pov.position.set(1.7, -1.6, -1.9)
+         pov.up.set(0, -1, 0)
       }
-   }
-
-   get strategyParameters () {
-      return this.#strategyParameters
-   }
-
-   set strategyParameters (strategyParameters) {
-      this.clearAll()
-
-      // Special case Trivial group -- might harden code and revisit this
-      if (this.group.elements.length == 1) {
-         const nodes = [{position: new THREE.Vector3(), element: 0, label: this.group.representation[0]}]
-         this.chunkTree = new Chunk(nodes, null)
-         this.draw()
-         return
-      }
-
-      this.#strategyParameters = strategyParameters || generateStrategy(this.group)
-
-      // create strategies from strategy parameters
-      this.strategies = this.strategyParameters.map(
-         ({generator, layout, direction, nestingLevel}) =>
-            new STRATEGY_BY_LAYOUT[layout](generator, direction, nestingLevel)
-      )
-
-      // make node tree according to generators and sort by nesting level
-      this.chunkTree = generateTree(this.group, this.strategies)
-
-      // layout nodes and normalize figure
-      this.chunkTree.strategy.layoutChunk(this.chunkTree)
-      normalizeScene(this.chunkTree)
-
-      // get generators for arrows
-      this.arrowGenerators = this.strategies.map((strategy) => strategy.generator).reverse()
-      this.arrows = this.createArrows(this.arrowGenerators)
-   }
-
-   clearAll () {
-      this.arrowGenerators = []
-      this.arrows = []
-      this.#chunk = null
-      this.chunkTree = null
-      this.#diagramName = null
-      this.#rightMultiply = true
-      this.strategies = null
-      this.#strategyParameters = null
-   }
-
-   draw (pov = this.getPOV()) {
-      this.cayleyDiagramView.drawFromModel(pov, this.chunkTree.allChildNodes, this.arrows)
-   }
-
-   /*
-    * Position the camera and point it at the center of the scene
-    *
-    * Camera positioned to match point of view in GE2:
-    *   If diagram is generated by GE:
-    *     If diagram lies entirely in y-z plane (all x == 0)
-    *       place camera on x-axis, z-axis to the right, y-axis pointing down
-    *     Else if diagram lies entirely in the x-z plane (all y == 0)
-    *       place camera on negative y-axis, x-axis to the right, z-axis pointing up
-    *     Else if diagram lies entirely in the x-y plane (all z == 0)
-    *       place camera on negative z-axis, x-axis to the right, y-axis pointing down
-    *     Else place camera with y-axis down, offset a bit from the (1, -1, -1) vector
-    *       (so that opposite corners don't line up and make cubes look flat)
-    *   Else (diagram is specified in .group file)
-    *     Use AbstractDiagramDisplay.setCamera (shared with SymmetryObjectDisplay)
-    */
-   getPOV () {
-      const pov = {position: new THREE.Vector3(), up: new THREE.Vector3()}
-      const nodePositions = this.chunkTree.allChildNodes.map((node) => node.position)
-      if (this.generatesFromStrategy) {
-         // GE3 3.6 defaults for generated layout
-         if (nodePositions.every((position) => position.x == 0.0)) {
-            pov.position.set(3, 0, 0)
-            pov.up.set(0, -1, 0)
-         } else if (nodePositions.every((position) => position.y == 0.0)) {
+      // use GE2 defaults, if configured
+      if (localStorage.getItem('POV') == 'GE2') {
+         if (nodePositions.every( (position) => position.y == 0.0 )) {
             pov.position.set(0, -3, 0)
             pov.up.set(0, 0, 1)
-         } else if (nodePositions.every( (position) => position.z == 0.0 )) {
-            pov.position.set(0, 0, -3)
-            pov.up.set(0, -1, 0)
-         } else {
-            pov.position.set(1.7, -1.6, -1.9)
-            pov.up.set(0, -1, 0)
-         }
-         // use GE2 defaults, if configured
-         if (localStorage.getItem('POV') == 'GE2') {
-            if (nodePositions.every( (position) => position.y == 0.0 )) {
-               pov.position.set(0, -3, 0)
-               pov.up.set(0, 0, 1)
-            } else if (nodePositions.every( (position) => position.x == 0.0 )) {
-               pov.position.set(3, 0, 0)
-               pov.up.set(0, -1, 0)
-            }
-         }
-      } else {
-         // Position for manual layout
-         if (nodePositions.every((position) => position.x == 0.0)) {
+         } else if (nodePositions.every( (position) => position.x == 0.0 )) {
             pov.position.set(3, 0, 0)
-            pov.up.set(0, 1, 0)
-         } else if (nodePositions.every((position) => position.y == 0.0)) {
-            pov.position.set(0, 3, 0)
-            pov.up.set(0, 0, -1)
-         } else if (nodePositions.every((position) => position.z == 0.0)) {
-            pov.position.set(0, 0, 3)
-            pov.up.set(0, 1, 0)
-         } else {
-            pov.position.set(1.7, 1.6, 1.9)
-            pov.up.set(0, 1, 0)
+            pov.up.set(0, -1, 0)
          }
       }
-
-      const radius = getRadius(new THREE.Vector3(), this.chunkTree.allChildNodes) || 1  // zero radius, one element
-      pov.position.multiplyScalar(radius)
-
-      return pov
-   }
-
-   drawFromModel (model) {
-      if (typeof model == 'string') {
-         this.diagramName = model
+   } else {
+      // Position for manual layout
+      if (nodePositions.every((position) => position.x == 0.0)) {
+         pov.position.set(3, 0, 0)
+         pov.up.set(0, 1, 0)
+      } else if (nodePositions.every((position) => position.y == 0.0)) {
+         pov.position.set(0, 3, 0)
+         pov.up.set(0, 0, -1)
+      } else if (nodePositions.every((position) => position.z == 0.0)) {
+         pov.position.set(0, 0, 3)
+         pov.up.set(0, 1, 0)
       } else {
-         this.strategyParameters = model
-      }
-      this.draw()
-   }
-
-   addArrow (element) {
-      if (!this.arrowGenerators.includes(element)) {
-         const newArrows = this.createArrows([element])
-         this.cayleyDiagramView.addArrows(newArrows)
-         this.arrowGenerators.push(element)
-         this.arrows.push(...newArrows)
+         pov.position.set(1.7, 1.6, 1.9)
+         pov.up.set(0, 1, 0)
       }
    }
 
-   removeArrow (element) {
-      if (this.arrowGenerators.includes(element)) {
-         this.arrowGenerators = this.arrowGenerators.filter((arrowGenerator) => arrowGenerator != element)
-         this.arrows = this.arrows.filter((arrow) => arrow.generator != element)
-         this.cayleyDiagramView.removeArrows([element])
+   const radius = getRadius(new THREE.Vector3(), chunkTree.allChildNodes) || 1  // zero radius, one element
+   pov.position.multiplyScalar(radius)
+
+   return pov
+}
+
+function setArrowColors (arrows, passedArrowGenerators) {
+   if (passedArrowGenerators == null) {
+      const arrowColors = [...ARROW_COLORS]
+      const coloredGeneratorMap = new Map()
+      arrows.forEach((arrow) => {
+         arrow.color = coloredGeneratorMap.get(arrow.generator)
+         if (arrow.color == null) {
+            arrow.color = arrowColors.pop()
+            coloredGeneratorMap.set(arrow.generator, arrow.color)
+         }
+      })
+   } else {
+      const arrowGeneratorMap =
+         new Map(passedArrowGenerators.map((arrowGenerator) => [arrowGenerator.generator, arrowGenerator]))
+      arrows.forEach((arrow) => arrow.color = arrowGeneratorMap.get(arrow.generator).color)
+   }
+}
+
+function createChunks (group, chunkTree, chunkSubgroupIndex) {
+   if (chunkSubgroupIndex == null) {
+      return []
+   }
+
+   const findChunksByStrategy = (strategy, chunk = chunkTree) => {
+      if (chunk.strategy == strategy) {
+         return [chunk]
+      } else {
+         return chunk.children.map((child) => findChunksByStrategy(strategy, child)).flat(2)
       }
    }
 
-   createArrows (generators /*: Array<element> */) /*: Array<ArrowData> */ {
-      const areColinear = (position1, position2, position3) => {
-         const v1 = new THREE.Vector3().subVectors(position1, position2)
-         const v2 = new THREE.Vector3().subVectors(position1, position3)
-         return new THREE.Vector3().crossVectors(v1, v2).length() < 1.0e-6
+   const findChunksBySubgroupIndex = (subgroupIndex, chunk = chunkTree) => {
+      if (!chunk.isChunk || chunk.strategy?.elements == null) {
+         return []
+      } else if (chunk.strategy.elements.equals(group.subgroups[subgroupIndex].members)) {
+         return findChunksByStrategy(chunk.strategy)
+      } else {
+         return findChunksBySubgroupIndex(subgroupIndex, chunk.children[0])
       }
+   }
 
-      const isCurved = (startNode /*: NodeData */, endNode /*: NodeData */) /*: boolean? */ => {
-         const commonChunk = getCommonChunk(startNode, endNode)
-         let drawCurved = commonChunk.strategy instanceof CurvedLayoutStrategy
-            && !areColinear(commonChunk.position, startNode.position, endNode.position)
+   const chunks = findChunksBySubgroupIndex(chunkSubgroupIndex)
 
-         // straight line between two non-adjacent nodes on the inner circle of dihedral-like display
-         const leftBoundary = commonChunk.leftBoundary
-         if (  drawCurved
-            && leftBoundary.length == 2
-            && leftBoundary[1].strategy instanceof LinearLayoutStrategy
-            && leftBoundary[1].children.length == 2
+   const chunkData = chunks.map((chunk) => {
+      const allChildNodes = chunk.allChildNodes
+      const chunkData = {
+         name: allChildNodes[0].label + `<i>H</i><sub>${chunkSubgroupIndex}</sub>`,
+         box: chunk.transformedChunkBox,
+         widths: chunk.originalChunkSize,
+         nodes: allChildNodes,
+      }
+      return chunkData
+   })
+
+   return chunkData
+}
+
+function createArrows (group, chunkTree, generators /*: Array<element> */, rightMultiply) /*: Array<ArrowData> */ {
+   const areColinear = (position1, position2, position3) => {
+      const v1 = new THREE.Vector3().subVectors(position1, position2)
+      const v2 = new THREE.Vector3().subVectors(position1, position3)
+      return new THREE.Vector3().crossVectors(v1, v2).length() < 1.0e-6
+   }
+
+   const isCurved = (startNode /*: NodeData */, endNode /*: NodeData */) /*: boolean? */ => {
+      const commonChunk = getCommonChunk(startNode, endNode)
+      let drawCurved = commonChunk.strategy instanceof CurvedLayoutStrategy
+         && !areColinear(commonChunk.position, startNode.position, endNode.position)
+
+      // straight line between two non-adjacent nodes on the inner circle of dihedral-like display
+      const leftBoundary = commonChunk.leftBoundary
+      if (  drawCurved
+         && leftBoundary.length == 2
+         && leftBoundary[1].strategy instanceof LinearLayoutStrategy
+         && leftBoundary[1].children.length == 2
+      ) {
+         const startNodeParentIndex = commonChunk.children.findIndex((chunk) => chunk.children.some((node) => node == startNode))
+         const endNodeParentIndex = commonChunk.children.findIndex((chunk) => chunk.children.some((node) => node == endNode))
+         if (  commonChunk.children[startNodeParentIndex].children[1] == startNode
+            && commonChunk.children[endNodeParentIndex].children[1] == endNode
+            && Math.abs(startNodeParentIndex - endNodeParentIndex) != 1
+            && Math.abs(startNodeParentIndex - endNodeParentIndex) != commonChunk.children.length - 1
          ) {
-            const startNodeParentIndex = commonChunk.children.findIndex((chunk) => chunk.children.some((node) => node == startNode))
-            const endNodeParentIndex = commonChunk.children.findIndex((chunk) => chunk.children.some((node) => node == endNode))
-            if (  commonChunk.children[startNodeParentIndex].children[1] == startNode
-               && commonChunk.children[endNodeParentIndex].children[1] == endNode
-               && Math.abs(startNodeParentIndex - endNodeParentIndex) != 1
-               && Math.abs(startNodeParentIndex - endNodeParentIndex) != commonChunk.children.length - 1
-            ) {
-               drawCurved = false
+            drawCurved = false
+         }
+      }
+
+      return drawCurved
+   }
+
+   // find lowest chunk in tree containing both nodes
+   const getCommonChunk = (node1, node2) => {
+      const ancestry1 = chunkTree.getNodeAncestry(node1)
+      const ancestry2 = chunkTree.getNodeAncestry(node2)
+      for (let inx = 0; inx < ancestry1.length; inx++) {
+         if (ancestry1[inx] == ancestry2[inx]) {
+            return ancestry1[inx]
+         }
+      }
+      return null
+   }
+
+   const getThirdPointForLinearLayoutStrategy = (node1, node2) => {
+      const ancestry = chunkTree.getNodeAncestry(node1)
+      const commonChunk = getCommonChunk(node1, node2)
+      const chunkIndex = ancestry.findIndex((chunk) => chunk == commonChunk)
+
+      // look past colinear lines: they don't help to determine the display plane
+      let child = null
+      for (let inx = chunkIndex - 1; inx >= 0; inx--) {
+         const maybeChild = ancestry[inx]
+         if (   !maybeChild.strategy instanceof LinearLayoutStrategy
+            || maybeChild.strategy.direction != commonChunk.strategy.direction) {
+               child = maybeChild
+               break
+            }
+      }
+
+      let parent = null
+      for (let inx = chunkIndex + 1; inx < ancestry.length; inx++) {
+         const maybeParent = ancestry[inx]
+         if (   !maybeParent.strategy instanceof LinearLayoutStrategy
+            || maybeParent.strategy.direction != commonChunk.strategy.direction) {
+               parent = maybeParent
+               break
+            }
+      }
+
+      // child generally determines the display plane for a line
+      const thirdPoint = (child != null)
+         ? getThirdPointFromCombinedChunks(child, commonChunk, node1, node2)
+         : (parent != null)
+            ? getThirdPointFromCombinedChunks(parent, commonChunk, node1, node2)
+            : getThirdPointForSingleLine(commonChunk)  // no parent or child, just generate a default
+
+      return thirdPoint
+   }
+
+   const getThirdPointFromCombinedChunks = (otherChunk, commonChunk, node1, node2) => {
+      const commonChunkDirectionIndex = DIRECTION_INDEX[commonChunk.strategy.direction]
+      const otherChunkDirectionIndex = DIRECTION_INDEX[otherChunk.strategy.direction]
+
+      let thirdPoint
+      if (otherChunk.strategy instanceof CurvedLayoutStrategy) {              //   line of rings, ring of lines
+         if (commonChunkDirectionIndex == otherChunkDirectionIndex) {         //     line is normal to other chunk
+            thirdPoint = new THREE.Vector3()
+         } else {                                                             //     line is coplanar with other chunk
+            thirdPoint = otherChunk.position
+
+            if (areColinear(otherChunk.position, node1.position, node2.position)) {
+               const chunkNormal = new THREE.Vector3()
+                  .setFromMatrixColumn(otherChunk.transformedChunkBox, DIRECTION_INDEX[otherChunk.strategy.direction])
+               thirdPoint = getThirdPointFromNormalAndEndpoints(chunkNormal, node1.position, node2.position)
             }
          }
-
-         return drawCurved
+      } else {                                                                 //   line of (orthogonal) lines
+         const remainingDirectionIndex = 3 - (commonChunkDirectionIndex + otherChunkDirectionIndex)
+         const planeNormal = new THREE.Vector3()
+            .setFromMatrixColumn(otherChunk.transformedChunkBox, remainingDirectionIndex)
+         thirdPoint = getThirdPointFromNormalAndEndpoints(planeNormal, node1.position, node2.position)
       }
 
-      // find lowest chunk in tree containing both nodes
-      const getCommonChunk = (node1, node2) => {
-         const ancestry1 = this.chunkTree.getNodeAncestry(node1)
-         const ancestry2 = this.chunkTree.getNodeAncestry(node2)
-         for (let inx = 0; inx < ancestry1.length; inx++) {
-            if (ancestry1[inx] == ancestry2[inx]) {
-               return ancestry1[inx]
-            }
+      return thirdPoint
+   }
+
+   const getThirdPointFromNormalAndEndpoints = (normal, position1, position2) => {
+      const inPlane = position1.clone().sub(position2).cross(normal)
+      const midPoint = position1.clone().add(position2).multiplyScalar(0.5)
+      const dotProduct = midPoint.dot(inPlane)
+
+      const thirdPoint = inPlane
+         .add(midPoint)
+         .multiplyScalar((Math.abs(dotProduct) > 1.e-6 && dotProduct > 0) ? -1 : 1)  // let arrows bow away from center
+
+      return thirdPoint
+   }
+
+   const areCoplanar = (normal, point1, point2) => {
+      const result = point1.clone().sub(point2).dot(normal) < 1.e-6
+      return result
+   }
+
+   const getThirdPointForCurvedLayoutStrategy = (node1, node2) => {
+      const position1 = node1.position
+      const position2 = node2.position
+      const commonChunk = getCommonChunk(node1, node2)
+      const commonChunkNormal = new THREE.Vector3()
+         .setFromMatrixColumn(commonChunk.transformedChunkBox, DIRECTION_INDEX[commonChunk.strategy.direction])
+         .normalize()
+      const commonPlane =
+         new THREE.Plane().setFromCoplanarPoints(commonChunk.position, position1, position2)
+      const commonPlaneNormal = commonPlane.normal
+
+      let thirdPoint = commonChunk.position
+
+      if (new THREE.Vector3().crossVectors(commonChunkNormal, commonPlaneNormal).length() > 1.e-6) {
+         // chunkNormal and commonPlaneNormal aren't parallel (|A X B| > 0)
+         // see if there is plane normal to chunkNormal that contains both node1 and node2
+         if (areCoplanar(commonChunkNormal, position1, position2)) {
+            // find point at which commonChunkNormal intersects this plane
+            const centroid = commonChunk.children
+               .reduce((centroid, child) => centroid.add(child.position), new THREE.Vector3())
+               .multiplyScalar(1 / commonChunk.children.length)
+            const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(commonChunkNormal, position1)
+            thirdPoint = plane.projectPoint(centroid, new THREE.Vector3())
          }
-         return null
       }
 
-      const getThirdPointForLinearLayoutStrategy = (node1, node2) => {
-         const ancestry = this.chunkTree.getNodeAncestry(node1)
-         const commonChunk = getCommonChunk(node1, node2)
-         const chunkIndex = ancestry.findIndex((chunk) => chunk == commonChunk)
-
-         // look past colinear lines: they don't help to determine the display plane
-         let child = null
-         for (let inx = chunkIndex - 1; inx >= 0; inx--) {
-            const maybeChild = ancestry[inx]
-            if (   !maybeChild.strategy instanceof LinearLayoutStrategy
-               || maybeChild.strategy.direction != commonChunk.strategy.direction) {
-                  child = maybeChild
-                  break
-               }
-         }
-
-         let parent = null
-         for (let inx = chunkIndex + 1; inx < ancestry.length; inx++) {
-            const maybeParent = ancestry[inx]
-            if (   !maybeParent.strategy instanceof LinearLayoutStrategy
-               || maybeParent.strategy.direction != commonChunk.strategy.direction) {
-                  parent = maybeParent
-                  break
-               }
-         }
-
-         // child generally determines the display plane for a line
-         const thirdPoint = (child != null)
-            ? getThirdPointFromCombinedChunks(child, commonChunk, node1, node2)
-            : (parent != null)
-               ? getThirdPointFromCombinedChunks(parent, commonChunk, node1, node2)
-               : getThirdPointForSingleLine(commonChunk)  // no parent or child, just generate a default
-
-         return thirdPoint
+      if (areColinear(thirdPoint, position1, position2)) {
+         thirdPoint = getThirdPointFromNormalAndEndpoints(commonChunkNormal, position1, position2)
       }
 
-      const getThirdPointFromCombinedChunks = (otherChunk, commonChunk, node1, node2) => {
-         const commonChunkDirectionIndex = DIRECTION_INDEX[commonChunk.strategy.direction]
-         const otherChunkDirectionIndex = DIRECTION_INDEX[otherChunk.strategy.direction]
+      return thirdPoint
+   }
 
-         let thirdPoint
-         if (otherChunk.strategy instanceof CurvedLayoutStrategy) {              //   line of rings, ring of lines
-            if (commonChunkDirectionIndex == otherChunkDirectionIndex) {         //     line is normal to other chunk
-               thirdPoint = new THREE.Vector3()
-            } else {                                                             //     line is coplanar with other chunk
-               thirdPoint = otherChunk.position
+   // this is a stand-alone line
+   const getThirdPointForSingleLine = (chunk) => {
+      let thirdPoint
 
-               if (areColinear(otherChunk.position, node1.position, node2.position)) {
-                  const chunkNormal = new THREE.Vector3()
-                     .setFromMatrixColumn(otherChunk.transformedChunkBox, DIRECTION_INDEX[otherChunk.strategy.direction])
-                  thirdPoint = getThirdPointFromNormalAndEndpoints(chunkNormal, node1.position, node2.position)
-               }
-            }
-         } else {                                                                 //   line of (orthogonal) lines
-            const remainingDirectionIndex = 3 - (commonChunkDirectionIndex + otherChunkDirectionIndex)
-            const planeNormal = new THREE.Vector3()
-               .setFromMatrixColumn(otherChunk.transformedChunkBox, remainingDirectionIndex)
-            thirdPoint = getThirdPointFromNormalAndEndpoints(planeNormal, node1.position, node2.position)
-         }
+      // deal with colinear line-of-lines case?
+      const thirdPoints = [
+         new THREE.Vector3(0, 0, -1),
+         new THREE.Vector3(0, 0, 1),
+         new THREE.Vector3(0, 1, 0)
+      ]
+      thirdPoint = thirdPoints[DIRECTION_INDEX[chunk.strategy.direction]]
 
-         return thirdPoint
-      }
-
-      const getThirdPointFromNormalAndEndpoints = (normal, position1, position2) => {
-         const inPlane = position1.clone().sub(position2).cross(normal)
-         const midPoint = position1.clone().add(position2).multiplyScalar(0.5)
-         const dotProduct = midPoint.dot(inPlane)
-
-         const thirdPoint = inPlane
-            .add(midPoint)
-            .multiplyScalar((Math.abs(dotProduct) > 1.e-6 && dotProduct > 0) ? -1 : 1)  // let arrows bow away from center
-
-         return thirdPoint
-      }
-
-      const areCoplanar = (normal, point1, point2) => {
-         const result = point1.clone().sub(point2).dot(normal) < 1.e-6
-         return result
-      }
-
-      const getThirdPointForCurvedLayoutStrategy = (node1, node2) => {
-         const position1 = node1.position
-         const position2 = node2.position
-         const commonChunk = getCommonChunk(node1, node2)
-         const commonChunkNormal = new THREE.Vector3()
-            .setFromMatrixColumn(commonChunk.transformedChunkBox, DIRECTION_INDEX[commonChunk.strategy.direction])
-            .normalize()
-         const commonPlane =
-            new THREE.Plane().setFromCoplanarPoints(commonChunk.position, position1, position2)
-         const commonPlaneNormal = commonPlane.normal
-
-         let thirdPoint = commonChunk.position
-
-         if (new THREE.Vector3().crossVectors(commonChunkNormal, commonPlaneNormal).length() > 1.e-6) {
-            // chunkNormal and commonPlaneNormal aren't parallel (|A X B| > 0)
-            // see if there is plane normal to chunkNormal that contains both node1 and node2
-            if (areCoplanar(commonChunkNormal, position1, position2)) {
-               // find point at which commonChunkNormal intersects this plane
-               const centroid = commonChunk.children
-                  .reduce((centroid, child) => centroid.add(child.position), new THREE.Vector3())
-                  .multiplyScalar(1 / commonChunk.children.length)
-               const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(commonChunkNormal, position1)
-               thirdPoint = plane.projectPoint(centroid, new THREE.Vector3())
-            }
-         }
-
-         if (areColinear(thirdPoint, position1, position2)) {
-            thirdPoint = getThirdPointFromNormalAndEndpoints(commonChunkNormal, position1, position2)
-         }
-
-         return thirdPoint
-      }
-
-      // this is a stand-alone line
-      const getThirdPointForSingleLine = (chunk) => {
-         let thirdPoint
-
-         // deal with colinear line-of-lines case?
+      if (localStorage.getItem('POV') == 'GE2') {
          const thirdPoints = [
             new THREE.Vector3(0, 0, -1),
             new THREE.Vector3(0, 0, 1),
-            new THREE.Vector3(0, 1, 0)
+            new THREE.Vector3(1, 0, 0)  //  makes z-axis vertical in XZ plane
          ]
          thirdPoint = thirdPoints[DIRECTION_INDEX[chunk.strategy.direction]]
-
-         if (localStorage.getItem('POV') == 'GE2') {
-            const thirdPoints = [
-               new THREE.Vector3(0, 0, -1),
-               new THREE.Vector3(0, 0, 1),
-               new THREE.Vector3(1, 0, 0)  //  makes z-axis vertical in XZ plane
-            ]
-            thirdPoint = thirdPoints[DIRECTION_INDEX[chunk.strategy.direction]]
-         }
-
-         return thirdPoint
       }
 
-      const getThirdPoint = (node1, node2) => {
-         // strategy == null => not generated
-         if (this.chunkTree.strategy == null) {
-            return new THREE.Vector3()
-         }
-
-         const commonChunk = getCommonChunk(node1, node2)
-         const thirdPoint = commonChunk.strategy instanceof CurvedLayoutStrategy
-            ? getThirdPointForCurvedLayoutStrategy(node1, node2)
-            : getThirdPointForLinearLayoutStrategy(node1, node2)
-
-         return thirdPoint
-      }
-
-      // make set of available colors from prescribed set and colors used by current arrows
-      const availableColors = [...ARROW_COLORS]
-      this.arrows.forEach((arrow) => {
-         if (availableColors.includes(arrow.color)) {
-            const inx = availableColors.findIndex((availableColor) => availableColor == arrow.color)
-            if (inx != -1) {
-               availableColors.splice(inx, 1)
-            }
-         }
-      })
-
-      // pop next color from available colors, or create new color from rainbow if we run out
-      const getColor = () => {
-         const nextColor = (availableColors.length == 0)
-            ? '#' + new THREE.Color(GEUtils.fromRainbow(Math.random(), 1.0, 0.2)).getHexString()
-            : availableColors.pop()
-
-         return nextColor
-      }
-
-      const nodes = this.chunkTree.allChildNodes.sort((a, b) => a.element - b.element)
-
-      const multiply = (a, b) => this.rightMultiply ? this.group.mult(a, b) : this.group.mult(b, a);
-
-      const newArrows = []
-      for (const generator of generators) {
-         const color = getColor()
-         for (const element of this.group.elements) {
-            const product = multiply(element, generator)
-            const bidirectional = (multiply(product, generator) == element)
-            if (!bidirectional || element < product) {  // test element < product so we only draw an undirected line once
-               const generatedCurved = isCurved(nodes[element], nodes[product])
-               const newArrow = {
-                  start_node: nodes[element],
-                  end_node: nodes[product],
-                  generator: generator,
-                  bidirectional: bidirectional,
-                  thirdPoint: getThirdPoint(nodes[element], nodes[product]),
-                  keepCurved: generatedCurved,
-                  offset: generatedCurved ? DEFAULT_ARC_OFFSET : undefined,  // Heuristic value
-                  color: color,
-               }
-               newArrows.push(newArrow)
-            }
-         }
-      }
-
-      return newArrows
+      return thirdPoint
    }
 
-   getChunkingChoices () {
-      let choices = []
-      if (   this.strategies[0].nesting_level == 0
-         || this.strategies[this.strategies.length - 1].nesting_level == this.strategies.length - 1
-      ) {
-         for (let inx = 0; inx < this.strategies.length; inx++) {
-            const strategy = this.strategies[inx]
-            if (strategy.nesting_level != inx) {
-               break
-            }
-            choices.push(strategy)
-         }
-
-         if (choices.length != this.strategies.length) {
-            let goodTailStart = this.strategies.length
-            for (let inx = this.strategies.length - 1; inx > 0; inx--) {
-               goodTailStart = inx
-               if (this.strategies[inx].nesting_level != inx) {
-                  break
-               }
-            }
-            for (let inx = goodTailStart; inx < this.strategies.length; inx++) {
-               choices.push(this.strategies[inx])
-            }
-         }
+   const getThirdPoint = (node1, node2) => {
+      // strategy == null => not generated
+      if (chunkTree.strategy == null) {
+         return new THREE.Vector3()
       }
 
-      return choices
+      const commonChunk = getCommonChunk(node1, node2)
+      const thirdPoint = commonChunk.strategy instanceof CurvedLayoutStrategy
+         ? getThirdPointForCurvedLayoutStrategy(node1, node2)
+         : getThirdPointForLinearLayoutStrategy(node1, node2)
+
+      return thirdPoint
    }
 
-   createChunks () {
-      if (this.chunk == 0) {
-         return []
-      }
+   const nodes = chunkTree.allChildNodes.sort((a, b) => a.element - b.element)
 
-      const findChunksByStrategy = (strategy, chunk = this.chunkTree) => {
-         if (chunk.strategy == strategy) {
-            return [chunk]
-         } else {
-            return chunk.children.map((child) => findChunksByStrategy(strategy, child)).flat(2)
-         }
-      }
+   const multiply = (a, b) => rightMultiply ? group.mult(a, b) : group.mult(b, a);
 
-      const findChunksBySubgroupIndex = (subgroupIndex, chunk = this.chunkTree) => {
-         if (chunk.strategy.elements.equals(this.group.subgroups[subgroupIndex].members)) {
-            return findChunksByStrategy(chunk.strategy)
-         } else {
-            return findChunksBySubgroupIndex(subgroupIndex, chunk.children[0])
-         }
-      }
-
-      const chunks = findChunksBySubgroupIndex(this.chunk)
-
-      const chunkData = chunks.map((chunk) => {
-         const allChildNodes = chunk.allChildNodes
-         const chunkData = {
-            name: allChildNodes[0].label + `<i>H</i><sub>${this.chunk}</sub>`,
-            box: chunk.transformedChunkBox,
-            widths: chunk.originalChunkSize,
-            nodes: allChildNodes,
-         }
-         return chunkData
-      })
-
-      return chunkData
-   }
-
-   toJSON () {
-      const json  = Object.assign( {}, {
-         background: this.cayleyDiagramView.background,
-         fog_level: this.cayleyDiagramView.fog_level,
-         line_width: this.cayleyDiagramView.line_width,
-         sphere_base_radius: this.cayleyDiagramView.sphere_base_radius,
-         sphere_scale_factor: this.cayleyDiagramView.sphere_scale_factor,
-         zoom_level: this.cayleyDiagramView.zoom_level,
-
-         arrowhead_placement: this.cayleyDiagramView.arrowhead_placement,
-         label_scale_factor: this.cayleyDiagramView.label_scale_factor,
-
-         groupURL: this.group.URL,
-         right_multiply: this.rightMultiply,
-         nodes: this.cayleyDiagramView.nodes.map( (sphere) => {
-            const {position, element, label} = sphere.userData.node
-            const {x, y, z} = position
-            return {position: {x, y, z}, element, label}
-         } ),
-         arrows: this.cayleyDiagramView.arrows.map( (line) => {
-            const {start_node, end_node, generator, thirdPoint, offset, color, bidirectional} = line.userData.arrow
-            const start_element = start_node.element
-            const end_element = end_node.element
-            return {start_element, end_element, generator, thirdPoint, offset, color, bidirectional}
-         } ),
-         cameraJSON: this.cayleyDiagramView.camera.toJSON(),
-         highlightColors: this.cayleyDiagramView.highlightColors,
-         highlightControl: this.cayleyDiagramView.highlightControl
-      } );
-
-      if (this.generatesFromStrategy) {
-         json.strategy_parameters = ((this.strategyParameters /*: any */) /*: Array<StrategyParameters> */);
-         json.chunk = ((this.chunk /*: any */) /*: integer */);
-      } else {
-         json.diagram_name = ((this.diagramName /*: any */) /*: string */);
-      }
-
-      return json;
-   }
-
-   fromJSON (json) {
-      this.cayleyDiagramView.deleteAllObjects();
-
-      this.group = Library.getGroupByURL(json.groupURL)
-      this.cayleyDiagramView.group = this.group
-      this.cayleyDiagramView.line_width = null
-
-      Object.keys(json).forEach( (name) => {
-         switch (name) {
-         case 'fog_level':           this.cayleyDiagramView.fog_level = json.fog_level;                        break;
-         case 'line_width':          this.cayleyDiagramView.line_width = json.line_width;                      break;
-         case 'sphere_base_radius':  this.cayleyDiagramView.sphere_base_radius = json.sphere_base_radius;      break;
-         case 'sphere_scale_factor': this.cayleyDiagramView.sphere_scale_factor = json.sphere_scale_factor;    break;
-         case 'zoom_level':          this.cayleyDiagramView.zoom_level = json.zoom_level;                      break;
-         case 'arrowhead_placement': this.cayleyDiagramView.arrowhead_placement = json.arrowhead_placement;    break;
-         case 'label_scale_factor':  this.cayleyDiagramView.label_scale_factor = json.label_scale_factor;      break;
-         case 'right_multiply':      this.rightMultiply = json.right_multiply;                                 break;
-         case 'highlightControl':    this.cayleyDiagramView.highlightControl = json.highlightControl;          break;
-         default:                                                                                              break;
-         }
-      } )
-
-      // if neither strategy parameters nor diagram name is specified && there are specified cayley diagrams, choose first
-      // set up strategy/diagram, but without displaying it
-      if (json.diagram_name != null) {
-         this.diagramName = json.diagram_name
-      } else if (json.strategy_parameters == null && this.group.cayleyDiagrams.length != 0) {
-         this.diagramName = this.group.cayleyDiagrams[0].name
-      } else {
-         this.strategyParameters = json.strategy_parameters || json.strategies
-      }
-
-      // set node positions from JSON node parameters
-      if (json.nodes != null) {
-         json.nodes.forEach((json_node) => {
-            const this_node = this.chunkTree.allChildNodes.find((node) => node.element == json_node.element)
-            for (const property in this_node) {
-               if (property in json_node) {
-                  if (property == 'position') {
-                     const {x, y, z} = json_node.position;
-                     this_node.position.set(x, y, z)
-                  } else {
-                     this_node[property] = json_node[property]
-                  }
-               }
+   const newArrows = []
+   for (const generator of generators) {
+      for (const element of group.elements) {
+         const product = multiply(element, generator)
+         const bidirectional = (multiply(product, generator) == element)
+         if (!bidirectional || element < product) {  // test element < product so we only draw an undirected line once
+            const generatedCurved = isCurved(nodes[element], nodes[product])
+            const newArrow = {
+               start_node: nodes[element],
+               end_node: nodes[product],
+               generator: generator,
+               bidirectional: bidirectional,
+               thirdPoint: getThirdPoint(nodes[element], nodes[product]),
+               keepCurved: generatedCurved,
+               offset: generatedCurved ? DEFAULT_ARC_OFFSET : null, // undefined,  // Heuristic value
             }
-         })
-      }
-
-      // set arrowGenerators and arrows from JSON arrow parameters
-      // there are two meanings for json.arrows, depending on circumstances
-      // in general json.arrows will consist of an array of Arrow objects
-      // however, if the source is a passed sheet, json.arrows contains the arrow generators there is a json.arrowColors
-      if (json.arrows != null) {
-         this.cayleyDiagramView.removeArrows()
-
-         const arrowColorMap = []         // arrowColorMap[generator] = color
-
-         if (typeof json.arrows[0] == 'object') {
-            this.arrowGenerators =
-               Array.from(json.arrows.reduce((genSet, jsonArrow) => genSet.add(jsonArrow.generator), new Set())).sort()
-            this.arrows = this.createArrows(this.arrowGenerators)
-            json.arrows.forEach((jsonArrow) => arrowColorMap[jsonArrow.generator] = jsonArrow.color)
-         } else {
-            this.arrowGenerators = [...json.arrows]
-            this.arrows = this.createArrows(this.arrowGenerators)
-            json.arrows.forEach((generator, inx) => arrowColorMap[generator] = json.arrowColors[inx])
+            newArrows.push(newArrow)
          }
-
-         this.arrows.forEach((arrow) => arrow.color = arrowColorMap[arrow.generator])
       }
-
-      // set up camera position, up direction
-      if (json.cameraJSON != null) {
-         this.cayleyDiagramView.camera = (new THREE.ObjectLoader()).parse(json.cameraJSON)
-
-         const up = (json.strategy_parameters != null && json.cameraUp != null)
-            ? json.cameraUp
-            : this.cayleyDiagramView.camera.up
-
-         const pov = {
-            position: this.cayleyDiagramView.camera.position,
-            up: this.cayleyDiagramView.camera.up.copy(up)
-         }
-
-         this.draw(pov)
-      } else {
-         this.draw()
-      }
-
-      // if we do this too soon there won't be any node/spheres to attach shaped highlights to
-      if (json.highlightColors != null) {
-         this.cayleyDiagramView.highlightColors = json.highlightColors
-      }
-
-      // re-enable trackball control
-      if (this.cayleyDiagramView.control != null) {
-         this.cayleyDiagramView.enableTrackballControl()
-      }
-
-      return this;
    }
+
+   return newArrows
 }
 
 class AbstractLayoutStrategy {

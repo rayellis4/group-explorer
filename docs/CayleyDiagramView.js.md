@@ -27,10 +27,20 @@ relationship to the Cayley diagram created by [CayleyDiagramGenerator.js](./Cayl
  */
 import {AbstractDiagramDisplay} from './AbstractDiagramDisplay.js'
 import {DEFAULT_SPHERE_COLOR as DEFAULT_NODE_COLOR} from './AbstractDiagramDisplay.js'
+import * as CayleyDiagramGenerator from './CayleyDiagramGenerator.js'
+import * as CayleyDiagramViewUI from './CayleyDiagramViewUI.js'
 import * as GEUtils from './GEUtils.js'
+import * as Log from './Log.js'
 import {THREE} from '../lib/externals.js'
 
 export {DEFAULT_SPHERE_COLOR as DEFAULT_NODE_COLOR} from './AbstractDiagramDisplay.js'
+export {
+   CayleyDiagramViewModel,
+   CayleyDiagramView,
+   createStaticCayleyDiagramView,
+   createInteractiveCayleyDiagramView,
+   createCayleyDiagramThumbnailView
+}
 
 /*::
 import {Group} from './Group.js';
@@ -137,6 +147,7 @@ export type CayleyDiagramJSON = {
 export type CayleyDiagramViewOptions = {
     group?: Group,
     diagramName?: string,
+    display_labels: boolean,
 } & AbstractDiagramDisplayOptions;
 */
 
@@ -151,20 +162,189 @@ const highlightNames = {
    HIGHLIGHT_RING: 'a ring around the node',
    HIGHLIGHT_SQUARE: 'a square around the node'
 }
-export class CayleyDiagramView extends AbstractDiagramDisplay {
-/*::
-    display_labels: boolean;
-    _label_scale_factor: float;
-    _arrowhead_placement: float;
 
-    _group: Group;
-    generator: CayleyDiagramGenerator;
-    _right_multiply: boolean;
-    color_highlights: Array<css_color> | void;
-    ring_highlights: Array<?css_color> | void;
-    square_highlights: Array<?css_color> | void;
-*/
-    cayleyDiagramGenerator /*: CayleyDiagramGenerator */
+class CayleyDiagramViewModel /*:: implements Updatable */ {
+   #model /*: CycleGraphModel */
+   #view /*: CycleGraphView */
+   #modelFields /*: Array<string> */ = [
+      'group',
+      'layout',
+      'background',
+      'fog_level',
+      'line_width',
+      'sphere_scale_factor',
+      'zoom_level',
+      'arrowhead_placement',
+      'label_scale_factor',
+      'showingAxes',
+      'highlightColors',
+      'snap_to_axis_request'
+   ]
+
+   get group () /*: Group */ {
+      return this.model.group
+   }
+
+   get view () /*: CycleGraphView */ {
+      return this.#view
+   }
+
+   get model () /*: CycleGraphModel */ {
+      return this.#model
+   }
+
+   setModel (model /*: SubscriptionProxy<CayleyDiagramModel> */) {
+      this.#model = model
+      this.#modelFields.forEach((field) => model.$subscribe(this, field))
+   }
+
+   setView (view /*: CayleyDiagramView */) {
+      this.#view = view
+      view.viewModel = this
+      if (this.#model != null) {
+         this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
+         this.#model.viewState = {
+            toJSON: () => {
+               return {
+                  pov: { position: view.camera.position, up: view.camera.up },
+                  nodes: view.nodes.map((object3D) => object3D.userData.node),
+                  arrows: view.lines.map((object3D) => object3D.userData.arrow),  // turn nodes into element#
+                  chunks: view.chunks.map((object3D) => object3D.userData.chunk)  // turn this into subgroupChunkIndex
+               }
+            },
+            fromJSON: (json) => {
+               const pov = {position: new THREE.Vector3().copy(json.pov.position), up: new THREE.Vector3().copy(json.pov.up)}
+               const nodes = json.nodes.map((node) => {
+                  return {
+                     position: new THREE.Vector3().copy(node.position),
+                     element: node.element,
+                     label: node.label,
+                     color: node.color
+                  }
+               })
+               const nodeMap = new Map(nodes.map((node) => [node.element, node]))
+               const arrows = json.arrows.map((arrow) => {
+                  return {
+                     start_node: nodeMap.get(arrow.start_node.element),
+                     end_node: nodeMap.get(arrow.end_node.element),
+                     generator: arrow.generator,
+                     bidirectional: arrow.bidirectional,
+                     thirdPoint: new THREE.Vector3().copy(arrow.thirdPoint),
+                     keepCurved: arrow.keepCurved,
+                     offset: arrow.offset,
+                     color: arrow.color
+                  }
+               })
+               const chunks = json.chunks.map((chunk) => {
+                  return {
+                     box:  new THREE.Matrix4().copy(chunk.box),
+                     name: chunk.name,
+                     widths: new THREE.Vector3().copy(chunk.widths),
+                     nodes: chunk.nodes.map((node) => nodeMap.get(node.element))
+                  }
+               })
+               this.update('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks })
+            }
+         }
+      }
+   }
+
+   updateModel (field /*: string */, value /*: any */) {
+      // $FlowExpectedError[prop-missing] --
+      this.model[field] = value
+   }
+
+   update (field /*: string */, value /*: any */) {
+      if (this.view == null) {
+         return
+      }
+      switch (field) {
+      case 'group':
+         /*
+         if (this.view?.group?.URL != value.URL) {
+            this.view.group = value
+         }
+         break
+          */
+      case 'background':
+      case 'fog_level':
+      case 'line_width':
+      case 'sphere_scale_factor':
+      case 'zoom_level':
+      case 'arrowhead_placement':
+      case 'label_scale_factor':
+         if (value != null) {
+            this.view[field] = value
+         }
+         break
+      case 'showingAxes': {
+         const isShowing = this.view.getGroup('debug').children.length > 0
+         if (value && !isShowing) this.view.drawCoordinateAxes()
+         else if (!value && isShowing) this.view.removeCoordinateAxes()
+         break
+      }
+      case 'layout':
+         if (value != null) {
+            const {pov, nodes, arrows, chunks} = value
+            this.view.drawFromModel(pov, nodes, arrows)
+            if (chunks != null) {
+               this.view.createChunks(chunks)
+            }
+         }
+         /* only draw lines when arrows have live node references (from generator, not restored plain JSON)
+         if (value.arrows.length > 0 && value.arrows[0].start_node != null) {
+            this.view.createLines(value.arrows)
+         }
+          */
+         break
+      case 'highlightColors':
+         if (value != null) {
+            // spread new highlightColors across color_highlights, ring_highlights, square_highlights
+            this.view.color_highlights =  [...value[HIGHLIGHT_NODE]]
+            this.view.ring_highlights =   [...value[HIGHLIGHT_RING]]
+            this.view.square_highlights = [...value[HIGHLIGHT_SQUARE]]
+            this.view.drawAllHighlights()
+         }
+         break
+      case 'snap_to_axis_request':
+         if (value == true) {
+            this.view.snapToAxis()
+            this.updateModel(field, false)
+         }
+         break
+      default:
+         Log.info(`unsupported field ${field} in CayleyDiagramView.CayleyDiagramViewModel.updateView`)
+      }
+   }
+
+   // Functions used by Sheet
+   setSize (x /*: number */, y /*: number */)  { this.view.setSize(x, y) }
+   resize ()                                   { this.view.resize() }
+   showGraphic ()                              { this.view.render() }
+   unitSquarePositions ()                      { return this.view.unitSquarePositions() }
+   getImage ()                                 { return this.view.getImage() }
+   get canvas () /*: HTMLCanvasElement */      { return this.view.canvas }
+   toJSON ()                                   { return this.model.toJSON() }
+   fromJSON (jsonObject)                       { this.model.fromJSON(jsonObject) }
+   draw (group, diagramName) {
+      const layout = CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramName)
+      this.update('group', group)
+      this.update('layout', layout)
+   }
+}
+
+class CayleyDiagramView extends AbstractDiagramDisplay {
+   viewModel
+
+   display_labels /*: boolean */
+   _label_scale_factor /*: float */
+   _arrowhead_placement /*: float */
+   _group /*: Group */
+   generator /*: CayleyDiagramGenerator */
+   _right_multiply /*: boolean */
+   color_highlights /*: Array<css_color> | void */
+   ring_highlights /*: Array<?css_color> | void */
+   square_highlights /*: Array<?css_color> | void */
 
     constructor (options /*: CayleyDiagramViewOptions */ = {}) {
        super(options);
@@ -214,10 +394,6 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         this.deleteAllChunks();
         super.deleteAllObjects();
     }
-
-   toJSON () /*: any */ {
-      return this.cayleyDiagramGenerator.toJSON()
-   }
 
     ////////////////////////////   Sphere routines   ////////////////////////////////
 
@@ -273,11 +449,11 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         // if there's a containing chunk then move it too
         if (moveContainingChunk) {
             const chunk = this.chunks
-                .find((chunk) => chunk.userData.nodes.includes(sphere.userData.node))
+                .find((chunk) => chunk.userData.chunk.nodes.includes(sphere.userData.node))
             if (chunk != null) {
-                const centroid = chunk.userData.nodes
+                const centroid = chunk.userData.chunk.nodes
                     .reduce((centroid, node) => centroid.add(node.position), new THREE.Vector3())
-                    .multiplyScalar(1/chunk.userData.nodes.length)
+                    .multiplyScalar(1/chunk.userData.chunk.nodes.length)
                 chunk.position.copy(centroid)
             }
         }
@@ -597,11 +773,11 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     createLines (line_data /*: Array<ArrowData> */) {
         line_data.forEach( (line_datum) => {
             // Curve straight lines to avoid spheres
-            if (line_datum.offset == undefined) {
+            if (line_datum.offset == null) {
                 line_datum.offset = this.offsetAroundSpheres(line_datum);
             }
 
-            if (line_datum.offset == undefined) {
+            if (line_datum.offset == null) {
                 this.createStraightLine(line_datum);
             } else {
                 this.createCurvedLine(line_datum);
@@ -758,7 +934,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         let box_geometry;  // created first time through, reused by all chunks
 
         chunk_data.forEach( (chunk_datum, inx) => {
-            const {box, widths} = chunk_datum
+            const {name, box, widths, nodes} = chunk_datum
 
             // draw chunk geometry from shape and orientation of first chunk
             if (inx == 0) {
@@ -769,13 +945,13 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
 
             // create new box and transform to centroid of current node positions
             const new_chunk = new THREE.Mesh(box_geometry, box_material);
-            const centroid = chunk_datum.nodes
+            const centroid = nodes
                .reduce((centroid, node) => centroid.add(node.position), new THREE.Vector3())
-               .multiplyScalar(1 / chunk_datum.nodes.length)
+               .multiplyScalar(1 / nodes.length)
             box.setPosition(centroid)
             new_chunk.applyMatrix4(box);
-            new_chunk.name = chunk_datum.name;
-            new_chunk.userData = {name: chunk_datum.name, nodes: chunk_datum.nodes}
+            new_chunk.name = name;
+            new_chunk.userData = { chunk: chunk_datum }
 
             chunk_group.add(new_chunk);
         } )
@@ -791,7 +967,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     moveChunkTo (chunk /*: THREE.Mesh */, position /*: THREE.Vector3 */) {
         const movement = position.clone().sub(chunk.position)
         chunk.position.copy(position)
-        chunk.userData.nodes.forEach((node) => {
+        chunk.userData.chunk.nodes.forEach((node) => {
             const sphere = this.nodes[node.element]
             this.moveSphere(sphere, sphere.position.clone().add(movement), false)  // don't let moveSphere try to move chunk :-)
         })
@@ -841,4 +1017,41 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
            this.deleteLines(removedLines)
         }
     }
+}
+
+// Factory for thumbnail generators (GroupTable, SubgroupInfo, ViewInfo).
+// Returns a CayleyDiagramViewModel with no model
+// call .draw(group, ?diagramName), and .getImage() to get the rendered result.
+function createCayleyDiagramThumbnailView (options /*: CayleyDiagramOptions */ = {}) /*: CayleyDiagramViewModel */ {
+   const viewModel = new CayleyDiagramViewModel()
+   const view = new CayleyDiagramView(options)
+   view.display_labels = false
+   viewModel.setView(view)
+
+   return viewModel
+}
+
+function createStaticCayleyDiagramView (
+   model /*: SubscriptionProxy<CayleyDiagramModel> */,
+   options /*: CayleyDiagramOptions */ = {}
+) /*: CayleyDiagramViewModel */ {
+   const viewModel = new CayleyDiagramViewModel()
+   const view = new CayleyDiagramView(options)
+   view.display_labels = true
+
+   // assemble parts
+   viewModel.setModel(model)
+   viewModel.setView(view)
+
+   return viewModel
+}
+
+function createInteractiveCayleyDiagramView (
+   model /*: SubscriptionProxy<CayleyDiagramModel> */,
+   options /*: CayleyDiagramOptions */ = {}
+) /*: CayleyDiagramViewModel */ {
+   const viewModel = createStaticCayleyDiagramView(model, options)
+   CayleyDiagramViewUI.addGestures(viewModel.view)
+
+   return viewModel
 }

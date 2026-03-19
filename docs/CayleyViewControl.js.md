@@ -2,73 +2,42 @@
 
 # CayleyViewControl
 
-Display input elements that configure the CayleyDiagramView:
- * set zoom level
- * set line thickness
- * set node radius
- * set whether or not to use fog and how much
- * set whether or not to show labels and how big
- * set arrowhead location from start to end of arrow
+Control panel for CayleyDiagramView display parameters (zoom, line width, node radius,
+fog, labels, arrowhead placement) and two commands (show/hide axes, snap to axis).
+
+## MVVM structure
+
+- **ViewModel** — subscribes to `CayleyDiagramModel` fields; converts between model values
+  and slider/checkbox values; routes button commands to model request fields
+  (`showingAxes`, `snap_to_axis_request`). Call `setModel` before `setView`.
+- **View** — pure display: inserts HTML, reads/writes input elements, forwards events to
+  ViewModel. Uses `data-bind` attribute to match input elements to field names generically,
+  so `update(field, value)` and `getFieldValue(field)` need no per-field logic.
+  Button actions are `data-action` strings eval'd in the ViewModel's context.
+
+`setModel` subscribes to model fields; `setView` wires the view reference and pushes
+current model state to initialize the sliders. This ordering ensures the view is ready
+before any values are pushed to it.
 
 ```javascript
  */
 import * as Log from './Log.js'
-import {createModelProxy} from './GEUtils.js'
 
 export {addControl}
 /*::
-import type {CayleyDiagramView} from './CayleyDiagramView.js'
+import type {CayleyDiagramModel} from './CayleyDiagramModel.js'
 import type {Updatable, SubscriptionProxy} from './GEUtils.js'
  */
-// create Model, ViewModel, and View, and configure them
-function addControl (cayleyViewControlElement /*: HTMLElement */, cayleyDiagramView /*: CayleyDiagramView */) {
-   const model /*: Model */ = new Model(cayleyDiagramView)
-   const hackedModelProxy = hackModelProxy(model, cayleyDiagramView)
-   const modelProxy = createModelProxy(hackedModelProxy)
-
-   const viewModel = new ViewModel(cayleyDiagramView)
-   const viewModelProxy = createModelProxy(viewModel)
-   viewModelProxy.setModel(modelProxy)
-
-   const view = new View(cayleyViewControlElement)
-   viewModelProxy.view = view
-   view.setViewModel(viewModelProxy)
+// create ViewModel and View, wire to the CayleyDiagramModel proxy
+function addControl (cayleyViewControlElement /*: HTMLElement */, cayleyDiagramModel /*: SubscriptionProxy<CayleyDiagramModel> */) {
+   const viewModel = new ViewModel()
+   viewModel.setModel(cayleyDiagramModel)
+   viewModel.setView(new View(cayleyViewControlElement))
 }
 
-function hackModelProxy (model /*: Model */, cayleyDiagramView /*: CayleyDiagramView */) /*: Model */ {
-   const handler /*: Proxy$traps<Model> */ = {
-      set(model /*: Model */, property /*: string */, value /*: any */, receiver /*: Proxy<Model> */) {
-         if (Object.getOwnPropertyNames(model).includes((property /*:: as any as $Keys<Model> */))) {
-            Reflect.set(cayleyDiagramView, property, value)
-         }
-
-         return Reflect.set(model, property, value, receiver)
-      }
-   }
-
-   return new Proxy(model, handler)
-}
-
-// Model has zoom level, line thickness, etc. initialized from CayleyDiagramView
-class Model {
-   zoom_level /*: number */
-   line_width /*: number */
-   sphere_scale_factor /*: number */
-   fog_level /*: number */
-   label_scale_factor /*: number */
-   arrowhead_placement /*: number */
-
-   constructor (cayleyDiagramView /*: CayleyDiagramView */) {
-      for (const field of Object.getOwnPropertyNames(this)) {
-         this[field] = cayleyDiagramView[field]
-      }
-   }
-}
-
-// View model converts Model properties <=> View properties
+// ViewModel converts CayleyDiagramModel properties <=> View slider values
 class ViewModel /*:: implements Updatable */ {
-   cayleyDiagramView /*: CayleyDiagramView */ // needed to execute commands
-   model /*: SubscriptionProxy<Model> */
+   model /*: SubscriptionProxy<CayleyDiagramModel> */
    modelFields /*: Array<string> */ = [
       'zoom_level',
       'line_width',
@@ -79,22 +48,15 @@ class ViewModel /*:: implements Updatable */ {
    ]
    view /*: View */
 
-   zoom_level /*: number */
-   line_width /*: number */
-   sphere_scale_factor /*: number */
-   use_fog /*: boolean */
-   fog_level /*: number */
-   show_labels /*: boolean */
-   label_size /*: number */
-   arrowhead_placement /*: number */
-
-   constructor (cayleyDiagramView /*: CayleyDiagramView */) {
-      this.cayleyDiagramView = cayleyDiagramView
-   }
-
-   setModel (model /*: SubscriptionProxy<Model> */) {
+   setModel (model /*: SubscriptionProxy<CayleyDiagramModel> */) {
       this.model = model
       this.modelFields.forEach((field) => this.model.$subscribe(this, field))
+   }
+
+   setView (view /*: View */) {
+      this.view = view
+      view.viewModel = this
+      this.modelFields.forEach((field) => this.update(field, this.model[field]))
    }
 
    getFromView (field /*: string */) /*: any */ {
@@ -128,70 +90,57 @@ class ViewModel /*:: implements Updatable */ {
       }
    }
 
-   // fields update callbacks from Model and modifies View
+   // field update callbacks from Model — convert to slider values and push to View directly
    update (field /*: string */, value /*: any */) {
       switch (field) {
       case 'zoom_level':
-         this['zoom_level'] = 10 * Math.log(value)
+         this.view.update('zoom_level', 10 * Math.log(value))
          break
       case 'line_width':
-         this['line_width'] = 1 + (value - 1) / 0.75
+         this.view.update('line_width', 1 + (value - 1) / 0.75)
          break
       case 'sphere_scale_factor':
-         this['sphere_scale_factor'] = 10 * Math.log(value)
+         this.view.update('sphere_scale_factor', 10 * Math.log(value))
          break
       case 'fog_level':
-         this['use_fog'] = value != 0
+         this.view.update('use_fog', value != 0)
          if (value != 0) {
-            this['fog_level'] = 10 * value
+            this.view.update('fog_level', 10 * value)
          }
          break
       case 'label_scale_factor':
-         this['show_labels'] = value != 0
+         this.view.update('show_labels', value != 0)
          if (value != 0) {
-            this['label_size'] = 10 * Math.log(value)
+            this.view.update('label_size', 10 * Math.log(value))
          }
          break
       case 'arrowhead_placement':
-         this['arrowhead_placement'] = 20 * value
+         this.view.update('arrowhead_placement', 20 * value)
          break
       }
    }
 
+   // Button data-action strings are eval'd here so `this` resolves to the ViewModel,
+   // giving them access to `this.model` for writing request fields directly.
    executeCommand (command /*: string */) {
       eval(command)
    }
 }
 
 // View has html to display values on sliders, field events from input elements
-class View /*:: implements Updatable */ {
-   container /*: HTMLElement */
-   viewModel /*: ViewModel */
-   modelFields /*: Array<string> */ = [  // find these from HTML data-binding?
-      'zoom_level',
-      'line_width',
-      'sphere_scale_factor',
-      'use_fog',
-      'fog_level',
-      'show_labels',
-      'label_size',
-      'arrowhead_placement',
-   ]
+class View {
+   rootElement /*: HTMLElement */
+   viewModel /*: ViewModel */  // set by ViewModel.setView
 
-   constructor (cayleyViewControlElement /*: HTMLElement */) {
-      this.container = cayleyViewControlElement
+   constructor (rootElement /*: HTMLElement */) {
+      this.rootElement = rootElement
       this.addHTML()
-      this.container.addEventListener('input', (ev) => this.handleInputEvent(ev))
-      this.container.addEventListener('click', (ev) => this.handleButtonEvent(ev))
-   }
-
-   setViewModel (viewModel /*: ViewModel & {$subscribe: any, $unsubscribe: any} */) {
-      this.viewModel = viewModel
-      this.modelFields.forEach((field) => viewModel.$subscribe(this, field))
+      this.rootElement.addEventListener('input', (ev) => this.handleInputEvent(ev))
+      this.rootElement.addEventListener('click', (ev) => this.handleButtonEvent(ev))
    }
 
    addHTML () {
-      this.container.innerHTML =
+      this.rootElement.innerHTML =
          `<div>
              Zoom level:
              <input data-bind="zoom_level" type="range" min="-10" max="10">
@@ -225,16 +174,16 @@ class View /*:: implements Updatable */ {
           <div>
              <details style="font-size: 1.25rem">
                 <summary>Advanced</summary>
-                <button style="width: 20ch" data-action="this.cayleyDiagramView.toggleCoordinateAxisDisplay()"
+                <button style="width: 20ch" data-action="this.model.showingAxes = !this.model.showingAxes"
                    >Show/hide axes</button>
-                <button style="width: 20ch" data-action="this.cayleyDiagramView.snapToAxis()"
+                <button style="width: 20ch" data-action="this.model.snap_to_axis_request = true"
                    >Snap to axis</button>
              </details>
           </div>`
    }
 
    getDisplayElement (field /*: string */) /*: ?HTMLElement */{
-      const displayElement = this.container.querySelector(`[data-bind="${field}"]`)
+      const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`)
       if (displayElement == null) {
          Log.err('')
       }

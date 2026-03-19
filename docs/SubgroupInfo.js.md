@@ -8,7 +8,7 @@ including a table of the group's subgroups and some of their properties.
 ```javascript
  */
 import {BitSet} from './BitSet.js'
-import {createCayleyDiagramGenerator} from './CayleyDiagramGenerator.js'
+import {createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
 import * as GEUtils from './GEUtils.js'
 import {IMAGE_SIZE} from './GroupTable.js'
 import * as Library from './Library.js'
@@ -35,9 +35,9 @@ type DecoratedSubgroup = Subgroup & {_tierIndex?: number, _used?: boolean};
 */
 
 function display (subgroupInfoElementId, group) {
-   const cayleyDiagramGenerator = createCayleyDiagramGenerator( { width : IMAGE_SIZE, height : IMAGE_SIZE } );
+   const cayleyDiagramThumbnailView = createCayleyDiagramThumbnailView( { width : IMAGE_SIZE, height : IMAGE_SIZE } );
    const subgroupInfoElement = document.getElementById(subgroupInfoElementId)
-   subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId, cayleyDiagramGenerator)
+   subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId, cayleyDiagramThumbnailView)
 
    GEUtils.createActionHandler(subgroupInfoElement, (action) => eval(action))
 
@@ -45,7 +45,7 @@ function display (subgroupInfoElementId, group) {
    const generateDetail = (event) => {
       if (event.target.querySelector('div') == null) {
          const subgroupIndex = parseInt(event.target.getAttribute('subgroup'))
-         const expandedContent = formatSubgroupListContent(group, subgroupIndex, cayleyDiagramGenerator)
+         const expandedContent = formatSubgroupListContent(group, subgroupIndex, cayleyDiagramThumbnailView)
          event.target.insertAdjacentHTML('beforeEnd', expandedContent)
          event.target.removeEventListener('toggle', generateDetail)
       }
@@ -203,9 +203,8 @@ function formatSubgroupListContent (group, subgroupIndex, cayleyDiagramGenerator
 
    // create thumbnail if it doesn't exist already
    if (isomorphicGroup.thumbnails?.cayleyDiagram == null) {
-      cayleyDiagramGenerator.group = isomorphicGroup
-      cayleyDiagramGenerator.drawFromModel(isomorphicGroup.cayleyDiagrams[0]?.name)
-      const imageSource = cayleyDiagramGenerator.cayleyDiagramView.getImage().src
+      cayleyDiagramGenerator.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name)
+      const imageSource = cayleyDiagramGenerator.getImage().src
       isomorphicGroup.thumbnails = isomorphicGroup.thumbnails || {}
       isomorphicGroup.thumbnails.cayleyDiagram = imageSource
       Library.saveGroup(isomorphicGroup)

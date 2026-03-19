@@ -638,27 +638,24 @@ class MorphismEditor extends SheetElementEditor {
  */
 class RemoteEditor {
     constructor (modelElement /*: Model.VisualizerElement */) {
+        // open visualizer/editor window
         const editPageURLs = {
             MTElement: './Multtable.html',
             CGElement: './CycleGraph.html',
             CDElement: './CayleyDiagram.html'
         }
-        const editPageURL = editPageURLs[modelElement.className] +
-            `?SheetEditor=true&groupURL=${modelElement.group.URL}` +
-            (window.location.href.includes('log=debug') ? '&log=debug' : '')
-
-        // open visualizer/editor window
-        const otherWin = window.open(editPageURL)
+        const editPageURL = `${editPageURLs[modelElement.className]}?SheetEditor` +
+           (window.location.href.includes('log=debug') ? '&log=debug' : '')  // open in debug if we're in debug
+        window.open(editPageURL)
 
         // save modelElement.visualizer JSON in indexedDB,
         // then add message handler to receive updates from editor
-        StoredObjects.setPassedJSON(modelElement.visualizer ?? modelElement.viewElement?.toJSON())
+        StoredObjects.setPassedJSON(modelElement.viewElement.toJSON())
             .then(() => {
                 window.addEventListener('message', (messageEvent) => {
                     Log.debug('SheetModelEditor received msg', messageEvent.data)
                     if (messageEvent.data != null) {
-                        modelElement.visualizer = messageEvent.data.json
-                        modelElement.viewElement?.applyJSON(modelElement.visualizer)
+                        modelElement.viewElement.applyJSON(messageEvent.data.json)
                     }
                  })
              })

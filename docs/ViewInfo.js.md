@@ -7,7 +7,7 @@ with links to their larger visualizers.
 
 ```javascript
  */
-import { createCayleyDiagramGenerator} from './CayleyDiagramGenerator.js'
+import { createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
 import { createUnlabelledCycleGraphView } from './CycleGraphView.js'
 import { createMinimalMulttableView } from './MulttableView.js'
 import { createStaticSymmetryObjectView } from './SymmetryObjectView.js'
@@ -113,19 +113,14 @@ function getImages (group) {
    // Create cayley diagram thumbnails
    for (let inx = 0; inx < group.cayleyDiagrams.length + 1; inx++) {
       const image = images[inx][0] = {}
-      image.name = (inx == group.cayleyDiagrams.length) ? undefined : group.cayleyDiagrams[inx].name
+      image.name = group.cayleyDiagrams[inx]?.name
       image.link = `CayleyDiagram.html?groupURL=${group.URL}`
          + ((image.name == null) ? '' : `&diagram=${image.name}`)
-      if (inx == 0 && group.thumbnails?.cayleyDiagram != null) {
-         image.src = group.thumbnails.cayleyDiagram
-      } else {
-         if (cayleyDiagramGenerator == null) {
-            cayleyDiagramGenerator = createCayleyDiagramGenerator(THUMBNAIL_SIZE)
-            cayleyDiagramGenerator.group = group
-         }
-         cayleyDiagramGenerator.drawFromModel(image.name)
-         image.src = cayleyDiagramGenerator.cayleyDiagramView.getImage().src
+      if (cayleyDiagramGenerator == null) {
+         cayleyDiagramGenerator = createCayleyDiagramThumbnailView(THUMBNAIL_SIZE)
       }
+      cayleyDiagramGenerator.draw(group, image.name)
+      image.src = cayleyDiagramGenerator.getImage().src
    }
 
    // Create cycle graph thumbnail

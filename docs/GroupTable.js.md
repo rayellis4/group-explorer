@@ -8,7 +8,7 @@ This component creates and fills the table of group information that the
 ```javascript
  */
 
-import {createCayleyDiagramGenerator} from './CayleyDiagramGenerator.js'
+import {createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
 import {createUnlabelledCycleGraphView} from './CycleGraphView.js'
 import {createMinimalMulttableView} from './MulttableView.js'
 import {createStaticSymmetryObjectView} from './SymmetryObjectView.js'
@@ -52,8 +52,8 @@ function display (tableElement, groupsToDisplay) {
       // see whether group thumbnails have been generated and stored in localStorage
       if (group.thumbnails?.multtable == null) {
          // Create the generators the first time through for use by generateThumbnails
-         if (generators.cayleyDiagramGenerator == null) {
-            generators.cayleyDiagramGenerator = createCayleyDiagramGenerator({ height: IMAGE_SIZE, width: IMAGE_SIZE })
+         if (generators.cayleyDiagramView == null) {
+            generators.cayleyDiagramView = createCayleyDiagramThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
             generators.cycleGraphView = createUnlabelledCycleGraphView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
             generators.multtableView = createMinimalMulttableView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
             generators.symmetryObjectView = createStaticSymmetryObjectView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
@@ -186,9 +186,8 @@ function generateThumbnails (generators, group, cayleyTitle, symmetryTitle) {
    const thumbnails = group.thumbnails = group.thumbnails || {}
 
    if (thumbnails.cayleyDiagram == null) {
-      generators.cayleyDiagramGenerator.group = group
-      generators.cayleyDiagramGenerator.drawFromModel(cayleyTitle)
-      group.thumbnails.cayleyDiagram = generators.cayleyDiagramGenerator.cayleyDiagramView.getImage().src
+      generators.cayleyDiagramView.draw(group, cayleyTitle)
+      group.thumbnails.cayleyDiagram = generators.cayleyDiagramView.getImage().src
    }
 
    if (thumbnails.multtable == null) {

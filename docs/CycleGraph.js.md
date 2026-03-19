@@ -25,12 +25,12 @@ async function load () {
 
    // If this page is editing a sheet...
    const initialJSON /*: unknown */ =
-      await (window.location.href.includes('SheetEditor=true') ? SheetEditor.getInitialData() : null)
+      await (window.location.href.includes('SheetEditor') ? SheetEditor.getInitialData() : null)
 
    // Get group, either from page URL or data from Sheet
-   const group /*: Group */ = await ((initialJSON?.groupURL == null)
+   const group /*: Group */ = await ((initialJSON?.group_url == null)
       ? Library.loadFromPageURL()
-      : Library.getGroupByURL(initialJSON.groupURL))
+      : Library.getGroupByURL(initialJSON.group_url))
 
    // Create Header
    Heading.display (
@@ -45,13 +45,13 @@ async function load () {
       ]
    )
 
+   // Create CycleGraph model
+   const cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */ = createModelProxy(new CycleGraphModel(group))
+
    // Create cycleGraphView in graphic div and attach to cycleGraphModel
-   const cycleGraphViewModel = createInteractiveCycleGraphView(group, {
+   const cycleGraphViewModel = createInteractiveCycleGraphView(cycleGraphModel, {
       container: document.getElementById('graphic')
    })
-
-   // Create CycleGraph model
-   const cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */ = cycleGraphViewModel.model
 
    // Create Control Panel
    ControlPanel.addPanel(document.getElementById('control-panel'))
@@ -60,8 +60,11 @@ async function load () {
    const highlightControlElement = document.getElementById('highlight-control')
    HighlightControl.addControl(highlightControlElement, cycleGraphModel)
 
+   // Register window resize handler
+   window.addEventListener('resize', () => cycleGraphViewModel.resize())
+
    // Initialize CycleGraph model, change broadcast if editing a sheet
-   if (window.location.href.includes('SheetEditor=true')) {
+   if (window.location.href.includes('SheetEditor')) {
       if (initialJSON != null) {
          cycleGraphModel.fromJSON(initialJSON)
       } else {
@@ -72,13 +75,10 @@ async function load () {
          return cycleGraphModel.toJSON()
       })
 
-      // run SheetEditor.broadcastChange() when 'highlights' or HighlightControl structure changes
-      cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlights')
+      // run SheetEditor.broadcastChange() when highlightColors or highlightControl object changes
+      cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlightColors')
       cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlightControl')
    }
-
-   // Register window resize handler
-   window.addEventListener('resize', () => cycleGraphViewModel.resize())
 }
 
 // an unexported module const, so it won't be garbage collected

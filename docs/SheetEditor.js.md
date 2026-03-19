@@ -14,6 +14,10 @@ export {broadcastChange, getInitialData, enableChangeBroadcast}
 let broadcastChange = () => {}
 
 async function getInitialData () {
+   if (Log.isActive('debug')) {
+      const initialData = await StoredObjects.getPassedJSON()
+      Log.debug(`initial data retrieved: ${JSON.stringify(initialData)}`)
+   }
    return StoredObjects.getPassedJSON()
 }
 /*

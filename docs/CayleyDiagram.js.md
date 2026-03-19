@@ -1,12 +1,13 @@
 // @flow
 
-import {createCayleyDiagramGenerator} from './CayleyDiagramGenerator.js'
-import * as CayleyDiagramViewUI from './CayleyDiagramViewUI.js'
+import {CayleyDiagramModel} from './CayleyDiagramModel.js'
 import * as CayleyDiagramControl from './CayleyDiagramControl.js'
 import * as CayleyViewControl from './CayleyViewControl.js'
+import {createInteractiveCayleyDiagramView} from './CayleyDiagramView.js'
 import {ControlPanel} from './ControlPanel.js'
+import {createModelProxy} from './GEUtils.js'
 import * as Heading from './Heading.js'
-//import * as HighlightControl from './HighlightControl.js'
+import * as HighlightControl from './HighlightControl.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as SheetEditor from './SheetEditor.js'
@@ -23,8 +24,14 @@ async function load () {
 
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
-   // Create diagram generator
-   const group = await Library.loadFromPageURL()
+   // If this page is editing a sheet...
+   const initialJSON /*: unknown */ =
+      await (window.location.href.includes('SheetEditor') ? SheetEditor.getInitialData() : null)
+
+   // Get group, either from page URL or data from Sheet
+   const group /*: Group */ = await ((initialJSON?.group_url == null)
+      ? Library.loadFromPageURL()
+      : Library.getGroupByURL(initialJSON.group_url))
 
    // Create Header
    Heading.display(
@@ -39,28 +46,11 @@ async function load () {
       ]
    )
 
-   const graphicElement = document.getElementById('graphic')
-   const cayleyDiagramGenerator = createCayleyDiagramGenerator({display_labels: true, container: graphicElement})
-   const cayleyDiagramView = cayleyDiagramGenerator.cayleyDiagramView
-   cayleyDiagramView.cayleyDiagramGenerator = cayleyDiagramGenerator  // $FixMe
+   const cayleyDiagramModel  /*: SubscriptionProxy<CayleyDiagramModel> */ = createModelProxy(new CayleyDiagramModel(group))
 
-   // Draw CayleyDiagram
-   const hrefURL =  new URL(window.location.href)
-   cayleyDiagramGenerator.group = group
-
-   // Get specified Cayley diagram if location URL contains one
-   let diagramName = hrefURL.searchParams.get('diagram')
-   if (   diagramName != null
-      && group.cayleyDiagrams.find((cayleyDiagram) => (cayleyDiagram.name == diagramName)) == undefined
-   ) {
-      Log.err(`group ${group.shortName} has no Cayley diagram named ${diagramName} -- generating diagram instead`)
-      diagramName = null
-   }
-
-   cayleyDiagramGenerator.drawFromModel(diagramName)
-
-   // Add gestures
-   CayleyDiagramViewUI.addGestures(cayleyDiagramView)
+   const cayleyDiagramViewModel = createInteractiveCayleyDiagramView(cayleyDiagramModel, {
+      container: document.getElementById('graphic')
+   })
 
    // Create Control Panel
    const controlPanelElement = document.getElementById('control-panel')
@@ -68,48 +58,34 @@ async function load () {
 
    // Initialize HighlightControl
    const highlightControlElement = document.getElementById('highlight-control')
-   //   HighlightControl.addControl(highlightControlElement, cayleyDiagramView)
+   HighlightControl.addControl(highlightControlElement, cayleyDiagramModel)
 
    // Create view control
    const cayleyViewControlElement = document.getElementById('cayley-view-control')
-   CayleyViewControl.addControl(cayleyViewControlElement, cayleyDiagramView)
+   CayleyViewControl.addControl(cayleyViewControlElement, cayleyDiagramModel)
 
    // Create diagram control
    const cayleyDiagramControlElement = document.getElementById('cayley-diagram-control')
-   CayleyDiagramControl.addControl(cayleyDiagramControlElement, cayleyDiagramGenerator)
+   CayleyDiagramControl.addControl(cayleyDiagramControlElement, cayleyDiagramModel)
 
    // Listen for window resize and resize visualizer
-   window.addEventListener('resize', () => cayleyDiagramView.resize())
+   window.addEventListener('resize', () => cayleyDiagramViewModel.resize())
 
    // Set up change broadcast (if this page is an editor for a sheet)
-   if (window.location.href.includes('SheetEditor=true')) {
-      // Draw CayleyDiagram
-      const initialJSON = await SheetEditor.getInitialData()
-      if (group.URL != Library.getGroupByURL(initialJSON.groupURL)?.URL) {
-         Log.err('group from URL does not match group in editor initialization message')
+   if (window.location.href.includes('SheetEditor')) {
+      if (initialJSON != null) {
+         cayleyDiagramModel.fromJSON(initialJSON)
+      } else {
+         Log.warn('CayleyDiagram: SheetEditor mode but no initial JSON passed in IndexedDB')
       }
 
-      cayleyDiagramGenerator.fromJSON(initialJSON)
+      SheetEditor.enableChangeBroadcast(() => {
+         return cayleyDiagramModel.toJSON()
+      })
 
-      cayleyDiagramGenerator.cayleyDiagramView.resize()  // need to fix initial aspect ratio when editing
+      cayleyDiagramViewModel.resize()  // need to fix initial aspect ratio when editing
       window.setInterval(() => SheetEditor.broadcastChange(), 1000)  // There's got to be a better way than polling...
-   } else {
-      cayleyDiagramGenerator.drawFromModel(diagramName)
    }
-
-   /* Create/initialize model, then add these features?
-   // Add gestures
-   CayleyDiagramViewUI.addGestures(cayleyDiagramView)
-
-   // Create Control Panel, initialize controllers
-   ControlPanel.addPanel(document.getElementById('control-panel'))
-   HighlightControl.addControl(document.getElementById('highlight-control'), cayleyDiagramView)
-   CayleyViewControl.addControl(document.getElementById('cayley-view-control'), cayleyDiagramView)
-   CayleyDiagramControl.addControl(document.getElementById('cayley-diagram-control'), cayleyDiagramGenerator)
-
-   // Listen for window resize and resize visualizer
-   window.addEventListener('resize', () => cayleyDiagramView.resize())
-    */
 }
 
 function insertHTML () {

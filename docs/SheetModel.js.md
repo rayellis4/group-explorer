@@ -85,8 +85,8 @@ class SheetModel {
       const canConnect =
          (   (linkType == 'ConnectingElement' && source.isNode && destination.isNode)
           || (linkType == 'MorphismElement' && source.isVisualizer && destination.isVisualizer))
-      && Array.from(this.sheetElements.values) 
-            .every((element) => 
+      && Array.from(this.sheetElements.values())
+            .every((element) =>
                   !(element.isLink)
                || (  (element.source != source && element.destination != source)
                   || (element.source != destination && element.destination != destination)))
@@ -110,7 +110,10 @@ class SheetElement {
    }
 
    toJSON () {
-      return {id: this.id, className: this.className}
+      return {
+         id: this.id,
+         className: this.className
+      }
    }
 
    fromJSON (jsonObject) {
@@ -135,7 +138,14 @@ class NodeElement extends SheetElement {
    }
 
    toJSON () {
-      return {...super.toJSON(), x: this.x, y: this.y, w: this.w, h: this.h, z: this.z}
+      return {
+         ...super.toJSON(),
+         x: this.x,
+         y: this.y,
+         w: this.w,
+         h: this.h,
+         z: this.z
+      }
    }
 
    fromJSON (jsonObject) {
@@ -160,9 +170,16 @@ class TextElement extends NodeElement {
    isPlainText /*: boolean */ = false  // but take care for characters <, >, &
 
    toJSON () {
-      return {...super.toJSON(), text: this.text, color: this.color, opacity: this.opacity,
-         fontSize: this.fontSize, fontColor: this.fontColor, alignment: this.alignment,
-         isPlainText: this.isPlainText}
+      return {
+         ...super.toJSON(),
+         text: this.text,
+         color: this.color,
+         opacity: this.opacity,
+         fontSize: this.fontSize,
+         fontColor: this.fontColor,
+         alignment: this.alignment,
+         isPlainText: this.isPlainText
+      }
    }
 
    fromJSON (jsonObject) {
@@ -184,7 +201,11 @@ class VisualizerElement extends NodeElement {
    isVisualizer = true
 
    toJSON () {
-      return {...super.toJSON(), groupURL: this.group.URL, visualizer: this.visualizer ?? this.viewElement?.toJSON()}
+      return {
+         ...super.toJSON(),
+         groupURL: this.group.URL,
+         visualizer: this.viewElement?.toJSON() ?? this.visualizer
+      }
    }
 
    fromJSON (jsonObject) {
@@ -216,7 +237,11 @@ class LinkElement extends SheetElement {
    // z level of link is determined from z levels of source/destination
 
    toJSON () {
-      return {...super.toJSON(), sourceId: this.source.id, destinationId: this.destination.id}
+      return {
+         ...super.toJSON(),
+         sourceId: this.source.id,
+         destinationId: this.destination.id
+      }
    }
 
    fromJSON (jsonObject) {
@@ -241,7 +266,12 @@ class ConnectingElement extends LinkElement {
    hasArrowhead /*: boolean */ = true // 'directed'?
 
    toJSON () {
-      return {...super.toJSON(), thickness: this.thickness, color: this.color, hasArrowhead: this.hasArrowhead}
+      return {
+         ...super.toJSON(),
+         thickness: this.thickness,
+         color: this.color,
+         hasArrowhead: this.hasArrowhead
+      }
    }
 
    fromJSON (jsonObject) {
@@ -310,16 +340,17 @@ function createNewSheet (jsonObjectsFunction) {
    const otherWindow = window.open()
    new Promise((resolve, _reject) => resolve(jsonObjectsFunction()))
       .then((jsonObjects) => {
-         // Convert highlights.background field into highlightColors
-         for (const jsonObject of jsonObjects) {
-            if ('highlights' in jsonObject && 'background' in jsonObject.highlights) {
-               jsonObject.highlightColors = [
+         // Convert highlights.background field into visualizer.highlight_colors
+         jsonObjects.forEach((jsonObject) => {
+            if (jsonObject.highlights?.background != null) {
+               jsonObject.visualizer ??= {}
+               jsonObject.visualizer.highlight_colors = [
                   jsonObject.highlights.background.map((color) => (color == '') ? null : color),
                   [], []
                ]
                delete jsonObject.highlights
             }
-         }
+         })
 
          StoredObjects.setPassedSheet(jsonObjects)
             .then(() => otherWindow.location = `./Sheet.html?passedSheet`)

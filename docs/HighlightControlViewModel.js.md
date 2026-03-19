@@ -57,8 +57,8 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       return this.model.group
    }
 
-   get highlights () /*: Array<Array<?color>> */ {
-      return this.model.highlights
+   get highlightColors () /*: Array<Array<?color>> */ {
+      return this.model.highlightColors
    }
 
    get highlightTypes () /*: Array<string> */ {
@@ -86,22 +86,33 @@ class HighlightControlViewModel /*:: implements Updatable */ {
    set model (model /*: SubscriptionProxy<CycleGraphModel> */) {
       this.#model = model
 
-      this.nextId = 0
-      this.nextSubsetIndex = 0
-      this.group.subgroups.forEach((_subgroup, inx) => this.#createItem(new Subgroop(this, inx)))
-      this.#model = (model /*:: as any as CycleGraphModel */)
+      this.reset()
 
       this.model.highlightControl = this  // enter a reference to us in the model
-      this.model.$subscribe(this, 'highlights')  // subscribe to changes in 'highlights' field
-      this.update('highlights', this.model.highlights)
+      this.model.$subscribe(this, 'group')  // subscribe to change in 'group'
+      this.model.$subscribe(this, 'highlightColors')  // subscribe to changes in 'highlightColors' field
+      this.update('highlightColors', this.model.highlightColors)
+   }
+
+   reset ()  {
+      this.nextId = 0
+      const initialJSON = {
+         next_id: this.group.subgroups.length,
+         next_subset_index: 0,
+         highlighted_items: [null, null, null],
+         display_map:
+            this.group.subgroups.map((_subgroup, inx) => this.#createItem(new Subgroop(this, inx)).toJSON())
+      }
+
+      this.fromJSON(initialJSON)
    }
 
    toJSON () /*: HighlightControlJSON */ {
       const highlightControlJSON = {
-         nextId: this.nextId,
-         nextSubsetIndex: this.nextSubsetIndex,
-         highlightedItems: this.highlightedItems.map((item) => item?.id),
-         displayMap: Array.from(this.displayMap.values()).map((item) => item.toJSON())
+         next_id: this.nextId,
+         next_subset_index: this.nextSubsetIndex,
+         highlighted_items: this.highlightedItems.map((item) => item?.id),
+         display_map: Array.from(this.displayMap.values()).map((item) => item.toJSON())
       }
 
       return highlightControlJSON
@@ -119,16 +130,16 @@ class HighlightControlViewModel /*:: implements Updatable */ {
          Cosets: Cosets
       }
 
-      this.nextId = jsonObject.nextId
-      this.nextSubsetIndex = jsonObject.nextSubsetIndex
+      this.nextId = jsonObject.next_id
+      this.nextSubsetIndex = jsonObject.next_subset_index
       this.displayMap.clear()
-      jsonObject.displayMap.forEach((displayItemJSON) => {
-         const displayItem = new (classMap[displayItemJSON.className])(this).fromJSON(displayItemJSON)
+      jsonObject.display_map.forEach((displayItemJSON) => {
+         const displayItem = new (classMap[displayItemJSON.class_name])(this).fromJSON(displayItemJSON)
          this.displayMap.set(displayItemJSON.id, displayItem)
       })
-      this.highlightedItems = jsonObject.highlightedItems.map((item) => this.displayMap.get(item))
+      this.highlightedItems = jsonObject.highlighted_items.map((item) => this.displayMap.get(item))
 
-      this.#updateHighlights()
+      this.#updateHighlightColors()
 
       if (this.view != null) {
          this.view.clearAll()
@@ -237,7 +248,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
          clearItemHighlight(item)
          this.view.removeElement(item)
          this.displayMap.delete(itemId)
-         this.#updateHighlights()
+         this.#updateHighlightColors()
       }
    }
 /**
@@ -245,8 +256,8 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 ### Manage display item highlighting
 ```js
  */
-   #updateHighlights () {
-      const highlights = this.highlightedItems.map((item, inx) => {
+   #updateHighlightColors () {
+      const highlightColors = this.highlightedItems.map((item, inx) => {
          let highlight = []
          if (item == null) {
             return highlight
@@ -269,25 +280,25 @@ class HighlightControlViewModel /*:: implements Updatable */ {
          return highlight
       })
 
-      this.view.updateHighlightMark()
-      this.updateModel('highlights', highlights)
+      this.view?.updateHighlightMark()
+      this.updateModel('highlightColors', highlightColors)
    }
 
    highlightItem (itemId /*: integer */, highlightTypeIndex /*: integer */) {
       const item = this.displayMap.get(itemId)
       this.highlightedItems[highlightTypeIndex] = item
-      this.#updateHighlights()
+      this.#updateHighlightColors()
    }
 
    toggleColorHighlight (itemId /*: integer */) {
       const item = this.displayMap.get(itemId)
       this.highlightedItems[0] = (this.highlightedItems[0] == item) ? null : item
-      this.#updateHighlights()
+      this.#updateHighlightColors()
    }
 
-   clearAllHighlights () {
+   clearAllHighlightColors () {
       this.highlightedItems = [null, null, null]
-      this.#updateHighlights()
+      this.#updateHighlightColors()
    }
    /**
 ```
@@ -313,8 +324,8 @@ class HighlightControlViewModel /*:: implements Updatable */ {
  */
    updateModel (field /*: string */, value /*: any */) {
       switch (field) {
-      case 'highlights':
-         this.model['highlights'] = value
+      case 'highlightColors':
+         this.model['highlightColors'] = value
          break
       }
    }
@@ -326,7 +337,10 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 
    update (field /*: string */, value /*: any */) {
       switch (field) {
-      case 'highlights':
+      case 'group':
+         this.reset()
+         break
+      case 'highlightColors':
          this.view?.updateHighlightMark()
          break
       }
@@ -363,7 +377,7 @@ class DisplayItem {
    toJSON () {
       const jsonObject = {
          id: this.id,
-         className: this.className
+         class_name: this.className
       }
       return jsonObject
    }
@@ -444,13 +458,13 @@ class Subgroop extends AbstractSubset {
 
    toJSON () {
       const jsonObject = super.toJSON()
-      jsonObject.subgroupIndex = this.subgroupIndex
+      jsonObject.subgroup_index = this.subgroupIndex
       return jsonObject
    }
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
-      this.subgroupIndex = jsonObject.subgroupIndex
+      this.subgroupIndex = jsonObject.subgroup_index
       return this
    }
 }
@@ -475,13 +489,13 @@ class Subset extends AbstractSubset {
 
    toJSON () {
       const jsonObject = super.toJSON()
-      jsonObject.subsetIndex = this.subsetIndex
+      jsonObject.subset_index = this.subsetIndex
       return jsonObject
    }
 
    fromJSON (jsonObject)  {
       super.fromJSON(jsonObject)
-      this.subsetIndex = jsonObject.subsetIndex
+      this.subsetIndex = jsonObject.subset_index
       return this
    }
 }
@@ -505,17 +519,17 @@ class Partition extends AbstractSubset {
 
    toJSON () {
       const jsonObject = super.toJSON()
-      jsonObject.partitioningScheme = this.partitioningScheme.id
-      jsonObject.subIndex = this.subIndex
+      jsonObject.partitioning_scheme = this.partitioningScheme.id
+      jsonObject.sub_index = this.subIndex
       return jsonObject
    }
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
-      this.subIndex = jsonObject.subIndex
+      this.subIndex = jsonObject.sub_index
       this.partitioningScheme = Array.from(this.viewModel.displayMap.values())
-         .find((item) => item.id == jsonObject.partitioningScheme)
-      this.partitioningScheme.partitions[jsonObject.subIndex] = this
+         .find((item) => item.id == jsonObject.partitioning_scheme)
+      this.partitioningScheme.partitions[jsonObject.sub_index] = this
       return this
    }
 }

@@ -73,7 +73,7 @@ class CycleGraphViewModel /*:: implements Updatable */ {
    #view /*: CycleGraphView */
    #modelFields /*: Array<string> */ = [
       'group',
-      'highlights'
+      'highlightColors'
    ]
 
    get group () /*: Group */ {
@@ -86,7 +86,7 @@ class CycleGraphViewModel /*:: implements Updatable */ {
 
    set view (view /*: CycleGraphView */) {
       this.#view = view
-      view.group = this.group
+      this.#modelFields.forEach((field) => this.update(field, this.model[field]))
    }
 
    get model () /*: CycleGraphModel */ {
@@ -114,7 +114,7 @@ class CycleGraphViewModel /*:: implements Updatable */ {
       case 'group':
          this.view[field] = value
          break
-      case 'highlights':
+      case 'highlightColors':
          this.view['highlightColors'] = value ?? [[], [], []]
          this.view.queueShowGraphic()
          break
@@ -123,36 +123,14 @@ class CycleGraphViewModel /*:: implements Updatable */ {
       }
    }
 
-   setSize (x /*: number */, y /*: number */) {
-      this.view.setSize(x, y)
-   }
-
-   resize () {
-      this.view.resize()
-   }
-
-   showGraphic () {
-      this.view.queueShowGraphic()
-   }
-
-   unitSquarePositions () {
-      return this.view.unitSquarePositions()
-   }
-
-   get canvas () /*: HTMLCanvasElement */ {
-      return this.view.canvas
-   }
-
-   toJSON () {
-      return this.model.toJSON()
-   }
-
-   fromJSON (jsonObject) {
-      if (jsonObject != null) {
-         this.model.fromJSON(jsonObject)
-         this.model.highlightControl = jsonObject.highlightControl
-      }
-   }
+   // Functions used by Sheet
+   setSize (x /*: number */, y /*: number */)  { this.view.setSize(x, y) }
+   resize ()                                   { this.view.resize() }
+   showGraphic ()                              { this.view.queueShowGraphic() }
+   unitSquarePositions ()                      { return this.view.unitSquarePositions() }
+   get canvas () /*: HTMLCanvasElement */      { return this.view.canvas }
+   toJSON ()                                   { return this.model.toJSON() }
+   fromJSON (jsonObject)                       { this.model.fromJSON(jsonObject) }
 }
 
 class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
@@ -822,10 +800,9 @@ function createUnlabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) 
 }
 
 function createLargeCycleGraphView (
-   group /*: Group */,
+   model /*: SubscriptionProxy<CycleGraphModel> */,
    options /*: CycleGraphOptions */ = {}
 ) /*: CycleGraphViewModel */ {
-   const model = GEUtils.createModelProxy(new CycleGraphModel(group))
    const viewModel = new CycleGraphViewModel()
    const view = new CycleGraphView(options)
    view.displays_labels = true
@@ -839,10 +816,10 @@ function createLargeCycleGraphView (
 }
 
 function createInteractiveCycleGraphView (
-   group /*: Group */,
+   model /*: SubscriptionProxy<CycleGraphModel> */,
    options /*: CycleGraphOptions */ = {}
 ) /*: CycleGraphViewModel */ {
-   const viewModel = createLargeCycleGraphView(group, options)
+   const viewModel = createLargeCycleGraphView(model, options)
    CycleGraphViewUI.addGestures(viewModel.view)
 
    return viewModel

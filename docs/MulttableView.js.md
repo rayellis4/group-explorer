@@ -92,14 +92,14 @@ const highlightNames = ['background', 'border', 'corner']
 export class MulttableViewModel /*:: implements Updatable */ {
    #model /*: MulttableModel */
    #view /*: MulttableView */
-   modelFields /*: Array<string> */ = [
+   #modelFields /*: Array<string> */ = [
       'group',
       'elements',
       'separation',
       'organizingSubgroup',
       'coloration',
       'colorReordering',
-      'highlights'
+      'highlightColors'
    ]
 
    get group () /*: Group */ {
@@ -112,7 +112,7 @@ export class MulttableViewModel /*:: implements Updatable */ {
 
    set view (view /*: MulttableView */) {
       this.#view = view
-      view.group = this.group
+      this.#modelFields.forEach((field) => this.update(field, this.model[field]))
    }
 
    get model () /*: MulttableModel */ {
@@ -121,7 +121,7 @@ export class MulttableViewModel /*:: implements Updatable */ {
 
    set model (multtableModel /*: SubscriptionProxy<MulttableModel> */) {
       this.#model = multtableModel
-      this.modelFields.forEach((field) => {
+      this.#modelFields.forEach((field) => {
          multtableModel.$subscribe(this, field)
          this.update(field, this.model[field])
       })
@@ -145,7 +145,7 @@ export class MulttableViewModel /*:: implements Updatable */ {
       case 'organizingSubgroup':
          this.view[field] = value
          break
-      case 'highlights':
+      case 'highlightColors':
          this.view['highlightColors'] = value ?? [[], [], []]
          this.view.queueShowGraphic()
          break
@@ -155,36 +155,14 @@ export class MulttableViewModel /*:: implements Updatable */ {
       }
    }
 
-   setSize (x /*: number */, y /*: number */) {
-      this.view.setSize(x, y)
-   }
-
-   resize () {
-      this.view.resize()
-   }
-
-   showGraphic () {
-      this.view.queueShowGraphic()
-   }
-
-   unitSquarePositions () {
-      return this.view.unitSquarePositions()
-   }
-
-   get canvas () /*: HTMLCanvasElement */ {
-      return this.view.canvas
-   }
-
-   toJSON () {
-      return this.model.toJSON()
-   }
-
-   fromJSON (jsonObject) {
-      if (jsonObject != null) {
-         this.model.fromJSON(jsonObject)
-         this.model.highlightControl = jsonObject.highlightControl
-      }
-   }
+   // Functions used by Sheet
+   setSize (x /*: number */, y /*: number */)  { this.view.setSize(x, y) }
+   resize ()                                   { this.view.resize() }
+   showGraphic ()                              { this.view.queueShowGraphic() }
+   unitSquarePositions ()                      { return this.view.unitSquarePositions() }
+   get canvas () /*: HTMLCanvasElement */      { return this.view.canvas }
+   toJSON ()                                   { return this.model.toJSON() }
+   fromJSON (jsonObject)                       { this.model.fromJSON(jsonObject) }
 }
 
 export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
@@ -848,10 +826,9 @@ function createMinimalMulttableView (options /*: MulttableViewOptions */ = {}) /
 }
 
 function createLargeMulttableView (
-   group /*: Group */,
+   model /*: SubscriptionProxy<MulttaleModel> */,
    options /*: MulttableOptions */ = {}
 ) /*: MulttableViewModel */ {
-   const model = createModelProxy(new MulttableModel(group))
    const viewModel = new MulttableViewModel()
    const view = new MulttableView(options)
    view.displays_labels = true
@@ -865,10 +842,10 @@ function createLargeMulttableView (
 }
 
 function createInteractiveMulttableView (
-   group /*: Group */,
+   model /*: SubscriptionProxy<MulttaleModel> */,
    options /*: MulttableOptions */ = {}
 ) /*: MulttableViewModel */ {
-   const viewModel = createLargeMulttableView(group, options)
+   const viewModel = createLargeMulttableView(model, options)
    MulttableViewUI.addGestures(viewModel.view)
 
    return viewModel

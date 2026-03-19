@@ -9,7 +9,13 @@ The View part of the Sheet Model-View-Controller structure.
 /* global DOMRect MouseEvent ResizeObserver TouchEvent Touch */
 
 import { THREE } from '../lib/externals.js'
+import {CayleyDiagramModel} from './CayleyDiagramModel.js'
+import {layoutCayleyDiagram} from './CayleyDiagramGenerator.js'
+import {createStaticCayleyDiagramView} from './CayleyDiagramView.js'
+import {CycleGraphModel} from './CycleGraphModel.js'
 import {createLargeCycleGraphView} from './CycleGraphView.js'
+import {createModelProxy} from './GEUtils.js'
+import {MulttableModel} from './MulttableModel.js'
 import {createLargeMulttableView} from './MulttableView.js'
 import * as SheetModel from './SheetModel.js'
 
@@ -192,10 +198,6 @@ function graphicPOV () /*: GraphicUnits */ {
   return pov
 }
 
-export function createViewElement (modelElement /*: SheetModel.SheetElement */) /*: SheetView */ {
-  return new (eval(modelElement.className.replace('Element', 'View')))(modelElement)
-}
-
 // pan Sheet by {dx, dy} WindowUnits
 export function pan (dx /*: float */, dy /*: float */) {
   panVector.set(panVector.x + dx, panVector.y + dy)
@@ -268,19 +270,21 @@ export class View {
       let newElement
       switch (modelElement.className) {
       case 'TextElement':        newElement = new TextView(this, modelElement);        break
+      case 'CDElement':          newElement = new CDView(this, modelElement);          break
       case 'CGElement':          newElement = new CGView(this, modelElement);          break
       case 'MTElement':          newElement = new MTView(this, modelElement);          break
       case 'ConnectingElement':  newElement = new ConnectingView(this, modelElement);  break
       case 'MorphismElement':    newElement = new MorphismView(this, modelElement);    break
-      }        
+      }
       if (newElement != null) {
          this.viewElements.set(modelElement.id, newElement)
       }
    }
-   
+
    removeElement (modelElement) {
       const sheetViewElement = this.viewElements.get(modelElement.id)
       sheetViewElement.destroy()
+      this.viewElements.delete(modelElement.id)
    }
 
    moveElement (modelElement) {
@@ -352,7 +356,6 @@ export class NodeView extends SheetView {
 
    get center () /*: SheetUnits */ {
       return this.position.addScaledVector(this.size, 0.5)
-    return this.modelElement.position.addScaledVector(this.modelElement.size, 0.5)
   }
 
   get rect () /*: DOMRect */ {
@@ -503,6 +506,15 @@ export class VisualizerView extends NodeView {
       this.domElement.classList.add('VisualizerElement')
    }
 
+  toJSON () {
+    return this.visualizer.toJSON()
+  }
+
+  applyJSON (json) {
+    this.visualizer.fromJSON(json)
+    this.redraw()
+  }
+
   updateTransform () {
     const transformZoom = zoomFactor / this.lastZoom
     this.domElement.style.transform =  makeCssTransform(transformZoom, undefined, this.position.toGraphicUnits())
@@ -511,103 +523,150 @@ export class VisualizerView extends NodeView {
   redraw () {
     this.lastZoom = zoomFactor
     this.updateTransform()
+
+    this.visualizer.setSize(this.size.x * zoomFactor, this.size.y * zoomFactor)
+    this.visualizer.showGraphic()
+
+    this.unitSquarePositions = this.visualizer.unitSquarePositions()
   }
 }
 
 export class CGView extends VisualizerView {
   /*::
     +modelElement: SheetModel.CGElement
-    cgViewModel: any
   */
    constructor (view /*: View */, modelElement /*: SheetModel.CGElement */) {
-      const cgViewModel = createLargeCycleGraphView(modelElement.group)
+      const cgModel = createModelProxy(new CycleGraphModel(modelElement.group))
       if (modelElement.visualizer != null) {
-         cgViewModel.model.fromJSON(modelElement.visualizer)
+         cgModel.fromJSON(modelElement.visualizer)
       }
+      const cgViewModel = createLargeCycleGraphView(cgModel)
+
       super(view, modelElement, cgViewModel.canvas)
+
       this.cgViewModel = cgViewModel
       this.redraw()
    }
 
-  toJSON () {
-    return this.cgViewModel.model.toJSON()
-  }
-
-  applyJSON (json) {
-    this.cgViewModel.model.fromJSON(json)
-    this.redraw()
-  }
-
-  redraw () {
-    super.redraw()
-
-    this.cgViewModel.setSize(this.size.x * zoomFactor, this.size.y * zoomFactor)
-    this.cgViewModel.showGraphic()
-
-    this.unitSquarePositions = this.cgViewModel.unitSquarePositions()
-  }
+   get visualizer () {
+      return this.cgViewModel
+   }
 }
 
 export class MTView extends VisualizerView {
   /*::
     +modelElement: SheetModel.MTElement
-    mtViewModel: any
   */
    constructor (view /*: View */, modelElement /*: SheetModel.MTElement */) {
-      const mtViewModel = createLargeMulttableView(modelElement.group)
+      const mtModel = createModelProxy(new MulttableModel(modelElement.group))
       if (modelElement.visualizer != null) {
-         mtViewModel.model.fromJSON(modelElement.visualizer)
+         mtModel.fromJSON(modelElement.visualizer)
       }
+      const mtViewModel = createLargeMulttableView(mtModel)
+
       super(view, modelElement, mtViewModel.canvas)
+
       this.mtViewModel = mtViewModel
       this.redraw()
    }
 
-  toJSON () {
-    return this.mtViewModel.model.toJSON()
-  }
-
-  applyJSON (json) {
-    this.mtViewModel.model.fromJSON(json)
-    this.redraw()
-  }
-
-  redraw () {
-    super.redraw()
-
-    this.mtViewModel.setSize(this.size.x * zoomFactor, this.size.y * zoomFactor)
-    this.mtViewModel.showGraphic()
-
-    this.unitSquarePositions = this.mtViewModel.unitSquarePositions()
-  }
+   get visualizer () {
+      return this.mtViewModel
+   }
 }
 
 export class CDView extends VisualizerView {
-  /*::
-    +modelElement: SheetModel.CDElement
-  */
+   savedVisualizerJSON
+
+   static #sharedViewModel /*: CayleyDiagramViewModel */ = null
+   static #activeView /*: ?CDView */ = null
+
    constructor (view /*: View */, modelElement /*: SheetModel.CDElement */) {
       super(view, modelElement, document.createElement('canvas'))
       this.redraw()
    }
 
-  redraw () {
-    super.redraw()
+   // swap our json into shared visualizer and use it to draw diagram
+   // check the case where we delete the element holding the shared view model
+   get visualizer () {
+      if (CDView.#activeView == this) {
+         return CDView.#sharedViewModel
+      }
 
-    const size = this.size.clone().multiplyScalar(zoomFactor)
+      if (CDView.#sharedViewModel == null) {  // no shared view  model -- create one from this.modelElement and use it
+         const cdModel = createModelProxy(new CayleyDiagramModel(this.modelElement.group))
+         if (this.modelElement.visualizer != null) {
+            cdModel.fromJSON(this.modelElement.visualizer)
+         }
+         const cdViewModel = createStaticCayleyDiagramView(cdModel)
+         if (this.modelElement.group.isSimple) {  // diagram won't show structure anyway
+            cdViewModel.draw(this.modelElement.group, this.modelElement.group.cayleyDiagrams[0]?.name)
+         } else {  // generate diagram to show structure
+            cdViewModel.draw(this.modelElement.group)
+         }
+         this.savedVisualizerJSON = cdViewModel.toJSON()
 
-    this.domElement.setAttribute('width', size.width)
-    this.domElement.setAttribute('height', size.height)
+         CDView.#sharedViewModel = cdViewModel
+         CDView.#activeView = this
+      } else {  // have a shared view model 
+         if (CDView.#activeView != null) {
+            CDView.#activeView.savedVisualizerJSON = CDView.#sharedViewModel.toJSON()
+         }
+         if (this.savedVisualizerJSON == null) { // first time through
+            if (  CDView.#sharedViewModel.group == this.modelElement.group
+               && this.modelElement.visualizer != null
+               && this.modelElement.visualizer?.highlight_colors != null
+            ) {  // fast path: only apply highlights to shared view on first time through
+               CDView.#sharedViewModel.model.highlightColors = this.modelElement.visualizer.highlight_colors
+            } else {
+               const cdViewModel = CDView.#sharedViewModel
+               const cdModel = cdViewModel.model
+               const json = { group_url: this.modelElement.group.URL }
+               if (this.modelElement.visualizer != null) {
+                  Object.assign(json, this.modelElement.visualizer)
+               }
+               cdModel.fromJSON(json)
+               if (this.modelElement.group.isSimple) {  // diagram won't show structure anyway
+                  cdViewModel.draw(this.modelElement.group, this.modelElement.group.cayleyDiagrams[0]?.name)
+               } else {  // generate diagram to show structure
+                  cdViewModel.draw(this.modelElement.group)
+               }
+               this.savedVisualizerJSON = cdViewModel.toJSON()
+            }            
+         } else {
+            CDView.#sharedViewModel.fromJSON(this.savedVisualizerJSON)
+         }
 
-    const context = this.domElement.getContext('2d')
-    const visualizer = this.modelElement.visualizer.cayleyDiagramView
-    visualizer.setSize(size.width, size.height)
-    visualizer.rescaleLines()
-    visualizer.render()
-    context.drawImage(visualizer.renderer.domElement, 0, 0)
+         CDView.#activeView = this
+      }
 
-    this.unitSquarePositions = visualizer.unitSquarePositions()
-  }
+      return CDView.#sharedViewModel
+   }
+
+   destroy () {
+      if (CDView.#activeView == this) {
+         CDView.#activeView = null
+      }
+      super.destroy()
+   }
+
+   redraw () {
+      this.lastZoom = zoomFactor
+      this.updateTransform()
+
+      const size = this.size.clone().multiplyScalar(zoomFactor)
+
+      this.visualizer.setSize(size.x, size.y)
+      this.visualizer.view.rescaleLines()
+      this.visualizer.showGraphic()
+
+      this.domElement.setAttribute('width', size.x)
+      this.domElement.setAttribute('height', size.y)
+      const context = this.domElement.getContext('2d')
+      context.drawImage(this.visualizer.view.canvas, 0, 0)
+
+      this.unitSquarePositions = CDView.#sharedViewModel.unitSquarePositions()
+   }
 }
 
 const LINE_LEN = 40

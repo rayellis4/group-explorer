@@ -14,16 +14,6 @@ export type MulttableJSON = {
 }
  */
 export class MulttableModel {
-   static builtinProperties /*: Array<string> */ = [
-      'group',
-      'highlights',
-      'highlightConfiguration',
-      'organizingSubgroup',
-      'separation',
-      'coloration',
-      'colorReordering',
-      'elements'
-   ]
    group /*: Group */
    highlights /*: Array<Array<?color>> */ = [[], [], []]
    highlightConfiguration = {  // visualizer-specific highlight parameters
@@ -38,55 +28,49 @@ export class MulttableModel {
    colorReordering /*: 'topRowFixed' | 'elementColorsFixed' */ = 'topRowFixed'
    elements /*: Array<groupElement> */
 
+   // Opaque plugin slots (carried opaquely through serialization)
+   highlightColors /*: ?Array<Array<?css_color>> */ = null
+   highlightControl /*: any */ = null
+
    constructor (group /*: Group */) {
       this.group = group
       this.elements = group.elements
    }
 
    toJSON () /*: MulttableJSON */ {
-      const json /*: MulttableJSON */ = {
-         groupURL: this.group.URL,
+      return {
+         group_url: this.group.URL,
          highlights: this.highlights,
-         organizingSubgroup: this.organizingSubgroup,
+         organizing_subgroup: this.organizingSubgroup,
          separation: this.separation,
          coloration: this.coloration,
-         colorReordering: this.colorReordering,
-         elements: this.elements
+         color_reordering: this.colorReordering,
+         elements: this.elements,
+         highlight_colors: this.highlightColors,
+         highlight_control: (this.highlightControl?.toJSON == null)
+            ? this.highlightControl
+            : this.highlightControl.toJSON()
       }
-
-      Object.getOwnPropertyNames(this)
-         .filter((property) => !this.constructor.builtinProperties.includes(property))
-         .forEach((property) => {
-            json[property] = (this[property]?.toJSON == null)
-               ? this[property]
-               : this[property].toJSON()
-         })
-
-      return json
    }
 
    fromJSON (json /*: MulttableJSON */) {
-      if (this.group.URL != json.groupURL) {
-         this.group = Library.getGroupByURL(json.groupURL)
+      if (json.group_url != null && this.group.URL != json.group_url) {
+         this.group = Library.getGroupByURL(json.group_url)
       }
       this.highlights = json.highlights ?? [[], [], []]
-      this.organizingSubgroup = json.organizingSubgroup ?? 0
+      this.organizingSubgroup = json.organizing_subgroup ?? 0
       this.separation = json.separation ?? 0
       this.coloration = json.coloration ?? 'rainbow'
-      this.colorReordering = this.colorReordering ?? 'topRowFixed'
+      this.colorReordering = json.color_reordering ?? 'topRowFixed'
       this.elements = json.elements ?? this.group.elements
-      
-      Object.getOwnPropertyNames(this)
-         .filter((property) => !this.constructor.builtinProperties.includes(property))
-         .forEach((property) => {
-            if (json[property] != null) {
-               if (this[property]?.fromJSON == null) {
-                  this[property] = json[property]
-               } else {
-                  this[property].fromJSON(json[property])
-               }
-            }
-         })
+      this.highlightColors = json.highlight_colors ?? [[], [], []]
+      if (json.highlight_control != null) {
+         if (this.highlightControl != null && 'fromJSON' in this.highlightControl) {
+            this.highlightControl.fromJSON(json.highlight_control)
+         } else {
+            this.highlightControl = json.highlight_control
+         }
+      }      
 
       return this
    }

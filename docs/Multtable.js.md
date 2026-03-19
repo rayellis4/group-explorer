@@ -25,12 +25,12 @@ async function load () {
 
    // If this page is editing a sheet...
    const initialJSON /*: unknown */ =
-      await (window.location.href.includes('SheetEditor=true') ? SheetEditor.getInitialData() : null)
+      await (window.location.href.includes('SheetEditor') ? SheetEditor.getInitialData() : null)
 
    // Get group, either from page URL or data from Sheet
-   const group /*: Group */ = await ((initialJSON?.groupURL == null)
+   const group /*: Group */ = await ((initialJSON?.group_url == null)
       ? Library.loadFromPageURL()
-      : Library.getGroupByURL(initialJSON.groupURL))
+      : Library.getGroupByURL(initialJSON.group_url))
 
    // Create Header
    Heading.display(
@@ -45,13 +45,13 @@ async function load () {
       ]
    )
 
+   // Create Multtable model
+   const multtableModel /*: SubscriptionProxy<MulttableModel> */ = createModelProxy(new MulttableModel(group))
+
    // Create multtableView in graphic div and attach to multtableModel
-   const multtableViewModel = createInteractiveMulttableView(group, {
+   const multtableViewModel = createInteractiveMulttableView(multtableModel, {
       container: document.getElementById('graphic')
    })
-
-   // Create Multtable model
-   const multtableModel /*: SubscriptionProxy<MulttableModel> */ = multtableViewModel.model
 
    // Create Control Panel
    ControlPanel.addPanel(document.getElementById('control-panel'))
@@ -64,8 +64,11 @@ async function load () {
    const tableControlElement = document.getElementById('table-control')
    MulttableControl.addControl(tableControlElement, multtableModel)  // Initializes Multtable Controller directly
 
+   // Register window resize handler
+   window.addEventListener('resize', () => multtableViewModel.resize())
+
    // Initialize Multtable model, change broadcast if editing a sheet
-   if (window.location.href.includes('SheetEditor=true')) {
+   if (window.location.href.includes('SheetEditor')) {
       if (initialJSON != null) {
          multtableModel.fromJSON(initialJSON)
       } else {
@@ -76,13 +79,10 @@ async function load () {
          return multtableModel.toJSON()
       })
 
-      // run SheetEditor.broadcastChange() when 'highlights' or HighlightControl structure changes
-      multtableModel.$subscribe(broadcastChangeUpdater, 'highlights')
+      // run SheetEditor.broadcastChange() when highlightColors or highlightControl object changes
+      multtableModel.$subscribe(broadcastChangeUpdater, 'highlightColors')
       multtableModel.$subscribe(broadcastChangeUpdater, 'highlightControl')
    }
-
-   // Register window resize handler
-   window.addEventListener('resize', () => multtableViewModel.resize())
 }
 
 // an unexported module const, so it won't be garbage collected
