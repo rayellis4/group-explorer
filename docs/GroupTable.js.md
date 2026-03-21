@@ -11,7 +11,7 @@ This component creates and fills the table of group information that the
 import {createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
 import {createUnlabelledCycleGraphView} from './CycleGraphView.js'
 import {createMinimalMulttableView} from './MulttableView.js'
-import {createStaticSymmetryObjectView} from './SymmetryObjectView.js'
+import {createSymmetryObjectThumbnailView} from './SymmetryObjectView.js'
 import * as Library from './Library.js'
 
 export {IMAGE_SIZE, display}
@@ -56,7 +56,7 @@ function display (tableElement, groupsToDisplay) {
             generators.cayleyDiagramView = createCayleyDiagramThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
             generators.cycleGraphView = createUnlabelledCycleGraphView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
             generators.multtableView = createMinimalMulttableView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
-            generators.symmetryObjectView = createStaticSymmetryObjectView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
+            generators.symmetryObjectView = createSymmetryObjectThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
          }
 
          updateLibrary = true  // will cause last async task to update the local copy of the group library
@@ -200,12 +200,12 @@ function generateThumbnails (generators, group, cayleyTitle, symmetryTitle) {
       group.thumbnails.cycleGraph = generators.cycleGraphView.getImage().src
    }
 
-   if (thumbnails.symmertyObject == null) {
+   if (thumbnails.symmetryObject == null) {
       if (symmetryTitle == undefined) {
          group.thumbnails.symmetryObject = null
       } else {
-         group.thumbnails.symmetryObject =
-            generators.symmetryObjectView.setObject(group.symmetryObjects[0]).getImage().src
+         generators.symmetryObjectView.draw(group, group.symmetryObjects[0].name)
+         group.thumbnails.symmetryObject = generators.symmetryObjectView.getImage().src
       }
    }
 }

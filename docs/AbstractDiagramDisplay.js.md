@@ -239,43 +239,6 @@ export class AbstractDiagramDisplay {
     
     ////////////////////////////   Camera   /////////////////////////////////////////
 
-    /*
-     * Position the camera and point it at the center of the scene
-     *
-     * Camera positioned to match point of view in GE2 for user-specified (not generated) diagrams:
-     *   If diagram lies entirely in the y-z plane (all x == 0)
-     *     place camera on x-axis, y-axis up (z-axis to the left)
-     *   If diagram lies entirely in the x-z plane (all y == 0)
-     *     place camera on y-axis, z-axis down (x-axis to the right)
-     *   If diagram lies entirely in the x-y plane (all z == 0)
-     *     place camera on z-axis, y-axis up (x-axis to the right)
-     *   Otherwise place camera with y-axis up, offset a bit from
-     *     the (1,1,1) vector so that opposite corners don't line up
-     *     and make cubes look flat; look at origin, and adjust camera
-     *     distance so that diagram fills field of view
-     */
-    setCamera (sphere_positions /*: Array<THREE.Vector3> */) {
-        let location, up;
-        if (sphere_positions.every( (position) => position.x == 0.0 )) {
-            location = new THREE.Vector3(3, 0, 0);
-            up = new THREE.Vector3(0, 1, 0);
-        } else if (sphere_positions.every( (position) => position.y == 0.0 )) {
-            location = new THREE.Vector3(0, 3, 0);
-            up = new THREE.Vector3(0, 0, -1);
-        } else if (sphere_positions.every( (position) => position.z == 0.0 )) {
-            location = new THREE.Vector3(0, 0, 3);
-            up = new THREE.Vector3(0, 1, 0);
-        } else {
-            location = new THREE.Vector3(1.7, 1.6, 1.9);
-            up = new THREE.Vector3(0, 1, 0);
-        }
-
-        const radius = Math.sqrt(Math.max(1, ...sphere_positions.map( (position) => position.lengthSq() )));
-        location.multiplyScalar(radius);
-
-        this.setCameraPosition(location, up)
-    }
-
     setCameraPosition (position /*: THREE.Vector3 */, up /*: THREE.Vector3 */) {
         this.camera.position.copy(position)
         this.camera.up.copy(up)

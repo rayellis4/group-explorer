@@ -10,7 +10,7 @@ with links to their larger visualizers.
 import { createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
 import { createUnlabelledCycleGraphView } from './CycleGraphView.js'
 import { createMinimalMulttableView } from './MulttableView.js'
-import { createStaticSymmetryObjectView } from './SymmetryObjectView.js'
+import { createSymmetryObjectThumbnailView } from './SymmetryObjectView.js'
 import * as GEUtils from './GEUtils.js'
 import { IMAGE_SIZE } from './GroupTable.js'
 import * as SheetModel from './SheetModel.js'
@@ -159,8 +159,9 @@ function getImages (group) {
          image.src = group.thumbnails.symmetryObject
       } else {
          if (symmetryObjectView == null)
-            symmetryObjectView = createStaticSymmetryObjectView(THUMBNAIL_SIZE)
-         image.src = symmetryObjectView.setObject(symmetryObject).getImage().src
+            symmetryObjectView = createSymmetryObjectThumbnailView(THUMBNAIL_SIZE)
+         symmetryObjectView.draw(group, image.name)
+         image.src = symmetryObjectView.getImage().src
       }
    }
 

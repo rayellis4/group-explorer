@@ -18,11 +18,13 @@ It is used to draw the main object of symmetry diagrams in the
  */
 import {AbstractDiagramDisplay} from './AbstractDiagramDisplay.js';
 import {DEFAULT_SPHERE_COLOR, DEFAULT_LINE_COLOR as DEFAULT_PATH_COLOR} from './AbstractDiagramDisplay.js';
-
-// $FlowFixMe -- external module imports described in flow-typed directory
 import {THREE} from '../lib/externals.js';
 
-export {SymmetryObjectView, createInteractiveSymmetryObjectView, createStaticSymmetryObjectView}
+export {
+   layoutSymmetryObject,
+   createSymmetryObjectThumbnailView,
+   createSymmetryObjectView
+}
 /*::
 import type {XMLSymmetryObject} from './XMLGroup.js';
 import type {AbstractDiagramDisplayOptions} from './AbstractDiagramDisplay.js';
@@ -40,71 +42,198 @@ export type SymmetryObjectViewOptions = {
 
 const SYMMETRY_OBJECT_BACKGROUND_COLOR = '#C8E8C8';
 
-class SymmetryObjectView extends AbstractDiagramDisplay {
-    constructor (options /*: SymmetryObjectViewOptions */ = {}) {
-       super(options)
+class SymmetryObjectViewModel /*:: implements Updatable */ {
+   #model /*: CycleGraphModel */
+   #view /*: CycleGraphView */
+   #modelFields /*: Array<string> */ = [
+      'group',
+      'layout',
+      'background',
+      'fog_level',
+      'line_width',
+      'sphere_scale_factor',
+      'zoom_level',
+      'showingAxes',
+      'snap_to_axis_request'
+   ]
 
-       if (   options.group != null
-           && options.group.symmetryObjects.some((obj) => obj.name === options.diagramName)) {
-          this.group = options.group
-          this.diagramName = options.diagramName
-          const symmetryObject = this.group.symmetryObjects.find((symmetryObject) => this.diagramName === symmetryObject.name)
-          this.setObject(symmetryObject)
-       }
-       
-       // Set background
-       this.background = SYMMETRY_OBJECT_BACKGROUND_COLOR;
-    }
+   get group () /*: Group */ {
+      return this.model.group
+   }
 
-    ////////////////////////////   Line routines   ////////////////////////////////
+   get view () /*: CycleGraphView */ {
+      return this.#view
+   }
 
-    createLines (line_data /*: Array<LineData> */) {
-        const line_group = this.getGroup('lines');
-        line_data.forEach( (line_datum, inx) => {
-            const new_line = this.createLine(line_datum.vertices);
-            const new_line_color = line_datum.color;
-            new_line.material.color.set(new_line_color);
+   get model () /*: CycleGraphModel */ {
+      return this.#model
+   }
 
-            line_group.add(new_line);
-        } )
-    }
+   setModel (model /*: SubscriptionProxy<CayleyDiagramModel> */) {
+      this.#model = model
+      this.#modelFields.forEach((field) => model.$subscribe(this, field))
+      if (this.view != null) {
+         this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
+      }
+   }
 
-    ///////////////////////   Draw symmetry object   //////////////////////////////
+   setView (view /*: CayleyDiagramView */) {
+      this.#view = view
+      view.viewModel = this
+      if (this.model != null) {
+         this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
+      }
+   }
 
-    setObject (symmetry_object /*: XMLSymmetryObject */) /*: SymmetryObjectView */ {
-        this.deleteAllObjects();
+   updateModel (field /*: string */, value /*: any */) {
+      // $FlowExpectedError[prop-missing] --
+      this.model[field] = value
+   }
 
-        const spheres = symmetry_object.spheres.map( (sphere) => (
-            {position: new THREE.Vector3(...sphere.point), color: sphere.color || DEFAULT_SPHERE_COLOR}
-        ) );
+   update (field /*: string */, value /*: any */) {
+      if (this.view == null) {
+         return
+      }
+      switch (field) {
+      case 'group':
+      case 'background':
+      case 'fog_level':
+      case 'line_width':
+      case 'sphere_scale_factor':
+      case 'zoom_level':
+         this.view[field] = value
+         break
+      case 'showingAxes': {
+         const isShowing = this.view.getGroup('debug').children.length > 0
+         if (value && !isShowing) this.view.drawCoordinateAxes()
+         else if (!value && isShowing) this.view.removeCoordinateAxes()
+         break
+      }
+      case 'layout': {
+         if (value != null) {
+            this.view.deleteAllObjects()
+            const {pov, spheres, paths} = value
+            this.view.setCameraPosition(pov.position, pov.up)
+            this.view.sphere_base_radius = spheres[0].radius
+            this.view.createSpheres(spheres)
+            paths.forEach((path) => {  // from previous SymmetryObjectView.createLines
+               const newLine = this.view.createLine(path.vertices)
+               newLine.material.color.set(path.color)
+               this.view.getGroup('lines').add(newLine)               
+            })
+         }
+         break
+      }
+      case 'snap_to_axis_request':
+         if (value == true) {
+            this.view.snapToAxis()
+            this.updateModel(field, false)
+         }
+         break
+      default:
+         Log.info(`unsupported field ${field} in CayleyDiagramView.CayleyDiagramViewModel.updateView`)
+      }
+   }
 
-        this.setCamera(spheres.map( (sphere) => sphere.position ));
-        this.sphere_base_radius = symmetry_object.spheres[0].radius;
-        this._sphere_scale_factor = 1;
-        this.createSpheres(spheres);
-
-        const paths = symmetry_object.paths.map( (path) => {
-            return {vertices: path.points.map( (point) => new THREE.Vector3(...point) ),
-                    color: path.color || DEFAULT_PATH_COLOR};
-        } );
-        this.createLines(paths);
-
-        this.render()
-
-        return this;
-    }
+   // Functions used by Thumbnail client (GroupTable, SubgroupInfo, ViewInfo)
+   resize ()                                   { this.view.resize() }
+   showGraphic ()                              { this.view.render() }
+   getImage ()                                 { return this.view.getImage() }
+   draw (group, diagramName) {
+      const layout = layoutSymmetryObject(group, diagramName)
+      this.update('background', SYMMETRY_OBJECT_BACKGROUND_COLOR)
+      this.update('group', group)  // from previous SymmetryObjectView.setObject
+      this.update('sphere_scale_factor', 1)
+      this.update('layout', layout)
+   }
 }
 
 ////////////////////////////   Factory Functions   ////////////////////////////////
 
-function createInteractiveSymmetryObjectView (options /*: SymmetryObjectViewOptions */ = {}) {
-    const display = new SymmetryObjectView(options);
-    display.enableTrackballControl();
-    display.render();
-    return display;
+
+// Factory for thumbnail generators (GroupTable, SubgroupInfo, ViewInfo).
+// Returns a SymmetryObjectViewModel with no model
+// call .draw(group, ?diagramName), and .getImage() to get the rendered result.
+function createSymmetryObjectThumbnailView (options /*: SymmetryObjectOptions */ = {}) /*: SymmetryObjectViewModel */ {
+   const viewModel = new SymmetryObjectViewModel()
+   const view = new AbstractDiagramDisplay(options)
+   viewModel.setView(view)
+
+   return viewModel
 }
 
-function createStaticSymmetryObjectView (options /*: SymmetryObjectViewOptions */ = {}) {
-    const display = new SymmetryObjectView(options);
-    return display;
+function createSymmetryObjectView (
+   model /*: SubscriptionProxy<CayleyDiagramModel> */,
+   options /*: SymmetryObjectOptions */ = {}
+) /*: SymmetryObjectViewModel */ {
+   const viewModel = new SymmetryObjectViewModel()
+   const view = new AbstractDiagramDisplay(options)
+   model.background = SYMMETRY_OBJECT_BACKGROUND_COLOR
+
+   // assemble parts
+   viewModel.setModel(model)
+   viewModel.setView(view)
+   viewModel.view.enableTrackballControl()
+
+   return viewModel
+}
+
+function layoutSymmetryObject (group /*: Group */, symmetryObjectName /*: string */) /*: Layout */ {
+   const symmetryObject = group.symmetryObjects.find((symmetryObject) => symmetryObject.name == symmetryObjectName)
+
+   const spheres = symmetryObject.spheres.map((sphere) => {
+      return {
+         position: new THREE.Vector3(...sphere.point),
+         radius: sphere.radius,
+         color: sphere.color || DEFAULT_SPHERE_COLOR
+      }
+   })
+
+   const pov = getPov(spheres.map((sphere) => sphere.position))
+
+   const paths = symmetryObject.paths.map((path) => {
+      return {
+         vertices: path.points.map( (point) => new THREE.Vector3(...point) ),
+         color: path.color || DEFAULT_PATH_COLOR
+      }
+   })
+
+   return {pov: pov, spheres: spheres, paths: paths}
+}
+
+/*
+ * Return default camera position and up direction for given node placement
+ *
+ * Camera positioned to match point of view in GE2 for user-specified (not generated) diagrams:
+ *   If diagram lies entirely in the y-z plane (all x == 0)
+ *     place camera on x-axis, y-axis up (z-axis to the left)
+ *   If diagram lies entirely in the x-z plane (all y == 0)
+ *     place camera on y-axis, z-axis down (x-axis to the right)
+ *   If diagram lies entirely in the x-y plane (all z == 0)
+ *     place camera on z-axis, y-axis up (x-axis to the right)
+ *   Otherwise place camera with y-axis up, offset a bit from
+ *     the (1,1,1) vector so that opposite corners don't line up
+ *     and make cubes look flat; look at origin, and adjust camera
+ *     distance so that diagram fills field of view
+ */
+function getPov (spherePositions /*: Array<THREE.Vector3> */) {
+   let position, up;
+   if (spherePositions.every( (position) => position.x == 0.0 )) {
+      position = new THREE.Vector3(3, 0, 0);
+      up = new THREE.Vector3(0, 1, 0);
+   } else if (spherePositions.every( (position) => position.y == 0.0 )) {
+      position = new THREE.Vector3(0, 3, 0);
+      up = new THREE.Vector3(0, 0, -1);
+   } else if (spherePositions.every( (position) => position.z == 0.0 )) {
+      position = new THREE.Vector3(0, 0, 3);
+      up = new THREE.Vector3(0, 1, 0);
+   } else {
+      position = new THREE.Vector3(1.7, 1.6, 1.9);
+      up = new THREE.Vector3(0, 1, 0);
+   }
+
+   const radius = Math.sqrt(Math.max(1, ...spherePositions.map( (position) => position.lengthSq() )));
+   position.multiplyScalar(radius);
+
+   return {position: position, up: up}
 }

@@ -1,11 +1,13 @@
 // @flow
 
+import {CayleyDiagramModel} from './CayleyDiagramModel.js'
 import {ControlPanel} from './ControlPanel.js'
+import {createModelProxy} from './GEUtils.js'
 import * as Heading from './Heading.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as SymmetryObjectControl from './SymmetryObjectControl.js'
-import {createInteractiveSymmetryObjectView} from './SymmetryObjectView.js'
+import {createSymmetryObjectView} from './SymmetryObjectView.js'
 
 export {load}
 
@@ -16,6 +18,10 @@ async function load () {
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
    const group = await Library.loadFromPageURL()
+   if (group.symmetryObjects.length == 0) {
+      Log.err(`The group ${group.shortName} has no symmetry objects.`)
+      return
+   }
 
    // Create Header
    Heading.display(
@@ -30,12 +36,10 @@ async function load () {
       ]
    )
 
-   // Draw SymmetryObject
-   const graphicElement = document.getElementById('graphic')
-   const symmetryObjectView = createInteractiveSymmetryObjectView({
-      container: graphicElement,
-      group: group,
-      diagramName: getDiagramName(group)
+   const symmetryObjectModel = createModelProxy(new CayleyDiagramModel(group))
+
+   const symmetryObjectViewModel = createSymmetryObjectView(symmetryObjectModel, {
+      container: document.getElementById('graphic')
    })
 
    // Create Control Panel
@@ -44,39 +48,10 @@ async function load () {
 
    // Create SymmetryObjectControl
    const symmetryObjectControlElement = document.getElementById('symmetry-object-control')
-   SymmetryObjectControl.addControl(symmetryObjectControlElement, symmetryObjectView)
+   SymmetryObjectControl.addControl(symmetryObjectControlElement, symmetryObjectModel)
 
    // Resize the body, including the graphic
-   window.addEventListener('resize', () => symmetryObjectView.resize())
-}
-
-/* Get diagram name from URL; throw exception when group has no symmetry object */
-function getDiagramName (group) /*: string */ {
-   let diagramName;
-   // Check that this group has a symmetry object
-   if (group.symmetryObjects.length == 0) {
-      // Throws exception if group has no symmetry objects
-      throw `The group ${group.shortName} has no symmetry objects.`;
-   } else {
-      // If so, use the diagram name from the URL search string
-      const urlDiagramName = new URL(window.location.href).searchParams.get('diagram');
-      // unless it is empty
-      if (urlDiagramName == undefined) {
-         diagramName = group.symmetryObjects[0].name;
-      } else {
-         // or it does not match one of the symmetryObjects
-         if (!group.symmetryObjects.some( (symmetryObject) => symmetryObject.name == urlDiagramName )) {
-            // Name is passed but there is no matching symmetryObject -- alert user and continue
-            Log.warn(`The group ${group.shortName} has no symmetry object named ${urlDiagramName}. ` +
-                     `Using ${group.symmetryObjects[0].name} instead.`);
-            diagramName = group.symmetryObjects[0].name;
-         } else {
-            diagramName = urlDiagramName;
-         }
-      }
-   }
-
-   return diagramName;
+   window.addEventListener('resize', () => symmetryObjectViewModel.resize())
 }
 
 function insertHTML () {
