@@ -204,14 +204,14 @@ class VisualizerElement extends NodeElement {
       return {
          ...super.toJSON(),
          groupURL: this.group.URL,
-         visualizer: this.viewElement?.toJSON() ?? this.visualizer
+         visualizer: this.visualizer
       }
    }
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
       this.group = Library.getGroupByURL(jsonObject.groupURL)
-      this.visualizer = jsonObject.visualizer ?? null
+      this.visualizer = jsonObject.visualizer
       return this
    }
 }

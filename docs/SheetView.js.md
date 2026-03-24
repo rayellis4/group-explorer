@@ -287,6 +287,13 @@ export class View {
       this.viewElements.delete(modelElement.id)
    }
 
+   clear () {
+      this.viewElements.forEach((sheetViewElement) => {
+         sheetViewElement.destroy()
+      })
+      this.viewElements.clear()
+   }
+
    moveElement (modelElement) {
       this.viewElements.get(modelElement.id)?.updateTransform()
       this.#redrawLinks(modelElement)
@@ -294,6 +301,18 @@ export class View {
 
    resizeElement (modelElement) {
       this.viewElements.get(modelElement.id)?.redraw()
+      this.#redrawLinks(modelElement)
+   }
+
+   getVisualizerJSON (modelElement) {
+      const viewElement = this.viewElements.get(modelElement.id)
+      return viewElement.visualizer.toJSON()
+   }
+
+   updateVisualizer (modelElement, json) {
+      const viewElement = this.viewElements.get(modelElement.id)
+      viewElement.visualizer.fromJSON(json)
+      viewElement.redraw()
       this.#redrawLinks(modelElement)
    }
 
@@ -506,15 +525,6 @@ export class VisualizerView extends NodeView {
       this.domElement.classList.add('VisualizerElement')
    }
 
-  toJSON () {
-    return this.visualizer.toJSON()
-  }
-
-  applyJSON (json) {
-    this.visualizer.fromJSON(json)
-    this.redraw()
-  }
-
   updateTransform () {
     const transformZoom = zoomFactor / this.lastZoom
     this.domElement.style.transform =  makeCssTransform(transformZoom, undefined, this.position.toGraphicUnits())
@@ -608,7 +618,7 @@ export class CDView extends VisualizerView {
 
          CDView.#sharedViewModel = cdViewModel
          CDView.#activeView = this
-      } else {  // have a shared view model 
+      } else {  // have a shared view model
          if (CDView.#activeView != null) {
             CDView.#activeView.savedVisualizerJSON = CDView.#sharedViewModel.toJSON()
          }
@@ -618,23 +628,31 @@ export class CDView extends VisualizerView {
                && this.modelElement.visualizer?.highlight_colors != null
             ) {  // fast path: only apply highlights to shared view on first time through
                CDView.#sharedViewModel.model.highlightColors = this.modelElement.visualizer.highlight_colors
+               this.savedVisualizerJSON = CDView.#sharedViewModel.toJSON()
             } else {
                const cdViewModel = CDView.#sharedViewModel
                const cdModel = cdViewModel.model
-               const json = { group_url: this.modelElement.group.URL }
+
+               // clear #sharedViewModel
+               cdModel.reset()
+               cdModel.highlightControl = null
+               cdModel.diagramControl = null
+
+               cdModel.group = this.modelElement.group
                if (this.modelElement.visualizer != null) {
-                  Object.assign(json, this.modelElement.visualizer)
+                  cdModel.highlightColors = this.modelElement.visualizer.highlight_colors
                }
-               cdModel.fromJSON(json)
+
                if (this.modelElement.group.isSimple) {  // diagram won't show structure anyway
                   cdViewModel.draw(this.modelElement.group, this.modelElement.group.cayleyDiagrams[0]?.name)
                } else {  // generate diagram to show structure
                   cdViewModel.draw(this.modelElement.group)
                }
-               this.savedVisualizerJSON = cdViewModel.toJSON()
-            }            
+
+               this.savedVisualizerJSON = cdViewModel.toJSON()  // does this store everything?
+            }
          } else {
-            CDView.#sharedViewModel.fromJSON(this.savedVisualizerJSON)
+            CDView.#sharedViewModel.fromJSON(this.savedVisualizerJSON)  // does this restore eveything, including empties?
          }
 
          CDView.#activeView = this

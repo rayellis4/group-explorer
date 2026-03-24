@@ -25,8 +25,9 @@ async function load () {
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
    // If this page is editing a sheet...
-   const initialJSON /*: unknown */ =
-      await (window.location.href.includes('SheetEditor') ? SheetEditor.getInitialData() : null)
+   const {elementId, json: initialJSON} /*: unknown */ = await (window.location.href.includes('SheetEditor')
+      ? SheetEditor.getInitialData()
+      : {elementId: null, json: null})
 
    // Get group, either from page URL or data from Sheet
    const group /*: Group */ = await ((initialJSON?.group_url == null)
@@ -80,7 +81,7 @@ async function load () {
       }
 
       SheetEditor.enableChangeBroadcast(() => {
-         return cayleyDiagramModel.toJSON()
+         return { elementId: elementId, json: cayleyDiagramModel.toJSON() }
       })
 
       cayleyDiagramViewModel.resize()  // need to fix initial aspect ratio when editing

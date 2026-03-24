@@ -196,6 +196,55 @@ class CayleyDiagramViewModel /*:: implements Updatable */ {
    setModel (model /*: SubscriptionProxy<CayleyDiagramModel> */) {
       this.#model = model
       this.#modelFields.forEach((field) => model.$subscribe(this, field))
+      if (this.view != null) {
+         this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
+      }
+      this.#model.viewState = {
+         toJSON: () => {
+            return {
+               pov: { position: this.view.camera.position.clone(), up: this.view.camera.up.clone() },
+               nodes: this.view.nodes.map((object3D) => object3D.userData.node),
+               arrows: this.view.lines.map((object3D) => object3D.userData.arrow),  // turn nodes into element#
+               chunks: this.view.chunks.map((object3D) => object3D.userData.chunk)  // turn this into subgroupChunkIndex
+            }
+         },
+         fromJSON: (json) => {
+            const pov = {
+               position: new THREE.Vector3().copy(json.pov.position),
+               up: new THREE.Vector3().copy(json.pov.up)
+            }
+            const nodes = json.nodes.map((node) => {
+               return {
+                  position: new THREE.Vector3().copy(node.position),
+                  element: node.element,
+                  label: node.label,
+                  color: node.color
+               }
+            })
+            const nodeMap = new Map(nodes.map((node) => [node.element, node]))
+            const arrows = json.arrows.map((arrow) => {
+               return {
+                  start_node: nodeMap.get(arrow.start_node.element),
+                  end_node: nodeMap.get(arrow.end_node.element),
+                  generator: arrow.generator,
+                  bidirectional: arrow.bidirectional,
+                  thirdPoint: new THREE.Vector3().copy(arrow.thirdPoint),
+                  keepCurved: arrow.keepCurved,
+                  offset: arrow.offset,
+                  color: arrow.color
+               }
+            })
+            const chunks = json.chunks.map((chunk) => {
+               return {
+                  box:  new THREE.Matrix4().copy(chunk.box),
+                  name: chunk.name,
+                  widths: new THREE.Vector3().copy(chunk.widths),
+                  nodes: chunk.nodes.map((node) => nodeMap.get(node.element))
+               }
+            })
+            this.update('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks })
+         }
+      }
    }
 
    setView (view /*: CayleyDiagramView */) {
@@ -203,49 +252,6 @@ class CayleyDiagramViewModel /*:: implements Updatable */ {
       view.viewModel = this
       if (this.#model != null) {
          this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
-         this.#model.viewState = {
-            toJSON: () => {
-               return {
-                  pov: { position: view.camera.position, up: view.camera.up },
-                  nodes: view.nodes.map((object3D) => object3D.userData.node),
-                  arrows: view.lines.map((object3D) => object3D.userData.arrow),  // turn nodes into element#
-                  chunks: view.chunks.map((object3D) => object3D.userData.chunk)  // turn this into subgroupChunkIndex
-               }
-            },
-            fromJSON: (json) => {
-               const pov = {position: new THREE.Vector3().copy(json.pov.position), up: new THREE.Vector3().copy(json.pov.up)}
-               const nodes = json.nodes.map((node) => {
-                  return {
-                     position: new THREE.Vector3().copy(node.position),
-                     element: node.element,
-                     label: node.label,
-                     color: node.color
-                  }
-               })
-               const nodeMap = new Map(nodes.map((node) => [node.element, node]))
-               const arrows = json.arrows.map((arrow) => {
-                  return {
-                     start_node: nodeMap.get(arrow.start_node.element),
-                     end_node: nodeMap.get(arrow.end_node.element),
-                     generator: arrow.generator,
-                     bidirectional: arrow.bidirectional,
-                     thirdPoint: new THREE.Vector3().copy(arrow.thirdPoint),
-                     keepCurved: arrow.keepCurved,
-                     offset: arrow.offset,
-                     color: arrow.color
-                  }
-               })
-               const chunks = json.chunks.map((chunk) => {
-                  return {
-                     box:  new THREE.Matrix4().copy(chunk.box),
-                     name: chunk.name,
-                     widths: new THREE.Vector3().copy(chunk.widths),
-                     nodes: chunk.nodes.map((node) => nodeMap.get(node.element))
-                  }
-               })
-               this.update('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks })
-            }
-         }
       }
    }
 
@@ -260,12 +266,6 @@ class CayleyDiagramViewModel /*:: implements Updatable */ {
       }
       switch (field) {
       case 'group':
-         /*
-         if (this.view?.group?.URL != value.URL) {
-            this.view.group = value
-         }
-         break
-          */
       case 'background':
       case 'fog_level':
       case 'line_width':
@@ -291,11 +291,6 @@ class CayleyDiagramViewModel /*:: implements Updatable */ {
                this.view.createChunks(chunks)
             }
          }
-         /* only draw lines when arrows have live node references (from generator, not restored plain JSON)
-         if (value.arrows.length > 0 && value.arrows[0].start_node != null) {
-            this.view.createLines(value.arrows)
-         }
-          */
          break
       case 'highlightColors':
          if (value != null) {

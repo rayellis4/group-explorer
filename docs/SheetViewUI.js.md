@@ -314,7 +314,7 @@ class SheetEventUI {
 
    getEditor (modelElement, event) {
       if (modelElement.isVisualizer) {
-         new RemoteEditor(modelElement)
+         RemoteEditor.editElement(modelElement)
       } else if (modelElement.className === 'ConnectingElement' || modelElement.className === 'MorphismElement') {
          new (modelElement.className === 'MorphismElement' ? MorphismEditor : ConnectionEditor)(modelElement, event)
       } else {

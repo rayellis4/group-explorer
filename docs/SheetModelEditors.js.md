@@ -637,27 +637,37 @@ class MorphismEditor extends SheetElementEditor {
 ```javascript
  */
 class RemoteEditor {
-    constructor (modelElement /*: Model.VisualizerElement */) {
-        // open visualizer/editor window
-        const editPageURLs = {
-            MTElement: './Multtable.html',
-            CGElement: './CycleGraph.html',
-            CDElement: './CayleyDiagram.html'
-        }
-        const editPageURL = `${editPageURLs[modelElement.className]}?SheetEditor` +
-           (window.location.href.includes('log=debug') ? '&log=debug' : '')  // open in debug if we're in debug
-        window.open(editPageURL)
+   static #messageHandler  // singleton message handler to update visualizers
 
-        // save modelElement.visualizer JSON in indexedDB,
-        // then add message handler to receive updates from editor
-        StoredObjects.setPassedJSON(modelElement.viewElement.toJSON())
-            .then(() => {
-                window.addEventListener('message', (messageEvent) => {
-                    Log.debug('SheetModelEditor received msg', messageEvent.data)
-                    if (messageEvent.data != null) {
-                        modelElement.viewElement.applyJSON(messageEvent.data.json)
-                    }
-                 })
-             })
-    }
+   static #editPageURLs = {
+      MTElement: './Multtable.html',
+      CGElement: './CycleGraph.html',
+      CDElement: './CayleyDiagram.html'
+   }
+   
+   static editElement (modelElement) {
+      // create listener instance, if needed; holds reference to Model instance
+      if (RemoteEditor.#messageHandler == null) {
+         const model = modelElement.model
+         RemoteEditor.#messageHandler = (messageEvent) => {
+            if (messageEvent.data?.source != 'editor') return
+            const {elementId, json} = messageEvent.data
+            Log.debug(`RemoteEditor received msg for modelElement ${elementId}`, json)
+            model.sheetElements.get(elementId)?.updateVisualizer?.(json)
+         }
+         window.addEventListener('message', RemoteEditor.#messageHandler)
+      }
+      
+      // open visualizer/editor window
+      const editPageURL = `${RemoteEditor.#editPageURLs[modelElement.className]}?SheetEditor` +
+         (window.location.href.includes('log=debug') ? '&log=debug' : '')  // open in debug if we're in debug
+      window.open(editPageURL)
+
+      // store initial message
+      const initialMessage = {
+         elementId: modelElement.id,
+         json: modelElement.getVisualizerJSON()
+      }
+      StoredObjects.setPassedJSON(initialMessage)
+   }
 }

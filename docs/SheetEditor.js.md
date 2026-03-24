@@ -14,11 +14,11 @@ export {broadcastChange, getInitialData, enableChangeBroadcast}
 let broadcastChange = () => {}
 
 async function getInitialData () {
+   const {elementId, json} = await StoredObjects.getPassedJSON()
    if (Log.isActive('debug')) {
-      const initialData = await StoredObjects.getPassedJSON()
-      Log.debug(`initial data retrieved: ${JSON.stringify(initialData)}`)
+      Log.debug(`initial data retrieved for element ${elementId}: ${JSON.stringify(json)}`)
    }
-   return StoredObjects.getPassedJSON()
+   return {elementId: elementId, json: json}
 }
 /*
 ```
@@ -39,15 +39,16 @@ function enableChangeBroadcast (jsonGenerator) {
       let lastJsonString
 
       function changeBroadcaster() {
-         const currentJson = json_generator()
+         const {elementId, json: currentJson} = json_generator()
          const currentJsonString = JSON.stringify(currentJson)
          if (currentJsonString != lastJsonString) {
             lastJsonString = currentJsonString
             const msg = {
                source: 'editor',
+               elementId: elementId,
                json: currentJson,
             };
-            Log.debug(`message posted: ${currentJsonString}`)
+            Log.debug(`message posted for ${elementId}: ${currentJsonString}`)
             window.opener?.postMessage(msg, new URL(window.location.href).origin)
          }
       }

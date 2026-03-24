@@ -15,62 +15,71 @@ export type MulttableJSON = {
  */
 export class MulttableModel {
    group /*: Group */
-   highlights /*: Array<Array<?color>> */ = [[], [], []]
+   highlightColors /*: Array<Array<?css_color>> */
    highlightConfiguration = {  // visualizer-specific highlight parameters
       highlightTypes /*: Array<string> */: ['background', 'border', 'corner'],
       saturation /*: Array<number> */: [1, 1, 1],
       lightness /*: Array<number> */: [0.8, 0.8, 0.8],
       hueOffset /*: Array<number> */: [0, 1/3, 2/3]
    }
-   organizingSubgroup /*: number */ = 0
-   separation /*: number */ = 0
-   coloration /*: 'rainbow' | 'grayscale' | 'none' */ = 'rainbow'
-   colorReordering /*: 'topRowFixed' | 'elementColorsFixed' */ = 'topRowFixed'
+   organizingSubgroup /*: number */
+   separation /*: number */
+   coloration /*: 'rainbow' | 'grayscale' | 'none' */
+   colorReordering /*: 'topRowFixed' | 'elementColorsFixed' */
    elements /*: Array<groupElement> */
 
    // Opaque plugin slots (carried opaquely through serialization)
-   highlightColors /*: ?Array<Array<?css_color>> */ = null
-   highlightControl /*: any */ = null
+   highlightControl /*: any */
 
    constructor (group /*: Group */) {
       this.group = group
-      this.elements = group.elements
+      this.reset()
+   }
+
+   reset () {
+      this.highlightColors = [[], [], []]
+      this.organizingSubgroup = 0
+      this.separation = 0
+      this.coloration = 'rainbow'
+      this.colorReordering = 'topRowFixed'
+      this.elements = this.group.elements
    }
 
    toJSON () /*: MulttableJSON */ {
-      return {
+      const json = {
          group_url: this.group.URL,
-         highlights: this.highlights,
+         highlight_colors: this.highlightColors,
          organizing_subgroup: this.organizingSubgroup,
          separation: this.separation,
          coloration: this.coloration,
          color_reordering: this.colorReordering,
          elements: this.elements,
-         highlight_colors: this.highlightColors,
-         highlight_control: (this.highlightControl?.toJSON == null)
-            ? this.highlightControl
-            : this.highlightControl.toJSON()
+         highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
       }
+
+      return json
    }
 
    fromJSON (json /*: MulttableJSON */) {
+      this.reset()
+
       if (json.group_url != null && this.group.URL != json.group_url) {
          this.group = Library.getGroupByURL(json.group_url)
       }
-      this.highlights = json.highlights ?? [[], [], []]
-      this.organizingSubgroup = json.organizing_subgroup ?? 0
-      this.separation = json.separation ?? 0
-      this.coloration = json.coloration ?? 'rainbow'
-      this.colorReordering = json.color_reordering ?? 'topRowFixed'
-      this.elements = json.elements ?? this.group.elements
-      this.highlightColors = json.highlight_colors ?? [[], [], []]
-      if (json.highlight_control != null) {
-         if (this.highlightControl != null && 'fromJSON' in this.highlightControl) {
-            this.highlightControl.fromJSON(json.highlight_control)
-         } else {
-            this.highlightControl = json.highlight_control
-         }
-      }      
+
+      this.highlightColors = json.highlight_colors ?? this.highlightColors
+      this.organizingSubgroup = json.organizing_subgroup ?? this.organizingSubgroup
+      this.separation = json.separation ?? this.separation
+      this.coloration = json.coloration ?? this.coloration
+      this.colorReordering = json.color_reordering ?? this.colorReordering
+      this.elements = json.elements ?? this.elements
+
+      // let owners deserialize opaque slots
+      if (this.highlightControl?.fromJSON == null) {
+         this.highlightControl = json.highlight_control
+      } else if (json.highlight_control != null) {
+         this.highlightControl.fromJSON(json.highlight_control)
+      }
 
       return this
    }

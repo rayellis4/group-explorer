@@ -24,8 +24,9 @@ async function load () {
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
    // If this page is editing a sheet...
-   const initialJSON /*: unknown */ =
-      await (window.location.href.includes('SheetEditor') ? SheetEditor.getInitialData() : null)
+   const {elementId, json: initialJSON} /*: unknown */ = await (window.location.href.includes('SheetEditor')
+      ? SheetEditor.getInitialData()
+      : {elementId: null, json: null})
 
    // Get group, either from page URL or data from Sheet
    const group /*: Group */ = await ((initialJSON?.group_url == null)
@@ -72,7 +73,7 @@ async function load () {
       }
 
       SheetEditor.enableChangeBroadcast(() => {
-         return cycleGraphModel.toJSON()
+         return { elementId: elementId, json: cycleGraphModel.toJSON() }
       })
 
       // run SheetEditor.broadcastChange() when highlightColors or highlightControl object changes

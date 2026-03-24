@@ -56,7 +56,7 @@ class CayleyDiagramModel {
 
    // Write-only request: CayleyDiagramGenerator writes this to trigger a scene rebuild;
    // CayleyDiagramViewModel consumes it. Not persisted — viewState owns serialization.
-   layout /*: ?{pov: POV, nodes: Array<Node>, arrows: Array<Arrow>, chunks: Array<Chunk>} */ = null
+   layout /*: ?{pov: POV, nodes: Array<Node>, arrows: Array<Arrow>, chunks: Array<Chunk>} */
 
    // Highlight configuration — visualizer-specific parameters for HighlightControl
    highlightConfiguration = {
@@ -67,28 +67,43 @@ class CayleyDiagramModel {
    }
 
    // View parameters — manipulated by CayleyViewControl sliders
-   background /*: css_color */ = '#E8C8C8'
-   fog_level /*: float */ = 0
-   line_width /*: number */ = 4
-   sphere_scale_factor /*: float */ = 1
-   zoom_level /*: number */ = 1
-   arrowhead_placement /*: float */ = 1
-   label_scale_factor /*: float */ = 1
-   showingAxes /*: boolean */ = false
+   background /*: css_color */
+   fog_level /*: float */
+   line_width /*: number */
+   sphere_scale_factor /*: float */
+   zoom_level /*: number */
+   arrowhead_placement /*: float */
+   label_scale_factor /*: float */
+   showingAxes /*: boolean */
 
    // View parameters — manipulated by HighlightControl
-   highlightColors /*: Array<Array<?css_color>> */ = [[], [], []]
+   highlightColors /*: Array<Array<?css_color>> */
 
    // Opaque plugin slots (carried opaquely through serialization)
-   highlightControl /*: any */ = null  // owned by HighlightControl
-   diagramControl /*: any */ = null  // owned by CayleyDiagramControl
-   viewState /*: any */ = null       // owned by CayleyDiagramView
+   highlightControl /*: any */  // owned by HighlightControl
+   diagramControl /*: any */    // owned by CayleyDiagramControl
+   viewState /*: any */         // owned by CayleyDiagramView
 
    // Request fields — transient commands; set by CayleyViewControl, cleared by CayleyDiagramView
-   snap_to_axis_request /*: boolean */ = false
+   snap_to_axis_request /*: boolean */
 
    constructor (group /*: Group */) {
       this.group = group
+      this.reset()
+   }
+
+   reset () {
+      this.layout = null
+      this.background = '#E8C8C8'  // Cayley-diagram specific
+      this.fog_level = 0
+      this.line_width = 4
+      this.sphere_scale_factor = 1
+      this.zoom_level = 1
+      this.arrowhead_placement = 1
+      this.label_scale_factor = 1
+      this.showingAxes = false
+      this.highlightColors = [[], [], []]
+      this.snap_to_axis_request = false
    }
 
    toJSON () /*: CayleyDiagramJSON */ {
@@ -106,21 +121,18 @@ class CayleyDiagramModel {
 
          highlight_colors: this.highlightColors,
 
-         highlight_control: (this.highlightControl?.toJSON == null)
-            ? this.highlightControl
-            : this.highlightControl.toJSON(),
-         diagram_control: (this.diagramControl?.toJSON == null)
-            ? this.diagramControl
-            : this.diagramControl.toJSON(),
-         view_state: (this.viewState?.toJSON == null)
-            ? this.viewState
-            : this.viewState.toJSON()
+         highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
+         diagram_control: this.diagramControl?.toJSON?.() ?? this.diagramControl,
+
+         view_state: this.viewState.toJSON()
       }
 
       return json
    }
 
    fromJSON (json /*: CayleyDiagramJSON */) {
+      this.reset()
+
       if (json.group_url != null && this.group.URL != json.group_url) {
          this.group = Library.getGroupByURL(json.group_url)
       }
@@ -134,29 +146,25 @@ class CayleyDiagramModel {
       this.label_scale_factor = json.label_scale_factor ?? this.label_scale_factor
       this.showingAxes = json.showing_axes ?? this.showingAxes
 
-      this.highlightColors = json.highlight_colors ?? [[], [], []]
+      this.highlightColors = json.highlight_colors ?? this.highlightColors
 
-      // let opaque chunks deserialize them selves, if needed
-      if (json.highlight_control != null) {
-         if (this.highlightControl != null && 'fromJSON' in this.highlightControl) {
-            this.highlightControl.fromJSON(json.highlight_control)
-         } else {
-            this.highlightControl = json.highlight_control  // opaque chunk of JSON
-         }
+      // let owners deserialize opaque slots
+      if (this.highlightControl?.fromJSON == null) {
+         this.highlightControl = json.highlight_control
+      } else if (json.highlight_control != null) {
+         this.highlightControl.fromJSON(json.highlight_control)
       }
-      if (json.diagram_control != null) {
-         if (this.diagramControl != null && 'fromJSON' in this.diagramControl) {
-            this.diagramControl.fromJSON(json.diagram_control)
-         } else {
-            this.diagramControl = json.diagram_control  // opaque chunk of JSON
-         }
+
+      if (this.diagramControl?.fromJSON == null) {
+         this.diagramControl = json.diagram_control
+      } else if (json.diagram_control != null) {
+         this.diagramControl.fromJSON(json.diagram_control)
       }
-      if (json.view_state != null) {
-         if (this.viewState != null && 'fromJSON' in this.viewState) {
-            this.viewState.fromJSON(json.view_state)
-         } else {
-            this.viewState = json.view_state  // opaque chunk of JSON (will this ever happen?)
-         }
+
+      if (this.viewState?.fromJSON == null) {
+         this.viewState = json.view_state
+      } else {
+         this.viewState.fromJSON(json.view_state)
       }
 
       return this

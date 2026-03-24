@@ -9,7 +9,6 @@ import type {SheetModel} from './SheetModel.js'
 class SheetViewModel /*: Updatable */ {
    #model /*: SheetModel */
    #view /*: SheetView.View */
-   modelElements /*: Map<string, SheetElement> */ = new Map()
 
    constructor (model /*: ?SubscriptionProxy<SheetModel> */) {
       if (model != null) {
@@ -36,29 +35,31 @@ class SheetViewModel /*: Updatable */ {
       this.#view = view
    }
 
+   get modelElements () {
+      return this.model.sheetElements
+   }
+
    update (field, value) {
       if ('map' in  value) {
          const {map, key} = value
          if (key == null && map.size == 0) {  // => clear
-            this.clear()
+            this.view.clear()
          } else if (map.has(key)) {           // => set
             this.addElement(map.get(key))
          } else {                             // => delete
-            if (this.modelElements.has(key)) {
-               this.removeElement(this.modelElements.get(key))
-            }
+            // an element got deleted through removeElement,
+            // which did everything it needed to clean up before removing it from Model.sheetElements
          }
-      } else if (value instanceof Map) {  // happens on initial subscribe -- and only then? guaranteed?
-         this.modelElements.clear()
-         this.model.sheetElements.forEach((element) => this.addElement(element))
+      } else if (value instanceof Map) {  // could happen on initial subscribe if factory ordering is changed
+         this.modelElements.forEach((element) => this.addElements(element))
       } else {
-         // get here if there are fields in the Model that are not used by this ViewModel
+         // get here if there are fields in the Model that are not subscribed to by this ViewModel
       }
    }
 
    addElement (element) {
-      if (!this.model.sheetElements.has(element.id)) {
-         this.model.sheetElements.set(element.id, element)
+      if (!this.modelElements.has(element.id)) {
+         this.modelElements.set(element.id, element)
       }
       Object.defineProperty(element, 'viewElement', {
          get: () => this.#view?.viewElements.get(element.id),
@@ -86,12 +87,17 @@ class SheetViewModel /*: Updatable */ {
          value: () => this.removeElement(element),
          configurable: true,
       })
-      this.modelElements.set(element.id, element)
+      if (element.isVisualizer) {
+         Object.defineProperty(element, 'getVisualizerJSON', {
+            value: () => this.getVisualizerJSON(element.id),
+            configurable: true,
+         })
+         Object.defineProperty(element, 'updateVisualizer', {
+            value: (json) => this.updateVisualizer(element.id, json),
+            configurable: true,
+         })
+      }
       this.view?.addElement(element)
-   }
-
-   clear () {
-      this.modelElements.forEach((element) => this.removeElement(element))
    }
 
    viewportOrigin () /*: SheetUnits */ {
@@ -135,15 +141,18 @@ class SheetViewModel /*: Updatable */ {
       }
       this.view?.removeElement(element)
       this.modelElements.delete(element.id)
-      this.model.sheetElements.delete(element.id)
+   }
+
+   getVisualizerJSON (id /*: string */) {
+      const element = this.modelElements.get(id)
+      if (element == null) return
+      return this.#view.getVisualizerJSON(element)      
+   }      
+
+   updateVisualizer (id /*: string */, json) {
+      const element = this.modelElements.get(id)
+      if (element == null) return
+      element.visualizer = json
+      this.#view.updateVisualizer(element, json)      
    }
 }
-
-
-/*
-ToDo:
-
-Z change
-zoom / pan
-finish links
- */
