@@ -596,6 +596,36 @@ export class CDView extends VisualizerView {
       this.redraw()
    }
 
+   // Initialize cdViewModel from this element's stored visualizer (or generate a fresh layout).
+   // Replaces bare draw() calls — uses diagram_control params including chunking when available.
+   #initFromVisualizer (cdViewModel) {
+      const group = this.modelElement.group
+      const visualizer = this.modelElement.visualizer
+      const dc = visualizer?.diagram_control
+
+      if (visualizer?.view_state != null) {
+         // restore stored layout; chunks are not in view_state so reconstruct from diagram_control
+         cdViewModel.model.fromJSON(visualizer)
+         if (dc?.chunk_subgroup_index != null) {
+            const {chunks} = layoutCayleyDiagram(group, dc.strategy_parameters, dc.arrow_generators, dc.right_multiply, dc.chunk_subgroup_index)
+            const currentState = cdViewModel.model.viewState.toJSON()
+            cdViewModel.update('layout', {...currentState, chunks})
+         }
+      } else {
+         // generate layout using diagram_control params (preserves chunking); fall back to defaults
+         const nameOrStrategies = dc?.diagram_name
+            ?? (dc?.strategy_parameters?.length > 0 ? dc.strategy_parameters : null)
+            ?? (group.isSimple ? group.cayleyDiagrams[0]?.name : null)
+         const layout = layoutCayleyDiagram(group, nameOrStrategies, dc?.arrow_generators, dc?.right_multiply ?? true, dc?.chunk_subgroup_index)
+         cdViewModel.update('group', group)
+         cdViewModel.update('layout', layout)
+         if (visualizer != null) {
+            cdViewModel.model.fromJSON(visualizer)
+         }
+      }
+      return cdViewModel.toJSON()
+   }
+
    // swap our json into shared visualizer and use it to draw diagram
    // check the case where we delete the element holding the shared view model
    get visualizer () {
@@ -603,19 +633,10 @@ export class CDView extends VisualizerView {
          return CDView.#sharedViewModel
       }
 
-      if (CDView.#sharedViewModel == null) {  // no shared view  model -- create one from this.modelElement and use it
+      if (CDView.#sharedViewModel == null) {  // no shared view model -- create one from this.modelElement and use it
          const cdModel = createModelProxy(new CayleyDiagramModel(this.modelElement.group))
-         if (this.modelElement.visualizer != null) {
-            cdModel.fromJSON(this.modelElement.visualizer)
-         }
          const cdViewModel = createStaticCayleyDiagramView(cdModel)
-         if (this.modelElement.group.isSimple) {  // diagram won't show structure anyway
-            cdViewModel.draw(this.modelElement.group, this.modelElement.group.cayleyDiagrams[0]?.name)
-         } else {  // generate diagram to show structure
-            cdViewModel.draw(this.modelElement.group)
-         }
-         this.savedVisualizerJSON = cdViewModel.toJSON()
-
+         this.savedVisualizerJSON = this.#initFromVisualizer(cdViewModel)
          CDView.#sharedViewModel = cdViewModel
          CDView.#activeView = this
       } else {  // have a shared view model
@@ -623,36 +644,24 @@ export class CDView extends VisualizerView {
             CDView.#activeView.savedVisualizerJSON = CDView.#sharedViewModel.toJSON()
          }
          if (this.savedVisualizerJSON == null) { // first time through
+            const visualizer = this.modelElement.visualizer
             if (  CDView.#sharedViewModel.group == this.modelElement.group
-               && this.modelElement.visualizer != null
-               && this.modelElement.visualizer?.highlight_colors != null
-            ) {  // fast path: only apply highlights to shared view on first time through
-               CDView.#sharedViewModel.model.highlightColors = this.modelElement.visualizer.highlight_colors
+               && visualizer?.view_state == null
+               && visualizer?.highlight_colors != null
+            ) {  // fast path: same group, no stored layout — just apply highlights
+               CDView.#sharedViewModel.model.highlightColors = visualizer.highlight_colors
                this.savedVisualizerJSON = CDView.#sharedViewModel.toJSON()
             } else {
                const cdViewModel = CDView.#sharedViewModel
                const cdModel = cdViewModel.model
-
-               // clear #sharedViewModel
                cdModel.reset()
                cdModel.highlightControl = null
                cdModel.diagramControl = null
-
                cdModel.group = this.modelElement.group
-               if (this.modelElement.visualizer != null) {
-                  cdModel.highlightColors = this.modelElement.visualizer.highlight_colors
-               }
-
-               if (this.modelElement.group.isSimple) {  // diagram won't show structure anyway
-                  cdViewModel.draw(this.modelElement.group, this.modelElement.group.cayleyDiagrams[0]?.name)
-               } else {  // generate diagram to show structure
-                  cdViewModel.draw(this.modelElement.group)
-               }
-
-               this.savedVisualizerJSON = cdViewModel.toJSON()  // does this store everything?
+               this.savedVisualizerJSON = this.#initFromVisualizer(cdViewModel)
             }
          } else {
-            CDView.#sharedViewModel.fromJSON(this.savedVisualizerJSON)  // does this restore eveything, including empties?
+            CDView.#sharedViewModel.fromJSON(this.savedVisualizerJSON)
          }
 
          CDView.#activeView = this

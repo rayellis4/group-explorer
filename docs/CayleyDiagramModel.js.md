@@ -163,7 +163,7 @@ class CayleyDiagramModel {
 
       if (this.viewState?.fromJSON == null) {
          this.viewState = json.view_state
-      } else {
+      } else if (json.view_state != null) {
          this.viewState.fromJSON(json.view_state)
       }
 

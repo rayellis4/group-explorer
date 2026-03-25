@@ -204,9 +204,9 @@ async function setPassedJSON (passedJSON /*: mixed */) /*: Promise<mixed> */ {
 
 // Create version 2 IndexedDB with SHEET_STORE
 // Migrate 'groups' object from localStorage to GROUP_LIBRARY_KEY in GENERAL_STORE
-function migrateToV2 (ev /*: any */) {
-   migrateGroupsToV2 (ev)
-   migrateSheetsToV2 (ev)
+async function migrateToV2 (ev /*: any */) {
+   migrateGroupsToV2(ev)
+   await migrateSheetsToV2(ev)
 }
 
 async function migrateGroupsToV2 (ev /*: any */) {
@@ -227,15 +227,20 @@ async function migrateGroupsToV2 (ev /*: any */) {
    localStorage.removeItem('groups')
 }
 
+// use upgrade transaction's object store directly — cannot open a new connection during onupgradeneeded
 async function migrateSheetsToV2 (ev /*: any */) {
-   const objectStore = await getObjectStore(SHEET_STORE, 'readwrite')
+   const objectStore = ev.target.transaction.objectStore(SHEET_STORE)
 
-   const sheetNames =
-      ((await completeRequest(objectStore.getAllKeys()) /*: any */) /*: Array<string> */)
+   const idbRequest = (request /*: IDBRequest */) => new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+   })
+
+   const sheetNames = ((await idbRequest(objectStore.getAllKeys()) /*: any */) /*: Array<string> */)
    for (const sheetName of sheetNames) {
-      const v1SheetJSONString = await completeRequest(objectStore.get(sheetName))
+      const v1SheetJSONString = await idbRequest(objectStore.get(sheetName))
       const v2SheetJSON = migrateSheetToV2(v1SheetJSONString)
-      await completeRequest(objectStore.put(v2SheetJSON, sheetName))
+      await idbRequest(objectStore.put(v2SheetJSON, sheetName))
    }
 }
 
@@ -250,17 +255,19 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
 
    const upgradeCandidates = jsonObjects
       .filter((jsonObject) =>
-         jsonObject.visualizer != null && !('highlightColors' in jsonObject.visualizer))
+         jsonObject.visualizer != null && !('highlight_colors' in jsonObject.visualizer))
    if (upgradeCandidates.length == 0) {
       return jsonObjects
    }
 
    for (const jsonObject of upgradeCandidates) {
       const visualizer = jsonObject.visualizer
-      delete jsonObject._visualizer  // delete _visualizer
+      delete jsonObject._visualizer  // delete _visualizer (legacy)
+      delete jsonObject.isClean      // runtime flag, not persistent state
+
       let newHighlights /*: Array<Array<?color>> */ = []
       switch (jsonObject.className) {
-      case 'CDElement':
+      case 'CDElement': {
          visualizer.line_width = null  // material has changed meaning of 'line width', just use default
          newHighlights.push(
             cleanColorList(visualizer?.color_highlights, '#8c8c8c'),  // CayleyDiagramView.DEFAULT_NODE_COLOR
@@ -270,7 +277,50 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
          delete visualizer.color_highlights
          delete visualizer.ring_highlights
          delete visualizer.square_highlights
+
+         // convert camera: extract position from column-major matrix[12,13,14], use cameraUp for up
+         const matrix = visualizer.cameraJSON?.object?.matrix
+         const position = matrix
+            ? {x: matrix[12], y: matrix[13], z: matrix[14]}
+            : {x: 0, y: 0, z: 3}
+         const up = visualizer.cameraUp ?? {x: 0, y: 1, z: 0}
+         delete visualizer.cameraJSON
+         delete visualizer.cameraUp
+
+         // convert nodes: add color field
+         const nodes = (visualizer.nodes ?? []).map((node) => ({...node, color: null}))
+         delete visualizer.nodes
+
+         // convert arrows: start_element/end_element → start_node/end_node
+         const nodeMap = new Map(nodes.map((node) => [node.element, node]))
+         const arrows = (visualizer.arrows ?? []).map(({start_element, end_element, ...rest}) => ({
+            ...rest,
+            start_node: nodeMap.get(start_element) ?? {element: start_element},
+            end_node: nodeMap.get(end_element) ?? {element: end_element}
+         }))
+         delete visualizer.arrows
+
+         visualizer.view_state = {pov: {position, up}, nodes, arrows, chunks: []}
+
+         // consolidate diagram layout fields into diagram_control
+         // chunk: 0 in V1 UI meant 'no chunking' (same visual as trivial subgroup)
+         visualizer.diagram_control = {
+            diagram_name: visualizer.diagram_name ?? null,
+            strategy_parameters: visualizer.strategy_parameters ?? [],
+            chunk_subgroup_index: (visualizer.chunk == null || visualizer.chunk === 0)
+               ? null : visualizer.chunk
+         }
+         delete visualizer.diagram_name
+         delete visualizer.strategy_parameters
+         delete visualizer.chunk
+
+         // rename groupURL → group_url; drop fields not in new model
+         visualizer.group_url = visualizer.groupURL
+         delete visualizer.groupURL
+         delete visualizer.right_multiply
+         delete visualizer.sphere_base_radius
          break
+      }
       case 'CGElement':
          newHighlights.push(
             cleanColorList(visualizer?.highlights?.background, null),
@@ -278,6 +328,8 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
             cleanColorList(visualizer?.highlights?.top, null)
          )
          delete visualizer.highlights
+         visualizer.group_url = visualizer.groupURL
+         delete visualizer.groupURL
          break
       case 'MTElement':
          newHighlights.push(
@@ -286,9 +338,11 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
             cleanColorList(visualizer?.highlights?.corner, null)
          )
          delete visualizer.highlights
+         visualizer.group_url = visualizer.groupURL
+         delete visualizer.groupURL
          break
       }
-      visualizer.highlightColors = newHighlights
+      visualizer.highlight_colors = newHighlights
    }
 
    return jsonObjects
