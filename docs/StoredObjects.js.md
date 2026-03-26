@@ -1,5 +1,7 @@
 // @flow
 
+import {layoutCayleyDiagram} from './CayleyDiagramGenerator.js'
+import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as MathML from './MathML.js'
 import {THREE} from '../lib/externals.js'
@@ -289,18 +291,37 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
 
          // convert nodes: add color field
          const nodes = (visualizer.nodes ?? []).map((node) => ({...node, color: null}))
-         delete visualizer.nodes
+         const nodeMap = new Map(nodes.map((node) => [node.element, node]))
 
          // convert arrows: start_element/end_element → start_node/end_node
-         const nodeMap = new Map(nodes.map((node) => [node.element, node]))
          const arrows = (visualizer.arrows ?? []).map(({start_element, end_element, ...rest}) => ({
             ...rest,
             start_node: nodeMap.get(start_element) ?? {element: start_element},
             end_node: nodeMap.get(end_element) ?? {element: end_element}
          }))
-         delete visualizer.arrows
 
-         visualizer.view_state = {pov: {position, up}, nodes, arrows, chunks: []}
+         const group = Library.getGroupByURL(visualizer.groupURL)
+         const layout = layoutCayleyDiagram(
+            group,
+            visualizer.strategy_parameters,
+            (visualizer.arrows ?? [])
+               .filter((arrow) => arrow.start_element == 0)
+               .map((arrow) => ({generator: arrow.generator, color: arrow.color})),
+            visualizer.right_multiply,
+            (visualizer.chunk == null || visualizer.chunk === 0) ? null : visualizer.chunk
+         )
+         const chunks = layout.chunks?.map((chunk) => {
+            return {
+               box: chunk.box,
+               name: chunk.name,
+               nodes: chunk.nodes.map((node) => nodeMap.get(node.element)),
+               widths: chunk.widths
+            }
+         }) ?? []
+
+         visualizer.view_state = {pov: {position, up}, nodes, arrows, chunks: chunks}
+         delete visualizer.nodes
+         delete visualizer.arrows
 
          // consolidate diagram layout fields into diagram_control
          // chunk: 0 in V1 UI meant 'no chunking' (same visual as trivial subgroup)
