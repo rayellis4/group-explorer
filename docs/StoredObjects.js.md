@@ -208,7 +208,7 @@ async function setPassedJSON (passedJSON /*: mixed */) /*: Promise<mixed> */ {
 // Create version 2 IndexedDB with SHEET_STORE
 // Migrate 'groups' object from localStorage to GROUP_LIBRARY_KEY in GENERAL_STORE
 async function migrateToV2 (ev /*: any */) {
-   migrateGroupsToV2(ev)
+   await migrateGroupsToV2(ev)
    await migrateSheetsToV2(ev)
 }
 
@@ -236,10 +236,16 @@ async function migrateSheetsToV2 (ev /*: any */) {
    const sheetStore = transaction.objectStore(SHEET_STORE)
    const backupStore = ev.target.result.createObjectStore(SHEET_BACKUP_STORE)
 
+   // Library.getGroupByURL is needed by migrateSheetToV2 (for layoutCayleyDiagram).
+   // The normal loadLibrary() path can't be used here (it would open a new DB connection).
+   // Groups were just moved to GENERAL_STORE by migrateGroupsToV2 — read them directly
+   // from the upgrade transaction and populate the in-memory library.
    const idbRequest = (request /*: IDBRequest */) => new Promise((resolve, reject) => {
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
    })
+   const storedGroups = (await idbRequest(transaction.objectStore(GENERAL_STORE).get(GROUP_LIBRARY_KEY))) ?? {}
+   Library.loadFromStoredGroups(storedGroups)
 
    const sheetNames = ((await idbRequest(sheetStore.getAllKeys()) /*: any */) /*: Array<string> */)
    for (const sheetName of sheetNames) {

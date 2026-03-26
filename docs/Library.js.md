@@ -36,6 +36,7 @@ export {
    getGroupByURL,
    isEmpty,
    loadFromPageURL,
+   loadFromStoredGroups,
    loadLibrary,
    saveGroup,
    updateAllGroups
@@ -50,6 +51,14 @@ let library /*: libraryType */ = {}
 
 async function loadLibrary () {
    library = await getStoredGroups()
+}
+
+// Populate the in-memory library from a raw stored-groups object (used during DB migration,
+// when the DB connection isn't available for a normal loadLibrary() call)
+function loadFromStoredGroups (storedGroups /*: {[key: string]: any} */) {
+   Object.entries(storedGroups).forEach(([key, value]) => {
+      library[key] = Group.fromLocalCopyJSON(value)
+   })
 }
 
 // get absolute URL from relative
