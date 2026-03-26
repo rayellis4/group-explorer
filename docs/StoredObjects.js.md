@@ -36,6 +36,7 @@ const DB_NAME = 'GE3'
 const DB_VERSION = 2
 const GENERAL_STORE = 'GeneralStore'
 const SHEET_STORE = 'StoredSheets'
+const SHEET_BACKUP_STORE = 'StoredSheetsBackup'  // created during migration, kept as safety net
 const GROUP_LIBRARY_KEY = 'GroupLibrary'
 const PREFERENCES_KEY = 'Preferences'
 const PASSED_SHEET_KEY = 'PassedSheet'
@@ -55,7 +56,7 @@ async function openDatabase () /*: Promise<IDBDatabase> */ {
       request.onupgradeneeded = async (ev) => {
          switch (ev.oldVersion) {
          case 0: await migrateToV1(ev)
-         case 1: migrateToV2(ev)
+         case 1: await migrateToV2(ev)
          }
       }
       request.onsuccess = (ev) => {
@@ -231,18 +232,25 @@ async function migrateGroupsToV2 (ev /*: any */) {
 
 // use upgrade transaction's object store directly — cannot open a new connection during onupgradeneeded
 async function migrateSheetsToV2 (ev /*: any */) {
-   const objectStore = ev.target.transaction.objectStore(SHEET_STORE)
+   const transaction = ev.target.transaction
+   const sheetStore = transaction.objectStore(SHEET_STORE)
+   const backupStore = ev.target.result.createObjectStore(SHEET_BACKUP_STORE)
 
    const idbRequest = (request /*: IDBRequest */) => new Promise((resolve, reject) => {
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
    })
 
-   const sheetNames = ((await idbRequest(objectStore.getAllKeys()) /*: any */) /*: Array<string> */)
+   const sheetNames = ((await idbRequest(sheetStore.getAllKeys()) /*: any */) /*: Array<string> */)
    for (const sheetName of sheetNames) {
-      const v1SheetJSONString = await idbRequest(objectStore.get(sheetName))
-      const v2SheetJSON = migrateSheetToV2(v1SheetJSONString)
-      await idbRequest(objectStore.put(v2SheetJSON, sheetName))
+      const v1SheetJSONString = await idbRequest(sheetStore.get(sheetName))
+      await idbRequest(backupStore.put(v1SheetJSONString, sheetName))  // back up V1 before converting
+      try {
+         const v2SheetJSON = migrateSheetToV2(v1SheetJSONString)
+         await idbRequest(sheetStore.put(v2SheetJSON, sheetName))
+      } catch (err) {
+         Log.err(`migrateSheetsToV2: failed to migrate '${sheetName}', left unchanged: ${err}`)
+      }
    }
 }
 

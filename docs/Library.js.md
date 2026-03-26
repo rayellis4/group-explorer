@@ -22,7 +22,6 @@
  *   updateAllGroups -- refresh remote groups from server
  */
 
-import * as AutoUpgradeManifest from './AutoUpgradeManifest.js'
 import * as DefiningRelations from './DefiningRelations.js'
 import {Group} from './Group.js'
 import {IsomorphicGroups} from './IsomorphicGroups.js'
@@ -244,8 +243,8 @@ function scheduleLocalStoreUpdate () {
    })
 }
 
-// Update all groups in library and from AutoUpgrade manifest
-async function updateAllGroups () {
+// Update all groups in library and from the provided manifest URL list
+async function updateAllGroups (manifestURLs /*: Array<string> */) {
    // replace latest group definitions from server in library
    const updateGroup = async (groupURL /*: string */) /*: Promise<void> */ => {
       const localGroup = getGroupByURL(groupURL)
@@ -276,15 +275,12 @@ async function updateAllGroups () {
       }
    }
 
-   // Collect URLs from the current library and the AutoUpgradeManifest and update them
+   // Collect URLs from the current library and the provided manifest URLs and update them
    await loadLibrary()
-   const url = new URL(window.location.href)
-   const urlString = url.origin + url.pathname // trim off query string
-   const baseURL = urlString.slice(0, urlString.lastIndexOf('/') + 1) // baseURL is part up to last '/'
 
    const allURLs /*: Set<string> */ = new Set()
    Object.values(library || {}).filter((group) => !group.isGenerated).forEach((group) => allURLs.add(group.URL))
-   AutoUpgradeManifest.groupFiles.forEach((url) => allURLs.add(baseURL + url))
+   manifestURLs.forEach((url) => allURLs.add(url))
 
    // complete updates
    await Promise.all(Array.from(allURLs).map((url) => updateGroup(url)))
