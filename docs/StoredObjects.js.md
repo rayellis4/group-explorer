@@ -278,64 +278,75 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
 
    for (const jsonObject of upgradeCandidates) {
       const visualizer = jsonObject.visualizer
-      delete jsonObject._visualizer  // delete _visualizer (legacy)
-      delete jsonObject.isClean      // runtime flag, not persistent state
 
       let newHighlights /*: Array<Array<?color>> */ = []
       switch (jsonObject.className) {
       case 'CDElement': {
+         if (visualizer.diagram_name == null && visualizer.strategy_parameters == null) {
+            Log.err('unrecognizable json in StoredObjects.migrateSheetToV2')
+            break
+         }
+
          visualizer.line_width = null  // material has changed meaning of 'line width', just use default
          newHighlights.push(
             cleanColorList(visualizer?.color_highlights, '#8c8c8c'),  // CayleyDiagramView.DEFAULT_NODE_COLOR
             cleanColorList(visualizer?.ring_highlights, null),
             cleanColorList(visualizer?.square_highlights, null)
          )
-         delete visualizer.color_highlights
-         delete visualizer.ring_highlights
-         delete visualizer.square_highlights
-
-         // convert camera: extract position from column-major matrix[12,13,14], use cameraUp for up
-         const matrix = visualizer.cameraJSON?.object?.matrix
-         const position = matrix
-            ? {x: matrix[12], y: matrix[13], z: matrix[14]}
-            : {x: 0, y: 0, z: 3}
-         const up = visualizer.cameraUp ?? {x: 0, y: 1, z: 0}
-         delete visualizer.cameraJSON
-         delete visualizer.cameraUp
-
-         // convert nodes: add color field
-         const nodes = (visualizer.nodes ?? []).map((node) => ({...node, color: null}))
-         const nodeMap = new Map(nodes.map((node) => [node.element, node]))
-
-         // convert arrows: start_element/end_element → start_node/end_node
-         const arrows = (visualizer.arrows ?? []).map(({start_element, end_element, ...rest}) => ({
-            ...rest,
-            start_node: nodeMap.get(start_element) ?? {element: start_element},
-            end_node: nodeMap.get(end_element) ?? {element: end_element}
-         }))
 
          const group = Library.getGroupByURL(visualizer.groupURL)
-         const layout = layoutCayleyDiagram(
-            group,
-            visualizer.strategy_parameters,
-            (visualizer.arrows ?? [])
-               .filter((arrow) => arrow.start_element == 0)
-               .map((arrow) => ({generator: arrow.generator, color: arrow.color})),
-            visualizer.right_multiply,
-            (visualizer.chunk == null || visualizer.chunk === 0) ? null : visualizer.chunk
-         )
-         const chunks = layout.chunks?.map((chunk) => {
-            return {
-               box: chunk.box,
-               name: chunk.name,
-               nodes: chunk.nodes.map((node) => nodeMap.get(node.element)),
-               widths: chunk.widths
-            }
-         }) ?? []
+         if (jsonObject.isClean) {
+            // layout was generated and hasn't been edited yet
+            // we'll recompute the entire layout
+            const layout = layoutCayleyDiagram(group, visualizer?.diagram_name)
+            visualizer.view_state = layout
+         } else {
+            // convert camera: extract position from column-major matrix[12,13,14], use cameraUp for up
+            const matrix = visualizer.cameraJSON?.object?.matrix
+            const position = matrix
+               ? {x: matrix[12], y: matrix[13], z: matrix[14]}
+               : {x: 0, y: 0, z: 3}
+            const up = visualizer.cameraUp ?? {x: 0, y: 1, z: 0}
 
-         visualizer.view_state = {pov: {position, up}, nodes, arrows, chunks: chunks}
-         delete visualizer.nodes
-         delete visualizer.arrows
+            // convert nodes: add color field
+            const nodes = (visualizer.nodes ?? []).map((node) => ({...node, color: null}))
+            const nodeMap = new Map(nodes.map((node) => [node.element, node]))
+
+            // convert arrows: start_element/end_element → start_node/end_node
+            const arrows = (visualizer.arrows ?? []).map(({start_element, end_element, ...rest}) => ({
+               ...rest,
+               start_node: nodeMap.get(start_element) ?? {element: start_element},
+               end_node: nodeMap.get(end_element) ?? {element: end_element}
+            }))
+
+            if (visualizer.diagram_name == null) {
+               // layout was generated from strategy_parameters but has been edited; the chunks
+               // aren't recorded in V1, so we'll recompute the entire layout to get the chunks
+               const layout = layoutCayleyDiagram(
+                  group,
+                  visualizer.strategy_parameters,
+                  (visualizer.arrows ?? [])
+                     .filter((arrow) => arrow.start_element == 0)
+                     .map((arrow) => ({generator: arrow.generator, color: arrow.color})),
+                  visualizer.right_multiply,
+                  (visualizer.chunk == null || visualizer.chunk === 0) ? null : visualizer.chunk
+               )
+               const chunks = layout.chunks?.map((chunk) => {
+                  return {
+                     box: chunk.box,
+                     name: chunk.name,
+                     nodes: chunk.nodes.map((node) => nodeMap.get(node.element)),
+                     widths: chunk.widths
+                  }
+               }) ?? []
+
+               visualizer.view_state = {pov: {position, up}, nodes, arrows, chunks}
+            } else {
+               // layout was generated from a diagram and has been edited
+               // it can't be chunked since it was created from a diagram, so we can use the layout as is
+               visualizer.view_state = {pov: {position, up}, nodes, arrows, chunks: []}
+            }
+         }
 
          // consolidate diagram layout fields into diagram_control
          // chunk: 0 in V1 UI meant 'no chunking' (same visual as trivial subgroup)
@@ -345,17 +356,30 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
             chunk_subgroup_index: (visualizer.chunk == null || visualizer.chunk === 0)
                ? null : visualizer.chunk
          }
-         delete visualizer.diagram_name
-         delete visualizer.strategy_parameters
-         delete visualizer.chunk
 
          // rename groupURL → group_url; drop fields not in new model
          visualizer.group_url = visualizer.groupURL
+
+         // delete fields not in new model
+         delete jsonObject._visualizer  // delete _visualizer (legacy)
+         delete jsonObject.isClean      // runtime flag, not persistent state
+         delete visualizer.color_highlights
+         delete visualizer.ring_highlights
+         delete visualizer.square_highlights
+         delete visualizer.cameraJSON
+         delete visualizer.cameraUp
+         delete visualizer.nodes
+         delete visualizer.arrows
+         delete visualizer.diagram_name
+         delete visualizer.strategy_parameters
+         delete visualizer.chunk
          delete visualizer.groupURL
          delete visualizer.right_multiply
          delete visualizer.sphere_base_radius
+
          break
       }
+
       case 'CGElement':
          newHighlights.push(
             cleanColorList(visualizer?.highlights?.background, null),
@@ -366,6 +390,7 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
          visualizer.group_url = visualizer.groupURL
          delete visualizer.groupURL
          break
+
       case 'MTElement':
          newHighlights.push(
             cleanColorList(visualizer?.highlights?.background, '#E5E5E5'),  // MulttableView.DEFAULT_BACKGROUND
@@ -377,6 +402,7 @@ function migrateSheetToV2 (sheet /*: mixed */) /*: mixed */ {
          delete visualizer.groupURL
          break
       }
+
       visualizer.highlight_colors = newHighlights
    }
 

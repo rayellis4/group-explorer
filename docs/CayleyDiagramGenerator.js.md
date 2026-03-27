@@ -148,7 +148,7 @@ function drawFromStrategy (group, strategyParameters, arrowGenerators, rightMult
 }
 
 function makeLayout (chunkTree, arrows, generatesFromStrategy) {
-   return { pov: getPOV(chunkTree, generatesFromStrategy), nodes: chunkTree.allChildNodes, arrows }
+   return { pov: getPOV(chunkTree, generatesFromStrategy), nodes: chunkTree.allChildNodes, arrows, chunks: [] }
 }
 
 /*
