@@ -77,6 +77,7 @@ const codeFiles = [
    'js/SheetEditor.js',
    'js/SheetModel.js',
    'js/SheetModelEditors.js',
+   'js/SheetSerialization.js',
    'js/SheetView.js',
    'js/SheetViewModel.js',
    'js/SheetViewUI.js',

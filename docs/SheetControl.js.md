@@ -15,6 +15,7 @@ The factory method [addControl](#addcontrol) is the only object exported.
 import * as Library from './Library.js'
 import * as GEUtils from './GEUtils.js'
 import * as Heading from './Heading.js'
+import {serializeSheet, deserializeSheet} from './SheetSerialization.js'
 import * as StoredObjects from './StoredObjects.js'
 import {makeFixedMenu, makeDetachedMenu, makeMockSelect, makeDialog} from './UIComponents.js'
 
@@ -75,7 +76,7 @@ class ViewModel {
    }
 
    fromJSON (json /*: string */) {
-      this.#model.fromJSON(StoredObjects.migrateSheetToV2(json))
+      this.#model.fromJSON(json)
    }
 
    clearSheet () {
@@ -94,6 +95,15 @@ class ViewModel {
    async deleteSheet (sheetName /*: string */) {
       await StoredObjects.removeStoredSheet(sheetName)
    }
+}
+function escapeHTML (string) {
+   let escapedString = null
+   if (string != null) {
+      const div = document.createElement('div')
+      div.textContent = string
+      escapedString = div.innerHTML
+   }
+   return escapedString
 }
 /*
 ```
@@ -159,19 +169,20 @@ class View {
       } else {
          sheetChoices.forEach((sheetChoice) => {
             sheetList.insertAdjacentHTML('beforeend',
-               `<li data-action="showStoredSheetMenu(event, '${sheetChoice}')">${sheetChoice}</li>`)
+               `<li data-action="showStoredSheetMenu(event, '${escapeHTML(sheetChoice)}')">${sheetChoice}</li>`)
          })
       }
    }
 
    showStoredSheetMenu (event, storedSheet /*: string */) {
+      const escapedString = escapeHTML(storedSheet)
       const storedSheetMenu = [
          '<ul>',
          (storedSheet == null) ? '' :
-            `<li data-action="loadSheet('${storedSheet}')">Load to current sheet</li>
-             <li data-action="saveSheet('${storedSheet}')">Update from current sheet</li>
-             <li data-action="renameSheet('${storedSheet}', event)">Rename sheet</li>
-             <li data-action="deleteSheet('${storedSheet}')">Delete</li>
+            `<li data-action="loadSheet('${escapedString}')">Load to current sheet</li>
+             <li data-action="saveSheet('${escapedString}')">Update from current sheet</li>
+             <li data-action="renameSheet('${escapedString}', event)">Rename sheet</li>
+             <li data-action="deleteSheet('${escapedString}')">Delete</li>
              <hr>`,
          `<li data-action="showCreateSheetDialog(event)">Save current sheet</li>
           <li data-action="showExportSheetDialog(event)">Export current sheet</li>
@@ -285,15 +296,15 @@ class View {
    }
 
    showExportSheetDialog (location) {
-      const modelJSON = JSON.stringify(this.viewModel.toJSON())
+      const modelJSON = JSON.stringify(serializeSheet(this.viewModel.toJSON()))
       const exportSheetDialogHTML =
          `<div id="export-sheet-dialog" class="flex-v" style="min-height: 15em; min-width: 60ch; overflow: hidden">
             <style>
-                      #export-sheet-dialog button {
-                         padding-left: 2ch;
-                         padding-right: 2ch;
-                         max-width: max-content;
-                      }
+               #export-sheet-dialog button {
+                  padding-left: 2ch;
+                  padding-right: 2ch;
+                  max-width: max-content;
+               }
             </style>
             <div>Sheet export data display:</div>
             <textarea id="export-sheet-value" class="stretch fill-h scrollable" cols="40" rows="5"
@@ -325,7 +336,7 @@ class View {
       const importFromTextarea = () => {
          const jsonString = document.getElementById('import-sheet-value').value
          if (jsonString !== '') {
-            this.viewModel.fromJSON(jsonString)
+            this.viewModel.fromJSON(deserializeSheet(jsonString))
          }
          dialog.remove()
       }
@@ -337,22 +348,22 @@ class View {
       const backupSheetsDialogHTML = [
          `<div id="backup-sheets-dialog" class="flex-v" style="min-height: 13em; min-width: 50ch; width: 60ch; overflow: hidden">
             <style>
-                      #backup-sheets-dialog button {
-                         padding-left: 2ch;
-                         padding-right: 2ch;
-                      }
-                      #backup-sheets-buttons button {
-                         width: 12ch;
-                      }
-                      #backup-sheets-choices {
-                         font-size: inherit;
-                         margin: 0.5em 0;
-                         overflow: hidden auto;
-                         text-wrap: auto;
-                         user-select: text;
-                         background-color: white;
-                         border: 1px solid black;
-                      }
+               #backup-sheets-dialog button {
+                  padding-left: 2ch;
+                  padding-right: 2ch;
+               }
+               #backup-sheets-buttons button {
+                  width: 12ch;
+               }
+               #backup-sheets-choices {
+                  font-size: inherit;
+                  margin: 0.5em 0;
+                  overflow: hidden auto;
+                  text-wrap: auto;
+                  user-select: text;
+                  background-color: white;
+                  border: 1px solid black;
+               }
             </style>
             <div style="display: inline-flex"><span>Check the sheets to back up:</span>
                <div class="fill-h" style="display: inline-flex; justify-content: flex-end">
@@ -361,12 +372,14 @@ class View {
             </div></div>
             <div id="backup-sheets-choices" class="stretch fill-h scrollable">`
       ]
+      
       for (const sheet of allSheets) {
          backupSheetsDialogHTML.push(
-           `<input type="checkbox" name="${sheet}" checked>
-               <label for="${sheet}">${sheet}</label><br>`
+           `<input type="checkbox" name="${escapeHTML(sheet)}" checked>
+              <label for="${escapeHTML(sheet)}">${sheet}</label><br>`
          )
       }
+
       backupSheetsDialogHTML.push(
            `</div>
            <div id="backup-sheets-file-name-container" class="hidden">
@@ -426,12 +439,14 @@ class View {
          const checkedSheetsJSON = await Promise
             .allSettled(checkedSheetNames.map((name) => StoredObjects.getStoredSheet(name)))
 
-         let result = '['
+         const result = []
          for (const inx in checkedSheetNames) {
-            result += (result.length > 1 ? ',' : '')
-               + JSON.stringify({sheetName: checkedSheetNames[inx], sheetJSON: checkedSheetsJSON[inx].value})
+            const namedSheet = 
+               {sheetName: checkedSheetNames[inx], sheetJSON: serializeSheet(checkedSheetsJSON[inx].value)}
+            result.push(namedSheet)
          }
-         return result + ']'
+
+         return JSON.stringify(result)
       }
    }
 
@@ -439,22 +454,22 @@ class View {
       const restoreSheetsDialogHTML =
          `<div id="restore-sheets-dialog" class="flex-v" style="min-height: 13em; min-width: 50ch; width: 60ch; overflow: hidden">
             <style>
-                      #restore-sheets-dialog button {
-                         padding-left: 2ch;
-                         padding-right: 2ch;
-                      }
-                      #restore-sheets-buttons button {
-                         width: 12ch;
-                      }
-                      #restore-sheets-choices {
-                         font-size: inherit;
-                         margin: 0.5em 0;
-                         overflow: hidden auto;
-                         text-wrap: auto;
-                         user-select: text;
-                         background-color: white;
-                         border: 1px solid black;
-                      }
+               #restore-sheets-dialog button {
+                  padding-left: 2ch;
+                  padding-right: 2ch;
+               }
+               #restore-sheets-buttons button {
+                  width: 12ch;
+               }
+               #restore-sheets-choices {
+                  font-size: inherit;
+                  margin: 0.5em 0;
+                  overflow: hidden auto;
+                  text-wrap: auto;
+                  user-select: text;
+                  background-color: white;
+                  border: 1px solid black;
+                }
             </style>
             <div style="display: inline-flex"><span>Check the sheets to restore:</span>
                <div class="fill-h" style="display: inline-flex; justify-content: flex-end">
@@ -509,14 +524,21 @@ class View {
       const storeJSON = async (restoredJSONString) => {
          if (restoredJSONString !== '') {
             let restoredJSONObject = JSON.parse(restoredJSONString)
-            if (restoredJSONObject[0].sheetName == null) {
-               StoredObjects.saveStoredSheet('unknown sheet', restoredJSONString)
+            if (  !Array.isArray(restoredJSONObject)
+               && restoredJSONObject.version != null
+               && restoredJSONObject.sheet.sheetName == null
+            ) {
+               StoredObjects.saveStoredSheet('unnamed sheet', deserializeSheet(restoredJSONObject))
                closeDialog()
+            } else if (restoredJSONObject.length > 0 && restoredJSONObject[0].sheetName == null) {
+                  StoredObjects.saveStoredSheet('unnamed sheet', deserializeSheet(JSON.stringify(restoredJSONObject)))
+                  closeDialog()
             } else {
                const restoreSheetsChoices = restoredJSONObject
                   .map(({sheetName}) =>
-                     `<input type="checkbox" name="${sheetName}" checked>
-                         <label for="${sheetName}">${sheetName}</label><br>`)
+                     `<input type="checkbox" name="${escapeHTML(sheetName)}" checked>
+                         <label for="${escapeHTML(sheetName)}">${sheetName}</label><br>`)
+                  .join('')
                document.getElementById('restore-sheets-choices').innerHTML = restoreSheetsChoices
 
                Array.from(document.querySelectorAll('#restore-sheets-buttons button.restore-source-button'))
@@ -531,7 +553,7 @@ class View {
                   Promise
                      .allSettled(sheetNamesToRestore.map((name) => {
                         const sheetJSON = restoredJSONObject.find(({sheetName}) => sheetName == name).sheetJSON
-                        return StoredObjects.saveStoredSheet(name, sheetJSON)
+                        return StoredObjects.saveStoredSheet(name, deserializeSheet(sheetJSON))
                      }))
                      .then(() => closeDialog())
                })

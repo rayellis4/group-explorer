@@ -1077,8 +1077,8 @@ export class MorphismView extends LinkView {
     // get offset distance for arrowMargin
     let offsetDistance = 0
     if (this.modelElement.arrowMargin !== 0) {
-      const sourceCenter = source.position.clone().addScaledVector(source.size, 0.5)
-      const destinationCenter = destination.position.clone().addScaledVector(destination.size, 0.5)
+      const sourceCenter = source.viewElement.position.addScaledVector(source.viewElement.size, 0.5)
+      const destinationCenter = destination.viewElement.position.addScaledVector(destination.viewElement.size, 0.5)
       const centerToCenter = sourceCenter.sub(destinationCenter).length()
       offsetDistance = this.modelElement.arrowMargin * centerToCenter
     }
