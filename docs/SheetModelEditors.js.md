@@ -524,6 +524,15 @@ class MorphismEditor extends SheetElementEditor {
       }
    }
 
+   onInput (event) {
+      // sync name
+      if (event.target.getAttribute('id') == 'morphism-editor-name') {
+         document.getElementById('morphism-name').innerHTML = event.target.value
+      }
+
+      super.onInput(event)
+   }
+
    setupMorphismAdd () {
       if (this.modelElement.mapping.image.includes(undefined)) {
          // domain selection is first unmapped source

@@ -4,10 +4,10 @@
 
 A collection of utility routines used throughout GE3.
  * [equals](#equals) -- return whether two arrays are equal
- * [flatten](#flatten) -- flatten a nest of arrays to a single level
  * [fromRainbow](#fromrainbow) -- returns hsl color string
  * [isTouchDevice](#istouchdevice) -- determine whether current device supports a touch interface
  * [htmlToContext](#htmltocontext) -- copy characters from HTML to `<canvas>` context
+ * [escapeHTML]#escapehtml) -- escape special HTML characters in a string
  * [generateElements](#generateElements) -- create DOM elements from HTML
  * [createActionHandler](#createActionHandler) -- create handler to eval data-action attribute on click
  * [version](#version) -- generate GE3 version number from <meta> tag in top-level web page
@@ -16,10 +16,10 @@ A collection of utility routines used throughout GE3.
  */
 export {
    equals,
-   flatten,
    fromRainbow,
    isTouchDevice,
    htmlToContext,
+   escapeHTML,
    generateElements,
    createActionHandler,
    createModelProxy,
@@ -46,23 +46,6 @@ function equals (a /*: Array<any> */, b /*: Array<any> */) /*: boolean */ {
       return true;
    }
    return false;
-}
-/*
-```
-### flatten
-Flatten an arbitrarily nested array to a single level.
-```javascript
-*/
-function flatten/*:: <T> */(tree /*: Tree<T> */) /*: Array<T> */ {
-   return tree.reduce(
-      (flattened, el) => {
-         if (Array.isArray(el)) {
-            flattened.push(...flatten(((el /*: any */) /*: Tree<T> */)))
-         } else {
-            flattened.push(el)
-         }
-         return flattened;
-      }, []);
 }
 /*
 ```
@@ -144,6 +127,22 @@ function htmlToContext (
       const y = rect.top + rect.height - yMin + center.y - (yMax - yMin) / 2
       context.fillText(node.textContent, x, y)
    }
+}
+/*
+```
+### escapeHTML
+
+Uses the browser to escape special HTML characters, so '>' becomes '&gt;'
+```javascript
+ */
+function escapeHTML (string) {
+   let escapedString = null
+   if (string != null) {
+      const div = document.createElement('div')
+      div.textContent = string
+      escapedString = div.innerHTML
+   }
+   return escapedString
 }
 /*
 ```

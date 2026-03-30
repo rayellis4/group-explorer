@@ -217,8 +217,8 @@ async function migrateToV1 (versionChangeEvent /*: any */) {
          localStorage.removeItem('sheets')
       } else {
          for (const [sheetName, oldSheet] of Object.entries(oldSheets)) {
-            const newSheet = deserializeSheet(oldSheet)
-            const putRequest = storedSheets.put(serializeSheet(newSheet), sheetName)
+            const newSheet = convertV0ToV1(oldSheet)  /* convertV0ToV1 == convertFromOldJSON */
+            const putRequest = storedSheets.put(JSON.stringify(newSheet), sheetName)
             await new Promise((resolve, reject) => {
                putRequest.onsuccess = () => resolve(putRequest.result)
                putRequest.onerror = () => reject(putRequest.error)
@@ -232,7 +232,7 @@ async function migrateToV1 (versionChangeEvent /*: any */) {
 // Migrate 'groups' object from localStorage to GROUP_LIBRARY_KEY in GENERAL_STORE
 async function migrateToV2 (ev /*: any */) {
    // clean up local storage from previous versions
-   ;['mathjax_stylesheet', 'sheets', 'passedSheet'].forEach((key) => localStorage.removeItem(key))
+   //   ;['mathjax_stylesheet', 'sheets', 'passedSheet'].forEach((key) => localStorage.removeItem(key))
 
    await migrateGroupsToV2(ev)
    await migrateSheetsToV2(ev)

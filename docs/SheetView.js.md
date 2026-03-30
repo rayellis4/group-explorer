@@ -390,31 +390,6 @@ export class NodeView extends SheetView {
   }
 }
 
-export class RectangleView extends NodeView {
-  /*::
-    +modelElement: SheetModel.RectangleElement
-    color: color
-  */
-   constructor (view /*: View */, modelElement /*: SheetModel.RectangleElement */, domElement /*: HTMLElement */) {
-      super(view, modelElement, domElement)
-
-      this.redraw()
-   }
-
-  updateTransform () {
-    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits())
-  }
-
-  redraw () {
-    this.color = this.modelElement.color
-    this.domElement.style.width = this.size.x
-    this.domElement.style.height = this.size.y
-    this.domElement.style.backgroundColor = this.modelElement.color
-
-    this.updateTransform()
-  }
-}
-
 export class TextView extends NodeView {
   /*::
     +modelElement: SheetModel.TextElement
@@ -818,7 +793,7 @@ export class LinkView extends SheetView {
   }
 
   get sourceView () {
-     return this.view.viewElements.get(this.source.id)
+     return this.view.viewElements.get(this.modelElement.source.id)
   }
 
   getCrossingEndpoints () /*: [SheetUnits, SheetUnits] */ {
@@ -969,7 +944,7 @@ export class MorphismView extends LinkView {
       html += this.modelElement.mapping
        ?.definingPairs
         .map(([g, h]) => {
-          return `<br>${this.name}(${this.source.group.representation[g]}) = ${this.destination.group.representation[h]}`
+          return `<br>${this.modelElement.name}(${this.source.group.representation[g]}) = ${this.destination.group.representation[h]}`
         })
         .join('')
     }

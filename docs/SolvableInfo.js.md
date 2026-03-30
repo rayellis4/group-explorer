@@ -290,7 +290,7 @@ function formatSolvableDecompositionSheet (group, type /*: VisualizerType */) {
             sheetElementsAsJSON.push( {
                 className : 'MorphismElement',
                 name : `<i>e</i><sub>${index}</sub>`,
-                sourceId : `${previousIndex}`, destinationId : `${thisIndex}`,
+                source_name : `${previousIndex}`, destination_name : `${thisIndex}`,
                 showManyArrows : true,
                 definingPairs : previous.group.generators.map(gen => [gen, embeddingFromPrevious[gen]])
             } );
@@ -319,7 +319,7 @@ function formatSolvableDecompositionSheet (group, type /*: VisualizerType */) {
             sheetElementsAsJSON.push( {
                 className : 'MorphismElement',
                 name : `<i>q</i><sub>${index}</sub>`,
-                sourceId : `${thisIndex}`, destinationId : `${quotientIndex}`,
+                source_name : `${thisIndex}`, destination_name : `${quotientIndex}`,
                 showManyArrows : true,
                 definingPairs : entry.group.generators.map(gen => [gen, quotientMap[gen]])
             } );

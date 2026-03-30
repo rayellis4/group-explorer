@@ -20,8 +20,7 @@ import {Group} from './Group.js';
 export type VisualizerName = 'CDElement' | 'CGElement' | 'MTElement';
 
 export type ClassName =
-      'RectangleElement'
-    | 'TextElement'
+      'TextElement'
     | VisualizerName
     | 'ConnectingElement'
     | 'MorphismElement';
@@ -50,6 +49,7 @@ export type MSG_editor<VizType: any> = any;
 */
 class SheetModel {
    #sheetElements /*: Map<string, SheetElement> */ = new Map()
+   nextId = 0
 
    get sheetElements () {
       return this.#sheetElements
@@ -64,7 +64,7 @@ class SheetModel {
          ? JSON.parse(json)
          : json
 
-      this.sheetElements.clear()  // remove existing elements (?) or build on existing
+      this.sheetElements.clear()
 
       jsonObjects.forEach((jsonObject) => {
          this.addObjectAsElement(jsonObject, jsonObject.className)
@@ -98,6 +98,7 @@ class SheetModel {
 // SheetModel helper classes
 class SheetElement {
    id /*: string */
+   _name /*: string */
    className /*: string */
    #model /*: SheetModel */
 
@@ -109,15 +110,42 @@ class SheetElement {
       return this.#model
    }
 
+   get name () {
+      return this._name ?? this.id
+   }
+
+   set name (name) {
+      this._name = name
+   }
+
    toJSON () {
       return {
          id: this.id,
+         name: this._name,
          className: this.className
       }
    }
 
    fromJSON (jsonObject) {
-      this.id = jsonObject.id ?? `${this.model.sheetElements.size}`
+      if (this.id == null || jsonObject.id != this.id) {
+         let id
+         if (jsonObject.id == null) {
+            id = this.model.nextId++
+         } else {
+            if (this.model.sheetElements.has(jsonObject.id)) {
+               if (window.confirm('duplicate id detected on input: assign new id or abort input?')) {
+                  id = this.model.nextId++
+               } else {
+                  throw new TypeError('duplicate id detected in input JSON, processing aborted')
+               }
+            } else {
+               id = jsonObject.id
+               this.model.nextId = (parseInt(id) >= this.model.nextId) ? parseInt(id) + 1 : this.model.nextId
+            }
+         }
+         this.id = id.toString()
+      }
+      this._name = jsonObject.name
       return this
    }
 }
@@ -239,20 +267,32 @@ class LinkElement extends SheetElement {
    toJSON () {
       return {
          ...super.toJSON(),
-         sourceId: this.source.id,
-         destinationId: this.destination.id
+         source_id: this.source.id,
+         destination_id: this.destination.id
       }
    }
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
-      this.source = this.model.sheetElements.get(jsonObject.sourceId)
-      this.destination = this.model.sheetElements.get(jsonObject.destinationId)
 
-      if (   this.model.sheetElements.get(this.id) !== this
-          && !this.model.canConnect(this.className, this.source, this.destination)) {
-         throw new Error(`SheetViewModel.addElement: improper ${this.className} ` +
-            `between ${this.source.id} and ${this.destination.id}`)
+      if (this.source == null) {  // assume source and destination initializations are in sync
+         const sheetElementArray = (jsonObject.source_id == null)
+            ? Array.from(this.model.sheetElements.values())
+            : []
+         const source = (jsonObject.source_id != null)
+            ? this.model.sheetElements.get(jsonObject.source_id)
+            : sheetElementArray.find((element) => element.name == jsonObject.source_name)
+         const destination = (jsonObject.destination_id != null)
+            ? this.model.sheetElements.get(jsonObject.destination_id)
+            : sheetElementArray.find((element) => element.name == jsonObject.destination_name)
+
+         if (this.model.canConnect(this.className, source, destination)) {
+            this.source = source
+            this.destination = destination
+         } else {
+            Log.err(`SheetViewModel.addElement: improper ${this.className} ` +
+               `between ${source.name} and ${destination.name}`)
+         }
       }
 
       return this
@@ -285,7 +325,6 @@ class ConnectingElement extends LinkElement {
 
 class MorphismElement extends LinkElement {
    className = 'MorphismElement'
-   name /*: string */ = 'f'
    showDomainAndCodomain /*: boolean */ = false
    showDefiningPairs /*: boolean */ = false
    showInjectionSurjection /*: boolean */ = false
@@ -305,7 +344,6 @@ class MorphismElement extends LinkElement {
    toJSON () {
       return {
          ...super.toJSON(),
-         name: this.name,
          showDomainAndCodomain: this.showDomainAndCodomain,
          showDefiningPairs: this.showDefiningPairs,
          showInjectionSurjection: this.showInjectionSurjection,
@@ -319,8 +357,10 @@ class MorphismElement extends LinkElement {
    }
 
    fromJSON (jsonObject) {
+      // override default naming: priority for Morphism is jsonObject.name > this._name > new mathy name
+      const name = jsonObject.name ?? this._name ?? this.#getMathyName()
       super.fromJSON(jsonObject)
-      this.name = jsonObject.name ?? this.name
+      this.name = name
       this.showDomainAndCodomain = jsonObject.showDomainAndCodomain ?? this.showDomainAndCodomain
       this.showDefiningPairs = jsonObject.showDefiningPairs ?? this.showDefiningPairs
       this.showInjectionSurjection = jsonObject.showInjectionSurjection ?? this.showInjectionSurjection
@@ -332,6 +372,32 @@ class MorphismElement extends LinkElement {
       this.mapping = new Mapping(this.source.group, this.destination.group, jsonObject.definingPairs)
       return this
    }
+
+   // Find the simplest mathy name for this morphism that's not yet used on this sheet.
+   #getMathyName () /*: string */ {
+      const sheetElements = Array.from(this.model.sheetElements.values())
+      const mathyNames = ['f', 'g', 'h']
+      const morphisms = sheetElements
+         .filter((element) => element instanceof MorphismElement) // array of MorphismElements
+
+      const [subscript, nameIndex] = ((morphisms /*: any */) /*: Array<MorphismElement> */)
+         .map((morphismElement) => morphismElement.name) // array of MorphismElement names
+         .map((name) => name.match(/[f-h](<sub>([0-9]+)<\/sub>)?$/)) // array of mathy names/nulls
+         .reduce( // array of used subscripts (0 for no subscript) for each prefix in mathyNames
+            (largestUsedSubscripts, stringMatch) => {
+               if (stringMatch !== null) {
+                  const mathyNameIndex = mathyNames.findIndex((mathyName) => mathyName === stringMatch[0][0])
+                  const subscript = (stringMatch[2] === undefined) ? 0 : parseInt(stringMatch[2])
+                  largestUsedSubscripts[mathyNameIndex] = Math.max(largestUsedSubscripts[mathyNameIndex], subscript)
+               }
+               return largestUsedSubscripts
+            }, Array.from({ length: mathyNames.length }, () => -1)) // -1 => name not used
+         .reduce(([subscript, nameIndex], largestUsedSubscripts, index) => {
+            return (subscript <= largestUsedSubscripts) ? [subscript, nameIndex] : [largestUsedSubscripts, index]
+         }, [Number.MAX_SAFE_INTEGER, 0])
+
+      return mathyNames[nameIndex] + ((subscript === -1) ? '' : `<sub>${subscript + 1}</sub>`)
+  }
 }
 
 // function used by GroupInfo

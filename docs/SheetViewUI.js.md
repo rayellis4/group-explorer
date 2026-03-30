@@ -416,13 +416,13 @@ class SheetEventUI {
                if (destination != null) {
                   linkingDialog.remove()
 
-                  const linkJson = { sourceId: source.id, destinationId: destination.id }
+                  const linkJson = { source_name: source.name, destination_name: destination.name }
                   const link = this.viewModel.addObjectAsElement(linkJson, linkType)
 
                   const editPosition = source.viewElement.center
                      .add(destination.viewElement.center)
                      .multiplyScalar(0.5).toWindowUnits()
-                  this.getEditor(link, editPosition)
+                  this.getEditor(link, {clientX: editPosition.x, clientY: editPosition.y})
                }
             }
          }

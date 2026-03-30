@@ -1,5 +1,8 @@
 // @flow
 
+import {layoutCayleyDiagram} from './CayleyDiagramGenerator.js'
+import * as Library from './Library.js'
+import * as Log from './Log.js'
 import * as MathML from './MathML.js'
 import {THREE} from '../lib/externals.js'
 import * as SheetView from './SheetView.js'
@@ -30,12 +33,8 @@ function serializeSheet (sheet /*: SheetModel */) /*: ExportedSheet */ {
 // given object for v0, v1, or v2 sheet, return SheetModel object
 function deserializeSheet (json /*: string | Obj */) /*: SheetModelJSON v2 */ {
    let sheet
-   if (json instanceof Object) {
-      if ('version' in json) {
-         sheet = convertSheetFromVersion(json.sheet, json.version)
-      } else {
-         sheet = convertSheetFromVersion(json, 0)  // v1 json was a string, not an object
-      }
+   if (json?.version != null) {
+      sheet = convertSheetFromVersion(json.sheet, json.version)
    } else if (typeof json == 'string') {  // can be text input or v1 stored sheet
       json = JSON.parse(json)
       if ('version' in json) {
@@ -43,6 +42,10 @@ function deserializeSheet (json /*: string | Obj */) /*: SheetModelJSON v2 */ {
       } else {  // must be v1 string, json export wasn't available when v0 was being used
          sheet = convertSheetFromVersion(json, 1)
       }
+   } else {
+      const errorMessage = `SheetSerialization.deserializeSheet: unrecognized object encountered: ${json}`
+      Log.err(errorMessage)
+      throw new TypeError(errorMessage)
    }
 
    return sheet
@@ -60,7 +63,7 @@ function convertSheetFromVersion (json /*: Obj */, version /*: number */) /*: Ob
 // given JSON for v0 sheet, return JSON for v1 sheet
 export function convertV0ToV1 (oldJSONArray) {
    /*
-    * Convert from original Sheet JSON to current $rev$ 2
+    * Convert from original Sheet JSON to current version
     *    Link:
     *      fromIndex -> sourceId
     *      toIndex -> destinationId
@@ -192,12 +195,23 @@ export function convertV0ToV1 (oldJSONArray) {
 }
 
 // given JSON for v1 sheet, return JSON for v2 sheet
-export function convertV1ToV2 (sheet /*: mixed */) /*: mixed */ {
-   if (typeof sheet != 'string') {
-      return sheet
-   }
+export function convertV1ToV2 (jsonObjects /*: mixed */) /*: mixed */ {
+   for (const jsonObject of jsonObjects) {
+      // on v1 morphisms: migrate {source, destination}Id to {source, destination}_name
+      if (jsonObject.className == 'MorphismElement' || jsonObject.className == 'ConnectingElement') {
+         jsonObject.source_name = jsonObject.sourceId
+         jsonObject.destination_name = jsonObject.destinationId
+      }
 
-   const jsonObjects = JSON.parse(sheet)
+      // migrate 'id' from v1 to 'name' on v2
+      if (jsonObject.name == null) {  // set 'name' to old 'id' if no other name specified
+         jsonObject.name = jsonObject.id
+      }
+
+      delete jsonObject.sourceId
+      delete jsonObject.destinationId
+      delete jsonObject.id
+   }
 
    const upgradeCandidates = jsonObjects
       .filter((jsonObject) =>

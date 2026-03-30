@@ -371,7 +371,7 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
       group.subgroups.forEach( (H /*: Subgroup */, subgroupIndex) => {
          sheetElementsAsJSON.push({
             className : type,
-            id : `viz-${subgroupIndex}`,
+            name : `viz-${subgroupIndex}`,
             groupURL : group.URL,
             x : latticeLeft + chains[subgroupIndex] * cellWidth + hMargin,
             y : latticeTop + tiers[subgroupIndex] * cellHeight + vMargin,
@@ -398,7 +398,7 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
 
          sheetElementsAsJSON.push({
             className: 'TextElement',
-            id: `sub-${subgroupIndex}`,
+            name: `sub-${subgroupIndex}`,
             text: caption,
             fontColor: H.isNormal ? 'blue' : 'black',
             color: colors[conjugacyClass],
@@ -436,7 +436,7 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
                </ul></details>`
          sheetElementsAsJSON.push({
             className: 'TextElement',
-            id: `viz-${classIndex}`,
+            name: `viz-${classIndex}`,
             text: caption,
             fontColor: 'black',
             fontSize: 20 * scale + 'px',
@@ -460,8 +460,8 @@ function getConnectionJSON (covering) {
       return targets.toArray().map((target) => {
          return {
             className: 'ConnectingElement',
-            sourceId: `viz-${source}`,
-            destinationId: `viz-${target}`,
+            source_name: `viz-${source}`,
+            destination_name: `viz-${target}`,
             thickness: 2,
             hasArrowhead: false
          }
@@ -593,7 +593,7 @@ function formatEmbeddingSheet (group, indexOfH, type) {
       },
       {
          className : 'MorphismElement',
-         sourceId : '1', destinationId : '2', name : '<i>e</i>',
+         source_name : '1', destination_name : '2', name : '<i>e</i>',
          definingPairs : libraryH.generators.map(gen => [gen, embedding[gen]]),
          showManyArrows : true, showInjectionSurjection: true
       }
@@ -725,25 +725,25 @@ function formatQuotientSheet (group, indexOfN, type) {
       },
       {
          className : 'MorphismElement', name : 'id',
-         sourceId : '2', destinationId : '4',
+         source_name : '2', destination_name : '4',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : [ [ 0, 0 ] ]
       },
       {
          className : 'MorphismElement', name : 'e',
-         sourceId : '4', destinationId : '6',
+         source_name : '4', destination_name : '6',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryN.generators.map(gen => [gen, embedding[gen]])
       },
       {
          className : 'MorphismElement', name : 'q',
-         sourceId : '6', destinationId : '8',
+         source_name : '6', destination_name : '8',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : group.generators.map(gen => [gen, quotientMap[gen]])
       },
       {
          className : 'MorphismElement', name : 'z',
-         sourceId : '8', destinationId : '10',
+         source_name : '8', destination_name : '10',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryQ.generators.map(gen => [gen, 0])
       }

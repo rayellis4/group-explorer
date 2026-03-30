@@ -96,15 +96,6 @@ class ViewModel {
       await StoredObjects.removeStoredSheet(sheetName)
    }
 }
-function escapeHTML (string) {
-   let escapedString = null
-   if (string != null) {
-      const div = document.createElement('div')
-      div.textContent = string
-      escapedString = div.innerHTML
-   }
-   return escapedString
-}
 /*
 ```
 ## View
@@ -169,13 +160,13 @@ class View {
       } else {
          sheetChoices.forEach((sheetChoice) => {
             sheetList.insertAdjacentHTML('beforeend',
-               `<li data-action="showStoredSheetMenu(event, '${escapeHTML(sheetChoice)}')">${sheetChoice}</li>`)
+               `<li data-action="showStoredSheetMenu(event, '${GEUtils.escapeHTML(sheetChoice)}')">${sheetChoice}</li>`)
          })
       }
    }
 
    showStoredSheetMenu (event, storedSheet /*: string */) {
-      const escapedString = escapeHTML(storedSheet)
+      const escapedString = GEUtils.escapeHTML(storedSheet)
       const storedSheetMenu = [
          '<ul>',
          (storedSheet == null) ? '' :
@@ -375,8 +366,8 @@ class View {
       
       for (const sheet of allSheets) {
          backupSheetsDialogHTML.push(
-           `<input type="checkbox" name="${escapeHTML(sheet)}" checked>
-              <label for="${escapeHTML(sheet)}">${sheet}</label><br>`
+           `<input type="checkbox" name="${GEUtils.escapeHTML(sheet)}" checked>
+              <label for="${GEUtils.escapeHTML(sheet)}">${sheet}</label><br>`
          )
       }
 
@@ -536,8 +527,8 @@ class View {
             } else {
                const restoreSheetsChoices = restoredJSONObject
                   .map(({sheetName}) =>
-                     `<input type="checkbox" name="${escapeHTML(sheetName)}" checked>
-                         <label for="${escapeHTML(sheetName)}">${sheetName}</label><br>`)
+                     `<input type="checkbox" name="${GEUtils.escapeHTML(sheetName)}" checked>
+                         <label for="${GEUtils.escapeHTML(sheetName)}">${sheetName}</label><br>`)
                   .join('')
                document.getElementById('restore-sheets-choices').innerHTML = restoreSheetsChoices
 

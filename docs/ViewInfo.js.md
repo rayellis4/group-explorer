@@ -213,13 +213,13 @@ function formatAllVisualizersSheet (group) {
         },
         {
             className : `MorphismElement`,
-            sourceId : '4', destinationId : '5',
+            source_name : '4', destination_name : '5',
             name : '<i>id</i><sub>1</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         },
         {
             className : `MorphismElement`,
-            sourceId : '5', destinationId : '6',
+            source_name : '5', destination_name : '6',
             name : '<i>id</i><sub>2</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         }
