@@ -441,16 +441,11 @@ export class TextView extends NodeView {
      contentElement.style.marginLeft = (this.modelElement.alignment == 'left') ? '0' : 'auto'
      contentElement.style.marginRight = (this.modelElement.alignment == 'right') ? '0' : 'auto'
 
-     // avoid drawing original (closed) details over an opened element (cf. SheetViewUI.init)
-     if (this.modelElement.displayNeedsTextUpdate) {
-        if (this.modelElement.isPlainText) {
-           contentElement.textContent = this.modelElement.text
-        } else {
-           contentElement.innerHTML = this.modelElement.text
-        }
-        this.modelElement.displayNeedsTextUpdate = false
+     if (this.modelElement.isPlainText) {
+        contentElement.textContent = this.modelElement.text
+     } else {
+        contentElement.innerHTML = this.modelElement.text
      }
-     contentElement.innerHTML = this.modelElement.text
 
      // create scratch element to determine text content size
      const scratch = this.domElement.cloneNode(true)
@@ -476,7 +471,9 @@ export class TextView extends NodeView {
      if (this.modelElement.h == null) {
         this.modelElement.h = scratchHeight
      } else if (scratchHeight > this.modelElement.h) {
-        this.modelElement.y -= 0.5 * (scratchHeight - this.modelElement.h)
+        if (this.modelElement.anchor_id == null) {
+           this.modelElement.y -= 0.5 * (scratchHeight - this.modelElement.h)
+        }
         this.modelElement.h = scratchHeight
      }
 

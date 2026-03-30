@@ -156,6 +156,7 @@ class NodeElement extends SheetElement {
    w /*: float */ = 0.1
    h /*: float */ = 0.1
    z /*: integer */
+   anchor_id /*: ?string */  // id of element this is anchored to; moves with that element
    isNode = true
 
    constructor (model /*: SheetModel */) {
@@ -168,6 +169,7 @@ class NodeElement extends SheetElement {
    toJSON () {
       return {
          ...super.toJSON(),
+         anchor_id: this.anchor_id,
          x: this.x,
          y: this.y,
          w: this.w,
@@ -178,6 +180,13 @@ class NodeElement extends SheetElement {
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
+      if (jsonObject.anchor_name != null) {
+         const anchor = Array.from(this.model.sheetElements.values())
+            .find((el) => el.name === jsonObject.anchor_name)
+         this.anchor_id = anchor?.id ?? null
+      } else {
+         this.anchor_id = jsonObject.anchor_id ?? null
+      }
       this.x = jsonObject.x ?? this.x
       this.y = jsonObject.y ?? this.y
       this.w = jsonObject.w ?? this.w

@@ -300,18 +300,12 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
 
    // Find the width of a sample caption
    //   'Cl(H_xx) (yy)' if reduced && some conjugacy class has order != 1
-   //   'H_xx' otherwise
+   //   'H_xx (order yy)' otherwise
    const {width: captionWidth} = !labelled
       ? {width: 0}
       : (reduced && conjugateSubgroupClasses.some((klass) => klass.popcount() != 1))
-         ? captionSize(
-            `<details><summary style="white-space: nowrap">
-                <span>Cl(<i>H</i><sub>${group.order}</sub>) (${group.order})</span>
-             </summary></details>`)
-         : captionSize(
-            `<details><summary style="white-space: nowrap">
-                <span><i>H</i><sub>${group.order}</sub></span>
-             </summary></details>`)
+         ? captionSize(`<span style="white-space: nowrap">Cl(<i>H</i><sub>${group.order}</sub>) (${group.order})</span>`)
+         : captionSize(`<span style="white-space: nowrap"><i>H</i><sub>${group.order}</sub> (order ${group.order})</span>`)
 
    // Find the size of the title
    const title = (reduced ? 'Reduced ' : '') + `Subgroup Lattice for the group ${group.name}`
@@ -362,9 +356,7 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
 
       // find caption size in scratch element, and calculate scaled fontSize
       const {width: captionWidth} = captionSize(
-         `<details><summary style="white-space: nowrap">
-             <span><i>H</i><sub>${group.order}</sub></span>
-          </summary></details>`
+         `<span style="white-space: nowrap"><i>H</i><sub>${group.order}</sub> (order ${group.order})</span>`
       )
       const fontSize = Math.min(20, 20 * (cellWidth - 2 * hMargin) / (captionWidth + 20)) + 'px'
 
@@ -380,25 +372,13 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
             highlights : {background : highlightSubgroup(group, H, type)}
          })
 
-         const caption = [
-            `<details>
-                <summary style="box-sizing: border-box; white-space: nowrap">
-                   <span ${H.isNormal ? 'class="normal-group"' : ''}><i>H</i><sub>${subgroupIndex}</sub></span>
-               </summary>
-               <ul style="box-sizing: border-box; margin-block-start: 0; margin-block-end: 0; padding-inline-start: 2ch;
-                          text-align: left; list-style: disc; color: black">
-                  <li>⟨${H.generators.toArray().map((h) => group.representation[h]).join(', ')}⟩</li>
-                  <li>order ${H.order}</li>
-                  <li>≅ <a href="javascript:window.open('./GroupInfo.html?groupURL=${H.isomorphicGroup?.URL}')"
-                        >${H.isomorphicGroup?.name}</a></li>`,
-                  H.isNormal ? `<li>${group.name} / <i>H</i><sub>${subgroupIndex}</sub> ≅ ${H.isomorphicQuotientGroup?.name}</li>` : '',
-              `</ul>
-             </details>`].join('')
          const conjugacyClass = conjugateSubgroupClasses.findIndex((klass) => klass.isSet(subgroupIndex))
+         const caption = `<span style="white-space: nowrap"><i>H</i><sub>${subgroupIndex}</sub> (order ${H.order})</span>`
 
          sheetElementsAsJSON.push({
             className: 'TextElement',
             name: `sub-${subgroupIndex}`,
+            anchor_name: `viz-${subgroupIndex}`,
             text: caption,
             fontColor: H.isNormal ? 'blue' : 'black',
             color: colors[conjugacyClass],
@@ -414,26 +394,9 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
       conjugateSubgroupClasses.forEach((classSubgroupsBitSet, classIndex) => {
          const classSubgroups = classSubgroupsBitSet.toArray()
          const isomorphicGroup = group.subgroups[classSubgroups[0]].isomorphicGroup
-         const caption = (classSubgroups.length == 1 )
-            ? `<details><summary style="white-space: nowrap">
-                  <span><i>H</i><sub>${classSubgroups[0]}</sub></span>
-               </summary>
-               <ul style="box-sizing: border-box; margin-block-start: 0; margin-block-end: 0; padding-inline-start: 2ch;
-                          text-align: left; list-style: disc; color: black">
-                  <li> ≅ <a href="javascript:window.open('./GroupInfo.html?groupURL=${isomorphicGroup?.URL}')"
-                         >${isomorphicGroup?.name}</a></li>
-                  <li>order ${group.subgroups[classSubgroups[0]].order}</li>
-               </ul></details>`
-            : `<details><summary style="white-space: nowrap">
-                  <span>Cl(<i>H</i><sub>${classSubgroups[0]}</sub>) (${classSubgroups.length})</span>
-               </summary>
-               <ul style="box-sizing: border-box; margin-block-start: 0; margin-block-end: 0; padding-inline-start: 2ch;
-                          text-align: left; list-style: disc; color: black">
-                  <li> ≅ <a href="javascript:window.open('./GroupInfo.html?groupURL=${isomorphicGroup?.URL}')"
-                         >${isomorphicGroup?.name}</a></li>
-                  <li>order ${group.subgroups[classSubgroups[0]].order}</li>
-                  <li>${classSubgroups.map((hIndex) => '<i>H</i><sub>' + hIndex + '</sub>').join(', ')}</li>
-               </ul></details>`
+         const caption = (classSubgroups.length == 1)
+            ? `<span style="white-space: nowrap"><i>H</i><sub>${classSubgroups[0]}</sub></span>`
+            : `<span style="white-space: nowrap">Cl(<i>H</i><sub>${classSubgroups[0]}</sub>) (${classSubgroups.length})</span>`
          sheetElementsAsJSON.push({
             className: 'TextElement',
             name: `viz-${classIndex}`,

@@ -114,6 +114,9 @@ class SheetViewModel /*: Updatable */ {
       element.x += dx / this.#view.zoomFactor
       element.y += dy / this.#view.zoomFactor
       this.#view.moveElement(element)
+      this.modelElements.forEach((el) => {
+         if (el.anchor_id === id) this.move(el.id, dx, dy)
+      })
    }
 
    resize (id /*: string */, dw /*: number */, dh /*: number */) {
@@ -122,6 +125,15 @@ class SheetViewModel /*: Updatable */ {
       element.w += dw / this.#view.zoomFactor
       element.h += dh / this.#view.zoomFactor
       this.#view.resizeElement(element)
+      // reposition anchored elements to stay flush with the bottom edge
+      this.modelElements.forEach((el) => {
+         if (el.anchor_id === id) {
+            el.x = element.x
+            el.y = element.y + element.h
+            el.w = element.w
+            this.#view.resizeElement(el)
+         }
+      })
    }
 
    addObjectAsElement (plainObject /*: Obj */, className /*: string */) /*: SheetElement */ {
@@ -129,15 +141,13 @@ class SheetViewModel /*: Updatable */ {
    }
 
    removeElement (element /*: SheetElement */) {
-      // if element is the source or destination of a link, then remove the link also
+      // if element is the source or destination of a link, remove the link also
+      // if element is an anchor, remove anchored elements also
       if (element.isNode) {
          Array.from(this.modelElements.values())
-            .filter((element) => element.isLink)
-            .forEach((link) => {
-               if ((link.source.id == element.id || link.destination.id == element.id)) {
-                  this.removeElement(link)
-               }
-            })
+            .filter((el) => el.isLink && (el.source.id == element.id || el.destination.id == element.id)
+                         || el.anchor_id == element.id)
+            .forEach((el) => this.removeElement(el))
       }
       this.view?.removeElement(element)
       this.modelElements.delete(element.id)

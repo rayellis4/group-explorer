@@ -94,38 +94,8 @@ class SheetEventUI {
             .closest('.NodeElement, .LinkElement')  // closest containing Node/Link
          const modelElement = this.viewModel.modelElements.get(selectedElement?.getAttribute('id'))
          if (modelElement?.isNode) {
-            const maybeSummary = document.elementFromPoint(event.clientX, event.clientY).closest('summary')
-            if (maybeSummary == null) {
-               if (modelElement != null) {
-                  this.resizeElement(modelElement)
-               }
-            } else {
-               maybeSummary.closest('details').addEventListener('toggle', (ev) => {
-                  if (modelElement != null) {
-                     if (ev.newState == 'closed') {
-                        modelElement.move((modelElement.w - modelElement.closedWidth) / 2, 0)
-                        modelElement.fontSize = modelElement.closedFontSize
-                        modelElement.w = modelElement.closedWidth
-                        modelElement.h = modelElement.closedHeight
-                        modelElement.z = modelElement.closedZ
-                        modelElement.displayNeedsTextUpdate = true
-                     } else if (ev.oldState == 'closed') {
-                        modelElement.closedFontSize = modelElement.fontSize
-                        modelElement.closedWidth = modelElement.w
-                        modelElement.closedHeight = modelElement.h
-                        modelElement.closedZ = modelElement.z
-                        modelElement.fontSize = (parseInt(modelElement.fontSize) < 20) ? '20px' : modelElement.fontSize,
-                        modelElement.w = null
-                        modelElement.h = null
-                        modelElement.z = 2 * (Model.sheetElements.size + 1)
-                        // calculate size of open details element
-                        modelElement.redraw()
-                        // reset x, y so center is where it was when details were opened
-                        modelElement.move((modelElement.closedWidth - modelElement.w) / 2, 0)
-                     }
-                     modelElement.redraw()
-                  }
-               }, {once: true})
+            if (modelElement.anchor_id == null) {
+               this.resizeElement(modelElement)
             }
          } else if (modelElement?.isLink) {
             const clickedElement = document.elementFromPoint(event.clientX, event.clientY)
@@ -258,7 +228,8 @@ class SheetEventUI {
       recognizeMoveResize (this.rootElement,
          (dx, dy, _dw, _dh, _isDrop, domElement) => {
             if (domElement != null && redrawTimerId == null) {
-               const id = domElement.getAttribute('id')
+               const element = this.viewModel.modelElements.get(domElement.getAttribute('id'))
+               const id = element?.anchor_id ?? element?.id
                redrawTimerId = window.setTimeout(() => {
                   if (dx != 0 || dy != 0) {
                      this.viewModel.move(id, dx, dy)
