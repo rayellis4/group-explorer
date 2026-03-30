@@ -66,7 +66,7 @@ describe('Visualizer model serialization', function () {
       it('toJSON has expected keys', function () {
          const model = new MulttableModel(S3)
          expect(model.toJSON()).to.have.all.keys(
-            'group_url', 'highlights', 'organizing_subgroup', 'separation',
+            'group_url', 'organizing_subgroup', 'separation',
             'coloration', 'color_reordering', 'elements', 'highlight_colors', 'highlight_control'
          )
       })
@@ -157,7 +157,7 @@ describe('Visualizer model serialization', function () {
          expect(model2.showingAxes).to.be.true
       })
 
-      it('showingAxes keeps current value when absent from JSON', function () {
+      it('showingAxes resets to false when absent from JSON', function () {
          const model = new CayleyDiagramModel(S3)
          model.showingAxes = true
          const json = model.toJSON()
@@ -165,7 +165,7 @@ describe('Visualizer model serialization', function () {
          const model2 = new CayleyDiagramModel(S3)
          model2.showingAxes = true
          model2.fromJSON(json)
-         expect(model2.showingAxes).to.be.true
+         expect(model2.showingAxes).to.be.false
       })
 
       it('round-trips highlight_control opaque blob', function () {

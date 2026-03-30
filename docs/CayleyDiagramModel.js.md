@@ -124,7 +124,7 @@ class CayleyDiagramModel {
          highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
          diagram_control: this.diagramControl?.toJSON?.() ?? this.diagramControl,
 
-         view_state: this.viewState.toJSON()
+         view_state: this.viewState?.toJSON?.() ?? this.viewState
       }
 
       return json

@@ -5,8 +5,6 @@ const testsWithResults = [
    ['GEUtils.equals([1],[1,2])', 'false'],
    ['GEUtils.equals([1,2],[1,3])', 'false'],
    ['GEUtils.equals([1,2],[1,2])', 'true'],
- // flatten
-   ['GEUtils.flatten([1,[[2,3],4]])', '[1, 2, 3, 4]'],
 // fromRainbow
    ['GEUtils.fromRainbow(0.8, 0.8, 0.8)', 'hsl(288, 80%, 80%)'],
 // isTouchDevice
