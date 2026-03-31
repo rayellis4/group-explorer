@@ -5,7 +5,7 @@
 
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
       <meta charset="utf-8" />
-      <meta name="GE3-GITVersion" content="3.7rc12" />
+      <meta name="GE3-GITVersion" content="3.7rc13" />
 
       <link rel="icon" href="./images/GE3-favicon.ico" />
       <link rel="preload" href="./fonts/GroupExplorer_AMS.woff" as="font" crossorigin />

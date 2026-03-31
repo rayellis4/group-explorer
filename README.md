@@ -1,5 +1,5 @@
 
-# Group Explorer 3.6
+# Group Explorer 3.7rc13
 
 Group Explorer is visualization software for students and instructors of
 abstract algebra, specifically group theory.  It has been around since 2005
