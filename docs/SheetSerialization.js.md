@@ -43,7 +43,8 @@ function deserializeSheet (json /*: string | Obj */) /*: SheetModelJSON v2 */ {
          sheet = convertSheetFromVersion(json, 1)
       }
    } else {
-      const errorMessage = `SheetSerialization.deserializeSheet: unrecognized object encountered: ${json}`
+      const jsonString = (json instanceof Object) ? JSON.stringify(json) : json
+      const errorMessage = `SheetSerialization.deserializeSheet: unrecognized object encountered: ${jsonString}`
       Log.err(errorMessage)
       throw new TypeError(errorMessage)
    }

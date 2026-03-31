@@ -1076,10 +1076,10 @@ export class MorphismView extends LinkView {
       if (this.modelElement.arrowColor != 'none') {
          let highlightColor
          if (this.modelElement.arrowColor == 'source') {
-            highlightColor = this.modelElement.source.visualizer?.highlightColors?.[0]?.[inx]
+            highlightColor = this.modelElement.source.visualizer?.highlight_colors?.[0]?.[inx]
          } else {
             const destinationIndex = this.modelElement.mapping.image[inx]
-            highlightColor = this.modelElement.destination.visualizer?.highlightColors?.[0]?.[destinationIndex]
+            highlightColor = this.modelElement.destination.visualizer?.highlight_colors?.[0]?.[destinationIndex]
          }
 
          if (highlightColor == null) {

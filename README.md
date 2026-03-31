@@ -7,6 +7,28 @@ as a desktop application, but was rewritten in 2019 as a web app.
 
 ## Status
 
+**Release 3.7.0 (trim these before release)**
+* generated groups: generate group from presentation (see rf-geterms.md)
+  * allows integration of group not in library, isomorphic to a subgroup of known group
+  * stored locally for later access; can be used in sheet, which can be exported transparently
+* highlight control, subgroup info update (colored normal group, exposable info)
+* color morphism arrows by source/destination highlighting
+* stored sheet backup/restore
+* add fgb groups
+  * group explorer page displays default library, fgb groups, and generated groups
+* improve default Cayley diagrams to be more representative of group structure
+* subgroup lattice includes subgroup name + info (GroupInfo -> subgroups)
+* Cayley diagram snap to axis, show coordinate axes (enabled in View tab)
+* control panel swipe to hide
+* upper right-hand menu replaces icons strip
+* UI upgrade -- uniform move/resize,
+* internal changes:
+  * convert default .group format to JSON
+  * move local storage to IndexedDB (avoid localStore size limitations)
+  * store entire group library in memory (faster, simpler)
+  * remove jquery dependency (except in GAP client)
+  * maintain highlight control subsets, partitions with sheet elements
+
 **Release 3.6.1:** Fix error in normalizer calculation
 
 **Release 3.6.0:** Upgrade to jQuery 3.6.1, three.js r146

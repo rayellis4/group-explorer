@@ -1,39 +1,40 @@
+# Build procedure assumes all files will be served in place.
+# This is simple and, with modern browsers, performance is adequate.
 
-# Build procedure assumes all files will be served in place. This is simpler and,
-# for the moment at least, performance is adequate. If it becomes desirable to serve
-# minified versions of the .js files the build will have to be reworked to something
-# like copying files from src locations to a build tree with uglify:
-#    build/%.js : %.js
-#               uglifyjs $< --compress --mangle -o $@
+# set version from latest git tag
+#    make
+# or from command line
+#    make VERSION=3.7.1
+VERSION := $(shell git describe --abbrev=0 --tags)
 
-GIT_VERSION := "$(shell git describe --abbrev=4 --dirty --always --tags)"
-SEMANTIC_VERSION := "$(shell git describe --abbrev=0 --tags)"
+PAGES = GroupExplorer GroupInfo Multtable CayleyDiagram CycleGraph SymmetryObject Sheet
+PAGE_TEMPLATE = docs/PageTemplate.html
 
-PAGES = Multtable.html GroupExplorer.html GroupInfo.html Sheet.html CayleyDiagram.html SymmetryObject.html CycleGraph.html
+setVersion : $(PAGES)
+	sed -i --follow-symlinks '/^# Group Explorer 3.*/ c\# Group Explorer $(VERSION)' README.md
+	sed -i 's/"version": ".*",/"version": "$(VERSION)",/g' package.json
 
-all : setGITVersion package # docs
+GroupExplorer :
+	sed -e 's/\*\*TITLE\*\*/Group Explorer Library/g' -e 's/\*\*PAGE\*\*/GroupExplorer/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > GroupExplorer.html
 
-setGITVersion : $(PAGES)
-	sed -i 's/<meta name="GE3-GITVersion" content=".*">/<meta name="GE3-GITVersion" content=$(GIT_VERSION)>/g' $^
+GroupInfo :
+	sed -e 's/\*\*TITLE\*\*/Group Info/g' -e 's/\*\*PAGE\*\*/GroupInfo/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > GroupInfo.html
 
-package :
-	sed -i 's/"version": ".*",/"version": $(SEMANTIC_VERSION),/g' package.json
+CayleyDiagram :
+	sed -e 's/\*\*TITLE\*\*/Cayley Diagram Visualizer/g' -e 's/\*\*PAGE\*\*/CayleyDiagram/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > CayleyDiagram.html
+
+Multtable :
+	sed -e 's/\*\*TITLE\*\*/Multtable Visualizer/g' -e 's/\*\*PAGE\*\*/Multtable/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > Multtable.html
+
+CycleGraph :
+	sed -e 's/\*\*TITLE\*\*/Cycle Graph Visualizer/g' -e 's/\*\*PAGE\*\*/CycleGraph/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > CycleGraph.html
+
+SymmetryObject :
+	sed -e 's/\*\*TITLE\*\*/Symmetry Object Visualizer/g' -e 's/\*\*PAGE\*\*/SymmetryObject/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > SymmetryObject.html
+
+Sheet :
+	sed -e 's/\*\*TITLE\*\*/Sheet/g' -e 's/\*\*PAGE\*\*/Sheet/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > Sheet.html
+
 
 clean :
 	rm -f *~ */*~
-	rm -f ${DOCS}
-
-#################
-
-DOCS =  docs/visualizerExemplar.md              \
-        docs/visualizerFramework_html.md
-
-docs : ${DOCS}
-
-# make markdown files from html by removing lines starting with <!--Markdown and Markdown-->, which comment out markdown
-# (you can still use <!-- --> comment delimiters, just not the special <!--Markdown and Markdown--> at the start of a line)
-docs/visualizerExemplar.md : docs/visualizerExemplar.html
-	sed -e '/^<!--Markdown/d' -e '/^Markdown-->/d' < docs/visualizerExemplar.html > docs/visualizerExemplar.md
-
-docs/visualizerFramework_html.md : visualizerFramework/visualizer.html
-	sed -e '/^<!--Markdown/d' -e '/^Markdown-->/d' < visualizerFramework/visualizer.html > docs/visualizerFramework_html.md
