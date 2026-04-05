@@ -42,7 +42,7 @@ export class MulttableModel {
       this.separation = 0
       this.coloration = 'rainbow'
       this.colorReordering = 'topRowFixed'
-      this.elements = this.group.elements
+      this.elements = [...this.group.elements]
    }
 
    toJSON () /*: MulttableJSON */ {

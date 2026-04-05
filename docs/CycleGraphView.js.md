@@ -75,10 +75,7 @@ class CycleGraphViewModel /*:: implements Updatable */ {
       'group',
       'highlightColors'
    ]
-
-   get group () /*: Group */ {
-      return this.model.group
-   }
+   #group
 
    get view () /*: CycleGraphView */ {
       return this.#view
@@ -86,7 +83,9 @@ class CycleGraphViewModel /*:: implements Updatable */ {
 
    set view (view /*: CycleGraphView */) {
       this.#view = view
-      this.#modelFields.forEach((field) => this.update(field, this.model[field]))
+      if (this.model != null) {
+         this.#modelFields.forEach((field) => this.update(field, this.model[field]))
+      }
    }
 
    get model () /*: CycleGraphModel */ {
@@ -101,9 +100,12 @@ class CycleGraphViewModel /*:: implements Updatable */ {
       })
    }
 
-   updateModel (field /*: string */, value /*: any */) {
-      // $FlowExpectedError[prop-missing] --
-      this.model[field] = value
+   get group () /*: Group */ {
+      return this.model?.group ?? this.#group
+   }
+
+   get highlightColors () /*: Array<Array<?color>> */ {
+      return this.model?.highlightColors ?? [[], [], []]
    }
 
    update (field /*: string */, value /*: any */) {
@@ -112,10 +114,7 @@ class CycleGraphViewModel /*:: implements Updatable */ {
       }
       switch (field) {
       case 'group':
-         this.view[field] = value
-         break
       case 'highlightColors':
-         this.view['highlightColors'] = value ?? [[], [], []]
          this.view.queueShowGraphic()
          break
       default:
@@ -128,9 +127,11 @@ class CycleGraphViewModel /*:: implements Updatable */ {
    resize ()                                   { this.view.resize() }
    showGraphic ()                              { this.view.queueShowGraphic() }
    unitSquarePositions ()                      { return this.view.unitSquarePositions() }
+   getImage ()                                 { return this.view.getImage() }
    get canvas () /*: HTMLCanvasElement */      { return this.view.canvas }
    toJSON ()                                   { return this.model.toJSON() }
    fromJSON (jsonObject)                       { this.model.fromJSON(jsonObject) }
+   draw (group)                                { this.#group = group }
 }
 
 class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
@@ -143,9 +144,6 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     cyclePaths /*: Array<Path> */
     cycles /*: Array<Array<groupElement>> */
     displays_labels /*: boolean */
-    elements /*: Array<groupElement> */
-    _group /*: Group */
-    highlightColors /*: Array<Array<color>> */ = [[], [], []]
     options /*: CycleGraphOptions */
     partIndices /*: Array<number> */
     positions /*: Array<Coordinate> */
@@ -168,7 +166,6 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         this.zoomFactor = 1;  // user-supplied scale factor multiplier
         this.translate = {dx: 0, dy: 0};  // user-supplied translation, in screen coordinates
         this.transform = new THREE.Matrix3();  // current cycleGraph -> screen transformation
-        this.highlightColors = [[], [], []]
         this.show_request = false;
     }
 
@@ -181,7 +178,6 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         if (this.canvas.width != w || this.canvas.height != h) {
             this.canvas.width = Math.round(w)
             this.canvas.height = Math.round(h)
-            this.showGraphic();
         }
     }
 
@@ -197,6 +193,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         if (this.canvas.parentElement != null) {
            const {width, height} = this.canvas.parentElement.getBoundingClientRect()
            this.size = {w: width, h: height};
+           this.queueShowGraphic()
         }
     }
 
@@ -216,10 +213,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
 
     showGraphic () {
         this.show_request = false;
-
-        if (this.group != undefined) {
-            this.drawGraphic();
-        }
+        this.drawGraphic();
     }
 
     // This routine draws the cycle graph from the data generated
@@ -229,6 +223,15 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     // Not displaying the element names allows the nodes in the
     // graph to be much smaller and so better suited for thumbnails.
     drawGraphic () {
+        if (this.group == null) {
+            const errorMessage = 'CycleGraphView.drawGraphic called with null group'
+            Log.err(errorMessage)
+            throw new TypeError(errorMessage)
+        }
+
+        this.layoutElementsAndPaths()
+        this.findClosestTwoPositions()
+
         const bbox = this.bbox;
 
         // paint the background
@@ -455,27 +458,28 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     // Answer the question of where in the diagram each element is drawn.
     // We answer in normalized coordinates, [0,1]x[0,1].
     unitSquarePositions () /*: Array<THREE.Vector2> */ {
+        if (this.positions == null) {
+            this.showGraphic()
+        }
+
         const scaled_transform = new THREE.Matrix3()
               .set(1/this.canvas.width, 0, 0, 0, 1/this.canvas.height, 0, 0, 0, 1)
               .multiply(this.transform);
 
         const unit_square_positions = this.group.elements.map( (element) => {
-            return new THREE.Vector2(this.positions[element].x, this.positions[element].y).applyMatrix3(scaled_transform)
+            const unscaledPositions = new THREE.Vector2(this.positions[element].x, this.positions[element].y)
+            return unscaledPositions.applyMatrix3(scaled_transform)
         } );
 
         return unit_square_positions;
     }
 
     get group () /*: Group */ {
-        return this._group;
+        return this.viewModel.group
     }
 
-    set group (group /*: Group */) {
-        this._group = group;
-        this.layoutElementsAndPaths();
-        this.findClosestTwoPositions();
-       // this.queueShowGraphic() // showGraphic() at this point causes problem with Chrome v90
-        this.showGraphic()
+    get highlightColors () /*: Array<Array<?color>> */ {
+       return this.viewModel.highlightColors
     }
 
     // orbit of an element in the group, but skipping the identity
@@ -753,11 +757,6 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
             }
         }
     }
-
-    clearHighlights () {
-        this.queueShowGraphic();
-        this.highlightColors = [[], [], []]
-    }
 }
 
 
@@ -792,11 +791,18 @@ function mutate(x /*: float */, y /*: float */, alpha /*: float */, beta /*: flo
     };
 }
 
+//////////////////////////////   Factory methods   //////////////////////////////
 
 function createUnlabelledCycleGraphView (options /*: CycleGraphOptions */ = {}) /*: CycleGraphView */ {
-    const view = new CycleGraphView(options);
-    view.displays_labels = false;
-    return view;
+   const viewModel = new CycleGraphViewModel()
+   const view = new CycleGraphView(options)
+   view.displays_labels = false;
+
+   // assemble parts
+   view.viewModel = viewModel
+   viewModel.view = view
+
+   return viewModel
 }
 
 function createLargeCycleGraphView (
@@ -809,8 +815,8 @@ function createLargeCycleGraphView (
 
    // assemble parts
    viewModel.model = model
-   viewModel.view = view
    view.viewModel = viewModel
+   viewModel.view = view
 
    return viewModel
 }

@@ -101,7 +101,7 @@ class HighlightControlView {
                      </ul>
                   </li>`
                : ''}
-            <li data-action="this.viewModel.clearAllHighlights()">Clear all highlighting</li>
+            <li data-action="this.viewModel.clearAllHighlightColors()">Clear all highlighting</li>
           </ul>`
 
       makeDetachedMenu(headerMenu, event)
@@ -682,7 +682,7 @@ class DisplayItemView {
             <li class="inline-submenu">Highlight item
                ${this.view.highlightItemHTML(this)}
             </li>
-            <li data-action="this.viewModel.clearAllHighlights()">Clear all highlighting</li>
+            <li data-action="this.viewModel.clearAllHighlightColors()">Clear all highlighting</li>
          </ul>`
    }
 
@@ -719,7 +719,7 @@ class DisplayItemView {
             <li class="inline-submenu">Highlight item
                ${this.view.highlightItemHTML(this)}
             </li>
-            <li data-action="this.viewModel.clearAllHighlights()">Clear all highlighting</li>
+            <li data-action="this.viewModel.clearAllHighlightColors()">Clear all highlighting</li>
          </ul>`
    }
 
@@ -759,7 +759,7 @@ class DisplayItemView {
             <li class="inline-submenu">Highlight partition
                ${this.view.highlightItemHTML(this.schemeView)}
             </li>
-            <li data-action="this.viewModel.clearAllHighlights()">Clear all highlighting</li>
+            <li data-action="this.viewModel.clearAllHighlightColors()">Clear all highlighting</li>
          </ul>`
    }
 }

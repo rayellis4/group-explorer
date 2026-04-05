@@ -131,7 +131,7 @@ function getImages (group) {
          image.src = group.thumbnails.cycleGraph
       } else {
          cycleGraphView = createUnlabelledCycleGraphView(THUMBNAIL_SIZE)
-         cycleGraphView.group = group
+         cycleGraphView.draw(group)
          image.src = cycleGraphView.getImage().src
       }
    }
@@ -144,7 +144,7 @@ function getImages (group) {
          image.src = group.thumbnails.multtable
       } else {
          multtableView = createMinimalMulttableView(THUMBNAIL_SIZE)
-         multtableView.group = group
+         multtableView.draw(group)
          image.src = multtableView.getImage().src
       }
    }

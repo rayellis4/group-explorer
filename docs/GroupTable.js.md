@@ -191,12 +191,12 @@ function generateThumbnails (generators, group, cayleyTitle, symmetryTitle) {
    }
 
    if (thumbnails.multtable == null) {
-      generators.multtableView.group = group;
+      generators.multtableView.draw(group)
       group.thumbnails.multtable = generators.multtableView.getImage().src
    }
 
    if (thumbnails.cycleGraph == null) {
-      generators.cycleGraphView.group = group
+      generators.cycleGraphView.draw(group)
       group.thumbnails.cycleGraph = generators.cycleGraphView.getImage().src
    }
 

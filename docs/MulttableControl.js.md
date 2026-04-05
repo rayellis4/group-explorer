@@ -83,7 +83,7 @@ class ViewModel /*: implements Updatable */ {
    updateFromView (field /*: string */, value /*: any */) {
       switch (field) {
       case 'subgroupIndex':
-         this.model['organizingSubgroup'] = (value == '0') ? null : parseInt(value)
+         this.model['organizingSubgroup'] = parseInt(value)
          break
       case 'coloration':
       case 'colorReordering':
