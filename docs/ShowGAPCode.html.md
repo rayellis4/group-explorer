@@ -85,7 +85,7 @@
                .insertAdjacentHTML('beforeend',
                  '<button id="eval-button" class="ui-button ui-corner-all ui-widget ui-state-default">Exit</button>')
              const evalButton = display.querySelector('#eval-button')
-             evalButton.style.fontSize = display.querySelector('.sagecell_evalButton').style.fontSize
+             evalButton.style.fontSize = `${display.querySelector('.sagecell_evalButton').style.fontSize}`
              evalButton.addEventListener('click', () => {
                 this.closeSagecell()
                 this.iframe.style.display = 'none'
@@ -112,8 +112,8 @@
                if (textarea != null) {
                  const targetIFrameWidth = textarea.offsetWidth + this.textareaPad
                  if (targetIFrameWidth !== this.iFrameSize.width || targetIFrameHeight !== this.iFrameSize.height) {
-                   this.iframe.style.width = targetIFrameWidth
-                   this.iframe.style.height = targetIFrameHeight
+                   this.iframe.style.width = `${targetIFrameWidth}px`
+                   this.iframe.style.height = `${targetIFrameHeight}px`
                    this.iFrameSize.width = targetIFrameWidth
                    this.iFrameSize.height = targetIFrameHeight
                  }
@@ -205,7 +205,7 @@
            }
 
            dragStart ({ clientX, clientY, target }) {
-             if (target.style.cursor !== 'move') {
+             if (window.getComputedStyle(target).cursor !== 'move') {
                return false
              }
              this.startRect = DOMRect.fromRect(((this.iframe.getBoundingClientRect() /*: any */) /*: DOMRect */))
@@ -219,8 +219,8 @@
              const movement = { x: currentPosition.x - this.startDrag.x, y: currentPosition.y - this.startDrag.y }
              const x = movement.x + this.startRect.x
              const y = movement.y + this.startRect.y
-             this.iframe.style.left = x
-             this.iframe.style.top = y
+             this.iframe.style.left = `${x}px`
+             this.iframe.style.top = `${y}px`
            }
          }
 

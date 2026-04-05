@@ -134,16 +134,16 @@ async function loadFromPageURL () /*: Promise<Group> */ {
       const group = getGroupByURL(groupURL)
       if (group == null) {
          result = downloadGroup(groupURL)
-      } else {
-         if (groupURL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
-            const maybeIsomorphicGroup = IsomorphicGroups.find(group)
-            if (maybeIsomorphicGroup != null) {
-               deleteGroups([((group /*: any */) /*: Group */)])  // getGroupByURL will generate non-null group
-               result = maybeIsomorphicGroup
-            }
-         } else {
+      } else if (groupURL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
+         const maybeIsomorphicGroup = IsomorphicGroups.find(group)
+         if (maybeIsomorphicGroup == null) {
             result = group
+         } else {
+            deleteGroups([group])  // getGroupByURL will generate non-null group
+            result = maybeIsomorphicGroup
          }
+      } else {
+         result = group
       }
    } else if (hrefURL.searchParams.get('waitForMessage') !== null) {
       result = waitForGroupInMessage()
