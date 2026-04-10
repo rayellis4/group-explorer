@@ -62,7 +62,9 @@ Find  objects at right click / long tap location:
 function showTooltipOrReset (cayleyDiagramView /*: CayleyDiagramView */, event /*: NumberLocation */) {
    const objects = getObjectsAtEventLocation(event)
    if (objects.length == 0) {
-      cayleyDiagramView.control.reset()
+      const {position, up} = cayleyDiagramView.viewModel.model.layout.pov
+      cayleyDiagramView.setCameraPosition(position, up)
+      cayleyDiagramView.control.target.set(0, 0, 0)
    } else {
       const tooltipHTML = formatTooltip(objects)
       makeTooltip(tooltipHTML, event)

@@ -1,15 +1,22 @@
 <!DOCTYPE html>
 <html>
-<title>Group Explorer 3.0</title>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link rel="stylesheet" href="style/w3.css">
-<link rel="stylesheet" href="style/w3-theme-blue.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css">
-<script type="module">
-    import {check} from './js/Migration.js'
-    window.addEventListener('load', check)
-</script>
+<head>
+   <title>Group Explorer 3.0</title>
+   <meta charset="UTF-8">
+   <meta name="GE3-GITVersion" content="3.7rc13" />
+   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+   <link rel="stylesheet" href="style/w3.css">
+   <link rel="stylesheet" href="style/w3-theme-blue.css">
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css">
+   <script type="module">
+    import * as AutoUpgrade from './js/AutoUpgrade.js'
+    await AutoUpgrade.initialize()
+
+    // find release-title element, set content
+    document.getElementById('release-title').textContent =
+       `Release ${AutoUpgrade.version()} previews a collection of updates`
+   </script>
+</head>
 <body>
 
 <!-- Side Navigation -->
@@ -35,7 +42,7 @@
       <a href='GroupExplorer.html'><button class="w3-btn w3-xlarge w3-white w3-hover-blue"
               style="font-weight:900;">Launch web app</button></a>
       <!-- <div class="w3-yellow" style="margin: 0 auto; width: 400px;"> -->
-      <p style="padding: 0.5em;">Release 3.7rc13 previews a collection of updates</p>
+      <p id="release-title" style="padding: 0.5em;"></p>
       <!-- </div> -->
   </div>
   </div>

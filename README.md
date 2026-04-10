@@ -1,75 +1,66 @@
 
-# Group Explorer 3.7rc13
+# Group Explorer 3.7
 
-Group Explorer is visualization software for students and instructors of
-abstract algebra, specifically group theory.  It has been around since 2005
-as a desktop application, but was rewritten in 2019 as a web app.
+*Group Explorer* is interactive visualization software for abstract algebra — specifically finite group theory. It runs entirely in the browser, requires no installation, and is designed for students and instructors building intuition about groups and their structure.
 
-## Status
+[Try it live.](https://nathancarter.github.io/group-explorer/)
 
-**Release 3.7.0 (trim these before release)**
-* generated groups: generate group from presentation (see rf-geterms.md)
-  * allows integration of group not in library, isomorphic to a subgroup of known group
-  * stored locally for later access; can be used in sheet, which can be exported transparently
-* highlight control, subgroup info update (colored normal group, exposable info)
-* color morphism arrows by source/destination highlighting
-* stored sheet backup/restore
-* add fgb groups
-  * group explorer page displays default library, fgb groups, and generated groups
-* improve default Cayley diagrams to be more representative of group structure
-* subgroup lattice includes subgroup name + info (GroupInfo -> subgroups)
-* Cayley diagram snap to axis, show coordinate axes (enabled in View tab)
-* control panel swipe to hide
-* upper right-hand menu replaces icons strip
-* UI upgrade -- uniform move/resize,
-* internal changes:
-  * convert default .group format to JSON
-  * move local storage to IndexedDB (avoid localStore size limitations)
-  * store entire group library in memory (faster, simpler)
-  * remove jquery dependency (except in GAP client)
-  * maintain highlight control subsets, partitions with sheet elements
+![Samples of all large visualizers](images/screenshot-all-visualizers.png)
 
-**Release 3.6.1:** Fix error in normalizer calculation
+## What you can do
 
-**Release 3.6.0:** Upgrade to jQuery 3.6.1, three.js r146
+**Explore the group library.** The built-in library contains all groups of order 1–20 and a selection of larger groups, displayed with thumbnail visualizations. An extended library adds all non-Abelian groups of order <= 40, for more advanced study. You can also define your own groups from a presentation and use them anywhere a library group can be used.
 
-**Release 3.5.0:** Several minor bugfixes.
+**Visualize any group four ways.** Each group can be displayed as a Cayley diagram, multiplication table, cycle graph, or object of symmetry — all interactive, zoomable, and highlightable by subgroup or coset.
 
-**Release 3.4.0:** In Multable, an option to keep element coloring fixed
-on table reorganization.
+**Show relationships between groups on a Sheet.** A Sheet is a free-form canvas where you can place multiple visualizations side by side and draw morphisms between them. Arrows are colored by source or destination highlighting, making it easy to see how structure maps through a homomorphism. Sheets can be saved, exported, and shared.
 
-**Release 3.3.0:** Removed modal editors from Group Info page; improved
-version migration; internal improvements.
+## Running locally
 
-**Release 3.2.0:** A new Sheets page, with improved stored sheets capabilies.
-Tell us what you think!
+No build step required. Serve the repository root over HTTP:
 
-**Release 3.1.0:** A new Group Info page look.
-Let us know what you think!
+```bash
+python3 -m http.server 8080
+# then open http://localhost:8080/GroupExplorer.html
+```
 
-**Release 3.0.0:** First official full-featured release! It's not done yet, though.
-We would still appreciate suggestions for enhancements or bug reports.
+## Release notes
 
-**Beta:** We would appreciate any bug reports during summer 2019, so that we
-can have a polished and reliable version ready for students in Fall 2019
-courses.
+**3.7.0**
+- User-defined groups: define a group by generators and relations; stored locally and usable everywhere a library group can be used
+- Extended library: larger and more exotic groups available via the page menu
+- Morphism arrows colored by source/destination highlighting
+- Subgroup lattice on Group Info page includes subgroup names, links, and expandable info
+- Improved default Cayley diagram layouts, more representative of group structure
+- Cayley diagram: snap-to-axis and coordinate axis display (View tab)
+- Sheet backup/restore; stored sheets list with load, export, and rename
+- Control panel swipe-to-hide on visualizer pages
+- Hamburger menu replaces icon strip in page headers
+- Groups stored in IndexedDB (no more localStorage size limits)
+- jQuery removed from production code
 
-[Try it live here.](http://nathancarter.github.io/group-explorer/index.html)
+**3.6.1:** Fix error in normalizer calculation
 
-![Samples of various group visualizations](images/screenshot-all-visualizers.png)
+**3.6.0:** Upgrade to jQuery 3.6.1, three.js r146
+
+**3.4.0:** Multiplication table option to keep element colors fixed on reorganization
+
+**3.3.0:** Group Info page improvements; internal refactoring
+
+**3.2.0:** Sheets page with stored sheet support
+
+**3.0.0:** First full-featured web release
+
+## Contributing
+
+The app is pure JavaScript (ES6 modules, no build step). If you'd like to contribute or report a bug, open an issue or pull request on GitHub.
+
+If you'd like a specific group added to the library, it's straightforward to export from GAP — get in touch.
 
 ## Contributors
 
- * Ray Ellis
-    * developed most of the web version
- * Nathan Carter
-    * developed the original version
-    * added sheets and some miscellany to the web version
-    * authored the built-in help system
-
-If you're interested in adding anything to this app, please talk to us!  It's all in pure JS, so you may already know everything you need to start coding.
-
-If you have a request for particular groups you'd like to see added:  On the one hand, we've already added lots (all?) of the groups that are small enough to visualize sensibly (and a few that aren't!).  But we're still happy to discuss adding more if it would help your teaching or learning; it's easy to do by exporting the data from GAP.
+ * Ray Ellis — developed most of the web version
+ * Nathan Carter — developed the original version; added sheets; authored the built-in help system
 
 ## License
 

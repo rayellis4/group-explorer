@@ -12,6 +12,7 @@ PAGE_TEMPLATE = docs/PageTemplate.html
 
 setVersion : $(PAGES)
 	sed -i --follow-symlinks '/^# Group Explorer 3.*/ c\# Group Explorer $(VERSION)' README.md
+	sed -i 's/"GE3-GITVersion" content=".*"/"GE3-GITVersion" content="${VERSION}"/g' index.html 
 	sed -i 's/"version": ".*",/"version": "$(VERSION)",/g' package.json
 
 GroupExplorer :

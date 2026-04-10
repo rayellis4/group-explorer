@@ -26,7 +26,7 @@ subsequent access. The group's URL is the web address (generally beginning with
 `http://` or `https://`) of the `.group` file from which the group was loaded on
 *Group Explorer's* website. Example:
 
-`http://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=http://nathancarter.github.io/group-explorer/groups/Z_2%20x%20Z_4.group`
+`https://nathancarter.github.io/group-explorer/GroupInfo.html?groupURL=https://nathancarter.github.io/group-explorer/groups/Z_2%20x%20Z_4.group`
 
 ### Naming scheme (for group elements)
 
