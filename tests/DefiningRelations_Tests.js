@@ -43,63 +43,14 @@ function testMultiplicationTable (group) {
 
 // Test the validity of group.definition as a presentation
 function testGroupDefinition (group) {
-   const presentation = parseFormattedPresentation(group.definition)
+   // remove HTML, braces from group.defintion
+   const scratch = document.createElement('span')
+   scratch.innerHTML = group.definition
+   const presentation = scratch.textContent.replaceAll(/[<>⟨⟩]/g,'').replaceAll(/\s/g, '')
+   scratch.remove
+
    const generatedGroup = DefiningRelations.generateGroupFromPresentation(presentation)
    const foundGroup = IsomorphicGroups.find(generatedGroup)
 
    return foundGroup.gapid == group.gapid
-}
-
-function parseFormattedPresentation (formattedPresentation) {
-   const defn = document.createElement('span')
-   defn.innerHTML = formattedPresentation
-   const text = defn.textContent
-   const [generators, relatorString] = (text.slice(1,-1) + ',').replaceAll(/\s/g, '').split(':')
-   const matches = Array.from(relatorString.matchAll(/([-a-z0-9]+)([=,])/g))
-   const relators = []
-   let todo = []
-   for (let inx = 0; inx < matches.length; inx++) {
-      let [relator, _, separator] = matches[inx]
-      const maybeRelator = makeRelator(relator)
-      if (separator == ',') {
-         if (maybeRelator == '1') {
-            relators.push(...todo)
-         } else {
-            const correction = Array
-               .from(maybeRelator)
-               .reverse()
-               .map((char) => (char == char.toLowerCase()) ? char.toUpperCase() : char.toLowerCase())
-               .join('')
-            for (const uncorrectedRelator of todo) {
-               relators.push(uncorrectedRelator + correction)
-            }
-         }
-         todo = []
-      } else {
-         todo.push(maybeRelator)
-      }
-   }
-
-   function makeRelator (relator) {
-      relator = relator.slice(0, -1)
-      const results = []
-      for (let inx = 0; inx < relator.length; inx++) {
-         let result = relator[inx]
-         const exponent = parseInt(relator.substring(inx + 1))
-         if (!isNaN(exponent)) {
-            if (exponent < 0) {
-               result = (result == result.toLowerCase()) ? result.toUpperCase() : result.toLowerCase()
-               inx++
-            }
-            for (let rep = 0; rep < Math.abs(exponent) - 1; rep++) {
-               result += result[0]
-            }
-            inx += (Math.abs(exponent) < 10) ? 1 : 2  // assumes exponent never more than two digits
-         }
-         results.push(result)
-      }
-      return results.join('')
-   }
-
-   return generators + ':' + relators.join(',')
 }
