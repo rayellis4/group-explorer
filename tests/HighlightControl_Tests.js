@@ -16,7 +16,7 @@ before(async function () {
 function makeMockModel (group) {
    return createModelProxy({
       group,
-      highlights: [[], [], []],
+      highlightColors: [[], [], []],
       highlightConfiguration: {
          highlightTypes: ['background', 'border', 'node'],
          saturation:  [1,   1,   1  ],

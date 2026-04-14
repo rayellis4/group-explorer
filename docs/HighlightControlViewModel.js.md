@@ -85,13 +85,44 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 
    set model (model /*: SubscriptionProxy<CycleGraphModel> */) {
       this.#model = model
-
-      this.reset()
+      const inputHighlightControl = model.highlightControl
+      const inputHighlightColors = model.highlightColors
 
       this.model.highlightControl = this  // enter a reference to us in the model
       this.model.$subscribe(this, 'group')  // subscribe to change in 'group'
       this.model.$subscribe(this, 'highlightColors')  // subscribe to changes in 'highlightColors' field
-      this.update('highlightColors', this.model.highlightColors)
+
+      this.reset()
+      if (inputHighlightControl != null) {
+         this.fromJSON(inputHighlightControl)
+      }
+
+      // be sure to preserve highlightColors in case highlightControl is just getting created
+      this.updateModel('highlightColors', inputHighlightColors)
+
+      // If some highlight colors are set but this doesn't have any items highlighted, this is just
+      // getting started editing a sheet visualizer: try to determine what elements are highlighted.
+      // (Only consider highlights of a single color that highlight a subgroup,
+      // as this covers all internally generated sheets.)
+      if (  inputHighlightColors.some((colors) => colors.some((item) => item != null))
+         && this.highlightedItems.every((item) => item == null)
+      ) {
+         inputHighlightColors.forEach((highlightColors, inx) => {
+            const oneColor = highlightColors.find((color) => color != null && color != '')
+            if (highlightColors.every((color) => color == oneColor || color == null || color == '')) {
+               const highlightedElements = new BitSet(this.group.order)
+               highlightColors.forEach((color, inx) => {
+                  if (color == oneColor) {
+                     highlightedElements.set(inx)
+                  }
+               })
+               const subgroupIndex = this.group.subgroups.findIndex((H) => highlightedElements.equals(H.members))
+               const highlightedItem = Array.from(this.displayMap)
+                  .find(([_inx, subgroop]) => subgroop.subgroupIndex == subgroupIndex)?.[1]
+               this.highlightedItems[inx] = highlightedItem
+            }
+         })
+      }
    }
 
    reset ()  {
@@ -233,7 +264,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       const clearItemHighlight = (item /*: DisplayItem */) => {
          this.highlightedItems = this.highlightedItems.map((highlightedItem) => {
             return (highlightedItem == item) ? null : highlightedItem
-         })            
+         })
       }
 
       const item = this.displayMap.get(itemId)

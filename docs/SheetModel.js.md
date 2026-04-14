@@ -7,6 +7,7 @@ The Model parrt of the Sheet Model-View-Control structure
 ```javascript
  */
 import * as Library from './Library.js'
+import * as Log from './Log.js'
 import {Mapping} from './Mapping.js'
 import * as StoredObjects from './StoredObjects.js'
 
@@ -234,6 +235,7 @@ class TextElement extends NodeElement {
 
 class VisualizerElement extends NodeElement {
    group /*: Group */
+   highlightColors /*: Array<Array<color>> */
    visualizer /*: any */  // opaque JSON blob; live visualizer object lives in SheetView
    isVisualizer = true
 
@@ -241,6 +243,7 @@ class VisualizerElement extends NodeElement {
       return {
          ...super.toJSON(),
          groupURL: this.group.URL,
+         highlight_colors: this.highlightColors,
          visualizer: this.visualizer
       }
    }
@@ -248,13 +251,51 @@ class VisualizerElement extends NodeElement {
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
       this.group = Library.getGroupByURL(jsonObject.groupURL)
+      this.highlightColors = jsonObject.highlight_colors ?? [[], [], []]
       this.visualizer = jsonObject.visualizer
+
       return this
    }
 }
 
 class CDElement extends VisualizerElement {
    className = 'CDElement'
+   diagramControl
+
+   toJSON () {
+      // serialize this.diagramControl manually?
+      return {
+         ...super.toJSON(),
+         diagram_control: this.diagramControl
+      }
+   }
+
+   fromJSON (jsonObject) {
+      super.fromJSON(jsonObject)
+
+      const setDiagramControlFromJSON = (field) => {
+         this.diagramControl ??= {}
+         this.diagramControl[field] = jsonObject[field]
+         delete jsonObject[field]
+      }
+
+      // remove diagram_name, strategies, arrow_generators from JSON and place in diagram_control
+      if ('diagram_name' in jsonObject) {
+         setDiagramControlFromJSON('diagram_name')
+      } else if ('strategies' in jsonObject) {
+         setDiagramControlFromJSON('strategies')
+         if ('arrow_generators' in jsonObject) {
+            setDiagramControlFromJSON('arrow_generators')
+         }
+      }
+
+      // prefer explicit diagram_control in jsonObject
+      if ('diagram_control' in jsonObject) {
+         this.diagramControl = jsonObject.diagram_control
+      }
+
+      return this
+   }
 }
 
 class CGElement extends VisualizerElement {
@@ -379,6 +420,7 @@ class MorphismElement extends LinkElement {
       this.useMulttableSourceTopRow = jsonObject.useMulttableSourceTopRow ?? this.useMulttableSourceTopRow
       this.useMulttableDestinationTopRow = jsonObject.useMulttableDestinationTopRow ?? this.useMulttableDestinationTopRow
       this.mapping = new Mapping(this.source.group, this.destination.group, jsonObject.definingPairs)
+
       return this
    }
 
@@ -409,27 +451,52 @@ class MorphismElement extends LinkElement {
   }
 }
 
-// function used by GroupInfo
-// store argument in IndexedDB and open Sheet.html in new window
-function createNewSheet (jsonObjectsFunction) {
-   const otherWindow = window.open()
-   new Promise((resolve, _reject) => resolve(jsonObjectsFunction()))
-      .then((jsonObjects) => {
-         // Convert highlights.background field into visualizer.highlight_colors
-         jsonObjects.forEach((jsonObject) => {
-            if (jsonObject.highlights?.background != null) {
-               jsonObject.visualizer ??= {}
-               jsonObject.visualizer.highlight_colors = [
-                  jsonObject.highlights.background.map((color) => (color == '') ? null : color),
-                  [], []
-               ]
-               delete jsonObject.highlights
+/*::
+type sheetItemRequest = {
+   className: string,
+   name: string,
+   x: float,
+   y: float,
+   w: float,
+   h: float,
+   anchor_name: string,
+   text: html,
+   fontSize: string,
+   fontColor: color,
+   alignment: 'left' | 'center' | 'right',
+   color: color,
+   groupURL: string,
+   highlight_colors: Array<Array<?color>>,
+   diagram_name: string,
+   arrow_generators: Array<{generator: groupElement, color: color}>
+   strategies: Array<strategy>,
+   source_name: string,
+   destination_name: string,
+   thickness: number,
+   hasArrowhead: boolean,
+   showInjectionSurjection: boolean,
+   showManyArrows: boolean,
+   definingPairs: Array<[groupElement, groupElement}>,
+}
+ */
+// function used by GroupInfo routines to create sheet
+// stores evaluated argument in IndexedDB and opens Sheet.html in new window
+function createNewSheet (jsonObjectsFunction /*: () => Array<sheetItemRequest> */) {
+   const jsonObjects = jsonObjectsFunction()  // so we don't layout page unless it's requested
+
+   if (Log.isActive('debug')) {
+      const knownFields = ['showInjectionSurjection', 'showManyArrows', 'definingPairs', 'source_name', 'destination_name', 'thickness', 'hasArrowhead', 'groupURL', 'className', 'text', 'x', 'y', 'w', 'h', 'fontSize', 'alignment', 'name', 'fontColor', 'color', 'anchor_name', 'arrow_generators', 'strategies', 'highlight_colors']
+      jsonObjects.forEach((jsonObject) => {
+         Object.keys(jsonObject).forEach((field) => {
+            if (!knownFields.includes(field)) {
+               Log.err(`SheetModel.createNewSheet encountered unknown field ${field} in argument`)
             }
          })
-
-         StoredObjects.setPassedSheet(jsonObjects)
-            .then(() => otherWindow.location = `./Sheet.html?passedSheet`)
       })
+   }
+
+   StoredObjects.setPassedSheet(jsonObjects)
+      .then(() => { window.open().location = `./Sheet.html?passedSheet` })
 }
 
 // function used by Sheet.js

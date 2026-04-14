@@ -369,7 +369,7 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
             y : latticeTop + tiers[subgroupIndex] * cellHeight + vMargin,
             w : cellWidth - 2 * hMargin,
             h : cellHeight - 2 * vMargin,
-            highlights : {background : highlightSubgroup(group, H, type)}
+            highlight_colors : [highlightSubgroup(group, H, type), [], []]
          })
 
          const conjugacyClass = conjugateSubgroupClasses.findIndex((klass) => klass.isSet(subgroupIndex))
@@ -542,17 +542,13 @@ function formatEmbeddingSheet (group, indexOfH, type) {
       {
          className : type, groupURL : libraryH.URL,
          x : 60, y : 104, w : 200, h : 200,
-         highlights : {
-            background : Array( libraryH.order ).fill( 'hsl(0, 100%, 80%)' )
-         }
+         highlight_colors : [Array( libraryH.order ).fill( 'hsl(0, 100%, 80%)' ), [], []]
       },
       {
          className : type, groupURL : group.URL,
          x : 360, y : 104, w : 200, h : 200,
-         highlights : {
-            background : Array( group.order ).fill( '' ).map( ( _, elt ) =>
-               embedding.indexOf( elt ) > -1 ? 'hsl(0, 100%, 80%)' : '' )
-         }
+         highlight_colors : [Array( group.order ).fill( '' )
+            .map( ( _, elt ) => embedding.indexOf( elt ) > -1 ? 'hsl(0, 100%, 80%)' : '' ), [], []]
       },
       {
          className : 'MorphismElement',
@@ -625,7 +621,7 @@ function formatQuotientSheet (group, indexOfN, type) {
       {
          className : type, groupURL : './groups/Trivial.group',
          x : loc1.x, y : loc1.y, w : loc1.w, h : loc1.h,
-         highlights : { background : high1 }
+         highlight_colors : [high1, [], []]
       },
       {
          className : 'TextElement',
@@ -635,7 +631,7 @@ function formatQuotientSheet (group, indexOfN, type) {
       {
          className : type, groupURL : libraryN.URL,
          x : loc2.x, y : loc2.y, w : loc2.w, h : loc2.h,
-         highlights : { background : high2 }
+         highlight_colors : [high2, [], []]
       },
       {
          className : 'TextElement',
@@ -645,7 +641,7 @@ function formatQuotientSheet (group, indexOfN, type) {
       {
          className : type, groupURL : group.URL,
          x : loc3.x, y : loc3.y, w : loc3.w, h : loc3.h,
-         highlights : { background : high3 }
+         highlight_colors : [high3, [], []]
       },
       {
          className : 'TextElement',
@@ -655,7 +651,7 @@ function formatQuotientSheet (group, indexOfN, type) {
       {
          className : type, groupURL : libraryQ.URL,
          x : loc4.x, y : loc4.y, w : loc4.w, h : loc4.h,
-         highlights : { background : high4 }
+         highlight_colors : [high4, [], []]
       },
       {
          className : 'TextElement',
@@ -666,7 +662,7 @@ function formatQuotientSheet (group, indexOfN, type) {
       {
          className : type, groupURL : './groups/Trivial.group',
          x : loc5.x, y : loc5.y, w : loc5.w, h : loc5.h,
-         highlights : { background : high5 }
+         highlight_colors : [high5, [], []]
       },
       {
          className : 'TextElement',

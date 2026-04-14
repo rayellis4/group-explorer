@@ -64,7 +64,7 @@ function formatZmnInfo (group) /*: html */ {
            <div>Thus there is not even a product group  ℤ<sub>m</sub> × ℤ<sub>n</sub>
              to speak of being isomorphic to.  (One of <i>m</i> or <i>n</i>
              would need to be 1, making one factor the trivial group and the other ℤ<sub>mn</sub>.)</div>`)
-       
+
     } else if (n == 1) {
        const facs = factors.slice(0,-1).join(', ') + ' and ' + factors.slice(-1).toString();
        htmlFragments.push(
@@ -76,7 +76,7 @@ function formatZmnInfo (group) /*: html */ {
         for (let m = 2; m <= Math.sqrt(group.order); m++) {
            if (group.order % m == 0) {
               const n = group.order / m;
-              htmlFragments.push( 
+              htmlFragments.push(
                  `<div><a href="" data-action="show${isZmn?'':'No'}ZmnIsomorphismSheet(group, ${m},${n})">Click here</a> to see
                     ${isZmn ? 'an illustration of' : ''} why ℤ<sub>${m * n}</sub> is ${isZmn ? '' : 'not'}
                     isomorphic to ℤ<sub>m</sub> × ℤ<sub>n</sub>.</div>`)
@@ -122,8 +122,8 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
             className : 'CDElement', groupURL : group.URL,
             x : hmar, y : vmar+hdrH+vsep, w : W, h : H,
-            arrows : [ a, b ],
-            arrowColors : [ '#660000', '#006600' ],
+            arrow_generators : [ {generator: a, color: '#660000'},
+                                 {generator: b, color: '#006600'} ],
             strategies : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
                            {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
@@ -131,8 +131,9 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
             // same as previous, plus arrow for ab
             className : 'CDElement', groupURL : group.URL,
             x : hmar+hsep+W, y : vmar+hdrH+vsep, w : W, h : H,
-            arrows : [ a, b, ab ],
-            arrowColors : [ '#660000', '#006600', '#000066' ],
+            arrow_generators : [ {generator: a, color: '#660000'},
+                                 {generator: b, color: '#006600'},
+                                 {generator: ab, color: '#000066'} ],
             strategies : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
                            {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
@@ -140,8 +141,7 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
             // circular CD of Z_mn with arrow for ab shown only
             className : 'CDElement', groupURL : group.URL,
             x : hmar+2*hsep+2*W, y : vmar+hdrH+vsep, w : W, h : H,
-            arrows : [ ab ],
-            arrowColors : [ '#000066' ],
+            arrow_generators : [ {generator: ab, color: '#000066'} ],
             strategies : [ {generator: ab, layout: 'circular', direction: 'XY', nestingLevel: 0} ]
         },
         {
@@ -215,8 +215,8 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
             className : 'CDElement', groupURL : ZmxZn.URL,
             x : hmar, y : vmar+hdrH+vsep, w : W, h : H,
-            arrows : [ a, b ],
-            arrowColors : [ '#660000', '#006600' ],
+            arrow_generators : [ {generator: a, color: '#660000'},
+                                 {generator: b, color: '#006600'} ],
             strategies : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
                            {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
@@ -224,8 +224,9 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
             // same as previous, plus arrow for maxOrdElt
             className : 'CDElement', groupURL : ZmxZn.URL,
             x : hmar+hsep+W, y : vmar+hdrH+vsep, w : W, h : H,
-            arrows : [ a, b, maxOrdElt ],
-            arrowColors : [ '#660000', '#006600', '#000066' ],
+            arrow_generators : [ {generator: a, color: '#660000'},
+                                 {generator: b, color: '#006600'},
+                                 {generator: maxOrdElt, color: '#000066'} ],
             strategies : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
                            {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
@@ -233,8 +234,7 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
             // circular CD of Z_mn with arrow for maxOrdElt shown only
             className : 'CDElement', groupURL : ZmxZn.URL,
             x : hmar+2*hsep+2*W, y : vmar+hdrH+vsep, w : W, h : H,
-            arrows : [ maxOrdElt ],
-            arrowColors : [ '#000066' ],
+            arrow_generators : [ {generator: maxOrdElt, color: '#000066'} ],
             strategies : [ {generator: maxOrdElt, layout: 'rotated', direction: 'XY', nestingLevel: 0 },
                            {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },

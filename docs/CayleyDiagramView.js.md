@@ -321,8 +321,8 @@ class CayleyDiagramViewModel /*:: implements Updatable */ {
    get canvas () /*: HTMLCanvasElement */      { return this.view.canvas }
    toJSON ()                                   { return this.model.toJSON() }
    fromJSON (jsonObject)                       { this.model.fromJSON(jsonObject) }
-   draw (group, diagramName) {
-      const layout = CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramName)
+   draw (group, diagramNameOrStrategies, arrowGenerators) {
+      const layout = CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramNameOrStrategies, arrowGenerators)
       this.update('group', group)
       this.update('layout', layout)
    }

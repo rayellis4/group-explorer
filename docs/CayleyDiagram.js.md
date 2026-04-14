@@ -53,6 +53,22 @@ async function load () {
       container: document.getElementById('graphic')
    })
 
+   // Set up change broadcast (if this page is an editor for a sheet)
+   if (window.location.href.includes('SheetEditor')) {
+      if (initialJSON != null) {
+         cayleyDiagramModel.fromJSON(initialJSON)
+      } else {
+         Log.warn('CayleyDiagram: SheetEditor mode but no initial JSON passed in IndexedDB')
+      }
+
+      SheetEditor.enableChangeBroadcast(() => {
+         return { elementId: elementId, json: cayleyDiagramModel.toJSON() }
+      })
+
+      cayleyDiagramViewModel.resize()  // need to fix initial aspect ratio when editing
+      window.setInterval(() => SheetEditor.broadcastChange(), 1000)  // There's got to be a better way than polling...
+   }
+
    // Create Control Panel
    const controlPanelElement = document.getElementById('control-panel')
    ControlPanel.addPanel(controlPanelElement)
@@ -71,22 +87,6 @@ async function load () {
 
    // Listen for window resize and resize visualizer
    window.addEventListener('resize', () => cayleyDiagramViewModel.resize())
-
-   // Set up change broadcast (if this page is an editor for a sheet)
-   if (window.location.href.includes('SheetEditor')) {
-      if (initialJSON != null) {
-         cayleyDiagramModel.fromJSON(initialJSON)
-      } else {
-         Log.warn('CayleyDiagram: SheetEditor mode but no initial JSON passed in IndexedDB')
-      }
-
-      SheetEditor.enableChangeBroadcast(() => {
-         return { elementId: elementId, json: cayleyDiagramModel.toJSON() }
-      })
-
-      cayleyDiagramViewModel.resize()  // need to fix initial aspect ratio when editing
-      window.setInterval(() => SheetEditor.broadcastChange(), 1000)  // There's got to be a better way than polling...
-   }
 }
 
 function insertHTML () {

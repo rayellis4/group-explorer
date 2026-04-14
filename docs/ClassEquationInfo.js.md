@@ -146,7 +146,7 @@ function formatAsSheet (group, type /*: VisualizerType*/) {
             sheetElementsAsJSON.push( {
                 className : type, groupURL : group.URL,
                 x : 60 + 150*i, y : 154, w : 100, h : 100,
-                highlights : { background : addHighlights(group, fakeIndex) }
+                highlight_colors : [addHighlights(group, fakeIndex), [], []]
             } );
         }
         // Then add a "+" or an "=" in each of those two rows
@@ -176,7 +176,7 @@ function formatAsSheet (group, type /*: VisualizerType*/) {
     sheetElementsAsJSON.push( {
         className : type, groupURL : group.URL,
         x : 60 + 150*fakeN, y : 154, w : 100, h : 100,
-        highlights : { background : ((highlights /*: any */) /*: Array<null | void | color> */) }
+        highlight_colors : [highlights, [], []]
     } );
 
     return sheetElementsAsJSON

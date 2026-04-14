@@ -54,16 +54,6 @@ async function load () {
       container: document.getElementById('graphic')
    })
 
-   // Create Control Panel
-   ControlPanel.addPanel(document.getElementById('control-panel'))
-
-   // Initialize HighlightControl
-   const highlightControlElement = document.getElementById('highlight-control')
-   HighlightControl.addControl(highlightControlElement, cycleGraphModel)
-
-   // Register window resize handler
-   window.addEventListener('resize', () => cycleGraphViewModel.resize())
-
    // Initialize CycleGraph model, change broadcast if editing a sheet
    if (window.location.href.includes('SheetEditor')) {
       if (initialJSON != null) {
@@ -80,6 +70,16 @@ async function load () {
       cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlightColors')
       cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlightControl')
    }
+
+   // Create Control Panel
+   ControlPanel.addPanel(document.getElementById('control-panel'))
+
+   // Initialize HighlightControl
+   const highlightControlElement = document.getElementById('highlight-control')
+   HighlightControl.addControl(highlightControlElement, cycleGraphModel)
+
+   // Register window resize handler
+   window.addEventListener('resize', () => cycleGraphViewModel.resize())
 }
 
 // an unexported module const, so it won't be garbage collected

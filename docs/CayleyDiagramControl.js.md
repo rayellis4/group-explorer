@@ -110,8 +110,16 @@ class ViewModel {
       this.#model = model
       this.rootElement = rootElement
 
-      // get diagram name from URL (or sheet editor JSON?)
-      this.diagramName = new URL(window.location.href).searchParams.get('diagram')
+      // get diagram name from sheet editor JSON or URL
+      if (model.diagramControl?.strategies != null) {
+         this.strategyParameters = model.diagramControl.strategies
+         this.arrowGenerators = model.diagramControl.arrowGenerators
+      } else if (model.diagramControl?.diagram_name != null) {
+         this.diagramName = model.diagramControl.diagram_name
+      } else {
+         this.diagramName = new URL(window.location.href).searchParams.get('diagram')
+      }
+
       if (  this.diagramName != null
          && this.group.cayleyDiagrams.findIndex((cayleyDiagram) => cayleyDiagram.name == this.diagramName) < 0
       ) {
@@ -119,7 +127,9 @@ class ViewModel {
          this.diagramName = null
       }
 
-      this.updateLayout()
+      if (!window.location.href.includes('SheetEditor')) {  // don't overwrite info from Sheet
+         this.updateLayout()
+      }
    }
 
    registerForUpdates (handler /*: Updatable */) {

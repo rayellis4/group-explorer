@@ -263,21 +263,20 @@ function formatSolvableDecompositionSheet (group, type /*: VisualizerType */) {
             alignment : 'center'
         } );
         // put visualizer for each element in top row, the decomposition
-        const subgroupElts = entry.embeddingFromPrevious ?
-              entry.embeddingFromPrevious.filter( ( value, index, self ) =>
-                                                  self.indexOf( value ) === index ) : [ 0 ];
+        const subgroupElts = entry.embeddingFromPrevious
+           ? entry.embeddingFromPrevious.filter( ( value, index, self ) => self.indexOf( value ) === index )
+           : [ 0 ];
         const subgroupBitSet = new BitSet( entry.group.order, subgroupElts );
         const elementOrder = entry.group.getCosets( subgroupBitSet )
               .map( coset => coset.toArray() )
               .reduce( ( list1 /*: Array<groupElement> */, list2 /*: Array<groupElement> */ ) => list1.concat( list2 ), [ ] );
         Log.debug( elementOrder );
-        const highlight = elementOrder.map( ( elt, index ) =>
-                                            subgroupBitSet.get( index ) ? red : notred );
+        const highlight = elementOrder.map( ( elt, index ) => subgroupBitSet.get( index ) ? red : notred );
         sheetElementsAsJSON.push( {
             className : type,
             groupURL : ((entry.group /*: any */) /*: {URL?: string} */).URL || '(unknown)',
             x : L+index*W+index*hgap, y : T, w : W, h : H,
-            elements : elementOrder, highlights : { background : highlight }
+            highlight_colors : [highlight, [], []]
         } );
         // for every visualizer except the trivial group, add the
         // embedding map, the quotient group, the quotient map, and its name.
@@ -300,9 +299,8 @@ function formatSolvableDecompositionSheet (group, type /*: VisualizerType */) {
                 groupURL : ((quotientByPrevious /*: any */) /*: {URL?: string} */).URL || '(unknown)',
                 x : L+index*W+index*hgap+bottomShift, y : T+H+vgap,
                 w : W, h : H,
-                highlights : {
-                    background : quotientByPrevious.elements.map( (elt, idx) => idx ? notred : red )
-                }
+                highlight_colors :
+                    [quotientByPrevious.elements.map( (elt, idx) => idx ? notred : red ), [], []]
             } );
             const quotientIndex = sheetElementsAsJSON.length - 1;
             // quotient group name

@@ -306,7 +306,7 @@ export class View {
 
    getVisualizerJSON (modelElement) {
       const viewElement = this.viewElements.get(modelElement.id)
-      return viewElement.visualizer.toJSON()
+      return viewElement.getVisualizerJSON()
    }
 
    updateVisualizer (modelElement, json) {
@@ -511,6 +511,10 @@ export class VisualizerView extends NodeView {
 
     this.unitSquarePositions = this.visualizer.unitSquarePositions()
   }
+
+  getVisualizerJSON () {
+    return this.visualizer.toJSON()
+  }
 }
 
 export class CGView extends VisualizerView {
@@ -519,6 +523,9 @@ export class CGView extends VisualizerView {
   */
    constructor (view /*: View */, modelElement /*: SheetModel.CGElement */) {
       const cgModel = createModelProxy(new CycleGraphModel(modelElement.group))
+      if (modelElement.highlightColors != null) {
+         cgModel.highlightColors = modelElement.highlightColors
+      }
       if (modelElement.visualizer != null) {
          cgModel.fromJSON(modelElement.visualizer)
       }
@@ -541,6 +548,9 @@ export class MTView extends VisualizerView {
   */
    constructor (view /*: View */, modelElement /*: SheetModel.MTElement */) {
       const mtModel = createModelProxy(new MulttableModel(modelElement.group))
+      if (modelElement.highlightColors != null) {
+         mtModel.highlightColors = modelElement.highlightColors
+      }
       if (modelElement.visualizer != null) {
          mtModel.fromJSON(modelElement.visualizer)
       }
@@ -565,6 +575,12 @@ export class CDView extends VisualizerView {
 
    constructor (view /*: View */, modelElement /*: SheetModel.CDElement */) {
       super(view, modelElement, document.createElement('canvas'))
+
+      // unless diagram name or strategies are specified, use manually built diagram if available
+      if (!('diagramControl' in modelElement)) {
+         modelElement.diagramControl = {diagram_name: modelElement.group.cayleyDiagrams?.[0]?.name}
+      }
+
       this.redraw()
    }
 
@@ -576,8 +592,13 @@ export class CDView extends VisualizerView {
       if (visualizer?.view_state != null) {  // restore stored layout
          cdViewModel.model.fromJSON(visualizer)
       } else {  // passed sheet, SheetControl panel
-         cdViewModel.model.highlightColors = visualizer?.highlight_colors ?? [[], [], []]
-         cdViewModel.draw(group, group.cayleyDiagrams?.[0]?.name)
+         cdViewModel.model.highlightColors = this.modelElement.highlightColors
+         const diagramControl = this.modelElement.diagramControl
+         if (diagramControl?.strategies != null) {
+            cdViewModel.draw(group, diagramControl.strategies, diagramControl.arrow_generators)
+         } else {
+            cdViewModel.draw(group, diagramControl?.diagram_name)
+         }
       }
 
       return cdViewModel.toJSON()
@@ -607,7 +628,7 @@ export class CDView extends VisualizerView {
             ) {  // fast path: same group, no stored layout — just apply highlights
                CDView.#sharedViewModel.model.highlightColors = visualizer.highlight_colors
                this.savedVisualizerJSON = CDView.#sharedViewModel.toJSON()
-            } else {  // clear shared visualizer set new parameterss
+            } else {  // clear shared visualizer set new parameters
                const cdViewModel = CDView.#sharedViewModel
                const cdModel = cdViewModel.model
                cdModel.reset()
@@ -648,6 +669,16 @@ export class CDView extends VisualizerView {
       context.drawImage(this.visualizer.view.canvas, 0, 0)
 
       this.unitSquarePositions = CDView.#sharedViewModel.unitSquarePositions()
+   }
+
+   getVisualizerJSON () {
+      const visualizerJSON = super.getVisualizerJSON()
+      if (this.modelElement.diagramControl != null) {
+         visualizerJSON.diagram_control = this.modelElement.diagramControl
+      }
+      delete this.modelElement.diagramControl
+
+      return visualizerJSON
    }
 }
 
