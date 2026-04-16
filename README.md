@@ -30,7 +30,7 @@ python3 -m http.server 8080
 - User-defined groups: define a group by generators and relations; stored locally and usable everywhere a library group can be used
 - Extended library: larger and more exotic groups available via the page menu
 - Morphism arrows colored by source/destination highlighting
-- Subgroup lattice on Group Info page includes subgroup names, links, and expandable info
+- Subgroup lattice on Group Info page includes descriptive captions and compacted layout by conjugacy class
 - Improved default Cayley diagram layouts, more representative of group structure
 - Cayley diagram: snap-to-axis and coordinate axis display (View tab)
 - Sheet backup/restore; stored sheets list with load, export, and rename

@@ -577,7 +577,7 @@ export class CDView extends VisualizerView {
       super(view, modelElement, document.createElement('canvas'))
 
       // unless diagram name or strategies are specified, use manually built diagram if available
-      if (!('diagramControl' in modelElement)) {
+      if (modelElement.diagramControl == null) {
          modelElement.diagramControl = {diagram_name: modelElement.group.cayleyDiagrams?.[0]?.name}
       }
 
@@ -624,9 +624,9 @@ export class CDView extends VisualizerView {
             const visualizer = this.modelElement.visualizer
             if (  CDView.#sharedViewModel.group == this.modelElement.group
                && visualizer?.view_state == null
-               && visualizer?.highlight_colors != null
+               && this.modelElement.highlightColors != null
             ) {  // fast path: same group, no stored layout — just apply highlights
-               CDView.#sharedViewModel.model.highlightColors = visualizer.highlight_colors
+               CDView.#sharedViewModel.model.highlightColors = this.modelElement.highlightColors
                this.savedVisualizerJSON = CDView.#sharedViewModel.toJSON()
             } else {  // clear shared visualizer set new parameters
                const cdViewModel = CDView.#sharedViewModel

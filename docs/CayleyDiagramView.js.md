@@ -242,7 +242,7 @@ class CayleyDiagramViewModel /*:: implements Updatable */ {
                   nodes: chunk.nodes.map((node) => nodeMap.get(node.element))
                }
             })
-            this.update('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks })
+            this.updateModel('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks })
          }
       }
    }
@@ -337,9 +337,9 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
    _group /*: Group */
    generator /*: CayleyDiagramGenerator */
    _right_multiply /*: boolean */
-   color_highlights /*: Array<css_color> | void */
-   ring_highlights /*: Array<?css_color> | void */
-   square_highlights /*: Array<?css_color> | void */
+   color_highlights /*: Array<css_color> | void */ = []
+   ring_highlights /*: Array<?css_color> | void */ = []
+   square_highlights /*: Array<?css_color> | void */ = []
 
     constructor (options /*: CayleyDiagramViewOptions */ = {}) {
        super(options);
@@ -475,57 +475,27 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
 
     ////////////////////////////   Highlight routines   ///////////////////////////
 
-    drawAllHighlights () {
-        this.getAllHighlighters().forEach((highlighter) => highlighter())
-    }
+   drawAllHighlights () {
+      if (this.nodes.length == 0) {
+         return
+      }
 
-    getAllHighlighters() {
-        const highlighters = Object.entries(highlightNames)
-            .map(([typeString, name]) => {
-                const type = eval(typeString)
-                const highlighter = (type == 0)
-                    ? (elementColors) => this.drawColorHighlights(elementColors)
-                    : (type == 1)
-                        ? (elementColors) => this.drawShapedHighlights('ring', elementColors)
-                        : (elementColors) => this.drawShapedHighlights('square', elementColors)
-                highlighter.label = name
-                return highlighter
-            })
-        return highlighters
-    }
+      this.deleteAllHighlights()
 
-    get backgroundHighlights () {
-        return this.color_highlights?.map((color) => (color == DEFAULT_NODE_COLOR) ? null : color) || []
-    }
+      const spheres = this.nodes
+      spheres.forEach((sphere, inx) => sphere.material.color.set(this.color_highlights?.[inx] ?? DEFAULT_NODE_COLOR))
 
-    drawColorHighlights (elements /*: ?Array<groupElement> */) {
-        this.color_highlights = (elements == null)
-            ? this.color_highlights
-            : this.group.elements.map((element) => elements?.[element])
+      this.ring_highlights.forEach((color, element) => {
+         if (color != undefined) {
+            this.drawHighlight(spheres[element], 'ring', color)
+         }
+      })
 
-        if (this.color_highlights != undefined) {
-            const spheres = this.nodes
-            spheres.forEach((sphere, inx) => sphere.material.color.set(this.color_highlights[inx] || DEFAULT_NODE_COLOR))
-        }
-    }
-
-    drawShapedHighlights (shape /*: 'ring' | 'square' */, elements /*: ?Array<groupElement> */) {
-        if (shape == 'ring') {
-            this.ring_highlights = elements || this.ring_highlights
-        } else {
-            this.square_highlights = elements || this.square_highlights
-        }
-
-        this.deleteHighlights(shape);
-        const highlights = (shape == 'ring') ? this.ring_highlights : this.square_highlights;
-        if (highlights != undefined) {
-            const spheres = this.nodes
-            highlights.forEach( (color, element) => {
-                if (color != undefined) {
-                    this.drawHighlight(spheres[element], shape, color);
-                }
-            } )
-        }
+      this.square_highlights.forEach((color, element) => {
+         if (color != undefined) {
+            this.drawHighlight(spheres[element], 'square', color)
+         }
+      })
     }
 
     drawHighlight (sphere /*: THREE.Mesh */, shape /*: 'ring' | 'square' */, highlight_color /*: css_color */) {
@@ -576,66 +546,29 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
     }
 
     clearHighlightDefinitions () {
-        this.color_highlights = this.ring_highlights = this.square_highlights = undefined;
-    }
-
-    get highlightColors () {
-        return [
-            this.color_highlights || [],
-            this.ring_highlights || [],
-            this.square_highlights || []
-        ]
-    }
-
-    set highlightColors (highlightColors) {
-        this.clearHighlights()
-        if (highlightColors != null) {
-            for (const [inx, highlighter] of this.getAllHighlighters().entries()) {
-                highlighter(highlightColors[inx])
-            }
-        }
-    }
-
-    clearHighlights () {
-        this.clearHighlightDefinitions();
-        this.deleteAllHighlights();
+        this.color_highlights.length = this.ring_highlights.length = this.square_highlights.length = 0
     }
 
     deleteAllHighlights () {
-        this.deleteHighlights();
-    }
+        // delete background highlights
+        const spheres = this.nodes
+        spheres.forEach( (sphere) => sphere.material.color.set(DEFAULT_NODE_COLOR) );
 
-    deleteHighlights (type /*: ?('ring' | 'square' | 'color') */) {
-        if (type == undefined || type == 'color') {
-            const spheres = ((this.nodes /*: any */) /*: Array<THREE.Mesh> */);
-            spheres.forEach( (sphere, inx) => sphere.material.color.set(DEFAULT_NODE_COLOR) );
-        }
+        const highlight_group = this.getGroup('highlights');
+        let highlights = highlight_group.children
+        highlights.forEach( (sprite) => {
+           sprite.geometry.dispose();
+           sprite.material.map.dispose();
+           sprite.material.dispose();
+        } );
+        highlight_group.remove(...highlights);
 
-        if (type != 'color') {
-            const highlight_group = this.getGroup('highlights');
-            let highlights = ((highlight_group.children /*: any */) /*: Array<THREE.Sprite> */);
-            if (type != undefined) {
-                highlights = highlights.filter( (sprite) => sprite.name == type );
-            }
-            highlights.forEach( (sprite) => {
-                sprite.geometry.dispose();
-                sprite.material.map.dispose();
-                sprite.material.dispose();
-            } );
-            highlight_group.remove(...highlights);
-
-            // remove sphere-highlight links
-            const spheres = ((this.nodes /*: any */) /*: Array<THREE.Mesh> */);
-            spheres.forEach( (sphere) => {
-                const userData = ((sphere.userData /*: any */) /*: SphereUserData */);
-                if (type == undefined || type == 'ring') {
-                    delete userData.ring_highlight;
-                }
-                if (type == undefined || type == 'square') {
-                    delete userData.square_highlight;
-                }
-            } )
-        }
+        // remove sphere-highlight links
+        spheres.forEach( (sphere) => {
+           const userData = ((sphere.userData /*: any */) /*: SphereUserData */);
+           delete userData.ring_highlight;
+           delete userData.square_highlight;
+        } )
     }
 
     ////////////////////////////   Label routines   ///////////////////////////////

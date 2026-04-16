@@ -15,6 +15,11 @@ import * as Library from './Library.js'
 import * as MathUtils from './MathUtils.js'
 import * as SheetModel from './SheetModel.js'
 
+import {CayleyDiagramModel} from './CayleyDiagramModel.js'
+import {CycleGraphModel} from './CycleGraphModel.js'
+import {MulttableModel} from './MulttableModel.js'
+import {THREE} from '../lib/externals.js'
+
 export {display}
 
 /*::
@@ -126,10 +131,11 @@ function formatSubgroupInfoHeader (group) {
              <a href="./help/rf-groupterms/index.html#conjugacy-classes">subgroup conjugacy class</a>.)
           You can also calculate it in GAP:</div>
           <button class="gap-compute" data-GAP="getting the lattice of subgroups of a group">Compute this in GAP</button>
-          <div>And you can see the subgroups and their conjugacy classes arranged in a
-          <a href="" data-action="showSubgroupLattice(group, 'TextElement', true)">reduced diagram</a>
-          in which subgroups in the same conjugacy class are merged into a single node (which
-          may not result in a true lattice!).</div>`,
+          <div>And you can see the subgroups and their conjugacy classes arranged in a reduced diagram by
+          <a href="" data-action="showSubgroupLattice(group, 'CDElement', true)">Cayley diagram,</a>
+          <a href="" data-action="showSubgroupLattice(group, 'CGElement', true)">cycle graph,</a> or
+          <a href="" data-action="showSubgroupLattice(group, 'MTElement', true)">multiplication table,</a>
+          where the subgroups in the same conjugacy class are merged into a single node and the .</div>`,
        (group.isSimple)
           ? `<div>None of the subgroups on the list below is
                <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a>.
@@ -280,6 +286,27 @@ function highlightSubgroup ( group, H /*: Subgroup */, type ) {
       H.members.isSet( i ) ? highlightColor : e );
 }
 
+function getHighlightColors (group, count, type) {
+   const highlightConfiguration = (type == 'CDElement')
+      ? new CayleyDiagramModel(group).highlightConfiguration
+      : (type == 'CGElement')
+         ? new CycleGraphModel(group).highlightConfiguration
+         : new MulttableModel(group).highlightConfiguration
+
+   const s = highlightConfiguration.saturation[0]
+   const l = highlightConfiguration.lightness[0]
+   const offset = highlightConfiguration.hueOffset[0]
+
+   const highlights = []
+   for (let inx = 0; inx < count; inx++) {
+      const h = inx / count
+      const color = new THREE.Color(GEUtils.fromRainbow(h, s, l, offset))
+      highlights.push(color)
+   }
+
+   return highlights
+}
+
 // Swiss army knife routine to display subgroup lattice for a group by
 //   type (CDELement/CGElement/MTElement/TextElement)
 //   reduced (boolean) -- elements organized (and highlighted) by subgroup conjugacy class
@@ -348,7 +375,7 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
       alignment : 'center'
    })
 
-   if (type != 'TextElement') {  // labelled visualizer
+   if (!reduced) {  // labelled visualizer
       // find conjugacy class colors
       const nColors = conjugateSubgroupClasses.filter((klass) => klass.popcount() > 1).length
       const rainbow = Array.from({length: nColors}, (_, inx) => GEUtils.fromRainbow(inx / nColors, .4))
@@ -389,24 +416,52 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
             w: cellWidth - 2 * hMargin,
          })
       } )
-   } else if (reduced) {
+   } else {
       // place each subgroup conjugacy class
       conjugateSubgroupClasses.forEach((classSubgroupsBitSet, classIndex) => {
-         const classSubgroups = classSubgroupsBitSet.toArray()
-         const isomorphicGroup = group.subgroups[classSubgroups[0]].isomorphicGroup
-         const caption = (classSubgroups.length == 1)
-            ? `<span style="white-space: nowrap"><i>H</i><sub>${classSubgroups[0]}</sub></span>`
-            : `<span style="white-space: nowrap">Cl(<i>H</i><sub>${classSubgroups[0]}</sub>) (${classSubgroups.length})</span>`
+         const conjugacyClassSubgroups = classSubgroupsBitSet.toArray()
+         const highlightColors = getHighlightColors(group, conjugacyClassSubgroups.length, type)
+         const highlights = [[], [], []]
+         conjugacyClassSubgroups.forEach((subgroupIndex, inx) => {
+            group.subgroups[subgroupIndex].members.toArray()
+               .forEach((el) => highlights[0][el] = '#' + highlightColors[inx].getHexString())
+         })
+         if (conjugacyClassSubgroups.length > 1) {
+            const H_1 = group.subgroups[conjugacyClassSubgroups[0]]
+            const H_2 = group.subgroups[conjugacyClassSubgroups[1]]
+            const intersection = BitSet.intersection(H_1.members, H_2.members)
+            intersection.toArray().forEach((el) => highlights[1][el] = 'white')
+         }
+
+         sheetElementsAsJSON.push({
+            className : type,
+            name : `viz-${classIndex}`,
+            groupURL : group.URL,
+            x : latticeLeft + chains[classIndex] * cellWidth + hMargin,
+            y : latticeTop + tiers[classIndex] * cellHeight + vMargin,
+            w : cellWidth - 2 * hMargin,
+            h : cellHeight - 2 * vMargin,
+            highlight_colors : highlights
+         })
+
+         const caption = (conjugacyClassSubgroups.length == 1)
+            ? `<i>H</i><sub>${conjugacyClassSubgroups[0]}</sub>`
+            : '<div>' + conjugacyClassSubgroups.map((subgroupIndex, inx) => {
+                  const hslObject = highlightColors[inx].getHSL({})
+                  const hslString = `hsl(${Math.round(hslObject.h * 360)} 100 40)`
+                  return `<span style="color: ${hslString}"><i>H</i><sub>${subgroupIndex}</sub></span>`
+               }).join(',<wbr>') + '</div>'
          sheetElementsAsJSON.push({
             className: 'TextElement',
-            name: `viz-${classIndex}`,
+            name: `sub-${classIndex}`,
+            anchor_name: `viz-${classIndex}`,
             text: caption,
             fontColor: 'black',
             fontSize: 20 * scale + 'px',
-            color: '#d8d8d8',
+            color: '#e9e9e9',
             alignment: 'center',
             x: latticeLeft + chains[classIndex] * cellWidth + hMargin,
-            y: latticeTop + tiers[classIndex] * cellHeight + vMargin,
+            y: latticeTop + tiers[classIndex] * cellHeight + vMargin + cellHeight - 2 * vMargin,
             w: cellWidth - 2 * hMargin,
          })
       })

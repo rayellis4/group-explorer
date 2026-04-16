@@ -406,10 +406,7 @@ class Node extends Movable {
       const sphereIndex = this.pickedObject.userData.node.element
       const previousColor = this.cayleyDiagramView.color_highlights[sphereIndex]
       this.cayleyDiagramView.color_highlights[sphereIndex] = newColor
-      this.cayleyDiagramView.getAllHighlighters()[0]()
-      if (this.cayleyDiagramView.color_highlights.every((color) => color == DEFAULT_NODE_COLOR)) {
-         this.cayleyDiagramView.color_highlights = undefined
-      }
+      this.cayleyDiagramView.drawAllHighlights()
 
       return previousColor
    }
