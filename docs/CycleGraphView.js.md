@@ -344,19 +344,21 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
                 this.context.fill();
             }
 
-            // draw the border around the node, defaulting to thin black,
-            // but using whatever highlighting information for borders is
-            // in the cycleGraph, and if it's there, making it thick
-            this.context.beginPath();
-            this.context.arc( pos.x, pos.y, this.radius, 0, 2 * Math.PI );
+            // draw the border around the node, a thin black line
+            this.context.beginPath()
+            this.context.arc( pos.x, pos.y, this.radius, 0, 2 * Math.PI )
+            this.context.strokeStyle = '#000'
+            this.context.lineWidth = 1/scale
+            this.context.stroke()
+
+            // if border is highlighted draw concentric circle with thick colored line
             if (this.highlightColors[HIGHLIGHT_BORDER]?.[elt]) {
-                this.context.strokeStyle = this.highlightColors[HIGHLIGHT_BORDER][elt].toString();
-                this.context.lineWidth = 5/scale;
-            } else {
-                this.context.strokeStyle = '#000';
-                this.context.lineWidth = 1/scale;
+                this.context.beginPath()
+                this.context.arc( pos.x, pos.y, this.radius + 0.01, 0, 2 * Math.PI )
+                this.context.strokeStyle = this.highlightColors[HIGHLIGHT_BORDER][elt].toString()
+                this.context.lineWidth = 0.2 / Math.sqrt(scale)
+                this.context.stroke()
             }
-            this.context.stroke();
         } );
 
         // all done except for labels

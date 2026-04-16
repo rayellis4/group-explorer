@@ -89,9 +89,7 @@ export class AbstractDiagramDisplay {
         this.scene.fog = new THREE.Fog();
         this.light_positions = DEFAULT_LIGHT_POSITIONS;
 
-        const scene_diameter = Math.sqrt(this.size.w*this.size.w + this.size.h*this.size.h);
         this._line_width = options.line_width || DEFAULT_LINE_WIDTH
-        this.sphere_facet_count = (scene_diameter < 100) ? 5 : (scene_diameter < 300) ? 10 : 20;
     }
 
     /* 
@@ -188,6 +186,11 @@ export class AbstractDiagramDisplay {
 
     setSize(width /*: number */, height /*: number */) {
         this.size = {w: width, h: height};
+    }
+
+    get sphere_facet_count () {
+        const scene_diameter = Math.sqrt(this.size.w * this.size.w + this.size.h * this.size.h)
+        return (scene_diameter < 300) ? 10 : 20
     }
 
     /*

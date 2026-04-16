@@ -430,7 +430,7 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
             const H_1 = group.subgroups[conjugacyClassSubgroups[0]]
             const H_2 = group.subgroups[conjugacyClassSubgroups[1]]
             const intersection = BitSet.intersection(H_1.members, H_2.members)
-            intersection.toArray().forEach((el) => highlights[1][el] = 'white')
+            intersection.toArray().forEach((el) => highlights[0][el] = highlights[1][el] = 'white')
          }
 
          sheetElementsAsJSON.push({

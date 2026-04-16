@@ -500,7 +500,7 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
 
     drawHighlight (sphere /*: THREE.Mesh */, shape /*: 'ring' | 'square' */, highlight_color /*: css_color */) {
         const scale = (shape == 'ring' ? 2.5 : 2.65) * this.sphere_radius;  // must clear underlying sphere
-        const line_width = (shape == 'ring' ? 0.66 : 1.2) / scale;  // scales to webGl lineWidth = 10
+        const line_width = 1 / scale
 
         const node = ((sphere.userData /*: any */) /*: SphereUserData */).node;
 
@@ -514,9 +514,9 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
         context.strokeStyle = highlight_color;
         context.beginPath();
         if (shape == 'ring') {
-            context.arc(canvas.width/2, canvas.height/2, canvas.width/2-6, 0, 2*Math.PI);
+            context.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2 - 6, 0, 2 * Math.PI)
         } else {
-            context.rect(0, 0, canvas.width, canvas.height);
+            context.rect(2, 2, canvas.width - 4, canvas.height - 4)
         }
         context.stroke();
 
