@@ -201,9 +201,13 @@ class SheetEventUI {
             : '',
          `<li data-action="modelElement.copy()">Copy</li>
          <hr>
-         <li data-action="this.createConnection(modelElement, event)">Create Connection</li>`,
+         <li data-action="this.createConnection(modelElement)">Create Connection</li>`,
          (modelElement.isVisualizer)
-            ? `<li data-action="this.createMorphism(modelElement, event)">Create Map</li>`
+            ? `<li data-action="this.createMorphism(modelElement)">Create Map</li>`
+            : '',
+         `<li data-action="this.setAnchor(modelElement)">Set Anchor</li>`,
+         (modelElement.anchor_id != null)
+            ? `<li data-action="this.removeAnchor(modelElement)">Remove Anchor</li>`
             : '',
          `<hr>
          <li data-action="this.moveForward(modelElement)">Move Forward</li>
@@ -335,22 +339,40 @@ class SheetEventUI {
          .sort((a, b) => a.z - b.z)
    }
 
-   createConnection (source, event) {
-      this.createLink(source, event, 'ConnectingElement')
+   createConnection (source) {
+      const test = (target, source) => this.validLinkTarget(target, source, () => true)
+      const action = (destination) => this.makeLink('ConnectingElement', source, destination)
+      this.createLink(source, 'Target', test, action)
    }
 
-   createMorphism (source, event) {
-      this.createLink(source, event, 'MorphismElement', (dest) => dest.isVisualizer)
+   createMorphism (source) {
+      const test = (target, source) => this.validLinkTarget(target, source, (dest) => dest.isNode)
+      const action = (destination) => this.makeLink('MorphismElement', source, destination)
+      this.createLink(source, 'Target', test, action)
    }
 
-   createLink (source, event, linkType, targetTest = () => true) {
+   setAnchor (source) {
+      const test = (target, source) => this.validAnchor(target, source)
+      const action = (destination) => this.makeAnchor(source, destination)
+      this.createLink(source, 'Anchor', test, action)
+   }
+
+   removeAnchor (modelElement) {
+      modelElement.anchor_id = null
+   }
+
+   createLink (source, type, validTarget, clickAction) {
+      const location = {
+         clientX: source.viewElement.modelElement.x + 0.5 * source.viewElement.modelElement.w,
+         clientY: source.viewElement.modelElement.y + 0.5 * source.viewElement.modelElement.h
+      }
       const linkingDialogHTML =
          `<div id=linking-dialog style="resize: none">
-             <center>Select target</center>
+             <center>Select ${type}</center>
              <center><button data-action="{}">Cancel</button></center>
           </div>`
 
-      const linkingDialog = makeDialog(linkingDialogHTML, event, (ev) => onclick(ev))
+      const linkingDialog = makeDialog(linkingDialogHTML, location, (ev) => onclick(ev))
 
       linkingDialog.addEventListener('pointermove',
          (event) => {
@@ -360,12 +382,9 @@ class SheetEventUI {
 
             if (maybeTarget == null) {
                document.querySelectorAll('.outlined').forEach((el) => el.classList.remove('outlined'))
-               return
-            }
-
-            if (!maybeTarget.classList.contains('outlined')) {
+            } else if (!maybeTarget.classList.contains('outlined')) {
                document.querySelectorAll('.outlined').forEach((el) => el.classList.remove('outlined'))
-               if (this.getValidDestination(maybeTarget, source, targetTest) != null) {
+               if (validTarget(maybeTarget, source) != null) {
                   maybeTarget.classList.add('outlined')
                }
             }
@@ -383,24 +402,17 @@ class SheetEventUI {
                .elementsFromPoint(event.clientX, event.clientY)
                .find((element) => element.classList.contains('NodeElement'))
             if (maybeTarget != null) {
-               const destination = this.getValidDestination(maybeTarget, source, targetTest)
+               const destination = validTarget(maybeTarget, source)
                if (destination != null) {
                   linkingDialog.remove()
-
-                  const linkJson = { source_name: source.name, destination_name: destination.name }
-                  const link = this.viewModel.addObjectAsElement(linkJson, linkType)
-
-                  const editPosition = source.viewElement.center
-                     .add(destination.viewElement.center)
-                     .multiplyScalar(0.5).toWindowUnits()
-                  this.getEditor(link, {clientX: editPosition.x, clientY: editPosition.y})
+                  clickAction(destination)
                }
             }
          }
       }
    }
 
-   getValidDestination (maybeTarget, source, targetTest) {
+   validLinkTarget (maybeTarget, source, targetTest) {
       const maybeDestination = this.viewModel.modelElements.get(maybeTarget.getAttribute('id'))
       if (maybeDestination == null) return null
       const isSource = maybeDestination === source
@@ -409,5 +421,28 @@ class SheetEventUI {
             ((el.source === source && el.destination === maybeDestination) ||
              (el.source === maybeDestination && el.destination === source)))
       return (targetTest(maybeDestination) && !isSource && !isLinkedToSource) ? maybeDestination : null
+   }
+
+   makeLink (type, source, destination) {
+      const linkJson = { source_name: source.name, destination_name: destination.name }
+      const link = this.viewModel.addObjectAsElement(linkJson, type)
+
+      const editPosition = source.viewElement.center
+         .add(destination.viewElement.center)
+         .multiplyScalar(0.5).toWindowUnits()
+      this.getEditor(link, {clientX: editPosition.x, clientY: editPosition.y})
+   }
+
+   validAnchor (maybeTarget, source) {
+      const maybeDestination = this.viewModel.modelElements.get(maybeTarget.getAttribute('id'))
+      return (maybeDestination == null || maybeDestination == source) ? null : maybeDestination
+   }
+
+   makeAnchor (source, destination) {
+      if (this.validAnchor(destination.viewElement.domElement, source)) {
+         this.viewModel.move(source.id, destination.x - source.x, destination.y + destination.h -  source.y)
+         this.viewModel.resize(source.id, destination.w - source.w, 0)
+         source.anchor_id = destination.id
+      }
    }
 }
