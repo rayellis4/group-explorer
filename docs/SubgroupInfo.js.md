@@ -131,11 +131,11 @@ function formatSubgroupInfoHeader (group) {
              <a href="./help/rf-groupterms/index.html#conjugacy-classes">subgroup conjugacy class</a>.)
           You can also calculate it in GAP:</div>
           <button class="gap-compute" data-GAP="getting the lattice of subgroups of a group">Compute this in GAP</button>
-          <div>And you can see the subgroups and their conjugacy classes arranged in a reduced diagram by
+          <div>And you can see the subgroup lattice by conjugacy class by
           <a href="" data-action="showSubgroupLattice(group, 'CDElement', true)">Cayley diagram,</a>
           <a href="" data-action="showSubgroupLattice(group, 'CGElement', true)">cycle graph,</a> or
           <a href="" data-action="showSubgroupLattice(group, 'MTElement', true)">multiplication table,</a>
-          where the subgroups in the same conjugacy class are merged into a single node and the .</div>`,
+          where the subgroups in the same conjugacy class are merged into a single node.</div>`,
        (group.isSimple)
           ? `<div>None of the subgroups on the list below is
                <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a>.

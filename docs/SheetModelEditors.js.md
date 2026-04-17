@@ -12,6 +12,7 @@
 ```javascript
  */
 
+import {DEFAULT_SPHERE_COLOR} from './AbstractDiagramDisplay.js'
 import * as Log from './Log.js'
 import * as GEUtils from './GEUtils.js'
 import * as StoredObjects from './StoredObjects.js'
@@ -25,6 +26,11 @@ export {TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor}
 ```javascript
  */
 class SheetElementEditor {
+   modelElement
+   initialJSON
+   location
+   editor
+
    constructor (modelElement, dialogHTML, location) {
       this.modelElement = modelElement
       this.initialJSON = JSON.parse(JSON.stringify(modelElement.toJSON()))
@@ -281,7 +287,7 @@ class MorphismEditor extends SheetElementEditor {
                        >Use top row of destination multtable for morphisms</label>
                   </div>`
                : '') +
-            `<div id="morphism-arrow-color">Arrow color:<br>
+            `<div id="morphism-arrow-color">Arrow color:
                  <input id="morphism-arrow-color-none" value="left" name="arrow-color" type="radio"
                     ${(morphismElement.arrowColor == 'none') ? 'checked="true"' : ''}>
                  <label for="morphism-arrow-color-none">none</label>
@@ -297,6 +303,13 @@ class MorphismEditor extends SheetElementEditor {
                         value="${100*morphismElement.arrowMargin}"><br>
                  <input class="synced" type="range" min="0" max="5" step="0.1"
                         value="${100*morphismElement.arrowMargin}">
+             </div>
+             <div id="morphism-subgroup-transform" style="margin-bottom: 0.5em">Display morphism of highlighted subset:
+                 <div id="morphism-subgroup-transform-buttons" class="flex-h">
+                    <button data-action="this.pushSourceThroughMorphism()">Push source ➛ image</button>
+                    <button data-action="this.pullTargetThroughMorphism()">Pull destination ➛ pre-image</button>
+                 </div>
+                 <div id="morphism-subgroup-transform-warning" style="text-align: center"></div>
              </div>
              <div>Define homomorphism:
                 <table id="defining-pair-table">
@@ -429,7 +442,8 @@ class MorphismEditor extends SheetElementEditor {
 
                 /* Action buttons
                  */
-                #morphism-editor-buttons {
+                 #morphism-editor-buttons,
+                 #morphism-subgroup-transform-buttons {
                    justify-content: space-evenly;
                 }
                 #morphism-editor-buttons button {
@@ -529,6 +543,9 @@ class MorphismEditor extends SheetElementEditor {
       if (event.target.getAttribute('id') == 'morphism-editor-name') {
          document.getElementById('morphism-name').innerHTML = event.target.value
       }
+
+      // clear warning message
+      document.getElementById('morphism-subgroup-transform-warning').innerHTML = ''
 
       super.onInput(event)
    }
@@ -638,6 +655,63 @@ class MorphismEditor extends SheetElementEditor {
       this.setupMorphismAdd()
       this.updateModelElement()
       this.modelElement.viewElement?.redraw()
+   }
+
+   pushSourceThroughMorphism () {
+      const fullMapping = this.modelElement.mapping.fullMapping
+      const colorMap = new Map()
+      // generate color map of destination elements that are the image of highlighted elements in source
+      this.modelElement.source.viewElement.visualizer.model.highlightColors[0].forEach((color, inx) => {
+         if (color != null && color != DEFAULT_SPHERE_COLOR) {
+            colorMap.set(fullMapping[inx], color)
+         }
+      })
+
+      // highlight image in destination
+      const destinationHighlights = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]
+      this.modelElement.destination.viewElement.visualizer.model.group.elements.forEach((inx) => {
+         destinationHighlights[inx] = colorMap.get(inx) ?? null
+      })
+      this.modelElement.destination.viewElement.visualizer.model.$touch('highlightColors')
+      this.modelElement.destination.viewElement.redraw()
+      this.modelElement.viewElement.redraw()
+   }
+
+   pullTargetThroughMorphism () {
+      const inverseMapping = new Map()
+      this.modelElement.mapping.fullMapping.forEach((dest, src) => {
+         if (!inverseMapping.has(dest)) {
+            inverseMapping.set(dest, [])
+         }
+         inverseMapping.get(dest).push(src)
+      })
+      const colorMap = new Map()
+
+      // generate color map of source elements whose images are highlighted elements in destination
+      let incompletePreImage = false
+      this.modelElement.destination.viewElement.visualizer.model.highlightColors[0].forEach((color, dest) => {
+         if (color != null && color != DEFAULT_SPHERE_COLOR) {
+            if (inverseMapping.has(dest)) {
+               inverseMapping.get(dest).forEach((src) => colorMap.set(src, color))
+            } else {
+               incompletePreImage = true
+            }
+         }
+      })
+      if (incompletePreImage) {
+         // set warning message, cleared next time onInput runs
+         const message = '(Warning: Some highlighted elements have no pre-image)'
+         document.getElementById('morphism-subgroup-transform-warning').innerHTML = message
+      }
+
+      // highlight pre-image in source
+      const sourceHighlights = this.modelElement.source.viewElement.visualizer.model.highlightColors[0]
+      this.modelElement.source.viewElement.visualizer.model.group.elements.forEach((inx) => {
+         sourceHighlights[inx] = colorMap.get(inx) ?? null
+      })
+      this.modelElement.source.viewElement.visualizer.model.$touch('highlightColors')
+      this.modelElement.source.viewElement.redraw()
+      this.modelElement.viewElement.redraw()
    }
 }
 /*

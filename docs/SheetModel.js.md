@@ -495,8 +495,9 @@ function createNewSheet (jsonObjectsFunction /*: () => Array<sheetItemRequest> *
       })
    }
 
+   const newWindow = window.open('about:blank')  // workaround for Safarix
    StoredObjects.setPassedSheet(jsonObjects)
-      .then(() => { window.open().location = `./Sheet.html?passedSheet` })
+      .then(() => { newWindow.location.href = 'Sheet.html?passedSheet' })
 }
 
 // function used by Sheet.js

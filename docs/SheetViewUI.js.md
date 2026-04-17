@@ -440,7 +440,8 @@ class SheetEventUI {
 
    makeAnchor (source, destination) {
       if (this.validAnchor(destination.viewElement.domElement, source)) {
-         this.viewModel.move(source.id, destination.x - source.x, destination.y + destination.h -  source.y)
+         const zoom = View.zoomFactor
+         this.viewModel.move(source.id, (destination.x - source.x) * zoom, (destination.y + destination.h -  source.y) * zoom)
          this.viewModel.resize(source.id, destination.w - source.w, 0)
          source.anchor_id = destination.id
       }
