@@ -225,7 +225,7 @@ function getDetailedSolvableDecomposition ( G /*: Group */) /*: ?Array<GroupWith
 }
 
 function showSolvableDecompositionSheet (group, type /*: VisualizerType */) {
-   SheetModel.createNewSheet(() => formatSolvableDecompositionSheet(group, type))
+   SheetModel.createNewSheet(formatSolvableDecompositionSheet(group, type))
 }
 
 function formatSolvableDecompositionSheet (group, type /*: VisualizerType */) {

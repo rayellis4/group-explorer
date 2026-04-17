@@ -481,9 +481,7 @@ type sheetItemRequest = {
  */
 // function used by GroupInfo routines to create sheet
 // stores evaluated argument in IndexedDB and opens Sheet.html in new window
-function createNewSheet (jsonObjectsFunction /*: () => Array<sheetItemRequest> */) {
-   const jsonObjects = jsonObjectsFunction()  // so we don't layout page unless it's requested
-
+function createNewSheet (jsonObjects /*: Array<sheetItemRequest> */) {
    if (Log.isActive('debug')) {
       const knownFields = ['showInjectionSurjection', 'showManyArrows', 'definingPairs', 'source_name', 'destination_name', 'thickness', 'hasArrowhead', 'groupURL', 'className', 'text', 'x', 'y', 'w', 'h', 'fontSize', 'alignment', 'name', 'fontColor', 'color', 'anchor_name', 'arrow_generators', 'strategies', 'highlight_colors']
       jsonObjects.forEach((jsonObject) => {

@@ -312,7 +312,7 @@ function getHighlightColors (group, count, type) {
 //   reduced (boolean) -- elements organized (and highlighted) by subgroup conjugacy class
 //   labelled (boolean) -- whether visualizer has label (ignored if type == TextElement)
 function showSubgroupLattice (group, type, reduced = false, labelled = false) {
-   SheetModel.createNewSheet(() => formatSubgroupLattice(group, type, reduced, labelled))
+   SheetModel.createNewSheet(formatSubgroupLattice(group, type, reduced, labelled))
 }
 
 function formatSubgroupLattice (group, type, reduced, labelled) {
@@ -579,7 +579,7 @@ function layoutNodes (nodeTiers, edges) {
 }
 
 function showEmbeddingSheet (group, indexOfH /*: number */, type /*: VisualizerType */) {
-   SheetModel.createNewSheet(() => formatEmbeddingSheet(group, indexOfH, type))
+   SheetModel.createNewSheet(formatEmbeddingSheet(group, indexOfH, type))
 }
 
 function formatEmbeddingSheet (group, indexOfH, type) {
@@ -617,7 +617,7 @@ function formatEmbeddingSheet (group, indexOfH, type) {
 }
 
 function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerType */) {
-   SheetModel.createNewSheet(() => formatQuotientSheet(group, indexOfN, type))
+   SheetModel.createNewSheet(formatQuotientSheet(group, indexOfN, type))
 }
 
 function formatQuotientSheet (group, indexOfN, type) {

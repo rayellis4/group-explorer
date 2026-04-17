@@ -101,7 +101,7 @@ function addHighlights (group, i /*: number */, array /*: ?Array<null | void | c
 }
 
 function showAsSheet (group, type /*: VisualizerType*/) {
-   SheetModel.createNewSheet(() => formatAsSheet(group, type))
+   SheetModel.createNewSheet(formatAsSheet(group, type))
 }
 
 function formatAsSheet (group, type /*: VisualizerType*/) {

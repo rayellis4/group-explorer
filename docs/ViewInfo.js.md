@@ -169,7 +169,7 @@ function getImages (group) {
 }
 
 function showAllVisualizersSheet (group) {
-   SheetModel.createNewSheet(() => formatAllVisualizersSheet(group))
+   SheetModel.createNewSheet(formatAllVisualizersSheet(group))
 }
 
 function formatAllVisualizersSheet (group) {

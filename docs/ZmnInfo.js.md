@@ -99,7 +99,7 @@ function formatZmnInfo (group) /*: html */ {
 }
 
 function showZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
-   SheetModel.createNewSheet(() => formatZmnIsomorphismSheet(group, m, n))
+   SheetModel.createNewSheet(formatZmnIsomorphismSheet(group, m, n))
 }
 
 function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
@@ -168,7 +168,7 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
 }
 
 function showNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
-   SheetModel.createNewSheet(() => formatNoZmnIsomorphismSheet(group, m, n))
+   SheetModel.createNewSheet(formatNoZmnIsomorphismSheet(group, m, n))
 }
 
 function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
