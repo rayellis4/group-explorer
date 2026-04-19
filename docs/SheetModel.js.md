@@ -279,11 +279,11 @@ class CDElement extends VisualizerElement {
          delete jsonObject[field]
       }
 
-      // remove diagram_name, strategies, arrow_generators from JSON and place in diagram_control
+      // remove diagram_name, strategy_parameters, arrow_generators from JSON and place in diagramControl
       if ('diagram_name' in jsonObject) {
          setDiagramControlFromJSON('diagram_name')
-      } else if ('strategies' in jsonObject) {
-         setDiagramControlFromJSON('strategies')
+      } else if ('strategy_parameters' in jsonObject) {
+         setDiagramControlFromJSON('strategy_parameters')
          if ('arrow_generators' in jsonObject) {
             setDiagramControlFromJSON('arrow_generators')
          }
@@ -451,39 +451,39 @@ class MorphismElement extends LinkElement {
   }
 }
 
-/*::
-type sheetItemRequest = {
-   className: string,
-   name: string,
-   x: float,
-   y: float,
-   w: float,
-   h: float,
-   anchor_name: string,
-   text: html,
-   fontSize: string,
-   fontColor: color,
-   alignment: 'left' | 'center' | 'right',
-   color: color,
-   groupURL: string,
-   highlight_colors: Array<Array<?color>>,
-   diagram_name: string,
-   arrow_generators: Array<{generator: groupElement, color: color}>
-   strategies: Array<strategy>,
-   source_name: string,
-   destination_name: string,
-   thickness: number,
-   hasArrowhead: boolean,
-   showInjectionSurjection: boolean,
-   showManyArrows: boolean,
-   definingPairs: Array<[groupElement, groupElement}>,
-}
- */
-// function used by GroupInfo routines to create sheet
+
+// field documentation, checked on debug
+const knownFields = [
+   'alignment' /*: 'left' | 'center' | 'right' */,
+   'anchor_name' /*: string */,
+   'arrow_generators' /*: Array<{generator: groupElement, color: color}> */,
+   'className' /*: string */,
+   'color' /*: color */,
+   'definingPairs' /*: Array<[groupElement, groupElement]> */,
+   'destination_name' /*: string */,
+// 'diagram_name' /*: string */,
+   'fontColor' /*: color */,
+   'fontSize' /*: string */,
+   'groupURL' /*: string */,
+   'h' /*: float */,
+   'hasArrowhead' /*: boolean */,
+   'highlight_colors'/*: Array<Array<?color>> */,
+   'name' /*: string */,
+   'showInjectionSurjection' /*: boolean */,
+   'showManyArrows' /*: boolean */,
+   'source_name' /*: string */,
+   'strategy_parameters' /*: Array<strategy> */,  // from CayleyGenerator
+   'text' /*: html */,
+   'thickness' /*: number */,
+   'w' /*: float */,
+   'x' /*: float */,
+   'y' /*: float */,
+]
+
+// create new sheet, used by GroupInfo routines
 // stores evaluated argument in IndexedDB and opens Sheet.html in new window
-function createNewSheet (jsonObjects /*: Array<sheetItemRequest> */) {
+function createNewSheet (jsonObjects /*: Array<SheetItemRequest> */) {
    if (Log.isActive('debug')) {
-      const knownFields = ['showInjectionSurjection', 'showManyArrows', 'definingPairs', 'source_name', 'destination_name', 'thickness', 'hasArrowhead', 'groupURL', 'className', 'text', 'x', 'y', 'w', 'h', 'fontSize', 'alignment', 'name', 'fontColor', 'color', 'anchor_name', 'arrow_generators', 'strategies', 'highlight_colors']
       jsonObjects.forEach((jsonObject) => {
          Object.keys(jsonObject).forEach((field) => {
             if (!knownFields.includes(field)) {

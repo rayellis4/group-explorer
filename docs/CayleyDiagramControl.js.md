@@ -111,9 +111,9 @@ class ViewModel {
       this.rootElement = rootElement
 
       // get diagram name from sheet editor JSON or URL
-      if (model.diagramControl?.strategies != null) {
-         this.strategyParameters = model.diagramControl.strategies
-         this.arrowGenerators = model.diagramControl.arrowGenerators
+      if (model.diagramControl?.strategy_parameters != null) {
+         this.strategyParameters = model.diagramControl.strategy_parameters
+         this.arrowGenerators = model.diagramControl.arrow_generators
       } else if (model.diagramControl?.diagram_name != null) {
          this.diagramName = model.diagramControl.diagram_name
       } else {

@@ -10,14 +10,13 @@ The View part of the Sheet Model-View-Controller structure.
 
 import { THREE } from '../lib/externals.js'
 import {CayleyDiagramModel} from './CayleyDiagramModel.js'
-import {layoutCayleyDiagram} from './CayleyDiagramGenerator.js'
+import {layoutCayleyDiagram, getDefaultStrategies} from './CayleyDiagramGenerator.js'
 import {createStaticCayleyDiagramView} from './CayleyDiagramView.js'
 import {CycleGraphModel} from './CycleGraphModel.js'
 import {createLargeCycleGraphView} from './CycleGraphView.js'
 import {createModelProxy} from './GEUtils.js'
 import {MulttableModel} from './MulttableModel.js'
 import {createLargeMulttableView} from './MulttableView.js'
-import * as SheetModel from './SheetModel.js'
 
 export let Graphic /*: HTMLElement */ = null
 export let graphicRect /*: DOMRect */ = new DOMRect(0, 0, 0, 0)
@@ -577,8 +576,10 @@ export class CDView extends VisualizerView {
       super(view, modelElement, document.createElement('canvas'))
 
       // unless diagram name or strategies are specified, use manually built diagram if available
-      if (modelElement.diagramControl == null) {
-         modelElement.diagramControl = {diagram_name: modelElement.group.cayleyDiagrams?.[0]?.name}
+      if (  modelElement.diagramControl == null
+         && modelElement.group.cayleyDiagrams?.[0] != null
+      ) {
+         modelElement.diagramControl = {diagram_name: modelElement.group.cayleyDiagrams[0].name}
       }
 
       this.redraw()
@@ -593,11 +594,28 @@ export class CDView extends VisualizerView {
          cdViewModel.model.fromJSON(visualizer)
       } else {  // passed sheet, SheetControl panel
          cdViewModel.model.highlightColors = this.modelElement.highlightColors
-         const diagramControl = this.modelElement.diagramControl
-         if (diagramControl?.strategies != null) {
-            cdViewModel.draw(group, diagramControl.strategies, diagramControl.arrow_generators)
-         } else {
-            cdViewModel.draw(group, diagramControl?.diagram_name)
+
+         // create diagramControl with default values, if needed
+         if (this.modelElement.diagramControl == null)  {
+            const generatedStrategyParameters = getDefaultStrategies(group)
+            const layout = layoutCayleyDiagram(group, generatedStrategyParameters)
+            const arrowGeneratorMap = new Map()
+            layout.arrows.forEach((arrow) => {
+               arrowGeneratorMap.set(arrow.generator, {generator: arrow.generator, color: arrow.color})
+            })
+            const arrowGenerators = Array.from(arrowGeneratorMap.values())
+            this.modelElement.diagramControl = {
+               strategy_parameters: generatedStrategyParameters,
+               arrow_generators: arrowGenerators
+            }
+         }
+
+         // create cdViewModel layout from diagramControl parameters
+         const diagramControl = cdViewModel.model.diagramControl = this.modelElement.diagramControl
+         if ('strategy_parameters' in diagramControl || 'arrow_generators' in diagramControl) {
+            cdViewModel.draw(group, diagramControl.strategy_parameters, diagramControl.arrow_generators)
+         } else if ('diagram_name' in diagramControl) {
+            cdViewModel.draw(group, diagramControl.diagram_name)
          }
       }
 
@@ -624,6 +642,7 @@ export class CDView extends VisualizerView {
             const visualizer = this.modelElement.visualizer
             if (  CDView.#sharedViewModel.group == this.modelElement.group
                && visualizer?.view_state == null
+               && this.modelElement.diagramControl?.strategy_parameters == null
                && this.modelElement.highlightColors != null
             ) {  // fast path: same group, no stored layout — just apply highlights
                CDView.#sharedViewModel.model.highlightColors = this.modelElement.highlightColors

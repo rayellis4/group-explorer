@@ -124,8 +124,8 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
             x : hmar, y : vmar+hdrH+vsep, w : W, h : H,
             arrow_generators : [ {generator: a, color: '#660000'},
                                  {generator: b, color: '#006600'} ],
-            strategies : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
-                           {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
+            strategy_parameters : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
+                                    {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
         {
             // same as previous, plus arrow for ab
@@ -134,15 +134,15 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
             arrow_generators : [ {generator: a, color: '#660000'},
                                  {generator: b, color: '#006600'},
                                  {generator: ab, color: '#000066'} ],
-            strategies : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
-                           {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
+            strategy_parameters : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
+                                    {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
         {
             // circular CD of Z_mn with arrow for ab shown only
             className : 'CDElement', groupURL : group.URL,
             x : hmar+2*hsep+2*W, y : vmar+hdrH+vsep, w : W, h : H,
             arrow_generators : [ {generator: ab, color: '#000066'} ],
-            strategies : [ {generator: ab, layout: 'circular', direction: 'XY', nestingLevel: 0} ]
+            strategy_parameters : [ {generator: ab, layout: 'circular', direction: 'XY', nestingLevel: 0} ]
         },
         {
             className : 'TextElement',
@@ -217,8 +217,8 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
             x : hmar, y : vmar+hdrH+vsep, w : W, h : H,
             arrow_generators : [ {generator: a, color: '#660000'},
                                  {generator: b, color: '#006600'} ],
-            strategies : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
-                           {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
+            strategy_parameters : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
+                                    {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
         {
             // same as previous, plus arrow for maxOrdElt
@@ -227,16 +227,16 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
             arrow_generators : [ {generator: a, color: '#660000'},
                                  {generator: b, color: '#006600'},
                                  {generator: maxOrdElt, color: '#000066'} ],
-            strategies : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
-                           {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
+            strategy_parameters : [ {generator: a, layout: 'linear', direction: 'X', nestingLevel: 0},
+                                    {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
         {
             // circular CD of Z_mn with arrow for maxOrdElt shown only
             className : 'CDElement', groupURL : ZmxZn.URL,
             x : hmar+2*hsep+2*W, y : vmar+hdrH+vsep, w : W, h : H,
             arrow_generators : [ {generator: maxOrdElt, color: '#000066'} ],
-            strategies : [ {generator: maxOrdElt, layout: 'rotated', direction: 'XY', nestingLevel: 0 },
-                           {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
+            strategy_parameters : [ {generator: maxOrdElt, layout: 'rotated', direction: 'XY', nestingLevel: 0 },
+                                    {generator: b, layout: 'linear', direction: 'Y', nestingLevel: 1} ]
         },
         {
             className : 'TextElement',
