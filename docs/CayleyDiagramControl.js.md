@@ -276,6 +276,51 @@ class ViewModel {
       this.updateLayout()
    }
 
+   updateGenerator (strategyIndex /*: number */, generator /*: number */) {
+      const strategyParameters = this.strategyParameters
+      strategyParameters[strategyIndex].generator = generator
+      this.strategyParameters = this.#refineStrategies(strategyParameters)
+
+      // this.arrowGenerators with this.strategyParameters
+      const arrowGenerators = new Set(this.arrowGenerators.map((arrowGenerator) => arrowGenerator.generator))
+      const strategyGenerators = new Set(this.strategyParameters.map((strategyParameter) => strategyParameter.generator))
+      arrowGenerators.forEach((arrowGenerator) => {
+         if (!strategyGenerators.has(arrowGenerator)) {
+            this.removeArrow(arrowGenerator)
+         }
+      })
+      strategyGenerators.forEach((strategyGenerator) => {
+         if (!arrowGenerators.has(strategyGenerator)) {
+            this.addArrow(strategyGenerator)
+         }
+      })
+
+      this.updateLayout()
+   }
+
+   organizeBy (subgroupIndex /*: number */) {
+      this.group.subgroups[subgroupIndex].generators.toArray()
+         .forEach((generator, inx) => {
+            this.updateGenerator(inx, generator)
+            this.updateOrder(inx, inx)
+         })
+   }
+
+   updateAxes (strategyIndex /*: number */, layout /*: Layout */, direction /*: Direction */) {
+      const strategyParameters = this.strategyParameters
+      strategyParameters[strategyIndex].layout = layout;
+      strategyParameters[strategyIndex].direction = direction;
+      this.updateStrategies(strategyParameters);
+   }
+
+   updateOrder (strategyIndex /*: number */, order /*: number */) {
+      const strategyParameters = this.strategyParameters
+      const otherStrategy = strategyParameters.findIndex( (strategy) => strategy.nestingLevel == order );
+      strategyParameters[otherStrategy].nestingLevel = strategyParameters[strategyIndex].nestingLevel;
+      strategyParameters[strategyIndex].nestingLevel = order;
+      this.updateStrategies(strategyParameters);
+   }
+
    addArrow (element /*: groupElement */) {
       // find next element in Set(COLORS) - Set(usedColors)
       const findColor = () => {
@@ -572,7 +617,7 @@ class Generator extends View {
          eligibleGenerators
             .sort((a,b) => (this.group.representation[a] < this.group.representation[b]) ? -1 : 1)
             .map((generator) =>
-                  `<li data-action="this.updateGenerator(${strategyIndex}, ${generator})">
+                  `<li data-action="this.viewModel.updateGenerator(${strategyIndex}, ${generator})">
                       ${this.group.representation[generator]}
                    </li>`)
             .join('')
@@ -603,16 +648,16 @@ class Generator extends View {
 
       const axisMenu = [
          `<ul>
-             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'X')">${AXIS_LABELS['linear']['X']}</li>
-             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'Y')">${AXIS_LABELS['linear']['Y']}</li>
-             <li data-action="this.updateAxes(${strategyIndex}, 'linear', 'Z')">${AXIS_LABELS['linear']['Z']}</li>`,
+             <li data-action="this.viewModel.updateAxes(${strategyIndex}, 'linear', 'X')">${AXIS_LABELS['linear']['X']}</li>
+             <li data-action="this.viewModel.updateAxes(${strategyIndex}, 'linear', 'Y')">${AXIS_LABELS['linear']['Y']}</li>
+             <li data-action="this.viewModel.updateAxes(${strategyIndex}, 'linear', 'Z')">${AXIS_LABELS['linear']['Z']}</li>`,
          (curvable)
-          ? `<li data-action="this.updateAxes(${strategyIndex}, 'circular', 'XY')">${AXIS_LABELS['circular']['XY']}</li>
-             <li data-action="this.updateAxes(${strategyIndex}, 'circular', 'XZ')">${AXIS_LABELS['circular']['XZ']}</li>
-             <li data-action="this.updateAxes(${strategyIndex}, 'circular', 'YZ')">${AXIS_LABELS['circular']['YZ']}</li>
-             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'XY')"> ${AXIS_LABELS['rotated']['XY']}</li>
-             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'XZ')"> ${AXIS_LABELS['rotated']['XZ']}</li>
-             <li data-action="this.updateAxes(${strategyIndex}, 'rotated', 'YZ')"> ${AXIS_LABELS['rotated']['YZ']}</li>`
+          ? `<li data-action="this.viewModel.updateAxes(${strategyIndex}, 'circular', 'XY')">${AXIS_LABELS['circular']['XY']}</li>
+             <li data-action="this.viewModel.updateAxes(${strategyIndex}, 'circular', 'XZ')">${AXIS_LABELS['circular']['XZ']}</li>
+             <li data-action="this.viewModel.updateAxes(${strategyIndex}, 'circular', 'YZ')">${AXIS_LABELS['circular']['YZ']}</li>
+             <li data-action="this.viewModel.updateAxes(${strategyIndex}, 'rotated', 'XY')"> ${AXIS_LABELS['rotated']['XY']}</li>
+             <li data-action="this.viewModel.updateAxes(${strategyIndex}, 'rotated', 'XZ')"> ${AXIS_LABELS['rotated']['XZ']}</li>
+             <li data-action="this.viewModel.updateAxes(${strategyIndex}, 'rotated', 'YZ')"> ${AXIS_LABELS['rotated']['YZ']}</li>`
           : '',
          `   <hr>
              <li class="detached-submenu">Organize by
@@ -630,7 +675,7 @@ class Generator extends View {
       const numStrategies = this.viewModel.strategyParameters.length
 
       const orderList = this.viewModel.strategyParameters.map((_strategy, order) =>
-         `<li data-action="this.updateOrder(${strategyIndex}, ${order})">${ORDER_LABELS[numStrategies][order]}</li>`)
+         `<li data-action="this.viewModel.updateOrder(${strategyIndex}, ${order})">${ORDER_LABELS[numStrategies][order]}</li>`)
 
       const orderMenuHTML = [
          `<ul id="generation-order-menu">`,
@@ -650,43 +695,11 @@ class Generator extends View {
       const organizeByMenu =
          this.group.subgroups.slice(1, -1)  // only append non-trivial subgroups
             .map((subgroup, inx) =>
-                `<li data-action="this.organizeBy(${inx + 1})">
+                `<li data-action="this.viewModel.organizeBy(${inx + 1})">
                     <i>H</i><sub>${inx + 1}</sub>, a subgroup of order ${subgroup.order}
                  </li>`)
             .join('')
       return organizeByMenu
-   }
-
-   /*
-    * Perform actions directed by option menus
-    */
-   organizeBy (subgroupIndex /*: number */) {
-      this.group.subgroups[subgroupIndex].generators.toArray()
-         .forEach((generator, inx) => {
-            this.updateGenerator(inx, generator)
-            this.updateOrder(inx, inx)
-         })
-   }
-
-   updateGenerator (strategyIndex /*: number */, generator /*: number */) {
-      const strategyParameters = this.viewModel.strategyParameters
-      strategyParameters[strategyIndex].generator = generator;
-      this.viewModel.updateStrategies(strategyParameters);
-   }
-
-   updateAxes (strategyIndex /*: number */, layout /*: Layout */, direction /*: Direction */) {
-      const strategyParameters = this.viewModel.strategyParameters
-      strategyParameters[strategyIndex].layout = layout;
-      strategyParameters[strategyIndex].direction = direction;
-      this.viewModel.updateStrategies(strategyParameters);
-   }
-
-   updateOrder (strategyIndex /*: number */, order /*: number */) {
-      const strategyParameters = this.viewModel.strategyParameters
-      const otherStrategy = strategyParameters.findIndex( (strategy) => strategy.nestingLevel == order );
-      strategyParameters[otherStrategy].nestingLevel = strategyParameters[strategyIndex].nestingLevel;
-      strategyParameters[strategyIndex].nestingLevel = order;
-      this.viewModel.updateStrategies(strategyParameters);
    }
 
    /*
