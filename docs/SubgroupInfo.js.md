@@ -261,18 +261,14 @@ function shortDescription (group, subgroup /*: Subgroup */) {
                          ${prime}-group</a>, `;
       }
    } else {
-      // get first non-one element,
-      // find prime for group,
-      // test all other elements for even divisibility
-      const subgroupElementOrders /*: Array<number> */ = elements.map( el => group.elementOrders[el] );
-      const prime = MathUtils.getFactors(subgroupElementOrders[1])[0];
-      if (subgroupElementOrders.every(el => el == 1 || el % prime == 0)) {
-         if (group.order / subgroup.members.popcount() % prime != 0) {
+      const pSubgroupInfo = subgroup.pSubgroupInfo
+      if (pSubgroupInfo != null) {
+         if (pSubgroupInfo.isSylow) {
             rslt = `, a <a href="./help/rf-groupterms/index.html#sylow-p-subgroup">
-                        Sylow ${prime}-subgroup</a>, `;
+                        Sylow ${pSubgroupInfo.p}-subgroup</a>, `;
          } else {
             rslt = `, a <a href="./help/rf-groupterms/index.html#p-subgroup">
-                        ${prime}-subgroup</a>, `;
+                        ${pSubgroupInfo.p}-subgroup</a>, `;
          }
       }
    };

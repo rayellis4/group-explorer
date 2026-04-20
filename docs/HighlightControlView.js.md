@@ -488,6 +488,27 @@ class DisplayItemView {
             }
             subgroopInfo += '</div>'
          }
+
+         if (subgroup.order != 1) {
+            const pSubgroupInfo = subgroup.pSubgroupInfo
+            if (pSubgroupInfo != null) {
+               if (subgroup.order == subgroup.group.order) {
+                  subgroopInfo += `<div>${subgroup.group.name} is a
+                     <a href="./help/rf-groupterms/index.html#p-subgroup">${pSubgroupInfo.p}-group</a></div>`
+               } else {
+                  subgroopInfo += `<div>${this.name} is a `
+                  if (pSubgroupInfo.isSylow) {
+                     subgroopInfo +=
+                        `<a href="./help/rf-groupterms/index.html#sylow-p-subgroup">Sylow ${pSubgroupInfo.p}-subgroup</a>`
+                  } else {
+                     subgroopInfo +=
+                        `<a href="./help/rf-groupterms/index.html#p-subgroup">${pSubgroupInfo.p}-subgroup</a>`
+                  }
+               }
+               subgroopInfo += '</div>'
+            }
+         }
+
          return subgroopInfo + baseInfo
       }
 

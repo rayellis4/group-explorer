@@ -5,6 +5,7 @@
 import {BitSet} from './BitSet.js';
 import {IsomorphicGroups} from './IsomorphicGroups.js'
 import * as Library from './Library.js'
+import * as MathUtils from './MathUtils.js'
 
 /*::
 import type {Group} from './Group.js'
@@ -153,5 +154,19 @@ export class Subgroup {
       }
 
       return this._isomorphicQuotientMap
+   }
+
+   get pSubgroupInfo () /*: ?{p: number, isSylow?: boolean} */ {
+      const subgroupElements = this.members.toArray()
+      const subgroupElementOrders /*: Array<number> */ = subgroupElements.map( el => this.group.elementOrders[el] )
+      const prime = MathUtils.getFactors(subgroupElementOrders[1])[0]
+      let result
+      if (subgroupElementOrders.every(el => el == 1 || el % prime == 0)) {
+         result = {p: prime}
+         if (this.group.order / subgroupElements.length % prime != 0) {
+            result.isSylow = true
+         }
+      }
+      return result
    }
 }
