@@ -89,6 +89,12 @@ distance between the two elements to move the arrowheads away from the
 target. The number and the slider are synchronized, as described
 [here](rf-um-sheetwindow.md#dialog-inputs).
 
+### Show image/preimage of a highlighted subset
+
+These buttons will highlight the image (preimage) of the highlighted
+subset in the domain (codomain). The highlights can be set as desired
+by [editing the visualizer element](rf-um-sheetwindow.md#edit).
+
 ## Mathematical definition of the homomorphism
 
 The bottom half of the homomorphism edit window allows you to specify the

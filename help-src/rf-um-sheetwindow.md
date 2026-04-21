@@ -406,6 +406,13 @@ must not already share a connection or map with the first. Selecting the target
 creates the a new map and brings up the morphism editor. For more details, visit
 [the help page on editing homomorphisms](rf-um-morphedit.md).
 
+##### Set, remove anchor
+
+Setting one element as the anchor for another allows them to be moved around the
+screen together. When the anchor is set the anchored element is positioned
+immediately under the first and its width is set to match. This is a convenient
+way to add a caption to a visualizer element, for example.
+
 #### Move forward, backward
 
 To move an item forward or backwards on the sheet (i.e. farther into the

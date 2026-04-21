@@ -97,8 +97,13 @@ Once created, these groups
 
 Generated groups are distinguished by their URL format, which uses a [data URI
 scheme](https://en.wikipedia.org/wiki/Data_URI_scheme) instead of a traditional
-web address. For example:<br>
-&emsp;&emsp;`data:,//GE3/generated?a,b:abAB,aaaaaa,aaabAAAB,bbbbbaaab,bbaabAABBB`
+web address. For example, the group defined by the presentation
+⟨<i>a</i>, <i>b</i> : <i>a</i><sup>3</sup>&nbsp;=&nbsp;<i>b</i><sup>12</sup>
+&nbsp;=&nbsp;1,&nbsp;<i>a</i><i>b</i>&nbsp;=&nbsp;<i>b</i><i>a</i>⟩
+can be specified by the URI 'data:,//GE3/generated?a,b:aba-1b-1,a-6,a3ba-3b-1,b5a3b,b2a2ba-2b-3'
+or 'data:,//GE3/generated?a,b:abAB,aaaaaa,aaabAAAB,bbbbbaaab,bbaabAABBB'.
+(The presentation can often be cut and pasted directly from web sources such as
+<http://groupnames.org>)
 
 This format has three parts:
 

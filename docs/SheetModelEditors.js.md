@@ -307,7 +307,7 @@ class MorphismEditor extends SheetElementEditor {
              <div id="morphism-subgroup-transform" style="margin-bottom: 0.5em">Display morphism of highlighted subset:
                  <div id="morphism-subgroup-transform-buttons" class="flex-h">
                     <button data-action="this.pushSourceThroughMorphism()">Push source ➛ image</button>
-                    <button data-action="this.pullTargetThroughMorphism()">Pull destination ➛ pre-image</button>
+                    <button data-action="this.pullTargetThroughMorphism()">Pull destination ➛ preimage</button>
                  </div>
                  <div id="morphism-subgroup-transform-warning" style="text-align: center"></div>
              </div>

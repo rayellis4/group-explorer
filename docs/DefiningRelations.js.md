@@ -492,7 +492,7 @@ function generateGroup (
    group.shortName = `Generated_${group.order}`
    group.gapid = `${group.order},??`
    group.library = 'generated'
-   group.definition = `⟨${formatGenerators(generators)} : ${formatRelators(relators)})`
+   group.definition = `⟨${formatGenerators(generators)} : ${formatRelators(relators)}⟩`
    group.notes = 'Generated from definition'
    group.URL = `${GENERATED_GROUP_PREFIX}?${generators.join(',')}:${relators.join(',')}`
 

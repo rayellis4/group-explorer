@@ -118,6 +118,7 @@ providing links for you to browse further yourself.
     * Follow the link provided at the top of the resulting page,
       offering to create a sheet showing the lattice of subgroups.
     * The illustration below shows all subgroups of \(S_3\).
+      (The captions are color-coded by the subgroup conjugacy class.)
 
 ![The lattice of subgroups for S_3](illustration-sheettut8.png)
 
