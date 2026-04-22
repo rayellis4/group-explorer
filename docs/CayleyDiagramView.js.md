@@ -152,7 +152,7 @@ export type CayleyDiagramViewOptions = {
 */
 
 const CAYLEY_DIAGRAM_BACKGROUND_COLOR = '#E8C8C8';
-const CAYLEY_DIAGRAM_DISPLAY_GROUP_NAMES = ['labels', 'arrowheads', 'highlights', 'chunks', 'debug'];
+const CAYLEY_DIAGRAM_DISPLAY_GROUP_NAMES = ['labels', 'arrowheads', 'highlights', 'chunks'];
 
 const HIGHLIGHT_NODE = 0
 const HIGHLIGHT_RING = 1

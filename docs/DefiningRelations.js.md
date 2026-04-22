@@ -194,14 +194,6 @@ function generateCosetTable (generators /*: Array<string> */, relators /*: Array
 
    const relationTable /*: CosetTableType */ = [newRelation(0)]
 
-   function isUpperCase (char /*: string */) {
-      return char.toUpperCase() == char
-   }
-
-   function inverseIndex (index /*: integer */) {
-      return index + ((index % 2 == 0) ? 1 : -1)
-   }
-
    function setRule (
       prevElement /*: ?groupElement */,
       prevGeneratorIndex /*: integer */,
@@ -423,6 +415,14 @@ function generateCosetTable (generators /*: Array<string> */, relators /*: Array
    return [relationTable, cosetTable]
 }
 
+function isUpperCase (char /*: string */) {
+   return char.toUpperCase() == char
+}
+
+function inverseIndex (index /*: integer */) {
+   return index + ((index % 2 == 0) ? 1 : -1)
+}
+
 function checkCosetTable (presentation /*: string */, relationTable, cosetTable) {
    if (relationTable.some((relation) => !relation.isFilled)) {
       for (let inx = 0; inx < cosetTable.length; inx++) {
@@ -503,8 +503,13 @@ function generateGroup (
    group.userRepresentations = []
    group.cayleyDiagrams = []
    group.symmetryObjects = []
+   group.declaredGenerators = []
 
-   group.declaredGenerators = [generators.map((_, inx) => cosetTable[0][2 * inx])]
+   // put generators from group.subgroups first if it's shorter
+   if (group.subgroups.at(-1).generators.popcount() < generators.length) {
+      group.declaredGenerators.push(group.subgroups.at(-1).generators.toArray())
+   }
+   group.declaredGenerators.push(generators.map((_, inx) => cosetTable[0][2 * inx]))
 
    // generate element representations that match the presentation
    const reps = Array(group.order)
@@ -581,7 +586,7 @@ function parseFormattedRelator (relator /*: string */) {
          for (let rep = 0; rep < Math.abs(exponent) - 1; rep++) {
             result += result[0]
          }
-         inx += (Math.abs(exponent) < 10) ? 1 : 2  // assumes exponent never more than two digits
+         inx += (Math.abs(exponent) < 10) ? 1 : ((Math.abs(exponent) < 100) ? 2 : 3)  // assume exponent < 1000
       }
       results.push(result)
    }
