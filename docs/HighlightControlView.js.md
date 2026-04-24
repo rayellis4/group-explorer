@@ -800,7 +800,10 @@ class SubsetEditor {
 
       const subset = []
       const complement = []
-      for (const el of viewModel.group.elements) {
+      // sort by name
+      const sortedElements = [...viewModel.group.elements]
+         .sort((a, b) => viewModel.group.representation[a].localeCompare(viewModel.group.representation[b]))
+      for (const el of sortedElements) {
          const listElement =
             `<li data-element="${el}" data-action="this.swapElement(${el})">${viewModel.group.representation[el]}</li>`
          if (setElements.isSet(el))
