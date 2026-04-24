@@ -589,27 +589,40 @@ class CurvedLayoutStrategy extends AbstractLayoutStrategy {
         this.positionTransform = (r, theta) => positionTransforms[((direction /*: any */) /*: PlaneDirection */)](r, theta);
     }
 
+    // radius -- mean radius of annulus that contains children
+    // scale -- factor by which to shrink the children of this chunk so they will fit around the circumference
     getRadiusAndScale (chunk) {
-        // find 'width', 'length' of prototypical child
+        // find height, width of child of prototypical chunk child
         const dir = [
             {lengthDirection: 1, widthDirection: 2},  // YZ length: Y, width: Z
             {lengthDirection: 2, widthDirection: 0},  // XZ length: Z, width: X
             {lengthDirection: 0, widthDirection: 1},  // XY length: X, width: Y
         ]
-        const childWidth = getWidth(chunk.children[0].allChildNodes, dir[this.directionIndex].widthDirection)
-        const childLength = getWidth(chunk.children[0].allChildNodes, dir[this.directionIndex].lengthDirection)
-        const aspectRatio = childLength / childWidth
-        const sectorCount = chunk.children.length
 
-        // make circle radius to fit in [0,1] box
-        const radius = (Math.abs(childWidth) < 1.e-6)
-            ? 0.75 + 0.01 * sectorCount / 2
-            : (sectorCount + Math.PI * aspectRatio) / (sectorCount + 2 * Math.PI * aspectRatio)
+        const nodeSize = 0.3 / Math.sqrt(chunk.allChildNodes.length)  // leave room for nodes in layout
+        const childWidth = getWidth(chunk.children[0].allChildNodes, dir[this.directionIndex].widthDirection) + nodeSize
+        const childHeight = getWidth(chunk.children[0].allChildNodes, dir[this.directionIndex].lengthDirection) + nodeSize
+        const childCount = chunk.children.length
 
-        // make size of transformed child about half the distance between nodes
-        const scale = (Math.abs(childWidth) < 1.e-6)
-            ? 0.5 - 0.01 * sectorCount
-            : 0.8 * 2 * Math.PI * aspectRatio / (sectorCount + 2 * Math.PI * aspectRatio ) / childLength
+        let radius = childHeight * 5 / 6
+        let scale = 1
+
+       // ad-hoc adjustment for two-node children
+        if (  chunk.children[0].isChunk
+            && !chunk.children[0].children[0].isChunk
+            && chunk.children[0].children.length == 2
+        ) {
+            radius = 0.75 + 0.01 * childCount / 2
+            scale = 0.5 - 0.01 * childCount
+        } else
+        // recalculate scale if circumference is too crowded
+        if (2 * Math.PI * (radius - childHeight / 2) < childWidth * childCount) {
+            const aspectRatio = childHeight / childWidth
+            const averageArc = 2 * Math.PI / childCount
+            // based on the width at the inner radius
+            scale = averageArc / (1 + aspectRatio * averageArc) / childWidth
+            radius = 1 - childHeight * scale / 2
+        }
 
         return [radius, scale]
     }
