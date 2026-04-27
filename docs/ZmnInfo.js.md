@@ -10,7 +10,7 @@ reason graphically in a [Sheet](./Sheet.html.md).
  */
 import * as GEUtils from './GEUtils.js'
 import {Group} from './Group.js'
-import {IsomorphicGroups} from './IsomorphicGroups.js'
+import * as IsomorphicGroups from './IsomorphicGroups.js'
 import * as MathUtils from './MathUtils.js'
 import * as SheetModel from './SheetModel.js'
 

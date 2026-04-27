@@ -24,7 +24,7 @@
 
 import * as DefiningRelations from './DefiningRelations.js'
 import {Group} from './Group.js'
-import {IsomorphicGroups} from './IsomorphicGroups.js'
+import * as IsomorphicGroups from './IsomorphicGroups.js'
 import * as Log from './Log.js'
 import * as StoredObjects from './StoredObjects.js'
 import * as XMLGroup from './XMLGroup.js'

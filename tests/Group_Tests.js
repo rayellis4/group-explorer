@@ -318,15 +318,26 @@ describe('Group', function () {
   // ── center ────────────────────────────────────────────────────────────────
   describe('center', function () {
     it('center of an abelian group is the whole group', function () {
-      expect(Z4.center()).to.deep.equal([0, 1, 2, 3]);
+      expect(Z4.center().members.toArray()).to.deep.equal([0, 1, 2, 3]);
     });
 
     it('center always contains the identity', function () {
-      expect(S3.center()).to.include(0);
+      expect(S3.center().members.toArray()).to.include(0);
     });
 
     it('center of S3 is just the identity', function () {
-      expect(S3.center()).to.deep.equal([0]);
+      expect(S3.center().members.toArray()).to.deep.equal([0]);
+    });
+  });
+
+  // ── commutator ────────────────────────────────────────────────────────────────
+  describe('commutator', function () {
+    it('commutator of a commutative group is the identity', function () {
+      expect(Z4.commutator().members.toArray()).to.deep.equal([0]);
+    });
+
+    it('commutator of S3 is [0, 1, 2]', function () {
+      expect(S3.commutator().members.toArray()).to.deep.equal([0, 1, 2]);
     });
   });
 

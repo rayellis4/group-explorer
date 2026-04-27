@@ -5,63 +5,54 @@ import * as DefiningRelations from './DefiningRelations.js'
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js';
 
+export {find, isomorphism, findEmbedding, findQuotient}
+
 /*::
 import {Group} from './Group.js'
 import {Subgroup} from './Subgroup.js'
  */
 
-export class IsomorphicGroups {
-   static find (G /*: Group */) /*: ?Group */ {
-      function subgroupOrders (subgroups /*: Array<Subgroup> */) {
-         return subgroups.reduce((acc /*: Array<number> */, H) => {
+   function find (G /*: Group */) /*: ?Group */ {
+      // we have all groups of order <= 20 in group library, and all non-abelian group <= 40
+      // if we're down to one candidate group then it's guaranteed to be the one
+      function testCandidates (candidates) {
+         return (candidates.length == 1 && (G.order <= 20 || (!G.isAbelian && G.order <= 40)))
+      }
+
+      // filter by candidate group properties
+      let candidates = Library.getGroupsByOrder(G.order)
+         .filter(H => G.isAbelian == H.isAbelian)
+         .filter(H => GEUtils.equals(G.orderClassSizes, H.orderClassSizes))
+
+      if (testCandidates(candidates)) {
+         return candidates[0]
+      }
+
+      // filter candidates by subgroup structure
+      function subgroupOrders (group /*: Group */) {
+         return group.subgroups.reduce((acc /*: Array<number> */, H) => {
             acc[H.order] = (acc[H.order] == null) ? 1 : ++acc[H.order]
             return acc
          }, []).filter((order) => order != null)
       }
+      candidates = candidates.filter(H => GEUtils.equals(subgroupOrders(G), subgroupOrders(H)))
+      if (testCandidates(candidates)) {
+         return candidates[0]
+      }
 
-      // filter by candidate group properties
-      const isomorphicCandidates = Library.getGroupsByOrder(G.order)
-         .filter( H => GEUtils.equals(G.orderClassSizes, H.orderClassSizes) )
-         .filter( H => GEUtils.equals(subgroupOrders(G.subgroups), subgroupOrders(H.subgroups)) )
+      const result = candidates.find(H => isomorphism(H, G) != undefined)
 
-      // we have all groups of order <= 20 in group library, and all non-abelian group <= 40
-      const isomorphicGroup = (isomorphicCandidates.length == 1 && (G.order <= 20 || (!G.isAbelian && G.order <= 40)))
-         ? isomorphicCandidates[0]
-         : isomorphicCandidates.find( H => IsomorphicGroups.isomorphism(H, G) != undefined )
-
-      return isomorphicGroup
+      return result
    }
 
    // returns isomorphism from G to H, or undefined if none can be found
-   static isomorphism (G /*: Group */, H /*: Group */) /*: ?Array<groupElement> */ {
+   function isomorphism (G /*: Group */, H /*: Group */) /*: ?Array<groupElement> */ {
       if (G.order != H.order || G == H) {
          return null;
       }
 
       if (G.order == 1) {
          return [0];
-      }
-
-      // returns arrays of generators for H that match orders in req
-      function* matchingGenerators (
-         req /*: Array<groupElement> */,
-         avail /*: Array<BitSet> */,
-         sel /*: Array<groupElement> */ = []
-      ) /*: Generator<Array<groupElement>, ?Array<groupElement>, Array<groupElement>> */ {
-         if (req.length == 0) {
-            yield sel;
-         } else if (!avail[req[0]].isEmpty()) {
-            // pick one from avail according to order in req and add it to sel
-            for (const el of avail[req[0]].toArray()) { // allElements()) {
-               const newReq = req.slice(1);
-               const newAvail = avail.slice();
-               newAvail[req[0]] = newAvail[req[0]].clone();
-               const newSel = sel.slice();
-               newSel.push(el);
-               newAvail[req[0]].clear(el);
-               yield *matchingGenerators(newReq, newAvail, newSel);
-            }
-         }
       }
 
       // ToDo: pick the G or H with fewer known generators
@@ -142,19 +133,41 @@ export class IsomorphicGroups {
       return null
    }
 
+   // returns arrays of generators for H that match orders in req
+   function* matchingGenerators (
+      req /*: Array<groupElement> */,
+      avail /*: Array<BitSet> */,
+      sel /*: Array<groupElement> */ = []
+   ) /*: Generator<Array<groupElement>, ?Array<groupElement>, Array<groupElement>> */ {
+      if (req.length == 0) {
+         yield sel;
+      } else if (!avail[req[0]].isEmpty()) {
+         // pick one from avail according to order in req and add it to sel
+         for (const el of avail[req[0]].toArray()) { // allElements()) {
+            const newReq = req.slice(1);
+            const newAvail = avail.slice();
+            newAvail[req[0]] = newAvail[req[0]].clone();
+            const newSel = sel.slice();
+            newSel.push(el);
+            newAvail[req[0]].clear(el);
+            yield *matchingGenerators(newReq, newAvail, newSel);
+         }
+      }
+   }
+
    // findEmbedding(G,H), with H a subgroup of G, returns a pair [H',f]
    // such that H' is in the groups library and f is an embedding of H'
    // into G and onto H.  f is stored as an array such that f[i] means f(i),
    // for all i in H'.
-   static findEmbedding (G /*: Group */, H /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
+   function findEmbedding (G /*: Group */, H /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
       const [groupH, indexInParent] = G.getSubgroupAsGroup( H )
-      let libraryH = IsomorphicGroups.find( groupH )
-      if ( libraryH == null ) {
+      let libraryH = find( groupH )
+      if ( libraryH == null || libraryH.URL == null ) {
          const presentation = DefiningRelations.makePresentation(groupH)
          libraryH = DefiningRelations.generateGroupFromPresentation(presentation)
          Library.saveGroup(libraryH)
       }
-      const almostF = IsomorphicGroups.isomorphism( libraryH, groupH );
+      const almostF = isomorphism( libraryH, groupH );
       if (almostF == null) {
          throw new Error('IsomorphicGroup.findEmbedding error:\n' +
             `error finding subgroup embedding in ${G.shortName} (${G.gapid || ''})`)
@@ -167,18 +180,18 @@ export class IsomorphicGroups {
    // such that Q is in the groups library and q is an onto map from G to Q
    // with kernel K.  q is stored as an array such that q[i] means q(i),
    // for all i in G.
-   static findQuotient (G /*: Group */, N /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
+   function findQuotient (G /*: Group */, N /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
       if ( !N.isNormal )
          throw new Error('IsomorphicGroup.findQuotient error:\n' +
             `called to find quotient of non-normal subgroup of ${G.shortName} (${G.gapid || ''})`)
       const [groupQ, cosetIndices] = G.getQuotientGroup( N.members )
-      let libraryQ = IsomorphicGroups.find( groupQ )
-      if ( libraryQ == null ) {
+      let libraryQ = find( groupQ )
+      if ( libraryQ == null || libraryQ.URL == null ) {
          const presentation = DefiningRelations.makePresentation(groupQ)
          libraryQ = DefiningRelations.generateGroupFromPresentation(presentation)
          Library.saveGroup(libraryQ)
       }
-      const almostMap = IsomorphicGroups.isomorphism( groupQ, libraryQ );
+      const almostMap = isomorphism( groupQ, libraryQ );
       if (almostMap == null) {
          throw new Error('IsomorphicGroup.findQuotient error:\n' +
             `error finding quotient map in ${G.shortName} (${G.gapid || ''})`)
@@ -186,4 +199,3 @@ export class IsomorphicGroups {
 
       return [ libraryQ, G.elements.map( elt => almostMap[cosetIndices[elt]] ) ]
    }
-}

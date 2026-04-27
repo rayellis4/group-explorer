@@ -3,7 +3,7 @@
  *   subgroup structure -- containing group, and generator, member, bitsets
  */
 import {BitSet} from './BitSet.js';
-import {IsomorphicGroups} from './IsomorphicGroups.js'
+import * as IsomorphicGroups from './IsomorphicGroups.js'
 import * as Library from './Library.js'
 import * as MathUtils from './MathUtils.js'
 

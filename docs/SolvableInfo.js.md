@@ -11,7 +11,7 @@ graph, on a [Sheet](./Sheet.html.md).
 import {DEFAULT_SPHERE_COLOR} from './AbstractDiagramDisplay.js'
 import {BitSet} from './BitSet.js'
 import * as GEUtils from './GEUtils.js'
-import {IsomorphicGroups} from './IsomorphicGroups.js'
+import * as IsomorphicGroups from './IsomorphicGroups.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as SheetModel from './SheetModel.js'

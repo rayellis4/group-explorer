@@ -515,9 +515,9 @@ export class Group {
       return result;
    }
 
-   center () /*: Array<groupElement> */ {
-      const result = []
-      const generators = this.generators
+   center () /*: Subgroup */ {
+      const centerElements = new BitSet(this.order)
+      const generators = [0, ...this.generators]
       for (let inx = 0; inx < this.order; inx++) {
          let ok = true
          for (let jnx = 0; jnx < generators.length; jnx++) {
@@ -527,10 +527,26 @@ export class Group {
             }
          }
          if (ok) {
-            result.push(inx)
+            centerElements.set(inx)
          }
       }
-      return result
+
+      const center = this.subgroups.find((H) => H.members.contains(centerElements))
+
+      return center
+   }
+
+   commutator () /*: Subgroup */ {
+      // the smallest subgroup that contains the commutators i^-1 * j^-1 * i * j for all generator pairs
+      const generatorCommutators = new BitSet(this.order)
+      const gens = [0, ...this.generators]
+      for (const x of gens)
+         for (const y of gens)
+            generatorCommutators.set(this.mult(this.mult(this.inverseOf(x), this.inverseOf(y)),this.mult(x, y)))
+
+      const commutator = this.subgroups.find((H) => H.members.contains(generatorCommutators))
+
+      return commutator
    }
 }
 
