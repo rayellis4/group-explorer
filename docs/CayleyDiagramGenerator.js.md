@@ -726,6 +726,7 @@ class Chunk {
     position
     transformedChunkBox
     originalChunkSize
+   #allChildNodes
 
     constructor (children, strategy) {
         this.children = children
@@ -736,15 +737,16 @@ class Chunk {
         return true
     }
 
-    // TODO: cache this
     get allChildNodes () /*: Array<NodeData> */ {
-        const allChildNodes = this.children.map((child) =>
-            child.isChunk
+       if (this.#allChildNodes == null) {
+          this.#allChildNodes = this.children.map((child) =>
+             child.isChunk
                 ? child.allChildNodes
                 : [child]
-        ).flat()
+          ).flat()
+       }
 
-        return allChildNodes
+       return this.#allChildNodes
     }
 
     get leftBoundary () {
