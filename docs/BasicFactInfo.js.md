@@ -10,14 +10,22 @@ its order and a defining relation.
 export {display}
 
 function display (basicFactsElementId, group) {
+   const basicFactsElement = document.getElementById(basicFactsElementId)
+   basicFactsElement.innerHTML = getBasicFactsHTML(basicFactsElementId, group)
+
+   document.querySelector('#content.all-info').addEventListener('representationChange',
+      () => basicFactsElement.innerHTML = getBasicFactsHTML(basicFactsElementId, group))
+}
+
+function getBasicFactsHTML (basicFactsElementId, group) {
    const basicFacts = [
       {name: 'Order', value: group.order},
       {name: 'GAP name', value: group.gapname},
       {name: 'GAP ID', value: group.gapid},
-      {name: 'Other names', value: group.other_names == undefined ? '' : group.other_names.join(', ')},
+      {name: 'Other names', value: group.other_names == null ? '' : group.other_names.join(', ')},
       {name: 'Definition', value: group.definition},
       {name: 'Notes', value: group.notes},
-      {name: 'More info', value: group.links == undefined ? '' : group.links.map((link) => `<a href="${link}">${link}</a>`).join(', ')},
+      {name: 'More info', value: group.links == null ? '' : group.links.map((link) => `<a href="${link}">${link}</a>`).join(', ')},
    ]
 
    const basicFactsHTML = [
@@ -38,6 +46,5 @@ function display (basicFactsElementId, group) {
         </details>`
    ].join('')
 
-   const basicFactsElement = document.getElementById(basicFactsElementId)
-   basicFactsElement.innerHTML = basicFactsHTML
+   return basicFactsHTML
 }

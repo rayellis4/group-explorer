@@ -246,6 +246,54 @@ async function migrateGroupsToV2 (ev /*: any */) {
    const groupString = localStorage.getItem('groups')
    const groups = (groupString == null) ? Object.create(null) : JSON.parse(groupString)
 
+   Object.values(groups).forEach((G) => {
+      // move name, other_names into names
+      if ('name' in G) {
+         G.names = [G.name]
+         delete G.name
+      }
+      if ('other_names' in G) {
+         G.names.push(...G.other_names)
+         delete G.other_names
+      }
+      
+      // user representations
+      if ('userRepresentations' in G) {
+         if (Array.isArray(G.userRepresentations) && G.userRepresentations.length > 0) {
+            if (G.custom == null) {
+               G.custom = {}
+            }
+            G.custom.representations = G.userRepresentations
+         }
+         delete G.userRepresentations
+      }
+
+      // notes
+      if ('userNotes' in G) {
+         if (G.userNotes != null && G.userNotes.length != 0) {
+            if (G.custom == null) {
+               G.custom = {}
+            }
+            G.custom.notes = G.userNotes
+         }
+         delete G.userNotes
+      }
+
+      // should have either _XML_generators (from XML) or generators (from JSON), but not both
+      if (G._XML_generators != null) {   // convert _XML_generators to declaredGenerators
+	 G.declaredGenerators = G._XML_generators
+         delete G._XML_generators
+      } else if (G.generators != null) { // convert generators to declaredGenerators
+	 G.declaredGenerators = G.generators
+         delete G.generators
+      }
+
+      // clean up stored images
+      delete G.CayleyThumbnail
+      delete G.rowHTML
+   })
+
+   // convert format to that used in IndexedDB
    await new Promise((resolve, reject) => {
       const putRequest = objectStore.put(groups, GROUP_LIBRARY_KEY)
       putRequest.onsuccess = (ev) => resolve(ev.target.result)
@@ -253,7 +301,7 @@ async function migrateGroupsToV2 (ev /*: any */) {
    })
 
    // delete groups from localStorage
-   localStorage.removeItem('groups')
+   // localStorage.removeItem('groups')
 }
 
 // use upgrade transaction's object store directly — cannot open a new connection during onupgradeneeded

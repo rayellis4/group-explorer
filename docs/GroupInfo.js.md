@@ -27,7 +27,7 @@ async function load () {
    // Create Header
    Heading.display(
       document.getElementById('heading'),
-      `${group.name + ((group.phrase == null || group.phrase == "") ? '' : (' - ' + group.phrase))}`,
+      formatHeading(group),
       () => [
          {label: 'Expand All',
           action: () => document.querySelectorAll('details').forEach((el) => el.setAttribute('open', '1'))},
@@ -55,7 +55,7 @@ async function load () {
       ['default-names', NamingSchemeInfo.displayDefaultNames],
       ['loaded-names', NamingSchemeInfo.displayLoadedNames],
       ['user-names', NamingSchemeInfo.displayUserNames],
-      ['user-notes', UserNoteInfo.display],
+      ['customizations', UserNoteInfo.display],
       group.isGenerated ? ['', () => {}] : ['file-data', FileDataInfo.display]
    ].forEach(([elementId, displayFunction]) => displayFunction(elementId, group))
 
@@ -71,6 +71,14 @@ async function load () {
    } else {
       gapButtons.forEach((el) => el.addEventListener('click', (ev) => computeInGAP(ev)))
    }
+
+   document.querySelector('#content.all-info')
+      .addEventListener('representationChange', () => Heading.setTitle(formatHeading(group)))
+}
+
+function formatHeading (group) {
+   const heading = `${group.name + ((group.phrase == null || group.phrase == "") ? '' : (' - ' + group.phrase))}`
+   return heading
 }
 
 function insertHTML () {
@@ -166,24 +174,32 @@ function insertHTML () {
        <div id="content" class="all-info stack-08em box">
           <div id="basic-facts"></div>
           <div id="views"></div>
-          <details id="computed-properties" open class="stack-03em">
-             <summary>Computed properties</summary>
-             <div id="abelian"></div>
-             <div id="class-equation"></div>
-             <div id="cyclic-group"></div>
-             <div id="subgroups"></div>
-             <div id="order-classes"></div>
-             <div id="solvable"></div>
-             <div id="zmn"></div>
-          </details>
+          <div id="computed-properties">
+             <details open class="stack-03em"> 
+                <summary>Computed properties</summary>
+                <div id="abelian"></div>
+                <div id="class-equation"></div>
+                <div id="cyclic-group"></div>
+                <div id="subgroups"></div>
+                <div id="order-classes"></div>
+                <div id="solvable"></div>
+                <div id="zmn"></div>
+             </details>
+          </div>
           <div id="generators"></div>
-          <details id="naming-schemes" class="stack-03em">
-             <summary>Naming schemes</summary>
-             <div id="default-names"></div>
-             <div id="loaded-names"></div>
-             <div id="user-names"></div>
-          </details>
-          <div id="user-notes"></div>
+          <div id="naming-schemes">
+             <details class="stack-03em">
+                <summary>Naming schemes</summary>
+                <div id="default-names"></div>
+                <div id="loaded-names"></div>
+                <div id="user-names"></div>
+             </details>
+          </div>
+          <div id="customizations">
+             <details open class="stack-03em">
+                <summary class="title">Customizations</summary>
+             </details>
+          </div>
           <div id="file-data"></div>
        </div>
        <iframe id="gap-iframe"></iframe>`)

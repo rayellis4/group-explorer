@@ -488,7 +488,7 @@ function generateGroup (
          .map((G) => G.name.slice(namePrefix.length).match(/\d/))
          .map((match) => parseInt(((match /*: any */) /*: RegExp$matchResult */))),
       -1)
-   group.names[0] = namePrefix + ` (${nameSuffix + 1})`
+   group.names = [namePrefix + ` (${nameSuffix + 1})`]
    group.shortName = `Generated_${group.order}`
    group.gapid = `${group.order},??`
    group.library = 'generated'
@@ -500,7 +500,6 @@ function generateGroup (
 
    group.representations = [Array.from({length: group.order}, (_, inx) => '' + inx)]
    group.representationIndex = 0
-   group.userRepresentations = []
    group.cayleyDiagrams = []
    group.symmetryObjects = []
    group.declaredGenerators = []

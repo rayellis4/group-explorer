@@ -69,7 +69,6 @@ export class Group {
     * (representationIndex is an integer, not an object reference, so Group can be easily serialized)
     */
    representations /*: Array<Array<html>> */
-   userRepresentations /*: Array<Array<html>> */     = []
    representationIndex /*: number */                 = 0
    _longestHTMLLabel /*: number */
 
@@ -91,7 +90,6 @@ export class Group {
    library /*: void | 'fgb' | 'generated' */
    lastModifiedOnServer /*: ?string */
    URL /*: string */
-   userNotes /*: string */                           = ''
 
    constructor () {
    }
@@ -102,7 +100,7 @@ export class Group {
       G.multtable = multtable
       setFieldsFromMulttable(G)
 
-      G.names = [`An unknown group of order ${G.order}`]
+      G._names = [`An unknown group of order ${G.order}`]
       G.representations = [Array.from({length: G.order}, (_, inx) => '' + inx)]
       // $FlowExpectedError[unsupported-syntax]
       ;[G._subgroups, G._isSolvable] = SubgroupLattice.getSubgroups(G)
@@ -111,69 +109,89 @@ export class Group {
       return G
    }
 
+   // reads .group file from distribution
    static fromGroupFileJSON (json /*: GroupJSON */) /*: Group */ {
-      // $FlowFixMe[unsafe-object-assign]
       const G = Object.assign(new Group(), json)
 
       setFieldsFromMulttable(G)
 
-      // $FlowExpectedError[unsupported-syntax]
       ;[G._subgroups, G._isSolvable] = SubgroupLattice.getSubgroups(G)
       G.relations = DefiningRelations.findRelations(G)
 
       return G
    }
 
+   // reads group from IndexedDB GeneralStore.GroupLibrary
    static fromLocalCopyJSON (json /*: any */) /*: Group */ {
-      // remove CayleyThumbnail, if it exists
-      delete json.CayleyThumbnail
-      delete json.rowHTML
-
-      // convert name, other_names to names array
-      const names = []
-      if ('name' in json) {
-	 if (json.name != null) {
-            names.push(json.name)
-	 }
-	 delete json.name
-      }
-      if ('other_names' in json) {
-	 if (json.other_names != null) {
-            names.push(json.other_names)
-	 }
-	 delete json.other_names
-      }
-      if (json.names != null) {
-	 names.push(...json.names)
-      }
-      json.names = names
-
-      // should have either _XML_generators (from XML) or generators (from JSON), but not both
-      if (json._XML_generators != null) {   // convert _XML_generators to declaredGenerators
-	 json.declaredGenerators = json._XML_generators
-	 delete json._XML_generators
-      } else if (json.generators != null) { // convert generators to declaredGenerators
-	 json.declaredGenerators = json.generators
-	 delete json.generators
-      }
-
-      // $FlowFixMe[unsafe-object-assign]
       const G = Object.assign(new Group(), json)
 
       // fix BitSets, circular reference in subgroups
       json._subgroups.forEach((subgroupJSON, inx) => {
-	 G._subgroups[inx] = Subgroup.parseJSON(subgroupJSON)
-	 G._subgroups[inx].group = G
+         G._subgroups[inx] = Subgroup.parseJSON(subgroupJSON)
+         G._subgroups[inx].group = G
       })
 
       // fix BitSets in
       ;['conjugacyClasses', '_conjugateSubgroupClasses', 'elementPowers', 'elementPrimePowers', 'orderClasses']
-	 .forEach(
+         .forEach(
             (field) => json[field]?.forEach((js,inx) => G[field][inx] = new BitSet().fromJSON(js))
 	 )
 
       return G
    }
+
+   /////////////////////// Assigned values 
+
+   get name () /*: html */ {
+      return this.customName ?? this.names[0]
+   }
+
+   get customName () /*: html */ {
+      return this.custom?.name
+   }
+
+   set customName (customName /*: html */) {
+      if (customName != null && customName.length != 0) {
+         if (this.custom == null) {
+            this.custom = {}
+         }
+         this.custom.name = customName
+      } else if (this.custom != null) {
+         delete this.custom.name
+         if (Object.keys(this.custom) == 0) {
+            delete this.custom
+         }         
+      }
+   }
+
+   get generators () /*: Array<groupElement> */ {
+      return this.declaredGenerators?.[0] || this.subgroups[this.subgroups.length - 1].generators.toArray()
+   }
+
+   get isGenerated () /*: boolean */ {
+      return this.URL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)
+   }
+   
+   get other_names () /*: Array<string> */ {
+      return (this.customName == null) ? this.names.slice(1) : this.names
+   }
+
+   get userNotes () /*: string */ {
+      return this.custom?.notes ?? ''
+   }
+
+   set userNotes (userNotes) {
+      if (this.custom == null) {
+         this.custom = {}
+      }
+      this.custom.notes = userNotes
+   }
+
+   get userRepresentations () /*: Array<Array<html>> */ {
+      return this.custom?.representations ?? []      
+   }
+
+   ////////////////////////// Calculated values
 
    findNonAbelianExample () /*: ?[groupElement, groupElement] */ {
       for (let i = 1; i < this.order; i++) {
@@ -230,22 +248,6 @@ export class Group {
       }
 
       return this._longestHTMLLabel
-   }
-
-   get name () /*: html */ {
-      return this.names[0]
-   }
-
-   get other_names () /*: Array<string> */ {
-      return this.names.slice(1)
-   }
-
-   get isGenerated () /*: boolean */ {
-      return this.URL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)
-   }
-
-   get generators () /*: Array<groupElement> */ {
-      return this.declaredGenerators?.[0] || this.subgroups[this.subgroups.length - 1].generators.toArray()
    }
 
    // calculate subgroups on demand -- slows down initial load too much (still true?)
@@ -492,7 +494,7 @@ export class Group {
          (acc, el, inx) => { acc[el] = inx; return acc; }, new Array(this.order)
       );
       const newMult /*: Array<Array<groupElement>> */ =
-	 subgroupElements.map(_ => new Array(subgroupOrder));
+         subgroupElements.map(_ => new Array(subgroupOrder));
       for (let i = 0; i < subgroupOrder; i++) {
          for (let j = 0; j < subgroupOrder; j++) {
             newMult[i][j] = subgroupElementInverse[

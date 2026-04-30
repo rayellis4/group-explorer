@@ -255,6 +255,7 @@ function scheduleLocalStoreUpdate () {
 // Update all groups in library and from the provided manifest URL list
 async function updateAllGroups (manifestURLs /*: Array<string> */) {
    // replace latest group definitions from server in library
+   await loadLibrary()
    const updateGroup = async (groupURL /*: string */) /*: Promise<void> */ => {
       const localGroup = getGroupByURL(groupURL)
 
@@ -272,13 +273,7 @@ async function updateAllGroups (manifestURLs /*: Array<string> */) {
          freshGroup.URL = groupURL
 
          // preserve user customization
-         if (localGroup != null) {
-            freshGroup.userNotes = localGroup.userNotes
-            freshGroup.representationIndex = localGroup.representationIndex
-            if (localGroup.userRepresentations.length != 0) {
-               freshGroup.userRepresentations = localGroup.userRepresentations
-            }
-         }
+         freshGroup.custom = localGroup?.custom
 
          library[groupURL] = freshGroup
       }
