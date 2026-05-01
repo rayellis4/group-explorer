@@ -158,6 +158,18 @@ function generateGroupFromPresentation (presentation /*: string */) /*: Group */
    // create, decorate group
    const group /*: Group */ = generateGroup(generators, relators, multtable, cosetTable)
 
+   // check to see whether the group is extraordinarily large
+   if (group.order > 200 || group.subgroups.length > 1000) {
+      const warning =
+         `The 'data:,//GE3/generated...' URL generates a group of order ${group.order} with ` +
+         `${group.subgroups.length} subgroups: visualizing a group this large and complex ` +
+         `may take a while.\n` +
+         `Click OK to proceed, Cancel to abort.`
+      if (!window.confirm(warning)) {
+         return null  // or throw exception
+      }
+   }
+
    return group
 }
 
