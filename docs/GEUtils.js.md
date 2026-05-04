@@ -8,8 +8,11 @@ A collection of utility routines used throughout GE3.
  * [isTouchDevice](#istouchdevice) -- determine whether current device supports a touch interface
  * [htmlToContext](#htmltocontext) -- copy characters from HTML to `<canvas>` context
  * [escapeHTML]#escapehtml) -- escape special HTML characters in a string
- * [generateElements](#generateElements) -- create DOM elements from HTML
- * [createActionHandler](#createActionHandler) -- create handler to eval data-action attribute on click
+ * [generateElements](#generateelements) -- create DOM elements from HTML
+ * [createActionHandler](#createactionhandler) -- create handler to eval data-action attribute on click
+ * [createModelProxy](#createmodelproxy) -- create pub-sub proxy for model object
+ * [countBy](#countby) -- returns array of counts of values of indexMap(value)
+ * [gapidIsUnresolved](#gapidisunresolved) -- implement shared definition of unresolved group gapid
  * [version](#version) -- generate GE3 version number from <meta> tag in top-level web page
 
 ```javascript
@@ -23,6 +26,8 @@ export {
    generateElements,
    createActionHandler,
    createModelProxy,
+   countBy,
+   gapidIsUnresolved,
 }
 
 export {version} from './AutoUpgrade.js'
@@ -172,6 +177,15 @@ function createActionHandler (element /*: Element */, actionCallback /*: (string
       }
    })
 }
+/*
+```
+### createModelProxy
+* Creates proxy for model, in which 'set' invokes update notifications
+* DIY notifications via callback to subscriber.update
+* Also handles Map-valued fields: mutations via .set()/.delete()/.clear() trigger notifications
+
+```javascript
+ */
 /*::
 export interface Updatable {
    update(string, any): void,
@@ -188,9 +202,6 @@ type Subscription = {
 }
 type SubscriptionMap = Map<string, Array<Subscription>>
  */
-// Creates proxy for model, in which 'set' invokes update notifications
-// DIY notifications via callback to subscriber.update
-// Also handles Map-valued fields: mutations via .set()/.delete()/.clear() trigger notifications
 function createModelProxy/*:: <T: Object> */ (
    model /*: T */
 ) /*: SubscriptionProxy<T> */ {
@@ -294,4 +305,35 @@ function createModelProxy/*:: <T: Object> */ (
          }
       }
    }
+}
+/*
+```
+### countBy
+Utility function returns an array of the counts of values of indexMap(value)
+For example, `countBy([{v: 4}, {v: 1}, {v: 2}, {v: 0}, {v: 1}], (val) => val.v) == [1,2,1,0,1]`
+```javascript
+*/
+function countBy (valueArray /*: Array<value> */, indexMap /*: (value) => number */ ) /*: Array<number> */ {
+   const countArray = valueArray.reduce((countArray, value) => {
+      const bin = indexMap(value)
+      if (countArray[bin] == null) {
+         countArray[bin] = 0
+      }
+      countArray[bin]++
+      return countArray
+   }, [])
+
+   return [...countArray].map((el) => el ?? 0)
+}
+
+/*
+```
+### gapidIsUnresolved
+Shared definition to determine whether group gapid has been resolved: unresolved gapids end with '??'
+(Unresolved id is used pending communication with GAP server in GroupExplorer, GroupInfo.)
+```javascript
+*/
+function gapidIsUnresolved (gapid /*: string */) /*: boolean */ {
+   const unresolved = gapid.endsWith('??')
+   return unresolved
 }

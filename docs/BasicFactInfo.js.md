@@ -7,6 +7,9 @@ its order and a defining relation.
 
 ```javascript
  */
+import * as GEUtils from './GEUtils.js'
+import * as ShowGAPCode from './ShowGAPCode.js'
+
 export {display}
 
 function display (basicFactsElementId, group) {
@@ -18,6 +21,16 @@ function display (basicFactsElementId, group) {
 }
 
 function getBasicFactsHTML (basicFactsElementId, group) {
+   // update incomplete info
+   if (GEUtils.gapidIsUnresolved(group.gapid)) {
+      window.setTimeout(() => {
+         ShowGAPCode.getGAPInfo(group.URL)
+            .then(() => document.querySelector('#content.all-info')
+               .dispatchEvent(new CustomEvent('representationChange', {}))
+            )
+      }, 0)
+   }
+
    const basicFacts = [
       {name: 'Order', value: group.order},
       {name: 'GAP name', value: group.gapname},

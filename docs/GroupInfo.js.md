@@ -196,7 +196,7 @@ function insertHTML () {
              </details>
           </div>
           <div id="customizations">
-             <details open class="stack-03em">
+             <details class="stack-03em">
                 <summary class="title">Customizations</summary>
              </details>
           </div>

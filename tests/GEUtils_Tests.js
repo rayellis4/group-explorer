@@ -14,10 +14,15 @@ const testsWithResults = [
 // htmlToContext
 ]
 
-describe('GEUtils tests', () => {
+describe('GEUtils tests', function () {
    testsWithResults.forEach(([test, rslt]) => {
       it(`${test} should be ${rslt}`, () => {
          chai.assert.equal(obj2string(eval(test)), rslt)
       })
+   })
+
+   it('GEUtils.countBy([0,1,1,2,4], (el) => el) should be [1,2,1,0,1]', function () {
+      const cb1 = GEUtils.countBy([0,1,1,2,4], (el) => el)
+      expect(cb1).to.deep.equal([1,2,1,0,1])
    })
 })

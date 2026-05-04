@@ -1,5 +1,6 @@
 // @flow
 
+import * as GEUtils from './GEUtils.js'
 import * as GroupTable from './GroupTable.js'
 import * as GroupTableUI from './GroupTableUI.js'
 import * as Heading from './Heading.js'
@@ -93,7 +94,7 @@ function displayLibraries (libraries) {
    if (libraries.includes('generated')) {
       const generatedGroups = allGroups.filter((G) => G.library == 'generated')
       generatedGroups
-         .filter((G) => G.gapid.includes('?'))
+         .filter((G) => GEUtils.gapidIsUnresolved(G.gapid))
          .forEach((G) => window.setTimeout(() => ShowGAPCode.getGAPInfo(G.URL), 0))
       groupsToDisplay.push(...generatedGroups)
    }
