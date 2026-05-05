@@ -273,7 +273,9 @@ async function updateAllGroups (manifestURLs /*: Array<string> */) {
          freshGroup.URL = groupURL
 
          // preserve user customization
-         freshGroup.custom = localGroup?.custom
+         if (localGroup?.custom != null) {
+            Object.assign(freshGroup.custom, localGroup.custom)
+         }
 
          library[groupURL] = freshGroup
       }

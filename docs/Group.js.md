@@ -50,7 +50,6 @@ export class Group {
     * (representationIndex is an integer, not an object reference, so Group can be easily serialized)
     */
    representations /*: Array<Array<html>> */
-   representationIndex /*: number */                 = 0
 
    // Properties from .group file
    names /*: Array<html> */                          = ['Unnamed Group']
@@ -65,6 +64,7 @@ export class Group {
    author /*: string */                              = ''
    cayleyDiagrams /*: Array<XMLCayleyDiagram> */     = []
    symmetryObjects /*: Array<XMLSymmetryObject> */   = []
+   custom /*: {[key: string]: any} */                = {}
 
    // Group properties set elsewhere
    library /*: void | 'fgb' | 'generated' */
@@ -102,20 +102,14 @@ export class Group {
    }
 
    get customName () /*: html */ {
-      return this.custom?.name
+      return this.custom.name
    }
 
    set customName (customName /*: html */) {
       if (customName != null && customName.length != 0) {
-         if (this.custom == null) {
-            this.custom = {}
-         }
          this.custom.name = customName
-      } else if (this.custom != null) {
+      } else {
          delete this.custom.name
-         if (Object.keys(this.custom) == 0) {
-            delete this.custom
-         }
       }
    }
 
@@ -142,15 +136,20 @@ export class Group {
       }
    }
 
+   get representationIndex () /*: number */ {
+      return this.custom.representationIndex ?? 0
+   }
+
+   set representationIndex (representationIndex) {
+      this.custom.representationIndex = representationIndex
+   }
+
    get representationIsUserDefined () /*: boolean */ {
       return this.representationIndex < 0
    }
 
    get userRepresentations () /*: Array<Array<html>> */ {
-      if (this.custom?.representations == null) {
-         if (this.custom == null) {
-            this.custom = {}
-         }
+      if (this.custom.representations == null) {
          this.custom.representations = []
       }
 
@@ -181,13 +180,10 @@ export class Group {
    }
 
    get userNotes () /*: string */ {
-      return this.custom?.notes ?? ''
+      return this.custom.notes ?? ''
    }
 
    set userNotes (userNotes /*: string */) {
-      if (this.custom == null) {
-         this.custom = {}
-      }
       this.custom.notes = userNotes
    }
 

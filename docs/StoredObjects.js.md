@@ -256,24 +256,29 @@ async function migrateGroupsToV2 (ev /*: any */) {
          G.names.push(...G.other_names)
          delete G.other_names
       }
+
+      // add custom field
+      G.custom = {}
       
       // user representations
       if ('userRepresentations' in G) {
          if (Array.isArray(G.userRepresentations) && G.userRepresentations.length > 0) {
-            if (G.custom == null) {
-               G.custom = {}
-            }
             G.custom.representations = G.userRepresentations
          }
          delete G.userRepresentations
       }
 
+      // representationIndex
+      if ('representationIndex' in G) {
+         if (G.representationIndex !== 0) {
+            G.custom.representationIndex = G.representationIndex
+         }
+         delete G.representationIndex            
+      }
+
       // notes
       if ('userNotes' in G) {
          if (G.userNotes != null && G.userNotes.length != 0) {
-            if (G.custom == null) {
-               G.custom = {}
-            }
             G.custom.notes = G.userNotes
          }
          delete G.userNotes

@@ -511,7 +511,6 @@ function generateGroup (
    window.setTimeout(() => ShowGAPCode.getGAPInfo(group.URL), 0)
 
    group.representations = [Array.from({length: group.order}, (_, inx) => '' + inx)]
-   group.representationIndex = 0
    group.cayleyDiagrams = []
    group.symmetryObjects = []
    group.declaredGenerators = []
