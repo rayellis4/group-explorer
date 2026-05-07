@@ -663,9 +663,16 @@ class MorphismEditor extends SheetElementEditor {
       // generate color map of destination elements that are the image of highlighted elements in source
       this.modelElement.source.viewElement.visualizer.model.highlightColors[0].forEach((color, inx) => {
          if (color != null && color != DEFAULT_SPHERE_COLOR) {
-            colorMap.set(fullMapping[inx], color)
+            colorMap.set(fullMapping[inx], new THREE.Color(color))
          }
       })
+
+      // convert colorMap to destination's coniguration
+      const destinationHighlightConfig = this.modelElement.destination.viewElement.visualizer.model.highlightConfiguration
+      const destinationSaturation = destinationHighlightConfig.saturation[0]
+      const destinationLightness = destinationHighlightConfig.lightness[0]
+      colorMap.forEach((color) =>
+         color.set(GEUtils.fromRainbow(color.getHSL({}).h, destinationSaturation, destinationLightness)))
 
       // highlight image in destination
       const destinationHighlights = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]
@@ -692,7 +699,7 @@ class MorphismEditor extends SheetElementEditor {
       this.modelElement.destination.viewElement.visualizer.model.highlightColors[0].forEach((color, dest) => {
          if (color != null && color != DEFAULT_SPHERE_COLOR) {
             if (inverseMapping.has(dest)) {
-               inverseMapping.get(dest).forEach((src) => colorMap.set(src, color))
+               inverseMapping.get(dest).forEach((src) => colorMap.set(src, new THREE.Color(color)))
             } else {
                incompletePreImage = true
             }
@@ -704,10 +711,17 @@ class MorphismEditor extends SheetElementEditor {
          document.getElementById('morphism-subgroup-transform-warning').innerHTML = message
       }
 
+      // convert colorMap to source's configuration
+      const sourceHighlightConfig = this.modelElement.source.viewElement.visualizer.model.highlightConfiguration
+      const sourceSaturation = sourceHighlightConfig.saturation[0]
+      const sourceLightness = sourceHighlightConfig.lightness[0]
+      colorMap.forEach((color) =>
+         color.set(GEUtils.fromRainbow(color.getHSL({}).h, sourceSaturation, sourceLightness)))
+
       // highlight pre-image in source
       const sourceHighlights = this.modelElement.source.viewElement.visualizer.model.highlightColors[0]
       this.modelElement.source.viewElement.visualizer.model.group.elements.forEach((inx) => {
-         sourceHighlights[inx] = colorMap.get(inx) ?? null
+         sourceHighlights[inx] = colorMap.has(inx) ? ('#' + colorMap.get(inx).getHexString()) : null
       })
       this.modelElement.source.viewElement.visualizer.model.$touch('highlightColors')
       this.modelElement.source.viewElement.redraw()
@@ -727,7 +741,7 @@ class RemoteEditor {
       CGElement: './CycleGraph.html',
       CDElement: './CayleyDiagram.html'
    }
-   
+
    static editElement (modelElement) {
       // create listener instance, if needed; holds reference to Model instance
       if (RemoteEditor.#messageHandler == null) {
@@ -740,7 +754,7 @@ class RemoteEditor {
          }
          window.addEventListener('message', RemoteEditor.#messageHandler)
       }
-      
+
       // open visualizer/editor window
       const editPageURL = `${RemoteEditor.#editPageURLs[modelElement.className]}?SheetEditor` +
          (window.location.href.includes('log=debug') ? '&log=debug' : '')  // open in debug if we're in debug
