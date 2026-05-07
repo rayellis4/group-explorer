@@ -409,7 +409,8 @@ export class AbstractDiagramDisplay {
 
         const material = new LineMaterial( {
             linewidth: this.scaledLinewidth,
-            resolution: new THREE.Vector2(this.size.w, this.size.h)
+            resolution: new THREE.Vector2(this.size.w, this.size.h),
+            fog: true
         } );
             
         const new_line = new Line2( geometry, material );
