@@ -10,8 +10,8 @@ import {BitSet} from './BitSet.js';
 export {
    DIRECTION_INDEX,
    AXIS_NAME,
-   ARROW_COLORS,
    layoutCayleyDiagram,
+   nextArrowColor,
    getDefaultStrategies
 }
 /*::
@@ -61,7 +61,6 @@ const DEFAULT_ARC_OFFSET = 0.15
 
 const DIRECTION_INDEX = { X: 0, Y: 1, Z: 2, YZ: 0, XZ: 1, XY: 2 };
 const AXIS_NAME = ['X', 'Y', 'Z'];
-const ARROW_COLORS = ['#5c0e55', '#0b3864', '#552d00', '#004100', '#0d0db0', '#750000']
 
 function layoutCayleyDiagram (
    group /*: Group */,
@@ -219,13 +218,14 @@ function getPOV (chunkTree, generatesFromStrategy) {
 
 function setArrowColors (arrows, passedArrowGenerators) {
    if (passedArrowGenerators == null) {
-      const arrowColors = [...ARROW_COLORS]
       const coloredGeneratorMap = new Map()
+      const colorsUsed = []
       arrows.forEach((arrow) => {
          arrow.color = coloredGeneratorMap.get(arrow.generator)
          if (arrow.color == null) {
-            arrow.color = arrowColors.pop()
+            arrow.color = nextArrowColor(colorsUsed)
             coloredGeneratorMap.set(arrow.generator, arrow.color)
+            colorsUsed.push(arrow.color)
          }
       })
    } else {
@@ -233,6 +233,27 @@ function setArrowColors (arrows, passedArrowGenerators) {
          new Map(passedArrowGenerators.map((arrowGenerator) => [arrowGenerator.generator, arrowGenerator]))
       arrows.forEach((arrow) => arrow.color = arrowGeneratorMap.get(arrow.generator).color)
    }
+}
+
+// colors from Mat Macaulay's slides, Sasha Trubetskoy's list of distinct colors
+const ARROW_COLORS =
+   ['#89b910', '#b79100', '#f58231', '#469990', '#808000', '#007700', '#0d0db0', '#990000']
+function nextArrowColor (colorsUsed = []) {
+   let nextColor
+   if (colorsUsed.length < ARROW_COLORS.length) {
+      const unusedColors = [...ARROW_COLORS]
+      colorsUsed.forEach((color) => {
+         const unusedColorIndex = unusedColors.indexOf(color)
+         if (unusedColorIndex > 0) {
+            unusedColors.splice(unusedColorIndex, 1)
+         }
+      })
+      nextColor = unusedColors.pop()
+   } else {  // run through color paletter, just create a color from a random hue
+      const randomHue = Math.round(Math.random() * 360)
+      nextColor = `hsl(${randomHue}, 55%, 50%)`
+   }
+   return nextColor
 }
 
 function createChunks (group, chunkTree, chunkSubgroupIndex) {
@@ -444,6 +465,7 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
       ]
       thirdPoint = thirdPoints[DIRECTION_INDEX[chunk.strategy.direction]]
 
+      // ToDo: make a choice with Nathan and remove this
       if (localStorage.getItem('POV') == 'GE2') {
          const thirdPoints = [
             new THREE.Vector3(0, 0, -1),
@@ -683,6 +705,7 @@ class RotatedLayoutStrategy extends CurvedLayoutStrategy {
     */
     constructor(generator /*: groupElement */, direction /*: Direction */, nesting_level /*: number */) {
         super(generator, direction, nesting_level);
+        // ToDo: make a choice with Nathan and remove this
         if (localStorage.getItem('POV') == 'GE2') {
             this.positionTransform = GE2_positionTransforms[direction]
         }

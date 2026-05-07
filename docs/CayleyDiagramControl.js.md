@@ -17,8 +17,8 @@ import {BitSet} from './BitSet.js';
 import {
    DIRECTION_INDEX,
    AXIS_NAME,
-   ARROW_COLORS,
    layoutCayleyDiagram,
+   nextArrowColor,
    getDefaultStrategies
 } from './CayleyDiagramGenerator.js'
 import * as Log from './Log.js'
@@ -322,22 +322,11 @@ class ViewModel {
    }
 
    addArrow (element /*: groupElement */) {
-      // find next element in Set(COLORS) - Set(usedColors)
-      const findColor = () => {
-         const availableColors = [...ARROW_COLORS]
-         this.arrowGenerators.forEach((arrowGenerator) => {
-            const colorIndex = availableColors.findIndex((color) => color == arrowGenerator.color)
-            if (colorIndex >= 0) {
-               availableColors.splice(colorIndex, 1)
-            }
-         })
-         const color = availableColors.pop()
-
-         return color
-      }
       this.arrowGenerators = this.arrowGenerators ?? []
+      const usedColors = this.arrowGenerators.map((arrowGenerator) => arrowGenerator.color)
+
       if (!this.arrowGenerators.map((arrowGenerator) => arrowGenerator.generator).includes(element)) {
-         this.arrowGenerators.push({generator: element, color: findColor()})
+         this.arrowGenerators.push({generator: element, color: nextArrowColor(usedColors)})
          this.updateLayout()
       }
    }
