@@ -288,7 +288,26 @@ async function migrateGroupsToV2 (ev /*: any */) {
          delete G.generators
       }
 
-      // clean up stored images
+      // clean out all cached values
+      delete G.conjugacyClasses
+      delete G.elementOrders
+      delete G.elementPowers
+      delete G.elementPrimePowers
+      delete G.elements
+      delete G.inverses
+      delete G.isAbelian
+      delete G.isCyclic
+      delete G.nonAbelianExample
+      delete G.order
+      delete G.orderClasses
+      delete G.relations
+      delete G._isSimple
+      delete G._isSolvable
+      delete G._subgroups
+      delete G._orderClassSizes
+      delete G._subgroupOrders
+      delete G._cosetIndices
+      delete G._indexInParentGroup
       delete G.CayleyThumbnail
       delete G.rowHTML
    })

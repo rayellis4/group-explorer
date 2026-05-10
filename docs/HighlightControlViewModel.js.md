@@ -620,16 +620,13 @@ class Cosets extends PartitioningScheme {
       this.side = side
 
       if (subgroop != null) {
-         viewModel.group.getCosets(subgroop.elements, this.isLeft)
-            .forEach((coset, inx) => {
-               const newCoset = new Coset(viewModel, this, inx, coset)
-               this.partitions.push(newCoset)
-            })
+         const subgroup = viewModel.group.subgroups[subgroop.subgroupIndex]
+         const cosets = (side == 'left') ? subgroup.leftCosets : subgroup.rightCosets
+         cosets.forEach((coset, inx) => {
+            const newCoset = new Coset(viewModel, this, inx, coset)
+            this.partitions.push(newCoset)
+         })
       }
-   }
-
-   get isLeft () /*: boolean */ {
-      return (this.side == 'left')
    }
 
    toJSON () {

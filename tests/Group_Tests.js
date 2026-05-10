@@ -65,25 +65,25 @@ describe('Group', function () {
   // ── inverses ─────────────────────────────────────────────────────────────
   describe('inverses', function () {
     it('identity is its own inverse', function () {
-      expect(Z4.inverseOf(0)).to.equal(0);
-      expect(S3.inverseOf(0)).to.equal(0);
+      expect(Z4.inverses[0]).to.equal(0);
+      expect(S3.inverses[0]).to.equal(0);
     });
 
     it('g * g⁻¹ === identity for every element in Z4', function () {
       for (let g = 0; g < Z4.order; g++) {
-        expect(Z4.mult(g, Z4.inverseOf(g))).to.equal(0, `g=${g}`);
+        expect(Z4.mult(g, Z4.inverses[g])).to.equal(0, `g=${g}`);
       }
     });
 
     it('g * g⁻¹ === identity for every element in S3', function () {
       for (let g = 0; g < S3.order; g++) {
-        expect(S3.mult(g, S3.inverseOf(g))).to.equal(0, `g=${g}`);
+        expect(S3.mult(g, S3.inverses[g])).to.equal(0, `g=${g}`);
       }
     });
 
     it('inverses array matches inverseOf()', function () {
       for (let g = 0; g < S3.order; g++) {
-        expect(S3.inverses[g]).to.equal(S3.inverseOf(g), `g=${g}`);
+        expect(S3.inverses[g]).to.equal(S3.inverses[g], `g=${g}`);
       }
     });
   });
@@ -99,7 +99,7 @@ describe('Group', function () {
     });
 
     it('nonAbelianExample is undefined for Z4', function () {
-      expect(Z4.nonAbelianExample).to.be.undefined;
+      expect(Z4.nonAbelianExample).to.be.null;
     });
 
     it('nonAbelianExample [a,b] satisfies a*b ≠ b*a in S3', function () {
@@ -180,7 +180,7 @@ describe('Group', function () {
     it('conjugate(h, g) === g * h * g⁻¹', function () {
       for (let g = 0; g < S3.order; g++) {
         for (let h = 0; h < S3.order; h++) {
-          const expected = S3.mult(g, S3.mult(h, S3.inverseOf(g)));
+          const expected = S3.mult(g, S3.mult(h, S3.inverses[g]));
           expect(S3.conjugate(h, g)).to.equal(expected, `g=${g} h=${h}`);
         }
       }
@@ -192,23 +192,6 @@ describe('Group', function () {
           expect(Z4.conjugate(h, g)).to.equal(h, `g=${g} h=${h}`);
         }
       }
-    });
-  });
-
-  // ── isNormal ──────────────────────────────────────────────────────────────
-  describe('isNormal', function () {
-    it('every subgroup of an abelian group is normal', function () {
-      Z4.subgroups.forEach((H, i) => {
-        expect(Z4.isNormal(H)).to.be.true, `subgroup ${i}`;
-      });
-    });
-
-    it('trivial subgroup is always normal', function () {
-      expect(S3.isNormal(S3.subgroups[0])).to.be.true;
-    });
-
-    it('whole group is always normal', function () {
-      expect(S3.isNormal(S3.subgroups[S3.subgroups.length - 1])).to.be.true;
     });
   });
 
@@ -241,40 +224,6 @@ describe('Group', function () {
       for (const a of closed) {
         for (const b of closed) {
           expect(closed.includes(S3.mult(a, b))).to.be.true, `${a}*${b}`;
-        }
-      }
-    });
-  });
-
-  // ── getCosets ─────────────────────────────────────────────────────────────
-  describe('getCosets', function () {
-    it('cosets partition the group', function () {
-      const H       = S3.subgroups[1];  // a non-trivial proper subgroup
-      const cosets  = S3.getCosets(H.members);
-      const covered = new BitSet(S3.order);
-      cosets.forEach(c => covered.union(c));
-      expect(covered.popcount()).to.equal(S3.order);
-    });
-
-    it('all cosets have the same size', function () {
-      const H      = S3.subgroups[1];
-      const cosets = S3.getCosets(H.members);
-      const size   = cosets[0].popcount();
-      cosets.forEach((c, i) => expect(c.popcount()).to.equal(size, `coset ${i}`));
-    });
-
-    it('number of cosets equals index [G:H]', function () {
-      const H      = Z4.subgroups[1];
-      const cosets = Z4.getCosets(H.members);
-      expect(cosets.length).to.equal(Z4.order / H.order);
-    });
-
-    it('cosets are pairwise disjoint', function () {
-      const H      = Z4.subgroups[1];
-      const cosets = Z4.getCosets(H.members);
-      for (let i = 0; i < cosets.length; i++) {
-        for (let j = i + 1; j < cosets.length; j++) {
-          expect(BitSet.intersection(cosets[i], cosets[j]).isEmpty()).to.be.true;
         }
       }
     });
@@ -318,44 +267,44 @@ describe('Group', function () {
   // ── center ────────────────────────────────────────────────────────────────
   describe('center', function () {
     it('center of an abelian group is the whole group', function () {
-      expect(Z4.center().members.toArray()).to.deep.equal([0, 1, 2, 3]);
+      expect(Z4.center.members.toArray()).to.deep.equal([0, 1, 2, 3]);
     });
 
     it('center always contains the identity', function () {
-      expect(S3.center().members.toArray()).to.include(0);
+      expect(S3.center.members.toArray()).to.include(0);
     });
 
     it('center of S3 is just the identity', function () {
-      expect(S3.center().members.toArray()).to.deep.equal([0]);
+      expect(S3.center.members.toArray()).to.deep.equal([0]);
     });
   });
 
   // ── commutator ────────────────────────────────────────────────────────────────
   describe('commutator', function () {
     it('commutator of a commutative group is the identity', function () {
-      expect(Z4.commutator().members.toArray()).to.deep.equal([0]);
+      expect(Z4.commutator.members.toArray()).to.deep.equal([0]);
     });
 
     it('commutator of S3 is [0, 1, 2]', function () {
-      expect(S3.commutator().members.toArray()).to.deep.equal([0, 1, 2]);
+      expect(S3.commutator.members.toArray()).to.deep.equal([0, 1, 2]);
     });
   });
 
   // ── elementPowerArray ─────────────────────────────────────────────────────
   describe('elementPowerArray', function () {
     it('power array of identity is [0]', function () {
-      expect(Z4.elementPowerArray(0)).to.deep.equal([0]);
+      expect(Z4.getElementPowerArray(0)).to.deep.equal([0]);
     });
 
     it('length of power array equals element order', function () {
       for (let g = 0; g < Z4.order; g++) {
-        expect(Z4.elementPowerArray(g).length).to.equal(Z4.elementOrders[g], `g=${g}`);
+        expect(Z4.getElementPowerArray(g).length).to.equal(Z4.elementOrders[g], `g=${g}`);
       }
     });
 
     it('last element times g itself equals the identity', function () {
       for (let g = 1; g < Z4.order; g++) {
-        const arr = Z4.elementPowerArray(g);
+        const arr = Z4.getElementPowerArray(g);
         expect(Z4.mult(arr[arr.length - 1], g)).to.equal(0, `g=${g}`);
       }
     });

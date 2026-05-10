@@ -266,12 +266,9 @@ function formatSolvableDecompositionSheet (group, type /*: VisualizerType */) {
         const subgroupElts = entry.embeddingFromPrevious
            ? entry.embeddingFromPrevious.filter( ( value, index, self ) => self.indexOf( value ) === index )
            : [ 0 ];
-        const subgroupBitSet = new BitSet( entry.group.order, subgroupElts );
-        const elementOrder = entry.group.getCosets( subgroupBitSet )
-              .map( coset => coset.toArray() )
-              .reduce( ( list1 /*: Array<groupElement> */, list2 /*: Array<groupElement> */ ) => list1.concat( list2 ), [ ] );
-        Log.debug( elementOrder );
-        const highlight = elementOrder.map( ( elt, index ) => subgroupBitSet.get( index ) ? red : notred );
+        const subgroup = entry.group.getSubgroupByElements(subgroupElts)
+        const elementOrder = subgroup.leftCosets.map((coset) => coset.toArray()).flat(1)
+        const highlight = elementOrder.map( ( _elt, index ) => subgroup.members.get( index ) ? red : notred );
         sheetElementsAsJSON.push( {
             className : type,
             groupURL : ((entry.group /*: any */) /*: {URL?: string} */).URL || '(unknown)',
@@ -300,7 +297,7 @@ function formatSolvableDecompositionSheet (group, type /*: VisualizerType */) {
                 x : L+index*W+index*hgap+bottomShift, y : T+H+vgap,
                 w : W, h : H,
                 highlight_colors :
-                    [quotientByPrevious.elements.map( (elt, idx) => idx ? notred : red ), [], []]
+                    [quotientByPrevious.elements.map( (_elt, idx) => idx ? notred : red ), [], []]
             } );
             const quotientIndex = sheetElementsAsJSON.length - 1;
             // quotient group name

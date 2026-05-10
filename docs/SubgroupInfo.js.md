@@ -87,7 +87,7 @@ function makeSubgroupInfoContent (group, subgroupInfoElementId, cayleyDiagramGen
        <details>
        <summary>
            <span class="title">Subgroups</span>
-           <span class="summary">${group.subgroups.length} (${group.subgroups.filter((H) => group.isNormal(H)).length} normal)</span>
+           <span class="summary">${group.subgroups.length} (${group.subgroups.filter((H) => H.isNormal).length} normal)</span>
        </summary>`,
          ...formatSubgroupInfoHeader(group),
       `<div id="subgroup-list">
@@ -313,9 +313,12 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
 
 function formatSubgroupLattice (group, type, reduced, labelled) {
    labelled ||= (type == 'TextElement')
-   const conjugateSubgroupClasses = group.getConjugateSubgroupClasses()
+   const conjugateSubgroupClasses = group.conjugateSubgroupClasses
    const covering = reduced ? getSubgroupConjugacyClassCovering(group) : getSubgroupCovering(group)
-   const subgroupOrders = getSubgroupOrders(group)
+   const subgroupOrders = group.subgroupOrders
+      .map((count, inx) => (count == 0) ? null : inx)
+      .filter((count) => count != null)
+      .sort((a,b) => b - a)  // reverse sort as numbers
    const tiers = reduced
       ? conjugateSubgroupClasses.map((klass) => subgroupOrders.indexOf(group.subgroups[klass.first()].order))
       : group.subgroups.map((H) => subgroupOrders.indexOf(H.order))
@@ -497,17 +500,6 @@ function captionSize (caption) {
    return scratch.getBoundingClientRect()
 }
 
-function getSubgroupOrders (group) {
-   const subgroupOrders = group.subgroups.reduce((uniqueOrders, H) => {
-      if (!uniqueOrders.includes(H.order)) {
-         uniqueOrders.push(H.order)
-      }
-      return uniqueOrders
-   }, []).reverse()
-
-   return subgroupOrders
-}
-
 function getSubgroupCovering (group) {
    const subgroupCovering = Array(group.subgroups.length)
    // group.subgroups is sorted in increasing subgroup order
@@ -529,7 +521,7 @@ function getSubgroupCovering (group) {
 function getSubgroupConjugacyClassCovering (group) {
    // conjugate subgroup classes are sorted by increasing class order
    const subgroupCovering = getSubgroupCovering(group)
-   const conjugateSubgroupClasses = group.getConjugateSubgroupClasses()
+   const conjugateSubgroupClasses = group.conjugateSubgroupClasses
    const subgroupConjugacyClassCovering = Array(conjugateSubgroupClasses.length)
    for (let inx = 0; inx < conjugateSubgroupClasses.length; inx++) {
       const inxSubgroups = conjugateSubgroupClasses[inx]

@@ -174,7 +174,7 @@ export class SubgroupLattice {
       // 1) find an element that will generate what extension and an existing generator do now
       const generators = subgroup.generators.toArray();
       for (let i = 0; i < generators.length; i++) {
-         const closure = this.group.closure([extension, generators[i]]);
+         const closure = this.#closure([extension, generators[i]]);
          const order_classes = this.group.orderClasses[closure.popcount()];
          if (order_classes !== undefined) {
             const cyclic_generator =
@@ -193,7 +193,7 @@ export class SubgroupLattice {
       for (let i = 0; i < generators.length - 1; i++) {
          const gens = generators.slice();
          gens.splice(i,1);
-         const closure = this.group.closure(gens);
+         const closure = this.#closure(gens);
          if (closure.equals(subgroup.members)) {
             subgroup.generators
                     .clear(generators[i])
@@ -204,5 +204,39 @@ export class SubgroupLattice {
 
       subgroup.generators.set(extension);
       return;
+   }
+
+   // takes bitset or array of generators; return bitset
+   // note that it does not rely on already knowing the group subgroups
+   #closure (generators /*: BitSet | Array<groupElement> */) /*: BitSet */ {
+      const mult = (a /*: groupElement */, b /*: groupElement */) => this.group.multtable[a][b];
+      const gens = Array.isArray(generators) ? [...generators]  : generators.toArray();
+      const rslt = new BitSet(this.group.order).set(0);
+      if (gens.length == 0) {
+         return rslt;
+      }
+      const gensUsed = [((gens.pop() /*: any */) /*: groupElement */)];
+      for (let g = gensUsed[0], s = g; g != 0; g = mult(g, s)) {
+         rslt.set(g);
+      }
+
+      while (gens.length != 0) {
+         gensUsed.push(((gens.pop() /*: any */) /*: groupElement */));
+         const prevRslt = rslt.toArray();  // H_{i-1}
+         const coset_reps = [0];
+         for (const g of coset_reps) {
+            for (const s of gensUsed) {
+               const g_X_s = mult(g, s);
+               if (!rslt.isSet(g_X_s)) {
+                  coset_reps.push(g_X_s);
+                  for (const h of prevRslt) { // H_{i-1} X (g X s)
+                     rslt.set(mult(h, g_X_s));
+                  }
+               }
+            }
+         }
+      }
+
+      return rslt;
    }
 }

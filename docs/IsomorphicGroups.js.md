@@ -29,13 +29,7 @@ import {Subgroup} from './Subgroup.js'
       }
 
       // filter candidates by subgroup structure
-      function subgroupOrders (group /*: Group */) {
-         return group.subgroups.reduce((acc /*: Array<number> */, H) => {
-            acc[H.order] = (acc[H.order] == null) ? 1 : ++acc[H.order]
-            return acc
-         }, []).filter((order) => order != null)
-      }
-      candidates = candidates.filter(H => GEUtils.equals(subgroupOrders(G), subgroupOrders(H)))
+      candidates = candidates.filter(H => GEUtils.equals(G.subgroupOrders, H.subgroupOrders))
       if (testCandidates(candidates)) {
          return candidates[0]
       }
@@ -160,7 +154,7 @@ import {Subgroup} from './Subgroup.js'
    // into G and onto H.  f is stored as an array such that f[i] means f(i),
    // for all i in H'.
    function findEmbedding (G /*: Group */, H /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
-      const [groupH, indexInParent] = G.getSubgroupAsGroup( H )
+      const [groupH, indexInParent] = H.getSubgroupAsGroup()
       let libraryH = find( groupH )
       if ( libraryH == null || libraryH.URL == null ) {
          const presentation = DefiningRelations.makePresentation(groupH)
@@ -184,7 +178,7 @@ import {Subgroup} from './Subgroup.js'
       if ( !N.isNormal )
          throw new Error('IsomorphicGroup.findQuotient error:\n' +
             `called to find quotient of non-normal subgroup of ${G.shortName} (${G.gapid || ''})`)
-      const [groupQ, cosetIndices] = G.getQuotientGroup( N.members )
+      const [groupQ, cosetIndices] = N.getQuotientGroup()
       let libraryQ = find( groupQ )
       if ( libraryQ == null || libraryQ.URL == null ) {
          const presentation = DefiningRelations.makePresentation(groupQ)

@@ -215,14 +215,10 @@ function previewEdit (contentElementId, index) {
 }
 
 function saveEdit (contentElementId, group, index) {
-   const contentElement = document.getElementById(contentElementId)
-   const foo = contentElement.querySelectorAll(`[data-user-representation-index="${index}"] tr`)
-   group.userRepresentations[index] =
-      //      Array.from(contentElement.querySelectorAll(`[data-user-representation-index="${index}"] tr`))
-            Array.from(foo)
-               .map((el) =>
-                  el.children[3].children[0].value)
-   Library.saveGroup(group);
+   group.userRepresentations[index] = Array
+      .from(document.getElementById(contentElementId).querySelectorAll(`[data-user-representation-index="${index}"] tr`))
+      .map((row) => row.children[3].children[0].value)
+   Library.saveGroup(group)
    document.getElementById(contentElementId).innerHTML = makeUserNamesContent(group, contentElementId)
 } 
 

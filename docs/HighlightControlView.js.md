@@ -490,7 +490,7 @@ class DisplayItemView {
          }
 
          if (subgroup.order != 1) {
-            const pSubgroupInfo = subgroup.pSubgroupInfo
+            const pSubgroupInfo = subgroup.getPSubgroupInfo()
             if (pSubgroupInfo != null) {
                if (subgroup.order == subgroup.group.order) {
                   subgroopInfo += `<div>${subgroup.group.name} is a

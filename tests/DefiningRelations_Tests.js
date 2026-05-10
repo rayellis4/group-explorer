@@ -2,7 +2,7 @@
 
 import * as Library from '../js/Library.js'
 import * as DefiningRelations from '../js/DefiningRelations.js'
-import {IsomorphicGroups} from '../js/IsomorphicGroups.js'
+import * as IsomorphicGroups from '../js/IsomorphicGroups.js'
 
 await Library.loadLibrary()
 const testGroups = Array.from(Library

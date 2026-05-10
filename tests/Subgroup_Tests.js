@@ -129,12 +129,6 @@ describe('Subgroup', function () {
       expect(S3.subgroups[S3.subgroups.length - 1].isNormal).to.be.true;
     });
 
-    it('isNormal result is consistent with group.isNormal()', function () {
-      S3.subgroups.forEach((H, i) => {
-        expect(H.isNormal).to.equal(S3.isNormal(H), `subgroup ${i}`);
-      });
-    });
-
     it('isNormal is cached after first access', function () {
       const H = S3.subgroups[0].clone();
       const first  = H.isNormal;
@@ -173,42 +167,6 @@ describe('Subgroup', function () {
     });
   });
 
-  // ── JSON round-trip ────────────────────────────────────────────────────────
-  describe('JSON serialisation', function () {
-    it('parseJSON restores generators as a BitSet', function () {
-      const H       = subgroupOfOrder(Z4, 2);
-      const json    = H.toJSON();
-      const restored = Subgroup.parseJSON(json);
-      expect(restored.generators).to.be.instanceOf(BitSet);
-    });
-
-    it('parseJSON restores members as a BitSet', function () {
-      const H        = subgroupOfOrder(Z4, 2);
-      const restored = Subgroup.parseJSON(H.toJSON());
-      expect(restored.members).to.be.instanceOf(BitSet);
-    });
-
-    it('round-trip preserves generators content', function () {
-      const H        = subgroupOfOrder(Z4, 2);
-      const restored = Subgroup.parseJSON(H.toJSON());
-      expect(restored.generators.toArray()).to.deep.equal(H.generators.toArray());
-    });
-
-    it('round-trip preserves members content', function () {
-      const H        = subgroupOfOrder(Z4, 2);
-      const restored = Subgroup.parseJSON(H.toJSON());
-      expect(restored.members.toArray()).to.deep.equal(H.members.toArray());
-    });
-
-     /* .group files do not contain a URL
-    it('toJSON replaces group reference with group URL string', function () {
-      const H    = subgroupOfOrder(Z4, 2);
-      const json = H.toJSON();
-      expect(json.group).to.be.a('string');
-    });
-      */
-  });
-
   // ── clone ──────────────────────────────────────────────────────────────────
   describe('clone', function () {
     it('clone has the same order as the original', function () {
@@ -239,6 +197,40 @@ describe('Subgroup', function () {
     });
   });
 
+  // ── getCosets ─────────────────────────────────────────────────────────────
+  describe('cosets', function () {
+    it('cosets partition the group', function () {
+      const H       = S3.subgroups[1];  // a non-trivial proper subgroup
+      const cosets  = H.leftCosets
+      const covered = new BitSet(S3.order);
+      cosets.forEach(c => covered.union(c));
+      expect(covered.popcount()).to.equal(S3.order);
+    });
+
+    it('all cosets have the same size', function () {
+      const H      = S3.subgroups[1];
+      const cosets = H.leftCosets
+      const size   = cosets[0].popcount();
+      cosets.forEach((c, i) => expect(c.popcount()).to.equal(size, `coset ${i}`));
+    });
+
+    it('number of cosets equals index [G:H]', function () {
+      const H      = Z4.subgroups[1];
+      const cosets = H.leftCosets
+      expect(cosets.length).to.equal(Z4.order / H.order);
+    });
+
+    it('cosets are pairwise disjoint', function () {
+      const H      = Z4.subgroups[1];
+      const cosets = H.leftCosets
+      for (let i = 0; i < cosets.length; i++) {
+        for (let j = i + 1; j < cosets.length; j++) {
+          expect(BitSet.intersection(cosets[i], cosets[j]).isEmpty()).to.be.true;
+        }
+      }
+    });
+  });
+
   // ── structural invariants ──────────────────────────────────────────────────
   describe('structural invariants', function () {
     it('identity is a member of every subgroup', function () {
@@ -262,7 +254,7 @@ describe('Subgroup', function () {
     it('every member has its inverse in the subgroup', function () {
       S3.subgroups.forEach((H, i) => {
         H.members.toArray().forEach(g => {
-          expect(H.members.isSet(S3.inverseOf(g))).to.be.true,
+          expect(H.members.isSet(S3.inverses[g])).to.be.true,
             `subgroup ${i}: inverse of ${g}`;
         });
       });

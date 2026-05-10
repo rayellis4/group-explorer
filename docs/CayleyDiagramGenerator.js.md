@@ -827,7 +827,7 @@ function generateTree (G /*: Group */, strategies /*: Array<AbstractLayoutStrate
         if (remainingStrategies.length == 0) {
             elementsUsed.add(G.elementPowers[currentStrategy.generator]);
             currentStrategy.elements = elementsUsed.clone();
-            return new Chunk(G.elementPowerArray(currentStrategy.generator).map((el) => createNode(G, el)), currentStrategy)
+            return new Chunk(G.getElementPowerArray(currentStrategy.generator).map((el) => createNode(G, el)), currentStrategy)
         } else {
             const nodeTreeMultiply = (g, chunkTree) => {
                 if (chunkTree.isChunk) {
@@ -840,7 +840,7 @@ function generateTree (G /*: Group */, strategies /*: Array<AbstractLayoutStrate
             }
 
             // Load generators in this order to preferentially generate a <g> X <h> rectangular map
-            const generators = G.elementPowerArray(currentStrategy.generator);
+            const generators = G.getElementPowerArray(currentStrategy.generator);
             generators.push(...remainingStrategies.map( (strategy) => strategy.generator));
 
             const chunkTree = [populateTree(remainingStrategies, elementsUsed)]
