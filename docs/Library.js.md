@@ -234,21 +234,31 @@ async function loadFromPageURL () /*: Promise<Group> */ {
 
 // updates library group definitions and schedules local store update
 function saveGroup (group /*: ?Group */) {
+   let isNewGroup = false
    if (group != null) {
+      isNewGroup = (group.isGenerated && library[group.URL] == null)
       library[group.URL] = group
    }
-   scheduleLocalStoreUpdate()
+   scheduleLocalStoreUpdate(isNewGroup)
 }
 
 // schedule local store group library update
 let savedTimeoutID /*: ?TimeoutID */ = null
-function scheduleLocalStoreUpdate () {
+let sendNewGroupMessage /*: boolean */ = false  // send message to update GroupExplorer page
+function scheduleLocalStoreUpdate (isNewGroup) {
    if (savedTimeoutID != null) {
       window.clearTimeout(savedTimeoutID)
    }
+   sendNewGroupMessage ||= isNewGroup
    savedTimeoutID = window.setTimeout(async () => {
       savedTimeoutID = null
       await StoredObjects.saveGroupLibrary(library)  // wait for store to complete before exiting
+      if (sendNewGroupMessage) {
+         const channel = new BroadcastChannel('GE3-channel')
+         channel.postMessage({source: 'library'})
+         channel.close()
+         sendNewGroupMessage = false
+      }
    })
 }
 

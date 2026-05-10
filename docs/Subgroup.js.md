@@ -3,8 +3,10 @@
  *   subgroup structure -- containing group, and generator, member, bitsets
  */
 import {BitSet} from './BitSet.js';
+import * as DefiningRelations from './DefiningRelations.js'
 import {Group} from './Group.js'
 import * as IsomorphicGroups from './IsomorphicGroups.js'
+import * as Library from './Library.js'
 import * as MathUtils from './MathUtils.js'
 
 /*::
@@ -130,6 +132,74 @@ export class Subgroup {
       return cosets;
    }
 
+   #getLibraryGroup (G) /*: Group */ {
+      let libraryGroup = IsomorphicGroups.find(G)
+      if (libraryGroup == null) {
+         const presentation = DefiningRelations.makePresentation(G)
+         const presentationURL = DefiningRelations.GENERATED_GROUP_PREFIX + '?' + presentation
+         libraryGroup = Library.getGroupByURL(presentationURL)
+      }
+      return libraryGroup
+   }
+
+   // call N = this a normal subgroup and G = this.group,
+   // getQuotientGroup() // returns a pair [Q,q]
+   // such that Q is in the groups library and q is an onto map from G to Q
+   // with kernel K.  q is stored as an array such that q[i] means q(i),
+   // for all i in G.
+   #getQuotientGroup () /*: [Group, Array<groupElement>] */ {
+      const cosets = this.leftCosets
+      const quotientOrder = cosets.length;
+      const cosetReps = cosets.map((coset /*: BitSet */) => coset.first())
+      const elementToCoset = []
+      cosets.forEach((coset, inx) => coset.toArray().forEach((elt) => elementToCoset[elt] = inx))
+
+      const multtable /*: Array<Array<groupElement>> */ =
+         Array.from({length: quotientOrder}, (_, inx) => {
+            return Array.from({length: quotientOrder}, (_, jnx) => {
+               return elementToCoset[this.group.multtable[cosetReps[inx]][cosetReps[jnx]]]
+            })
+         })
+
+      const quotientGroup = Group.fromMulttable(multtable)
+      const libraryGroup = this.#getLibraryGroup(quotientGroup)
+      const isomorphism = IsomorphicGroups.isomorphism(quotientGroup, libraryGroup)
+      if (isomorphism == null) {
+         throw new Error('Subgroup.getQuotientGroup error:\n' +
+            `error finding quotient map in ${this.group.shortName} (${this.group.gapid || ''})`)
+      }
+
+      return [libraryGroup, this.group.elements.map((elt) => isomorphism[elementToCoset[elt]])]
+   }
+
+   // call H = this and G = this.group, getSubgroupAsGroup()  returns a pair [H',f]
+   // such that H' is in the groups library and f is an embedding of H'
+   // into G and onto H.  f is stored as an array such that f[i] means f(i),
+   // for all i in H'.
+   #getSubgroupAsGroup () /*: [Group, Array<groupElement>] */ {
+      const subgroupToParent = this.members.toArray();
+      const parentToSubgroup /*: Array<groupElement> */ = subgroupToParent.reduce(
+         (acc, el, inx) => { acc[el] = inx; return acc; }, new Array(this.group.order)
+      );
+
+      const multtable /*: Array<Array<groupElement>> */ =
+         Array.from({length: this.order}, (_, inx) => {
+            return Array.from({length: this.order}, (_, jnx) => {
+               return parentToSubgroup[this.group.multtable[subgroupToParent[inx]][subgroupToParent[jnx]]]
+            })
+         })
+
+      const subgroupAsGroup = Group.fromMulttable(multtable)
+      const libraryGroup = this.#getLibraryGroup(subgroupAsGroup)
+      const isomorphism = IsomorphicGroups.isomorphism(libraryGroup, subgroupAsGroup)
+      if (isomorphism == null) {
+         throw new Error('Subgroup.getSubgroupAsGroup error:\n' +
+            `error finding subgroup embedding in ${this.group.shortName} (${this.group.gapid || ''})`)
+      }
+
+      return [libraryGroup, isomorphism.map((elt) => subgroupToParent[elt])]
+   }
+
    #setProperty (propertyName, value) {
       Object.defineProperty(this, propertyName, {
          value: value,
@@ -138,33 +208,27 @@ export class Subgroup {
    }
 
    #setIsomorphicGroupAndEmbedding () {
-      const [isomorphicGroup, isomorphicGroupEmbedding] = IsomorphicGroups.findEmbedding(this.group, this)
+      const [isomorphicGroup, isomorphicGroupEmbedding] = this.#getSubgroupAsGroup(this.group, this)
       this.#setProperty('isomorphicGroup', isomorphicGroup)
       this.#setProperty('isomorphicGroupEmbedding', isomorphicGroupEmbedding)
    }
 
    #setQuotientGroupAndMap () {
       const [isomorphicQuotientGroup, isomorphicQuotientMap] = this.isNormal
-         ? IsomorphicGroups.findQuotient(this.group, this)
+         ? this.#getQuotientGroup(this.group, this)
          : [null, null]
       this.#setProperty('isomorphicQuotientGroup', isomorphicQuotientGroup)
       this.#setProperty('isomorphicQuotientMap', isomorphicQuotientMap)
    }
 
    #subgroupIsNormal () /*: boolean */ {
-      if (this.group.isAbelian) {
-         return true
-      }
+      const isNormal = (this.group.isAbelian)
+         ? true
+         : this.group.generators.every((g) =>
+              this.generators.toArray().every((h) =>
+                 this.members.isSet(this.group.conjugate(h, g))))
 
-      for (let g of this.group.generators) {
-         for (let h of this.generators.toArray()) {
-            if (! this.members.isSet(this.group.conjugate(h, g))) {
-               return false;
-            }
-         }
-      }
-
-      return true;
+      return isNormal
    }
 
    ////////////////////////// Public methods
@@ -181,48 +245,5 @@ export class Subgroup {
          }
       }
       return result
-   }
-
-   // assumes subgroup is normal
-   getQuotientGroup () /*: [Group, Array<groupElement>] */ {
-      const cosets = this.leftCosets
-      const quotientOrder = cosets.length;
-      const cosetReps = cosets.map( (coset /*: BitSet */) => ((coset.first() /*: any */) /*: groupElement */) );
-      const elementMap = [];
-      for (let i = 0; i < cosets.length; i++) {
-         for (const j of cosets[i].toArray()) {
-            elementMap[j] = i;
-         }
-      }
-      const newMult /*: Array<Array<groupElement>> */ = cosets.map(_ => Array(quotientOrder));
-      for (let i = 0; i < quotientOrder; i++) {
-         for (let j = 0; j < quotientOrder; j++) {
-            const ii = cosetReps[i],
-                  jj = cosetReps[j];
-            newMult[i][j] = elementMap[this.group.mult(ii, jj)];
-         }
-      }
-      var result = Group.fromMulttable(newMult)
-      return [result, elementMap]
-   }
-
-   // save generators in _loadedGenerators?
-   getSubgroupAsGroup () /*: [Group, Array<groupElement>] */ {
-      const subgroupBitset = this.members;
-      const subgroupElements = subgroupBitset.toArray();
-      const subgroupOrder = subgroupElements.length;
-      const subgroupElementInverse /*: Array<groupElement> */ = subgroupElements.reduce(
-         (acc, el, inx) => { acc[el] = inx; return acc; }, new Array(this.group.order)
-      );
-      const newMult /*: Array<Array<groupElement>> */ =
-         subgroupElements.map(_ => new Array(subgroupOrder));
-      for (let i = 0; i < subgroupOrder; i++) {
-         for (let j = 0; j < subgroupOrder; j++) {
-            newMult[i][j] = subgroupElementInverse[
-               this.group.multtable[subgroupElements[i]][subgroupElements[j]]];
-         }
-      }
-      var result = Group.fromMulttable(newMult)
-      return [result, subgroupElements]
    }
 }

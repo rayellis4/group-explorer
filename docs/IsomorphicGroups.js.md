@@ -5,7 +5,7 @@ import * as DefiningRelations from './DefiningRelations.js'
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js';
 
-export {find, isomorphism, findEmbedding, findQuotient}
+export {find, isomorphism}
 
 /*::
 import {Group} from './Group.js'
@@ -147,49 +147,4 @@ import {Subgroup} from './Subgroup.js'
             yield *matchingGenerators(newReq, newAvail, newSel);
          }
       }
-   }
-
-   // findEmbedding(G,H), with H a subgroup of G, returns a pair [H',f]
-   // such that H' is in the groups library and f is an embedding of H'
-   // into G and onto H.  f is stored as an array such that f[i] means f(i),
-   // for all i in H'.
-   function findEmbedding (G /*: Group */, H /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
-      const [groupH, indexInParent] = H.getSubgroupAsGroup()
-      let libraryH = find( groupH )
-      if ( libraryH == null || libraryH.URL == null ) {
-         const presentation = DefiningRelations.makePresentation(groupH)
-         libraryH = DefiningRelations.generateGroupFromPresentation(presentation)
-         Library.saveGroup(libraryH)
-      }
-      const almostF = isomorphism( libraryH, groupH );
-      if (almostF == null) {
-         throw new Error('IsomorphicGroup.findEmbedding error:\n' +
-            `error finding subgroup embedding in ${G.shortName} (${G.gapid || ''})`)
-      }
-
-      return [ libraryH, almostF.map( elt => indexInParent[elt] ) ]
-   }
-
-   // findQuotient(G,N), with N a normal subgroup of G, returns a pair [Q,q]
-   // such that Q is in the groups library and q is an onto map from G to Q
-   // with kernel K.  q is stored as an array such that q[i] means q(i),
-   // for all i in G.
-   function findQuotient (G /*: Group */, N /*: Subgroup */) /*: [Group, Array<groupElement>] */ {
-      if ( !N.isNormal )
-         throw new Error('IsomorphicGroup.findQuotient error:\n' +
-            `called to find quotient of non-normal subgroup of ${G.shortName} (${G.gapid || ''})`)
-      const [groupQ, cosetIndices] = N.getQuotientGroup()
-      let libraryQ = find( groupQ )
-      if ( libraryQ == null || libraryQ.URL == null ) {
-         const presentation = DefiningRelations.makePresentation(groupQ)
-         libraryQ = DefiningRelations.generateGroupFromPresentation(presentation)
-         Library.saveGroup(libraryQ)
-      }
-      const almostMap = isomorphism( groupQ, libraryQ );
-      if (almostMap == null) {
-         throw new Error('IsomorphicGroup.findQuotient error:\n' +
-            `error finding quotient map in ${G.shortName} (${G.gapid || ''})`)
-      }
-
-      return [ libraryQ, G.elements.map( elt => almostMap[cosetIndices[elt]] ) ]
    }

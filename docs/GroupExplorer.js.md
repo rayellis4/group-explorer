@@ -22,6 +22,15 @@ function load () {
    )
 
    displayLibraries(getDisplayLibrariesFromPreferences())
+
+   // listen for library update message from Library
+   const channel = new BroadcastChannel('GE3-channel')
+   channel.addEventListener('message', async (messageEvent) => {
+      const message = messageEvent.data
+      if (message.source != 'library') return
+      await Library.loadLibrary()
+      displayLibraries(getDisplayLibrariesFromPreferences())
+   })
 }
 
 // get libraries from preferences in localStorage; default to []
@@ -95,7 +104,15 @@ function displayLibraries (libraries) {
       const generatedGroups = allGroups.filter((G) => G.library == 'generated')
       generatedGroups
          .filter((G) => GEUtils.gapidIsUnresolved(G.gapid))
-         .forEach((G) => window.setTimeout(() => ShowGAPCode.getGAPInfo(G.URL), 0))
+         .forEach((G) => window.setTimeout(() => {
+            ShowGAPCode.getGAPInfo(G.URL)
+               .then(() => {
+                  const gapid = document.getElementById('group-table-body').querySelector(`[data-group="${G.URL}"] td div`)
+                  if (gapid != null) {
+                     gapid.textContent = G.gapid
+                  }
+               })
+         }, 0))
       groupsToDisplay.push(...generatedGroups)
    }
    // sort by definition length to minimize re-layout jink
@@ -108,6 +125,7 @@ function displayLibraries (libraries) {
                   : {headerIndex: Array.from(sortedHeader.parentElement.children).indexOf(sortedHeader),
                      sortDirection: sortedHeader.classList.contains('sort-down') ? 'sort-up' : 'sort-down'}
 
+   // populate table 
    const groupTable = document.getElementById('group-table')
    GroupTable.display(groupTable, groupsToDisplay)
    GroupTableUI.addGestures(groupTable)

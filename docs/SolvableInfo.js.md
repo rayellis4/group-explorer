@@ -9,9 +9,7 @@ graph, on a [Sheet](./Sheet.html.md).
 ```javascript
  */
 import {DEFAULT_SPHERE_COLOR} from './AbstractDiagramDisplay.js'
-import {BitSet} from './BitSet.js'
 import * as GEUtils from './GEUtils.js'
-import * as IsomorphicGroups from './IsomorphicGroups.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as SheetModel from './SheetModel.js'
@@ -204,8 +202,10 @@ function getDetailedSolvableDecomposition ( G /*: Group */) /*: ?Array<GroupWith
         if ( H.order == 1 ) continue;
         if ( H.order == G.order ) continue;
         if ( !H.isNormal ) continue;
-        const [ N, e ] = IsomorphicGroups.findEmbedding( G, H );
-        const [ Q, q ] = IsomorphicGroups.findQuotient( G, H );
+        const N = H.isomorphicGroup
+        const e = H.isomorphicGroupEmbedding
+        const Q = H.isomorphicQuotientGroup
+        const q = H.isomorphicQuotientMap
         if ( !Q.isAbelian ) continue;
         const D = getDetailedSolvableDecomposition( N );
         if ( !D ) continue;
