@@ -24,6 +24,24 @@ export {
 
 const CLICK_TIME = 500  // max time for a short click (ms)
 const CLICK_MOVE = 10   // max move for a click (px)
+
+const registeredResets = []
+
+function register (reset) {
+   registeredResets.push(reset)
+}
+
+function claim (myReset) {
+   registeredResets.forEach((reset) => {
+      if (reset !== myReset) {
+         reset()
+      }
+   })
+}
+
+function resetAll () {
+   registeredResets.forEach((reset) => reset())
+}
 /*
 ```
 ### Select
@@ -44,6 +62,9 @@ export type SelectCallback = (event: PointerEvent | MouseEvent) => void;
 function recognizeSelect (element /*: HTMLElement */, callback /*: SelectCallback */) {
    let startEvent /*: ?PointerEvent */ = null
 
+   const reset = () => { startEvent = null }
+   register(reset)
+
    element.addEventListener('pointerdown',
       (event /*: PointerEvent */) => {
          startEvent = (event.isPrimary && event.button === 0) ? event : null
@@ -52,6 +73,7 @@ function recognizeSelect (element /*: HTMLElement */, callback /*: SelectCallbac
    element.addEventListener('click',
       (event /*: MouseEvent */) => {
          if (startEvent != null && isClick(startEvent, event)) {
+            claim(reset)
             callback(event)
          }
          startEvent = null
@@ -88,6 +110,33 @@ function recognizeContextMenu (
    let lastEvent /*: ?PointerEvent */ = null
    let longTapTimerId /*: ?TimeoutID */ = null
 
+   function reset () {
+      startEvent = null
+      lastEvent = null
+      if (longTapTimerId != null) {
+         window.clearTimeout(longTapTimerId)
+         longTapTimerId = null
+      }
+      element.removeEventListener('pointermove', moveHandler)
+   }
+   register(reset)
+
+   function moveHandler (event /*: PointerEvent */) {
+      lastEvent = event
+   }
+
+   function longTapTimer () {
+      if (  startEvent != null
+         && lastEvent != null
+         && longTapTimerId != null
+         && isTrivialMove(startEvent, lastEvent)
+      ) {
+         claim(reset)
+         callback(lastEvent)
+      }
+      reset()
+   }
+
    element.addEventListener('pointerdown',
       (event /*: PointerEvent */) => {
          if (event.isPrimary && (event.pointerType != 'mouse' || event.button === 2)) {
@@ -102,41 +151,16 @@ function recognizeContextMenu (
 
    element.addEventListener('pointerup',
       (event /*: PointerEvent */) => {
-         if (startEvent != null
+         if (  startEvent != null
             && event.isPrimary
             && (  (event.pointerType === 'mouse' && event.button === 2)
                || isLongTap(startEvent, event) )
          ) {
+            claim(reset)
             callback(event)
          }
          reset()
       })
-
-   const longTapTimer =  () => {
-      if (  startEvent != null
-         && lastEvent != null
-         && longTapTimerId != null
-         && isTrivialMove(startEvent, lastEvent)
-      ) {
-         // $FlowFixMe[incompatible-type] -- convince flow that lastEvent is not null
-         callback(lastEvent)
-      }
-      reset()
-   }
-
-   const moveHandler =  (event /*: PointerEvent */) => {
-      lastEvent = event
-   }
-
-   const reset =  () => {
-      startEvent = null
-      lastEvent = null
-      if (longTapTimerId != null) {
-         window.clearTimeout(longTapTimerId)
-         longTapTimerId = null
-      }
-      element.removeEventListener('pointermove', moveHandler)
-   }
 }
 /*
 ```
@@ -179,6 +203,53 @@ function recognizeDragAndDrop (
    let moveContext /*: ?Element */ = null  // immediate containing .modal element, or document body
    let longTapTimerId /*: ?TimeoutID */ = null  // id to cancel longTapTimer
 
+   function reset () {
+      startEvent = null
+      previousEvent = null
+      if (moveContext != null) {
+         moveContext.removeEventListener('pointermove', moveHandler)
+         moveContext = null
+      }
+      if (longTapTimerId != null) {
+         clearTimeout(longTapTimerId)
+         longTapTimerId = null
+      }
+   }
+   register(reset)
+
+   function moveHandler (event /*: PointerEvent */) {
+      if (  startEvent != null
+         && event.isPrimary
+         && event.buttons === (options.rightClick ? 2 : 1)  // default left mouse button
+      ) {
+         if (previousEvent != startEvent || !isClick(startEvent, event)) {  // is this really a move?
+            claim(reset)
+            callback(startEvent, previousEvent, event, false)
+            previousEvent = event
+            if (longTapTimerId != null) {
+               clearTimeout(longTapTimerId)
+               longTapTimerId = null
+            }
+         }
+      } else {
+         reset()
+      }
+   }
+
+   // invokes callback on long tap
+   // (enables client to create drag image, for example)
+   function longTapTimer () {
+      if (startEvent != null) {
+         claim(reset)
+         callback(startEvent, previousEvent, startEvent, false)
+      }
+      longTapTimerId = null
+   }
+
+   function clickStopper (event /*: MouseEvent */) {
+      event.stopPropagation()
+   }
+
    element.addEventListener('pointerdown',
       (event /*: PointerEvent */) => {
          if (  startEvent == null
@@ -215,65 +286,19 @@ function recognizeDragAndDrop (
             )
 
             if (event.isPrimary && event.button === 0) {
-               // $FlowExpectedError[incompatible-type] -- startEvent != null => previousEvent != null
+               claim(reset)
                callback(startEvent, previousEvent, event, true)
             }
          }
          reset()
       })
-
-   const clickStopper = (event /*: MouseEvent */) => event.stopPropagation()
-
-   // invokes callback on long tap
-   // (enables client to create drag image, for example)
-   const longTapTimer = () => {
-      if (startEvent != null) {
-         // $FlowExpectedError[incompatible-type] -- handler only enabled if startEvent, previousEvent != null
-         callback(startEvent, previousEvent, startEvent, false)
-      }
-      longTapTimerId = null
-   }
-
-   const moveHandler =
-      (event /*: PointerEvent */) => {
-         if (  startEvent != null
-            && event.isPrimary
-            && event.buttons === (options.rightClick ? 2 : 1)  // default left mouse button
-         ) {
-            if (previousEvent != startEvent || !isClick(startEvent, event)) {  // is this really a move?
-               // $FlowExpectedError[incompatible-type] -- handler only enabled if startEvent, previousEvent != null
-               callback(startEvent, previousEvent, event, false)
-               previousEvent = event
-               if (longTapTimerId != null) {
-                  clearTimeout(longTapTimerId)
-                  longTapTimerId = null
-               }
-            }
-         } else {
-            reset()
-         }
-      }
-
-   const reset =
-      () => {
-         startEvent = previousEvent = null
-         if (moveContext != null) {
-            moveContext.removeEventListener('pointermove', moveHandler)
-            moveContext = null
-         }
-         if (longTapTimerId != null) {
-            clearTimeout(longTapTimerId)
-            longTapTimerId = null
-         }
-      }
 }
 /*
 ```
-### Pinch
+#### PinchHandler
 
-Execute callback on pinch / spread touch gesture
+Execute callback(start, previous, current, isFinal) on pinch / spread touch gesture
 
-callback(start, previous, current, isFinal)
 ```javascript
  */
 /*::
@@ -281,11 +306,26 @@ export type PinchCallback =
    (startEvent: TouchEvent, previousEvent: TouchEvent, currentEvent: TouchEvent, isFinal: boolean) => void;
 */
 function recognizePinch (element /*: HTMLElement */, callback /*: PinchCallback */) {
-   if (!GEUtils.isTouchDevice()) {
-      return
-   }
    let startEvent /*: ?TouchEvent */ = null
    let previousEvent /*: ?TouchEvent */ = null
+
+   function reset () {
+      startEvent = null
+      previousEvent = null
+      element.removeEventListener('touchmove', touchMoveHandler)
+   }
+   register(reset)
+
+   function touchMoveHandler (event /*: TouchEvent */) {
+      if (event.touches.length == 2) {
+         claim(reset)
+         callback(startEvent, previousEvent, event, false)
+         previousEvent = event
+      } else {
+         reset()
+      }
+   }
+
    element.addEventListener('touchstart',
       (event /*: TouchEvent */) => {
          if (event.touches.length == 2) {
@@ -293,39 +333,22 @@ function recognizePinch (element /*: HTMLElement */, callback /*: PinchCallback 
             previousEvent = event
             element.addEventListener('touchmove', touchMoveHandler)
          } else {
-            startEvent = null
-            previousEvent = null
-            element.removeEventListener('touchmove', touchMoveHandler)
+            reset()
          }
       })
 
    element.addEventListener('touchend',
       (event /*: TouchEvent */) => {
          if (startEvent != null) {
-            // $FlowExpectedError[incompatible-type] -- startEvent != null => previousEvent != null
+            claim(reset)
             callback(startEvent, previousEvent, event, true)
          }
-         startEvent = null
-         previousEvent = null
-         element.removeEventListener('touchmove', touchMoveHandler)
+         reset()
       })
-
-   const touchMoveHandler =
-      (event /*: TouchEvent */) => {
-         if (event.touches.length == 2) {
-            // $FlowExpectedError[incompatible-type] -- handler only enabled if startEvent, prevousEvent != null
-            callback(startEvent, previousEvent, event, false)
-            previousEvent = event
-         } else {
-            startEvent = null
-            previousEvent = null
-            element.removeEventListener('touchmove', touchMoveHandler)
-         }
-      }
 }
 /*
 ```
-### Wheel
+#### WheelHandler
 
 Execute callback(event) on wheel event
 
@@ -333,15 +356,18 @@ Execute callback(event) on wheel event
  */
 /*::
 export type WheelCallback = (event: WheelEvent) => void;
-*/
+ */
 function recognizeWheel (element /*: HTMLElement */, callback /*: WheelCallback */) {
-   element.addEventListener('wheel', (event /*: WheelEvent */) => callback(event))
+   element.addEventListener('wheel', (event /*: WheelEvent */) => {
+      resetAll()
+      callback(event)
+   })
 }
 /*
 ```
 ### Zoom
 
-Merged Zoom gesture, from recognizeWheel and recognizePinch.
+Merged Zoom gesture, with Pinch and Wheel implementations
 
 callback(scaleFactor, isFinal)
 
@@ -350,49 +376,53 @@ callback(scaleFactor, isFinal)
 /*::
 export type ZoomCallback = (scaleFactor: number, isFinal: boolean) => void;
 */
-function recognizeZoom (element /*: HTMLElement */, callback /*: ZoomCallback */) {
+function recognizeZoom (element /*: HTMLElement */,  zoomCallback /*: ZoomCallback */) {
    // context in which we detect drag, scroll, etc. -- generally a .modal containing the element
-   // $FlowExpectedError[incompatible-type]
    const contextElement /*: HTMLElement */ = element.closest('.modal') || document.body
 
    if (GEUtils.isTouchDevice()) {
-      recognizePinch(contextElement,
-         (  _startEvent /*: TouchEvent */,
-            previousEvent /*: TouchEvent */,
-            currentEvent /*: TouchEvent */,
-            isFinal /*: boolean */
-         ) => {
-            const previousTouches = Array.from(previousEvent.touches)
-            const currentTouches =
-               (currentEvent.touches.length === 2)
-                  ? [currentEvent.touches[0], currentEvent.touches[1]]
-                  : (currentEvent.touches.length === 1)
-                     ? [currentEvent.touches[0], currentEvent.changedTouches[0]]
-                     : [currentEvent.changedTouches[0], currentEvent.changedTouches[1]]
-
-            // ensure consistent ordering in touch vectors
-            previousTouches.sort((a /*: Touch */, b /*: Touch */) => a.identifier - b.identifier)
-            currentTouches.sort((a /*: Touch */, b /*: Touch */) => a.identifier - b.identifier)
-
-            const rawScaling = spread(currentTouches) / spread(previousTouches) - 1
-            callback(rawScaling, isFinal)
-         })
+      recognizePinch(contextElement, (_startEvent, previousEvent, currentEvent, isFinal) =>
+         pinchZoomCallback(zoomCallback, previousEvent, currentEvent, isFinal)
+      )
    } else {
-      recognizeWheel(contextElement,
-         (wheelEvent /*: WheelEvent */) => {
-            if (wheelEvent.target.closest('.scrollable') != null) {
-               return
-            }
-
-            const ZOOM_FACTOR = 0.05  // shrink/expand element by 5% per wheel click
-            const rawScaling = Math.sign(wheelEvent.deltaY) * ZOOM_FACTOR
-            callback(rawScaling, true)
-         })
+      recognizeWheel(contextElement, (wheelEvent) => wheelZoomCallback(zoomCallback, wheelEvent))
    }
+}
+
+function pinchZoomCallback (
+   zoomCallback /*: ZoomCallback */,
+   previousEvent /*: TouchEvent */,
+   currentEvent /*: TouchEvent */,
+   isFinal /*: boolean */,
+) {
+   const previousTouches = Array.from(previousEvent.touches)
+   const currentTouches =
+      (currentEvent.touches.length === 2)
+         ? [currentEvent.touches[0], currentEvent.touches[1]]
+         : (currentEvent.touches.length === 1)
+            ? [currentEvent.touches[0], currentEvent.changedTouches[0]]
+            : [currentEvent.changedTouches[0], currentEvent.changedTouches[1]]
+
+   // ensure consistent ordering in touch vectors
+   previousTouches.sort((a /*: Touch */, b /*: Touch */) => a.identifier - b.identifier)
+   currentTouches.sort((a /*: Touch */, b /*: Touch */) => a.identifier - b.identifier)
 
    function spread (touchArray /*: Array<Touch> */) /*: number */ {
       return Math.hypot(touchArray[0].clientX - touchArray[1].clientX, touchArray[0].clientY - touchArray[1].clientY)
    }
+   const rawScaling = spread(currentTouches) / spread(previousTouches) - 1
+
+   zoomCallback(rawScaling, isFinal)
+}
+
+function wheelZoomCallback (zoomCallback, wheelEvent /*: WheelEvent */) {
+   if (wheelEvent.target.closest('.scrollable') != null) {
+      return
+   }
+
+   const ZOOM_FACTOR = 0.05  // shrink/expand element by 5% per wheel click
+   const rawScaling = Math.sign(wheelEvent.deltaY) * ZOOM_FACTOR
+   zoomCallback(rawScaling, true)
 }
 /*
 ```

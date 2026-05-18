@@ -133,43 +133,45 @@ class SheetEventUI {
                 }
              </style>
           </div>`
+
+
+      // listen for changes in ghost style with MutationObserver, sync ghost and model at end of event loop
+      let timerId = null
+      const mutationObserver = new MutationObserver(() => {
+         if (timerId == null) {
+            timerId = window.setTimeout(() => {
+               const ghostRect = document.getElementById('sheet-resize-ghost')?.getBoundingClientRect()
+               if (ghostRect != null) {
+                  const modelRect = modelElement.viewElement.domElement.getBoundingClientRect()
+                  const dx = ghostRect.left - modelRect.left
+                  const dy = ghostRect.top - modelRect.top
+                  const dw = ghostRect.width - modelRect.width
+                  const dh = ghostRect.height - modelRect.height
+
+                  if (dx != 0 || dy != 0) {
+                     modelElement.move(dx, dy)
+                  }
+
+                  if (dw != 0 || dh != 0) {
+                     modelElement.resize(dw, dh)
+                  }
+               }
+               timerId = null
+            }, 0)
+         }
+      })
+
       const sheetResizeModal = makeDialog(resizeHTML,
          {clientX: ghostLeft, clientY: ghostTop},
          (_clickEvent) => {
             sheetResizeModal.remove()
             domElement.style.zIndex = originalZIndex
             this.viewModel.view.viewElements.get(modelElement.id)?.redraw()
+            mutationObserver.disconnect()
          })
 
-      let timerId = null
-      const onMoveResize = (dx, dy, dw, dh, _isDrop) => {
-         if (timerId == null) {
-            timerId = window.setTimeout(() => {
-               if (dx != 0 || dy != 0) {
-                  this.viewModel.move(modelElement.id, dx, dy)
-               }
-
-               if (dw != 0 || dh != 0) {
-                  this.viewModel.resize(modelElement.id, dw, dh)
-               }
-
-               syncGhostWithModel()
-
-               timerId = null
-            }, 0)
-         }
-      }
-
       const ghostElement = document.getElementById('sheet-resize-ghost')
-      recognizeMoveResize(ghostElement, onMoveResize)
-
-      function syncGhostWithModel () {
-         const domElementPosition = domElement.getBoundingClientRect()
-         ghostElement.style.left = `${domElementPosition.left}px`
-         ghostElement.style.top = `${domElementPosition.top}px`
-         ghostElement.style.width = `${domElementPosition.width}px`
-         ghostElement.style.height = `${domElementPosition.height}px`
-      }
+      mutationObserver.observe(ghostElement, {attributeFilter: ['style']})
    }
 
    // Right click / long tap to display context menu on Node or raise editor directly on Link
