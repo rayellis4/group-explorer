@@ -145,6 +145,16 @@ Based on recent code (`js/HighlightControl.js`, `js/CycleGraphModel.js`, etc.):
 - **No jQuery** in production code — use DOM APIs directly; jQuery appears only in the test runner HTML (`tests/UnitTests.html`) via CDN
 - **Flow annotations**: all `.js` files begin with `// @flow` or `/* @flow`; inline type annotations use `/*: type */`; Flow-only blocks use `/*:: ... */`
 
+### Style direction during refactor
+
+The codebase mixes OO and functional styles intentionally, by layer:
+
+- **Model layer** stays OO — class instances with persistent identity, pub/sub, and `toJSON`/`fromJSON` serialization are a natural fit for objects.
+- **View/ViewUI layer** is being migrated toward functional style as modules are touched — closures for event handler state, module-level singletons instead of static classes, transformations expressed as functions rather than methods.
+- **ViewModel** sits in between and may stay closer to OO since it manages stateful subscription handles; individual operations within it can still be written functionally.
+
+Partly-migrated View modules are intentional — not all code has been reached yet. Don't interpret the inconsistency as an invitation to unify in either direction.
+
 ## Logging
 
 `js/Log.js` exports `debug`, `info`, `warn`, `err` functions. Log level is set via URL params `?log=debug` or programmatically via `Log.setLogLevel('debug')`. Default log level is `warn`, default alert level is `err`.
