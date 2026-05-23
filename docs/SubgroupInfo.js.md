@@ -308,10 +308,6 @@ function getHighlightColors (group, count, type) {
 //   reduced (boolean) -- elements organized (and highlighted) by subgroup conjugacy class
 //   labelled (boolean) -- whether visualizer has label (ignored if type == TextElement)
 function showSubgroupLattice (group, type, reduced = false, labelled = false) {
-   SheetModel.createNewSheet(formatSubgroupLattice(group, type, reduced, labelled))
-}
-
-function formatSubgroupLattice (group, type, reduced, labelled) {
    labelled ||= (type == 'TextElement')
    const conjugateSubgroupClasses = group.conjugateSubgroupClasses
    const covering = reduced ? getSubgroupConjugacyClassCovering(group) : getSubgroupCovering(group)
@@ -340,8 +336,8 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
    // Use tiers/chains from layoutNode to construct the sheet
    const hSize = Math.max(...chains) + 1
    const vSize = subgroupOrders.length
-   const horizontalSpace = window.innerWidth
-   const verticalSpace = window.innerHeight - document.querySelector('#heading').offsetHeight - 4 * titleHeight
+   const horizontalSpace = window.innerWidth - SheetModel.sheetPanelWidth()
+   const verticalSpace = window.innerHeight - 4 * titleHeight
 
    const naturalWidth = horizontalSpace / hSize
    const naturalHeight = verticalSpace / vSize
@@ -469,7 +465,7 @@ function formatSubgroupLattice (group, type, reduced, labelled) {
    // add connections
    sheetElementsAsJSON.push(...getConnectionJSON(covering))
 
-   return sheetElementsAsJSON
+   SheetModel.createNewSheet(sheetElementsAsJSON)
 }
 
 function getConnectionJSON (covering) {
@@ -575,21 +571,36 @@ function formatEmbeddingSheet (group, indexOfH, type) {
    const libraryH = H.isomorphicGroup
    const embedding = H.isomorphicGroupEmbedding
 
+   const panelWidth = SheetModel.sheetPanelWidth()
+   const W = Math.min(
+       5 * window.innerHeight / 17,
+       (window.innerWidth - panelWidth) / 2.5  // 2 viz + 1 half-gap = 2.5W
+   )
+   const Hv = W
+   const gap = W / 2
+   const txtH = 0.3 * Hv
+   const totalW = 2 * W + gap
+   const L = (window.innerWidth - panelWidth - totalW) / 2
+   const vizY = (window.innerHeight - Hv) / 2
+   const T = vizY - txtH
+   const titleText = `Embedding ${libraryH.name} as <i>H</i><sub>${indexOfH}</sub> in ${group.name}`
+
    const embeddingSheet = [
       {
          className : 'TextElement',
-         text : `Embedding ${libraryH.name} as <i>H</i><sub>${indexOfH}</sub> in ${group.name}`,
-         x : 60, y : 54, w : 500, h : 40,
-         fontSize : '20pt', alignment : 'center'
+         text : titleText,
+         x : L, y : T, w : totalW, h : txtH,
+         fontSize : SheetModel.fittedFontSize(titleText, totalW),
+         alignment : 'center', opacity : 0
       },
       {
          className : type, groupURL : libraryH.URL,
-         x : 60, y : 104, w : 200, h : 200,
+         x : L, y : vizY, w : W, h : Hv,
          highlight_colors : [Array( libraryH.order ).fill( 'hsl(0, 100%, 80%)' ), [], []]
       },
       {
          className : type, groupURL : group.URL,
-         x : 360, y : 104, w : 200, h : 200,
+         x : L + W + gap, y : vizY, w : W, h : Hv,
          highlight_colors : [Array( group.order ).fill( '' )
             .map( ( _, elt ) => embedding.indexOf( elt ) > -1 ? 'hsl(0, 100%, 80%)' : '' ), [], []]
       },
@@ -609,17 +620,24 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
 }
 
 function formatQuotientSheet (group, indexOfN, type) {
-   const adj = Math.min(window.innerWidth, window.innerHeight)/1100
    const N = group.subgroups[indexOfN]
    const libraryQ = N.isomorphicQuotientGroup
    const quotientMap = N.isomorphicQuotientMap
    const libraryN = N.isomorphicGroup
    const embedding = N.isomorphicGroupEmbedding
-   const L = 10 + 25*adj
-   const T = 4 + 150*adj
-   const W = 120*adj
+
+   const panelWidth = SheetModel.sheetPanelWidth()
+   const W = Math.min(
+       4 * window.innerHeight / 17,
+       (window.innerWidth - panelWidth) / 7  // 5 viz + 4 half-gaps = 7W
+   )
    const H = W
-   const gap = 100*adj
+   const gap = W / 2
+   const totalW = 5 * W + 4 * gap
+   const L = (window.innerWidth - panelWidth - totalW) / 2
+   const vizY = (window.innerHeight - H) / 2
+   const txtH = 0.3 * H
+   const titleText = `Short Exact Sequence showing ${group.name} / ${libraryN.name} ≅ ${libraryQ.name}`
 
    function shrink ( order, x, y, w, h ) {
       const factor = 0.5 * ( 1 + order / group.order ),
@@ -634,11 +652,11 @@ function formatQuotientSheet (group, indexOfN, type) {
          col3 = '',
          col4 = 'hsl(120, 100%, 50%)',
          col5 = 'hsl(120, 90%, 85%)',
-         loc1 = shrink( 1, L, T, W, H ),
-         loc2 = shrink( libraryN.order, L+W+gap, T, W, H ),
-         loc3 = shrink( group.order, L+2*W+2*gap, T, W, H ),
-         loc4 = shrink( libraryQ.order, L+3*W+3*gap, T, W, H ),
-         loc5 = shrink( 1, L+4*W+4*gap, T, W, H ),
+         loc1 = shrink( 1, L, vizY, W, H ),
+         loc2 = shrink( libraryN.order, L+W+gap, vizY, W, H ),
+         loc3 = shrink( group.order, L+2*W+2*gap, vizY, W, H ),
+         loc4 = shrink( libraryQ.order, L+3*W+3*gap, vizY, W, H ),
+         loc5 = shrink( 1, L+4*W+4*gap, vizY, W, H ),
          high1 = Array( 1 ).fill( col1 ),
          high2 = Array( libraryN.order ).fill( col2 ),
          high3 = Array( group.order ).fill( col3 ),
@@ -651,15 +669,15 @@ function formatQuotientSheet (group, indexOfN, type) {
    const quotientSheet = [
       {
          className : 'TextElement',
-         x : L, y : T-100*adj, w : 5*W+4*gap, h : 50,
-         text : `Short Exact Sequence showing ${group.name} / ${libraryN.name} ≅ ${libraryQ.name}`,
-         fontSize : `${20*adj}pt`, alignment : 'center'
+         x : L, y : vizY - 2 * txtH, w : totalW, h : txtH,
+         text : titleText,
+         fontSize : SheetModel.fittedFontSize(titleText, totalW), alignment : 'center', opacity : 0
       },
       {
          className : 'TextElement',
-         x : L, y : T-50, w : W, h : 50,
+         x : L, y : vizY - txtH, w : W, h : txtH,
          text : 'ℤ<sub>1</sub>',
-         alignment : 'center', fontSize : `${12*adj}pt`
+         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '2'
       },
       {
          className : type, groupURL : './groups/Trivial.group',
@@ -668,8 +686,8 @@ function formatQuotientSheet (group, indexOfN, type) {
       },
       {
          className : 'TextElement',
-         x : L+W+gap, y : T-50, w : W, h : 50,
-         text : libraryN.name, alignment : 'center', fontSize : `${12*adj}pt`
+         x : L+W+gap, y : vizY - txtH, w : W, h : txtH,
+         text : libraryN.name, alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '4'
       },
       {
          className : type, groupURL : libraryN.URL,
@@ -678,8 +696,8 @@ function formatQuotientSheet (group, indexOfN, type) {
       },
       {
          className : 'TextElement',
-         x : L+2*W+2*gap, y : T-50, w : W, h : 50,
-         text : group.name, alignment : 'center', fontSize : `${12*adj}pt`
+         x : L+2*W+2*gap, y : vizY - txtH, w : W, h : txtH,
+         text : group.name, alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '6'
       },
       {
          className : type, groupURL : group.URL,
@@ -688,8 +706,8 @@ function formatQuotientSheet (group, indexOfN, type) {
       },
       {
          className : 'TextElement',
-         x : L+3*W+3*gap, y : T-50, w : W, h : 50,
-         text : libraryQ.name, alignment : 'center', fontSize : `${12*adj}pt`
+         x : L+3*W+3*gap, y : vizY - txtH, w : W, h : txtH,
+         text : libraryQ.name, alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '8'
       },
       {
          className : type, groupURL : libraryQ.URL,
@@ -698,9 +716,9 @@ function formatQuotientSheet (group, indexOfN, type) {
       },
       {
          className : 'TextElement',
-         x : L+4*W+4*gap, y : T-50, w : W, h : 50,
+         x : L+4*W+4*gap, y : vizY - txtH, w : W, h : txtH,
          text : 'ℤ<sub>1</sub>',
-         alignment : 'center', fontSize : `${12*adj}pt`
+         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '10'
       },
       {
          className : type, groupURL : './groups/Trivial.group',
@@ -709,21 +727,21 @@ function formatQuotientSheet (group, indexOfN, type) {
       },
       {
          className : 'TextElement',
-         x : L+W+gap, y : T+H+25, w : W, h : 50,
+         x : L+W+gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(id)</i> = <i>Ker(e)</i>',
-         alignment : 'center', fontSize : `${12*adj}pt`
+         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '4'
       },
       {
          className : 'TextElement',
-         x : L+2*W+2*gap, y : T+H+25, w : W, h : 50,
+         x : L+2*W+2*gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(e)</i> = <i>Ker(q)</i>',
-         alignment : 'center', fontSize : `${12*adj}pt`
+         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '6'
       },
       {
          className : 'TextElement',
-         x : L+3*W+3*gap, y : T+H+25, w : W, h : 50,
+         x : L+3*W+3*gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(q)</i> = <i>Ker(z)</i>',
-         alignment : 'center', fontSize : `${12*adj}pt`
+         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '8'
       },
       {
          className : 'MorphismElement', name : 'id',

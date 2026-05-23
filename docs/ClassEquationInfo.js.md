@@ -101,83 +101,88 @@ function addHighlights (group, i /*: number */, array /*: ?Array<null | void | c
 }
 
 function showAsSheet (group, type /*: VisualizerType*/) {
-   SheetModel.createNewSheet(formatAsSheet(group, type))
-}
-
-function formatAsSheet (group, type /*: VisualizerType*/) {
-    const n = group.conjugacyClasses.length;
+    const n = group.conjugacyClasses.length
     // If the group is abelian, it may have an equation like
     // 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1=17, which we want to abbreviate
-    // as 1+1+1+...+1=17, so we have "fake" values of n and i:<
-    const fakeN = ( group.isAbelian && group.order > 5 ) ? 5 : n;
-    // Add title at top of sheet
-    var sheetElementsAsJSON = [
+    // as 1+1+1+...+1=17, so we have "fake" values of n and i:
+    const fakeN = (group.isAbelian && group.order > 5) ? 5 : n
+    const numCols = fakeN + 1
+
+    // responsive layout: center 50% of screen, matching SolvableInfo scale; clear of right panel
+    const opFrac = 0.5   // +/= column width as fraction of visualizer width
+    const W = Math.min(
+        2 * window.innerHeight / 17,
+        0.5 * window.innerWidth / (numCols + (numCols - 1) * opFrac)
+    )
+    const H = W
+    const opW = opFrac * W
+    const fontSize = 0.1 * H
+    const numH = 3 * H / 8
+    const titleH = 0.3 * H
+    const totalW = numCols * W + (numCols - 1) * opW
+    const L = (window.innerWidth - SheetModel.sheetPanelWidth() - totalW) / 2
+    const T = (window.innerHeight - titleH - numH - H) / 2
+
+    const sheetElementsAsJSON = [
         {
             className : 'TextElement',
-            x : 60, y : 54, w : 150*fakeN+100, h : 50,
+            x : L, y : T, w : totalW, h : titleH,
             text : `Class Equation for the Group ${group.name}`,
-            fontSize : '20pt', alignment : 'center'
+            fontSize : SheetModel.fittedFontSize(`Class Equation for the Group ${group.name}`, totalW),
+            alignment : 'center', opacity: 0
         }
-    ];
-    for ( var i = 0 ; i < fakeN ; i++ ) {
-        const fakeIndex = ( fakeN == n ) ? i :
-              ( i < 3 ) ? i : ( i == 3 ) ? -1 : n - 1;
-        if ( fakeIndex == -1 ) { // draw the ellipses
-            sheetElementsAsJSON.push( {
-                className : 'TextElement',
-                x : 60 + 150*i, y : 104, w : 100, h : 50,
-                text : '...', alignment : 'center'
-            } );
-            sheetElementsAsJSON.push( {
-                className : 'TextElement',
-                x : 60 + 150*i, y : 191, w : 100, h : 50,
-                text : '...', alignment : 'center'
-            } );
-        } else { // draw the acutal CC order and visualizer
-            // Add each conjugacy class in two parts:
-            // First, its order as an integer:
-            sheetElementsAsJSON.push( {
-                className : 'TextElement',
-                x : 60 + 150*i, y : 104, w : 100, h : 50,
-                text : `${group.conjugacyClasses[fakeIndex].popcount()}`,
-                alignment : 'center'
-            } );
-            // Second, its visualization as highlighted elements in a visualizer:
-            sheetElementsAsJSON.push( {
-                className : type, groupURL : group.URL,
-                x : 60 + 150*i, y : 154, w : 100, h : 100,
-                highlight_colors : [addHighlights(group, fakeIndex), [], []]
-            } );
-        }
-        // Then add a "+" or an "=" in each of those two rows
-        // (always a "+" until the last step, which should be an "="):
-        sheetElementsAsJSON.push( {
-            className : 'TextElement',
-            x : 160 + 150*i, y : 104, w : 50, h : 50,
-            text : ( fakeIndex < n - 1 ) ? '+' : '=', alignment : 'center'
-        } );
-        sheetElementsAsJSON.push( {
-            className : 'TextElement',
-            x : 160 + 150*i, y : 191, w : 50, h : 50,
-            text : ( fakeIndex < n - 1 ) ? '+' : '=', alignment : 'center'
-        } );
-    }
-    // Add the group order in the top row:
-    sheetElementsAsJSON.push( {
-        className : 'TextElement',
-        x : 60 + 150*fakeN, y : 104, w : 100, h : 50,
-        text : `${group.order}`,
-        alignment : 'center'
-    } );
-    // And the entire group, with rainbow highlighting by conjugacy classes,
-    // in the bottom row:
-    var highlights = null;
-    for ( var i = 0 ; i < n ; i++ ) highlights = addHighlights(group, i, highlights);
-    sheetElementsAsJSON.push( {
-        className : type, groupURL : group.URL,
-        x : 60 + 150*fakeN, y : 154, w : 100, h : 100,
-        highlight_colors : [highlights, [], []]
-    } );
+    ]
 
-    return sheetElementsAsJSON
+    for (let i = 0; i < fakeN; i++) {
+        const fakeIndex = (fakeN == n) ? i
+            : (i < 3) ? i : (i == 3) ? -1 : n - 1
+        const colX = L + i * (W + opW)
+        const opX = colX + W
+        const numY = T + titleH
+        const vizY = T + titleH + numH
+
+        if (fakeIndex == -1) {
+            sheetElementsAsJSON.push(
+                { className: 'TextElement', x: colX, y: numY, w: W, h: numH,
+                  text: '...', fontSize: `${fontSize}px`, alignment: 'center', opacity: 0 },
+                { className: 'TextElement', x: colX, y: vizY, w: W, h: H,
+                  text: '...', fontSize: `${fontSize}px`, alignment: 'center', opacity: 0 }
+            )
+        } else {
+            sheetElementsAsJSON.push(
+                { className: 'TextElement', x: colX, y: numY, w: W, h: numH,
+                  text: `${group.conjugacyClasses[fakeIndex].popcount()}`,
+                  fontSize: `${fontSize}px`, alignment: 'center', opacity: 0 },
+                { className: type, groupURL: group.URL, diagram_name: group.cayleyDiagrams[0]?.name,
+                  x: colX, y: vizY, w: W, h: H,
+                  highlight_colors: [addHighlights(group, fakeIndex), [], []] }
+            )
+        }
+
+        sheetElementsAsJSON.push(
+            { className: 'TextElement', x: opX, y: numY, w: opW, h: numH,
+              text: (fakeIndex < n - 1) ? '+' : '=',
+              fontSize: `${fontSize}px`, alignment: 'center', opacity: 0 },
+            { className: 'TextElement', x: opX, y: vizY, w: opW, h: H,
+              text: (fakeIndex < n - 1) ? '+' : '=',
+              fontSize: `${fontSize}px`, alignment: 'center', opacity: 0 }
+        )
+    }
+
+    // last column: group order and full group visualizer
+    const lastX = L + fakeN * (W + opW)
+    const numY = T + titleH
+    const vizY = T + titleH + numH
+    let highlights = null
+    for (let i = 0; i < n; i++) highlights = addHighlights(group, i, highlights)
+    sheetElementsAsJSON.push(
+        { className: 'TextElement', x: lastX, y: numY, w: W, h: numH,
+          text: `${group.order}`,
+          fontSize: `${fontSize}px`, alignment: 'center', opacity: 0 },
+        { className: type, groupURL: group.URL, diagram_name: group.cayleyDiagrams[0]?.name,
+          x: lastX, y: vizY, w: W, h: H,
+          highlight_colors: [highlights, [], []] }
+    )
+
+    SheetModel.createNewSheet(sheetElementsAsJSON)
 }

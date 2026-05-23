@@ -11,7 +11,26 @@ import * as Log from './Log.js'
 import {Mapping} from './Mapping.js'
 import * as StoredObjects from './StoredObjects.js'
 
-export {SheetModel, createNewSheet, loadPassedSheet}
+export {SheetModel, createNewSheet, loadPassedSheet, sheetPanelWidth, fittedFontSize}
+
+// #sheet-control has font-size: 1.25rem; #control-panel has min-width: 20em => 25rem total
+function sheetPanelWidth () {
+   return 25 * parseFloat(getComputedStyle(document.documentElement).fontSize)
+}
+
+// Measure html at 1em in an offscreen probe and return an em string scaled to fill
+// maxWidth at 90% fill, clamped to [min, max] em.  Will be delegated to GEUtils.measureHTML.
+function fittedFontSize (html, maxWidth, min = 1.5, max = 3) {
+   const probe = document.createElement('span')
+   probe.style.cssText = 'position:fixed; visibility:hidden; white-space:nowrap'
+   probe.innerHTML = html
+   document.body.appendChild(probe)
+   const basePx = parseFloat(getComputedStyle(document.documentElement).fontSize)
+   const width1em = probe.getBoundingClientRect().width
+   document.body.removeChild(probe)
+   const px = Math.min(max * basePx, Math.max(min * basePx, (maxWidth * 0.9) * basePx / width1em))
+   return `${px.toFixed(1)}px`
+}
 /*::
 import {CayleyDiagramView} from './CayleyDiagramView.js'
 import {CycleGraphView} from './CycleGraphView.js'
@@ -304,6 +323,25 @@ class CGElement extends VisualizerElement {
 
 class MTElement extends VisualizerElement {
    className = 'MTElement'
+   organizingSubgroup
+   separation
+
+   toJSON () {
+      return super.toJSON()
+   }
+
+   fromJSON (jsonObject) {
+      super.fromJSON(jsonObject)
+
+      if ('organizing_subgroup' in jsonObject) {
+         this.organizingSubgroup = jsonObject.organizing_subgroup
+      }
+      if ('separation' in jsonObject) {
+         this.separation = jsonObject.separation
+      }
+
+      return this
+   }
 }
 
 // check canConnect on creation?
@@ -452,32 +490,52 @@ class MorphismElement extends LinkElement {
 }
 
 
-// field documentation, checked on debug
+// fields in SheetItemRequest, checked on debug
 const knownFields = [
-   'alignment' /*: 'left' | 'center' | 'right' */,
-   'anchor_name' /*: string */,
-   'arrow_generators' /*: Array<{generator: groupElement, color: color}> */,
+   // Common
    'className' /*: string */,
-   'color' /*: color */,
-   'definingPairs' /*: Array<[groupElement, groupElement]> */,
-   'destination_name' /*: string */,
-// 'diagram_name' /*: string */,
-   'fontColor' /*: color */,
-   'fontSize' /*: string */,
-   'groupURL' /*: string */,
+   'name' /*: html */,
    'h' /*: float */,
-   'hasArrowhead' /*: boolean */,
-   'highlight_colors'/*: Array<Array<?color>> */,
-   'name' /*: string */,
-   'showInjectionSurjection' /*: boolean */,
-   'showManyArrows' /*: boolean */,
-   'source_name' /*: string */,
-   'strategy_parameters' /*: Array<strategy> */,  // from CayleyGenerator
-   'text' /*: html */,
-   'thickness' /*: number */,
    'w' /*: float */,
    'x' /*: float */,
    'y' /*: float */,
+
+   // Text
+   'alignment' /*: 'left' | 'center' | 'right' */,
+   'anchor_name' /*: string */,
+   'fontColor' /*: color */,
+   'fontSize' /*: string */,
+   'opacity' /*: number */,
+   'text' /*: html */,
+
+   // Visualizer
+   'groupURL' /*: string */,
+   'highlight_colors'/*: Array<Array<?color>> */,
+
+   // Multtable
+   'organizing_subgroup' /*: number */,
+
+   // Cycle graph
+
+   // Cayley diagram
+   'diagram_name' /*: string */,
+   'arrow_generators' /*: Array<{generator: groupElement, color: color}> */,
+   'strategy_parameters' /*: Array<strategy> */,  // from CayleyGenerator
+
+   // Link
+   'destination_name' /*: string */,
+   'source_name' /*: string */,
+
+   // Connection
+   'color' /*: color */,
+   'hasArrowhead' /*: boolean */,
+   'thickness' /*: number */,
+
+   // Morphism
+   'arrowColor' /*: 'none' | 'source' | 'destination' */,
+   'definingPairs' /*: Array<[groupElement, groupElement]> */,
+   'showInjectionSurjection' /*: boolean */,
+   'showManyArrows' /*: boolean */,
 ]
 
 // create new sheet, used by GroupInfo routines

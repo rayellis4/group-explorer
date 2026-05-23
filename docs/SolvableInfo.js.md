@@ -16,42 +16,6 @@ import * as SheetModel from './SheetModel.js'
 
 export {display}
 
-/*::
-import {Group} from './Group.js';
-
-import type {
-    JSONType,
-    SheetElementJSON,
-    RectangleElementJSON,
-    TextElementJSON,
-    VisualizerType,
-    VisualizerElementJSON,
-    ConnectingElementJSON,
-    MorphismElementJSON
-} from './SheetModel.js';
-
-type AugmentedGroup = Group & {
-    isIsomorphicTo?: Group,
-    subgroupIndex?: number,
-    subgroupIsomorphicTo?: Group,
-    quotientIsomorphicTo?: Group
-};
-type Decomposition = Array<AugmentedGroup>;
-
-type GroupWithMaybeDetails = {
-    group: Group,
-    embeddingFromPrevious?: Array<number>,
-    quotientByPrevious?: Group,
-    quotientMap?: Array<groupElement>
-};
-type GroupWithDetails = {
-    group: Group,
-    embeddingFromPrevious: Array<number>,
-    quotientByPrevious: Group,
-    quotientMap: Array<groupElement>
-};
-*/
-
 function display (solvableGroupElementId, group) {
    const solvableGroupElement = document.getElementById(solvableGroupElementId)
    solvableGroupElement.innerHTML = makeSolvableGroupContent(group)
@@ -75,14 +39,12 @@ function makeSolvableGroupContent (group) {
    } else if (group.isSolvable) {
       let decomposition /*: Decomposition */ = []
       try {
-         // decomposition = ((findSolvableDecomposition(group) /*: any */) /*: Decomposition */)
-         decomposition = findSolvableDecomposition(group.subgroups[group.subgroups.length - 1])
-
-         const decompositionDisplay = [...decomposition, group.subgroups[0]]
-            .map(H => makeGroupRef(H.isomorphicGroup))
-            .reverse()
+         decomposition = findSolvableDecomposition(group.subgroups.at(-1))
+         const decompositionDisplay = decomposition
+            .map((H) => makeGroupRef(H.isomorphicGroup))
             .join(' ⊲ ')  // 'normal subgroup of' character, #22b2
 
+         decomposition.reverse().pop()
          const decompositionExplained = decomposition.map((H, inx) =>
             (inx == decomposition.length - 1)
                ? `<div>The group ${makeGroupRef(H.isomorphicGroup)} is
@@ -155,173 +117,135 @@ function makeGroupRef(group /*: AugmentedGroup */) /*: string */ {
    }
 }
 
-// given group, returns sequence of subgroups
-function findSolvableDecomposition (subgroup, acc = []) /*: ?Decomposition */ {
-   const subgroupAsGroup = subgroup.isomorphicGroup
-   acc.push(subgroup)
-    if (subgroupAsGroup.isAbelian) {
-        return acc;
-    }
-
-    // search subgroups for normal subgroup with Abelian quotient group
-   const subgroups = subgroupAsGroup
-      .subgroups
-      .filter((H) => H.order != 1 && H.order != subgroupAsGroup.order && H.isNormal)
-   for (const H of subgroups) {
-      if (H.isomorphicQuotientGroup.isAbelian) {
-         return findSolvableDecomposition(H, acc)
-      }
+function findSolvableDecomposition (subgroup) {
+   let decomposition
+   if (subgroup.order == 1) {
+      decomposition = []
+   } else {
+      decomposition = findSolvableDecomposition(subgroup.isomorphicGroup.commutatorSubgroup)
    }
+   decomposition.push(subgroup)
 
-   return undefined;
+   return decomposition
 }
 
-// Works very much like the previous function, but includes lots more
-// details useful for illustrating the whole thing in a sheet.
-// Assumes all groups in library loaded.
-function getDetailedSolvableDecomposition ( G /*: Group */) /*: ?Array<GroupWithMaybeDetails> */ {
-    const Z_1 = Library.getGroupsByOrder(1)[0]
-    if ( !G.isSolvable ) {
-        return null;
-    }
-    if ( G.isAbelian ) {
-        return [
-            {
-                group : Z_1
-            },
-            {
-                group : G,
-                embeddingFromPrevious : [ 0 ],
-                quotientByPrevious : G,
-                quotientMap : G.elements.slice()
-            }
-        ];
-    }
-    for ( var i = 0 ; i < G.subgroups.length ; i++ ) {
-        const H = G.subgroups[i];
-        if ( H.order == 1 ) continue;
-        if ( H.order == G.order ) continue;
-        if ( !H.isNormal ) continue;
-        const N = H.isomorphicGroup
-        const e = H.isomorphicGroupEmbedding
-        const Q = H.isomorphicQuotientGroup
-        const q = H.isomorphicQuotientMap
-        if ( !Q.isAbelian ) continue;
-        const D = getDetailedSolvableDecomposition( N );
-        if ( !D ) continue;
-        D.push( {
-            group : G,
-            embeddingFromPrevious : e,
-            quotientByPrevious : Q,
-            quotientMap : q
-        } );
-        return D;
-    }
-    const shortName = ((G /*: any */) /*: {shortName: ?string} */).shortName || '(unnamed)';
-    Log.warn( `Warning!  The group ${shortName} was not solvable, `
-              + 'but this function checked G.isSolvable at the outset!  '
-              + 'Something is wrong.' );
-    return null;
-}
+function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement' | 'CGElement' | 'MTElement' */) {
+    const D = findSolvableDecomposition(group.subgroups.at(-1))
+    const panelWidth = SheetModel.sheetPanelWidth()
+    const sheetHeight = window.innerHeight - document.getElementById('heading').offsetHeight
+    const sheetWidth = window.innerWidth - panelWidth
+    const n = D.length
+    const W = Math.min(4 * sheetHeight / 17, 2 * sheetWidth / (3 * n - 1))
+    const H = W
+    const txtH = 0.3 * H
+    const hgap = W / 2
+    const vgap = 3 * W / 4
+    const L = (sheetWidth - (n * (W + hgap) - hgap)) / 2
+    const top = (sheetHeight - (5 * txtH + 2 * H + vgap)) / 2  // y of title row
+    const vizY = top + 4 * txtH                                  // y of decomposition viz row
+    const fontSize = 0.1 * H
+    const bottomShift = vgap / 4
 
-function showSolvableDecompositionSheet (group, type /*: VisualizerType */) {
-   SheetModel.createNewSheet(formatSolvableDecompositionSheet(group, type))
-}
-
-function formatSolvableDecompositionSheet (group, type /*: VisualizerType */) {
-    const D = getDetailedSolvableDecomposition( group );
-    if ( !D ) return alert( 'Error computing solvable decomposition' );
-    const n = D.length,
-          L = 35, T = 179, txtH = 50, W = Math.floor( 600 / n ), H = W,
-          hgap = Math.floor( W / 3 ), vgap = 100, bottomShift = vgap/4;
     // create sheet title and description
-    var sheetElementsAsJSON = [
+    const titleText = `Solvable Decomposition for the group ${group.name}`
+    const sheetElementsAsJSON = [
         {
             className : 'TextElement',
-            text : `Solvable Decomposition for the group ${group.name}`,
-            x : L, y : T - 3*txtH, w : n*W + (n-1)*hgap, h : txtH,
-            fontSize : '20pt', alignment : 'center'
+            text : titleText,
+            x : L, y : top, w : n*W + (n-1)*hgap, h : txtH,
+           fontSize : SheetModel.fittedFontSize(titleText, n*W + (n-1)*hgap, 1.0, 3.0),
+           alignment : 'center', opacity: 0
         },
         {
             className : 'TextElement',
             text : 'The top row is the solvable decomposition.  '
                 + 'The bottom row are abelian quotient groups.',
-            x : L, y : T - 2*txtH, w : n*W + (n-1)*hgap, h : txtH,
-            alignment : 'center'
+            x : L, y : top + txtH, w : n*W + (n-1)*hgap, h : 2*txtH,
+           fontSize : '1.25em', alignment : 'center', opacity: 0
         }
-    ];
-    const red = 'hsl(0, 100%, 80%)';
-    const notred = DEFAULT_SPHERE_COLOR;
-    var previous = null, previousIndex = -1;
-    D.map( ( entry, index ) => {
-        // put name of group atop each element in top row, the decomposition
-        const groupName = ((entry.group /*: any */) /*: {name?: string} */).name || '(unnamed)';
-        sheetElementsAsJSON.push( {
+    ]
+    const [s, l] = (type == 'CDElement') ? [0.53, .3] : [1, 0.8]
+    let previousIndex
+    let anchorIndex
+    D.forEach( ( entry, index ) => {
+        const previous = (index == 0) ? null : D[index - 1]
+       // put name of group atop each element in top row, the decomposition
+         sheetElementsAsJSON.push( {
             className : 'TextElement',
-            text : groupName,
-            x : L+index*W+index*hgap, y : T-txtH, w : W, h : txtH,
-            alignment : 'center'
-        } );
-        // put visualizer for each element in top row, the decomposition
-        const subgroupElts = entry.embeddingFromPrevious
-           ? entry.embeddingFromPrevious.filter( ( value, index, self ) => self.indexOf( value ) === index )
-           : [ 0 ];
-        const subgroup = entry.group.getSubgroupByElements(subgroupElts)
-        const elementOrder = subgroup.leftCosets.map((coset) => coset.toArray()).flat(1)
-        const highlight = elementOrder.map( ( _elt, index ) => subgroup.members.get( index ) ? red : notred );
-        sheetElementsAsJSON.push( {
-            className : type,
-            groupURL : ((entry.group /*: any */) /*: {URL?: string} */).URL || '(unknown)',
-            x : L+index*W+index*hgap, y : T, w : W, h : H,
-            highlight_colors : [highlight, [], []]
-        } );
-        // for every visualizer except the trivial group, add the
-        // embedding map, the quotient group, the quotient map, and its name.
-        const thisIndex = sheetElementsAsJSON.length - 1;
-        if ( previous ) {
-            const embeddingFromPrevious = ((entry /*: any */) /*: {embeddingFromPrevious: Array<number>} */).embeddingFromPrevious,
-                  quotientByPrevious = ((entry /*: any */) /*: {quotientByPrevious: Group} */).quotientByPrevious,
-                  quotientMap = ((entry /*: any */) /*: {quotientMap: Array<groupElement>} */).quotientMap;
-            // embedding from previous
-            sheetElementsAsJSON.push( {
-                className : 'MorphismElement',
-                name : `<i>e</i><sub>${index}</sub>`,
-                source_name : `${previousIndex}`, destination_name : `${thisIndex}`,
-                showManyArrows : true,
-                definingPairs : previous.group.generators.map(gen => [gen, embeddingFromPrevious[gen]])
-            } );
-            // quotient group
-            sheetElementsAsJSON.push( {
-                className : type,
-                groupURL : ((quotientByPrevious /*: any */) /*: {URL?: string} */).URL || '(unknown)',
-                x : L+index*W+index*hgap+bottomShift, y : T+H+vgap,
-                w : W, h : H,
-                highlight_colors :
-                    [quotientByPrevious.elements.map( (_elt, idx) => idx ? notred : red ), [], []]
-            } );
-            const quotientIndex = sheetElementsAsJSON.length - 1;
-            // quotient group name
-            sheetElementsAsJSON.push( {
-                className : 'TextElement',
-                text : (((entry.group /*: any */) /*: {name?: string} */).name || '(unnamed)') + ' / '
-                    + (((previous.group /*: any */) /*: {name?: string} */).name || '(unnamed)') + ' ≅ '
-                    + (((entry.quotientByPrevious /*: any */) /*: {name?: string} */).name || '(unnamed)'),
-                x : L+index*W+index*hgap+bottomShift, y : T+2*H+vgap+txtH/2,
-                w : W, h : txtH,
-                alignment : 'center'
-            } );
-            // quotient map
-            sheetElementsAsJSON.push( {
-                className : 'MorphismElement',
-                name : `<i>q</i><sub>${index}</sub>`,
-                source_name : `${thisIndex}`, destination_name : `${quotientIndex}`,
-                showManyArrows : true,
-                definingPairs : entry.group.generators.map(gen => [gen, quotientMap[gen]])
-            } );
-        }
-        previous = entry;
-        previousIndex = thisIndex;
-    } );
+            text : entry.isomorphicGroup.name,
+            x : L+index*W+index*hgap, y : top + 3*txtH, w : W, h : txtH,
+            fontSize : SheetModel.fittedFontSize(entry.isomorphicGroup.name, W, 0.7, 1.25),
+            alignment : 'center', opacity : 0
+         } )
+       if (index == 0) {
+          // first decomposition element: trivial group, has no quotient
+          sheetElementsAsJSON.push( {
+             className : type,
+             groupURL : entry.isomorphicGroup.URL,
+             x : L+index*W+index*hgap, y : vizY, w : W, h : H,
+             highlight_colors : [[GEUtils.fromRainbow(0, s, l)], [], []],
+          } )
+          previousIndex = sheetElementsAsJSON.length - 1
+       } else {
+          // current decomposition element
+          const cosetColors = Array.from({length: previous.index},
+             (_, inx) => GEUtils.fromRainbow(inx / previous.index, s, l))
+          const highlights = []
+          previous.leftCosets.forEach((coset, inx) => {
+             coset.toArray().forEach((el) => highlights[el] = cosetColors[inx])
+          })
+          sheetElementsAsJSON.push( {
+             className : type,
+             groupURL : entry.isomorphicGroup.URL,
+             x : L+index*W+index*hgap, y : vizY, w : W, h : H,
+             highlight_colors : [highlights, [], []], organizing_subgroup: previous.subgroupIndex
+          } )
 
-    return sheetElementsAsJSON
+          // morpism from previous decomposition element
+          sheetElementsAsJSON.push( {
+             className : 'MorphismElement',
+             name : `<span style="font-size:${fontSize}px"><i>e</i><sub>${index}</sub></span>`,
+             source_name : `${previousIndex}`, destination_name : `${sheetElementsAsJSON.length - 1}`,
+             showManyArrows : true, arrowColor: 'source',
+             definingPairs : previous.isomorphicGroup.generators.map(gen => [gen, previous.isomorphicGroupEmbedding[gen]])
+          } )
+          previousIndex = sheetElementsAsJSON.length - 2
+
+          // quotient group
+          const quotientGroupHighlights = []
+          previous.leftCosets.forEach((coset, inx) => {
+             quotientGroupHighlights[previous.isomorphicQuotientMap[coset.first()]] = cosetColors[inx]
+          })
+          sheetElementsAsJSON.push( {
+             className : type,
+             groupURL : previous.isomorphicQuotientGroup.URL,
+             x : L+index*W+index*hgap+bottomShift, y : vizY+H+vgap,
+             w : W, h : H,
+             highlight_colors : [quotientGroupHighlights, [], []]
+          } )
+
+          // quotient map
+          sheetElementsAsJSON.push( {
+             className : 'MorphismElement',
+             name : `<span style='font-size:${fontSize}px'><i>q</i><sub>${index}</sub></span>`,
+             source_name : `${previousIndex}`, destination_name : `${sheetElementsAsJSON.length - 1}`,
+             showManyArrows : true, arrowColor: 'source',
+             definingPairs : entry.isomorphicGroup.generators.map(gen => [gen, previous.isomorphicQuotientMap[gen]])
+          } )
+
+          // quotient group name
+          sheetElementsAsJSON.push( {
+             className : 'TextElement',
+             text : entry.isomorphicGroup.name + ' / '
+                + previous.isomorphicGroup.name + ' ≅ '
+                + previous.isomorphicQuotientGroup.name,
+             x : L+index*W+index*hgap+bottomShift, y : vizY+2*H+vgap,
+             w : W, h : txtH,
+             fontSize : '1.25em', alignment : 'center', opacity: 0,
+             anchor_id : `${sheetElementsAsJSON.length - 2}`
+          } )
+       }
+    })
+
+    SheetModel.createNewSheet(sheetElementsAsJSON)
 }

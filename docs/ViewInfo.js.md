@@ -169,61 +169,72 @@ function getImages (group) {
 }
 
 function showAllVisualizersSheet (group) {
-   SheetModel.createNewSheet(formatAllVisualizersSheet(group))
-}
+    const iso = group.generators.map(g => [g, g])
 
-function formatAllVisualizersSheet (group) {
-    const iso = group.generators.map( g => [ g, g ] )
+    const panelWidth = SheetModel.sheetPanelWidth()
+    const W = Math.min(
+        4 * window.innerHeight / 17,          // generous scale for single-row sheet
+        (window.innerWidth - panelWidth) / 4  // 3 viz + 2 half-gaps = 4W
+    )
+    const H = W
+    const gap = W / 2
+    const txtH = 0.3 * H
+    const totalW = 3 * W + 2 * gap
+    const L = (window.innerWidth - panelWidth - totalW) / 2
+    const vizY = (window.innerHeight - H) / 2   // center visualizers on midline
+    const T = vizY - txtH                        // title floats above
+
     const allVisualizersSheet = [
         {
             className : 'TextElement',
-            x : 60, y : 54, w : 800, h : 50,
+            x : L, y : T, w : totalW, h : txtH,
             text : `All Visualizers for the Group ${group.name}`,
-            fontSize : '20pt', alignment : 'center'
+            fontSize : SheetModel.fittedFontSize(`All Visualizers for the Group ${group.name}`, totalW),
+            alignment : 'center', opacity : 0
         },
         {
             className : 'TextElement',
-            x : 60, y : 104, w : 200, h : 50,
-            text : `Cayley Diagram`, alignment : 'center'
+            x : L, y : vizY + H, w : W, h : txtH,
+            text : 'Cayley Diagram', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '4'
         },
         {
             className : 'TextElement',
-            x : 360, y : 104, w : 200, h : 50,
-            text : `Multiplication Table`, alignment : 'center'
+            x : L + W + gap, y : vizY + H, w : W, h : txtH,
+            text : 'Multiplication Table', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '5'
         },
         {
             className : 'TextElement',
-            x : 660, y : 104, w : 200, h : 50,
-            text : `Cycle Graph`, alignment : 'center'
+            x : L + 2 * (W + gap), y : vizY + H, w : W, h : txtH,
+            text : 'Cycle Graph', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '6'
         },
         {
-            className : `CDElement`,
+            className : 'CDElement',
+            groupURL : group.URL, diagram_name : group.cayleyDiagrams[0]?.name,
+            x : L, y : vizY, w : W, h : H
+        },
+        {
+            className : 'MTElement',
             groupURL : group.URL,
-            x : 60, y : 154, w : 200, h : 200
+            x : L + W + gap, y : vizY, w : W, h : H
         },
         {
-            className : `MTElement`,
+            className : 'CGElement',
             groupURL : group.URL,
-            x : 360, y : 154, w : 200, h : 200
+            x : L + 2 * (W + gap), y : vizY, w : W, h : H
         },
         {
-            className : `CGElement`,
-            groupURL : group.URL,
-            x : 660, y : 154, w : 200, h : 200
-        },
-        {
-            className : `MorphismElement`,
+            className : 'MorphismElement',
             source_name : '4', destination_name : '5',
             name : '<i>id</i><sub>1</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         },
         {
-            className : `MorphismElement`,
+            className : 'MorphismElement',
             source_name : '5', destination_name : '6',
             name : '<i>id</i><sub>2</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         }
     ]
 
-    return allVisualizersSheet
+    SheetModel.createNewSheet(allVisualizersSheet)
 }

@@ -550,6 +550,12 @@ export class MTView extends VisualizerView {
       if (modelElement.highlightColors != null) {
          mtModel.highlightColors = modelElement.highlightColors
       }
+      if (modelElement.organizingSubgroup != null) {
+         mtModel.organizingSubgroup = modelElement.organizingSubgroup
+      }
+      if (modelElement.separation != null) {
+         mtModel.separation = modelElement.separation
+      }
       if (modelElement.visualizer != null) {
          mtModel.fromJSON(modelElement.visualizer)
       }
@@ -574,14 +580,6 @@ export class CDView extends VisualizerView {
 
    constructor (view /*: View */, modelElement /*: SheetModel.CDElement */) {
       super(view, modelElement, document.createElement('canvas'))
-
-      // unless diagram name or strategies are specified, use manually built diagram if available
-      if (  modelElement.diagramControl == null
-         && modelElement.group.cayleyDiagrams?.[0] != null
-      ) {
-         modelElement.diagramControl = {diagram_name: modelElement.group.cayleyDiagrams[0].name}
-      }
-
       this.redraw()
    }
 
