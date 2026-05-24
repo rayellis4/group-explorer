@@ -616,12 +616,6 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
                                              {canvas_width: 2048, canvas_height: 128, label_font: '64pt'};
         const scale = label_scale_factor * radius * 8.197 * 2;  // factor to make label size ~ radius
 
-        const scratchHTML = `<div id="scratch"
-            style="position: fixed; width: ${canvas_width}px; height: ${canvas_height}px; top: ${-2 * canvas_height};
-            font-size: ${parseInt(label_font)}pt"></div>`
-        document.getElementById('graphic').insertAdjacentHTML('beforeend', scratchHTML)
-        const scratch = document.getElementById('scratch')
-
         spheres.forEach( (sphere, inx) => {
             const node = ((sphere.userData /*: any */) /*: SphereUserData */).node;
             if (node.label === undefined || node.label == '') {
@@ -639,8 +633,7 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
             // context.fillStyle = 'rgba(0, 0, 100, 0.5)';
             // context.fillRect(0, 0, canvas.width, canvas.height);
 
-            scratch.innerHTML = node.label
-            GEUtils.htmlToContext(scratch, context, new THREE.Vector2(canvas_width/2, canvas_height/2))
+            GEUtils.htmlToContext(node.label, {fontSize: `${parseInt(label_font)}pt`}, context, new THREE.Vector2(canvas_width/2, canvas_height/2))
 
             const texture = new THREE.Texture(canvas);
             texture.needsUpdate = true;
@@ -655,7 +648,6 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
             label_group.add(label);
         } )
 
-        scratch.remove()
     }
 
     updateLabelRadius (old_sphere_radius /*: float */, new_sphere_radius /*: float */) {

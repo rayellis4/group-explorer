@@ -6,6 +6,7 @@ A collection of utility routines used throughout GE3.
  * [equals](#equals) -- return whether two arrays are equal
  * [fromRainbow](#fromrainbow) -- returns hsl color string
  * [isTouchDevice](#istouchdevice) -- determine whether current device supports a touch interface
+ * [measureHTML](#measurehtml) -- measure dimensions of rendered HTML in an offscreen element
  * [htmlToContext](#htmltocontext) -- copy characters from HTML to `<canvas>` context
  * [escapeHTML]#escapehtml) -- escape special HTML characters in a string
  * [generateElements](#generateelements) -- create DOM elements from HTML
@@ -21,6 +22,7 @@ export {
    equals,
    fromRainbow,
    isTouchDevice,
+   measureHTML,
    htmlToContext,
    escapeHTML,
    generateElements,
@@ -79,23 +81,52 @@ function isTouchDevice () /*: boolean */ {
 }
 /*
 ```
+### measureHTML
+
+Renders `html` into a hidden offscreen element with optional CSS `style` overrides and returns its
+bounding rect. Uses a persistent singleton element to avoid repeated DOM insertion overhead.
+The base style is reset on each call so callers cannot accidentally inherit each other's styles.
+
+```javascript
+*/
+let _scratch = null
+
+function _setupScratch (style /*: {[string]: string} */ = {}) {
+   if (_scratch == null) {
+      _scratch = document.createElement('div')
+      document.body.appendChild(_scratch)
+   }
+   _scratch.style.cssText = 'position:fixed; visibility:hidden; white-space:nowrap; top:0; left:0'
+   Object.assign(_scratch.style, style)
+   return _scratch
+}
+
+function measureHTML (html /*: string */, style /*: {[string]: string} */ = {}) /*: ClientRect */ {
+   const el = _setupScratch(style)
+   el.innerHTML = html
+   return el.getBoundingClientRect()
+}
+/*
+```
 ### htmlToContext
 
-This routine draws characters from an HTML element (usually a `<div>`) onto a
-CanvasRenderingContext2D. It preserves their font characteristics, spacing, etc., and centers the
-result at `center`. This is used to label graphics in the visualizers with the same text that is
-displayed elsewhere. We take particular advantage of the fact all our labels are single line, with
-no browser-generated line breaks (this makes the analysis much simpler).  The font characteristics
--- style, size, weight, color -- are determined from the source's CSS style. The character locations
-are determined using the `getClientRects()` interface on each of the source tree's text nodes.
+Renders `html` into the shared offscreen element (with optional CSS `style` overrides), then copies
+each character into `context` centered at `center`. Labels are assumed to be single-line — no
+browser-generated line breaks — which simplifies the rect analysis. Font characteristics (style,
+size, weight, color) are read from each text node's computed parent style; character positions come
+from `getClientRects()` on each text node.
 
 ```javascript
 */
 function htmlToContext (
-   source /*: HTMLElement */,
+   html /*: string */,
+   style /*: {[string]: string} */,
    context /*: CanvasRenderingContext2D */,
    center /*: interface {x: number, y: number} */
 ) {
+   const source = _setupScratch(style)
+   source.innerHTML = html
+
    // find all text nodes in source element
    const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT)
    const textNodes = []

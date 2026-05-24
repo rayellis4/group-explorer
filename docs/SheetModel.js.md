@@ -6,6 +6,7 @@ The Model parrt of the Sheet Model-View-Control structure
 
 ```javascript
  */
+import * as GEUtils from './GEUtils.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import {Mapping} from './Mapping.js'
@@ -18,16 +19,11 @@ function sheetPanelWidth () {
    return 25 * parseFloat(getComputedStyle(document.documentElement).fontSize)
 }
 
-// Measure html at 1em in an offscreen probe and return an em string scaled to fill
-// maxWidth at 90% fill, clamped to [min, max] em.  Will be delegated to GEUtils.measureHTML.
+// Measure html at body font-size and return a px font-size scaled to fill maxWidth at 90%,
+// clamped to [min, max] em-equivalents.
 function fittedFontSize (html, maxWidth, min = 1.5, max = 3) {
-   const probe = document.createElement('span')
-   probe.style.cssText = 'position:fixed; visibility:hidden; white-space:nowrap'
-   probe.innerHTML = html
-   document.body.appendChild(probe)
    const basePx = parseFloat(getComputedStyle(document.documentElement).fontSize)
-   const width1em = probe.getBoundingClientRect().width
-   document.body.removeChild(probe)
+   const {width: width1em} = GEUtils.measureHTML(html)
    const px = Math.min(max * basePx, Math.max(min * basePx, (maxWidth * 0.9) * basePx / width1em))
    return `${px.toFixed(1)}px`
 }

@@ -485,15 +485,7 @@ function getConnectionJSON (covering) {
 }
 
 function captionSize (caption) {
-   if (document.getElementById('subgroup-info-scratch') == null) {
-      document.body.insertAdjacentHTML('afterbegin',
-         `<div id="subgroup-info-scratch"
-             style="position: absolute; z-index: -1; font-size: 20px; width: auto; height: auto; padding: 0"></div>`)
-   }
-   const scratch = document.getElementById('subgroup-info-scratch')
-   scratch.innerHTML = caption
-
-   return scratch.getBoundingClientRect()
+   return GEUtils.measureHTML(caption, {fontSize: '20px', padding: '0'})
 }
 
 function getSubgroupCovering (group) {

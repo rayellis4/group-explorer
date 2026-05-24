@@ -485,14 +485,6 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.context.textBaseline = 'middle';  // fillText y coordinate is center of upper-case letter
         this.context.font = `${fontSize}px ${window.getComputedStyle(this.canvas).fontFamily}`
 
-        let scratch
-        if (permutationLabels == null) {
-           const canvasParent = (this.canvas.parentElement /*:: as any as HTMLElement */)
-           canvasParent.insertAdjacentHTML('beforeend', `<div id="scratchId" style="position: absolute;
-               textAlign: center; width: auto; height: auto; top: 0; z-index: -1; font-size: ${fontSize}px"></div>`)
-           scratch = (canvasParent.querySelector('#scratchId') /*:: as any as HTMLElement */)
-        }
-
         const labels = []
         for (let inx = minX; inx < maxX; inx++) {
             for (let jnx = minY; jnx < maxY; jnx++) {
@@ -500,14 +492,12 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
                 const y = this.position(jnx);
                 const product = this.group.mult(this.elements[jnx], this.elements[inx]);
                 if (permutationLabels == null) {
-                    this.drawLabel(x, y, product, scale, fontSize, labels, (scratch /*:: as any as HTMLElement */))
+                    this.drawLabel(x, y, product, scale, fontSize, labels)
                 } else {
                     this.drawPermutationLabel(x, y, product, scale, fontSize, permutationLabels);
                 }
             }
         }
-
-        scratch?.remove()
     }
 
     drawBorder (x /*: number */, y /*: number */, scale /*: number */, color /*: color */) {
@@ -546,22 +536,18 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         element /*: number */,
         scale /*: number */,
         fontScale /*: number */,
-        labels /*: Array<> */,
-        scratch /*: HTMLElement */
+        labels /*: Array<> */
     ) {
         const label = this.group.representation[element];
 
         if (labels[element] == null) {
-            scratch.innerHTML = label
-
             const canvasParent = (this.canvas.parentElement /*:: as any as HTMLElement */)
             canvasParent.insertAdjacentHTML('beforeend',
                 `<canvas id="dummy-canvas" width=${scale} height=${scale} style="position: absolute; top: 0;
                 left: 0; width: ${scale}; height: ${scale}; z-index: -1"></canvas>`)
            const canvas = (canvasParent.querySelector('#dummy-canvas') /*:: as any as HTMLCanvasElement */)
 
-            const labelCenter = new THREE.Vector2(scale / 2, scale / 2)
-            GEUtils.htmlToContext(scratch, canvas.getContext('2d'), labelCenter)
+            GEUtils.htmlToContext(label, {fontSize: `${fontScale}px`}, canvas.getContext('2d'), new THREE.Vector2(scale / 2, scale / 2))
 
             labels[element] = canvas
             canvas.remove()

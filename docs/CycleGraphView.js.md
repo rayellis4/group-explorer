@@ -384,10 +384,6 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         this.context.textBaseline = 'middle';
         this.context.fillStyle = '#000';
 
-        document.body.insertAdjacentHTML('beforeend', `<div id="scratchId"
-           style="position: fixed; textAlign: center; z-index: -1; font-size: ${fontScale}px"></div>`)
-        const scratch = (document.getElementById('scratchId') /*:: as any as HTMLElement */)
-
         const pos_vector = new THREE.Vector2();
         this.positions.forEach( ( pos, elt ) => {
             // skip nodes that are off the screen
@@ -398,13 +394,8 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
 
             // write the element name inside it
             const loc = pos_vector.set(pos.x, pos.y).applyMatrix3(this.transform);
-
-            // element has nodes, (stroke) color, font-style, font-weight, font-size, font-family
-            scratch.innerHTML = this.group.representation[elt]
-            GEUtils.htmlToContext(scratch, this.context, loc)
+            GEUtils.htmlToContext(this.group.representation[elt], {fontSize: `${fontScale}px`}, this.context, loc)
         } );
-
-        scratch.remove()
     }
 
     // interface for zoom-to-fit GUI command
