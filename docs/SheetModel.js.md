@@ -85,6 +85,19 @@ class SheetModel {
       jsonObjects.forEach((jsonObject) => {
          this.addObjectAsElement(jsonObject, jsonObject.className)
       })
+
+      // snap all anchored elements to their anchor's bottom edge
+      // done after all elements are loaded so anchor order in JSON doesn't matter
+      this.sheetElements.forEach((el) => {
+         if (el.anchor_id != null) {
+            const anchor = this.sheetElements.get(el.anchor_id)
+            if (anchor != null) {
+               el.x = anchor.x
+               el.y = anchor.y + anchor.h
+               el.w = anchor.w
+            }
+         }
+      })
    }
 
    addObjectAsElement (plainObject, className) {
