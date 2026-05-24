@@ -105,7 +105,7 @@ function showAsSheet (group, type /*: VisualizerType*/) {
     // If the group is abelian, it may have an equation like
     // 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1=17, which we want to abbreviate
     // as 1+1+1+...+1=17, so we have "fake" values of n and i:
-    const fakeN = (group.isAbelian && group.order > 5) ? 5 : n
+    const fakeN = (n > 6) ? 5 : n
     const numCols = fakeN + 1
 
     // responsive layout: center 50% of screen, matching SolvableInfo scale; clear of right panel

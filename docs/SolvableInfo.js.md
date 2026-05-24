@@ -165,10 +165,10 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
         }
     ]
     const [s, l] = (type == 'CDElement') ? [0.53, .3] : [1, 0.8]
-    let previousIndex
-    let anchorIndex
+    let previousVizName
     D.forEach( ( entry, index ) => {
         const previous = (index == 0) ? null : D[index - 1]
+        const vizName = `viz-${index}`
        // put name of group atop each element in top row, the decomposition
          sheetElementsAsJSON.push( {
             className : 'TextElement',
@@ -178,14 +178,13 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
             alignment : 'center', opacity : 0
          } )
        if (index == 0) {
-          // first decomposition element: trivial group, has no quotient
+          // trivial group: shrink to W/3 and center in column
           sheetElementsAsJSON.push( {
-             className : type,
+             className : type, name : vizName,
              groupURL : entry.isomorphicGroup.URL,
-             x : L+index*W+index*hgap, y : vizY, w : W, h : H,
+             x : L + W/4, y : vizY + H/4, w : W/2, h : H/2,
              highlight_colors : [[GEUtils.fromRainbow(0, s, l)], [], []],
           } )
-          previousIndex = sheetElementsAsJSON.length - 1
        } else {
           // current decomposition element
           const cosetColors = Array.from({length: previous.index},
@@ -195,29 +194,30 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
              coset.toArray().forEach((el) => highlights[el] = cosetColors[inx])
           })
           sheetElementsAsJSON.push( {
-             className : type,
+             className : type, name : vizName,
              groupURL : entry.isomorphicGroup.URL,
              x : L+index*W+index*hgap, y : vizY, w : W, h : H,
              highlight_colors : [highlights, [], []], organizing_subgroup: previous.subgroupIndex
           } )
 
-          // morpism from previous decomposition element
+          // morphism from previous decomposition element
           sheetElementsAsJSON.push( {
              className : 'MorphismElement',
-             name : `<span style="font-size:${fontSize}px"><i>e</i><sub>${index}</sub></span>`,
-             source_name : `${previousIndex}`, destination_name : `${sheetElementsAsJSON.length - 1}`,
+             name : `<i>e</i><sub>${index}</sub>`,
+             labelFontSize : `${fontSize}px`,
+             source_name : previousVizName, destination_name : vizName,
              showManyArrows : true, arrowColor: 'source',
              definingPairs : previous.isomorphicGroup.generators.map(gen => [gen, previous.isomorphicGroupEmbedding[gen]])
           } )
-          previousIndex = sheetElementsAsJSON.length - 2
 
           // quotient group
+          const qVizName = `q-viz-${index}`
           const quotientGroupHighlights = []
           previous.leftCosets.forEach((coset, inx) => {
              quotientGroupHighlights[previous.isomorphicQuotientMap[coset.first()]] = cosetColors[inx]
           })
           sheetElementsAsJSON.push( {
-             className : type,
+             className : type, name : qVizName,
              groupURL : previous.isomorphicQuotientGroup.URL,
              x : L+index*W+index*hgap+bottomShift, y : vizY+H+vgap,
              w : W, h : H,
@@ -227,8 +227,9 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
           // quotient map
           sheetElementsAsJSON.push( {
              className : 'MorphismElement',
-             name : `<span style='font-size:${fontSize}px'><i>q</i><sub>${index}</sub></span>`,
-             source_name : `${previousIndex}`, destination_name : `${sheetElementsAsJSON.length - 1}`,
+             name : `<i>q</i><sub>${index}</sub>`,
+             labelFontSize : `${fontSize}px`,
+             source_name : vizName, destination_name : qVizName,
              showManyArrows : true, arrowColor: 'source',
              definingPairs : entry.isomorphicGroup.generators.map(gen => [gen, previous.isomorphicQuotientMap[gen]])
           } )
@@ -242,9 +243,10 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
              x : L+index*W+index*hgap+bottomShift, y : vizY+2*H+vgap,
              w : W, h : txtH,
              fontSize : '1.25em', alignment : 'center', opacity: 0,
-             anchor_id : `${sheetElementsAsJSON.length - 2}`
+             anchor_name : qVizName
           } )
        }
+       previousVizName = vizName
     })
 
     SheetModel.createNewSheet(sheetElementsAsJSON)

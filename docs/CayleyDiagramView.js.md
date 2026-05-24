@@ -614,6 +614,7 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
               (radius >= big_node_limit)   ? {canvas_width: 4096, canvas_height: 256, label_font: '120pt'} :
               (radius <= small_node_limit) ? {canvas_width: 1024, canvas_height: 64,  label_font: '32pt'} :
                                              {canvas_width: 2048, canvas_height: 128, label_font: '64pt'};
+        const style = {width: `${canvas_width}px`, height: `${canvas_height}px`, fontSize: `${parseInt(label_font)}pt`}
         const scale = label_scale_factor * radius * 8.197 * 2;  // factor to make label size ~ radius
 
         spheres.forEach( (sphere, inx) => {
@@ -633,7 +634,7 @@ class CayleyDiagramView extends AbstractDiagramDisplay {
             // context.fillStyle = 'rgba(0, 0, 100, 0.5)';
             // context.fillRect(0, 0, canvas.width, canvas.height);
 
-            GEUtils.htmlToContext(node.label, {fontSize: `${parseInt(label_font)}pt`}, context, new THREE.Vector2(canvas_width/2, canvas_height/2))
+            GEUtils.htmlToContext(node.label, style, context, new THREE.Vector2(canvas_width/2, canvas_height/2))
 
             const texture = new THREE.Texture(canvas);
             texture.needsUpdate = true;

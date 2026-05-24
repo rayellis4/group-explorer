@@ -193,44 +193,44 @@ function showAllVisualizersSheet (group) {
             alignment : 'center', opacity : 0
         },
         {
-            className : 'TextElement',
-            x : L, y : vizY + H, w : W, h : txtH,
-            text : 'Cayley Diagram', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '4'
-        },
-        {
-            className : 'TextElement',
-            x : L + W + gap, y : vizY + H, w : W, h : txtH,
-            text : 'Multiplication Table', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '5'
-        },
-        {
-            className : 'TextElement',
-            x : L + 2 * (W + gap), y : vizY + H, w : W, h : txtH,
-            text : 'Cycle Graph', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '6'
-        },
-        {
-            className : 'CDElement',
+            className : 'CDElement', name : 'cd',
             groupURL : group.URL, diagram_name : group.cayleyDiagrams[0]?.name,
             x : L, y : vizY, w : W, h : H
         },
         {
-            className : 'MTElement',
+            className : 'MTElement', name : 'mt',
             groupURL : group.URL,
             x : L + W + gap, y : vizY, w : W, h : H
         },
         {
-            className : 'CGElement',
+            className : 'CGElement', name : 'cg',
             groupURL : group.URL,
             x : L + 2 * (W + gap), y : vizY, w : W, h : H
         },
         {
+            className : 'TextElement',
+            x : L, y : vizY + H, w : W, h : txtH,
+            text : 'Cayley Diagram', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'cd'
+        },
+        {
+            className : 'TextElement',
+            x : L + W + gap, y : vizY + H, w : W, h : txtH,
+            text : 'Multiplication Table', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'mt'
+        },
+        {
+            className : 'TextElement',
+            x : L + 2 * (W + gap), y : vizY + H, w : W, h : txtH,
+            text : 'Cycle Graph', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'cg'
+        },
+        {
             className : 'MorphismElement',
-            source_name : '4', destination_name : '5',
+            source_name : 'cd', destination_name : 'mt',
             name : '<i>id</i><sub>1</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         },
         {
             className : 'MorphismElement',
-            source_name : '5', destination_name : '6',
+            source_name : 'mt', destination_name : 'cg',
             name : '<i>id</i><sub>2</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         }

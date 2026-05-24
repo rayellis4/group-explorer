@@ -82,21 +82,43 @@ class SheetModel {
 
       this.sheetElements.clear()
 
-      jsonObjects.forEach((jsonObject) => {
-         this.addObjectAsElement(jsonObject, jsonObject.className)
+      // pre-assign IDs so anchor_id references can be resolved before elements are created
+      let tempNextId = this.nextId
+      const withIds = jsonObjects.map((obj) => {
+         if (obj.id != null) {
+            const n = parseInt(obj.id)
+            if (!isNaN(n) && n >= tempNextId) tempNextId = n + 1
+            return obj
+         }
+         return {...obj, id: (tempNextId++).toString()}
       })
 
-      // snap all anchored elements to their anchor's bottom edge
-      // done after all elements are loaded so anchor order in JSON doesn't matter
-      this.sheetElements.forEach((el) => {
-         if (el.anchor_id != null) {
-            const anchor = this.sheetElements.get(el.anchor_id)
-            if (anchor != null) {
-               el.x = anchor.x
-               el.y = anchor.y + anchor.h
-               el.w = anchor.w
-            }
+      // topological sort so each anchor is always processed before its captions
+      const idMap = new Map(withIds.map((obj) => [obj.id.toString(), obj]))
+      const nameMap = new Map(withIds.filter((obj) => obj.name != null).map((obj) => [obj.name, obj]))
+      const sorted = []
+      const state = new Map()
+
+      const visit = (obj) => {
+         const id = obj.id.toString()
+         if (state.get(id) === 'd') return
+         if (state.get(id) === 'v') { Log.warn(`SheetModel.fromJSON: circular anchor reference at id ${id}`); return }
+         state.set(id, 'v')
+         if (obj.anchor_id != null) {
+            const anchor = idMap.get(obj.anchor_id.toString())
+            if (anchor != null) visit(anchor)
          }
+         if (obj.anchor_name != null) {
+            const anchor = nameMap.get(obj.anchor_name)
+            if (anchor != null) visit(anchor)
+         }
+         state.set(id, 'd')
+         sorted.push(obj)
+      }
+      withIds.forEach((obj) => visit(obj))
+
+      sorted.forEach((jsonObject) => {
+         this.addObjectAsElement(jsonObject, jsonObject.className)
       })
    }
 
@@ -221,6 +243,15 @@ class NodeElement extends SheetElement {
       this.w = jsonObject.w ?? this.w
       this.h = jsonObject.h ?? this.h
       this.z = jsonObject.z ?? this.z
+      // snap to anchor's bottom edge; anchor always precedes caption after fromJSON sort
+      if (this.anchor_id != null) {
+         const anchor = this.model.sheetElements.get(this.anchor_id)
+         if (anchor != null) {
+            this.x = anchor.x
+            this.y = anchor.y + anchor.h
+            this.w = anchor.w
+         }
+      }
       return this
    }
 }
@@ -428,6 +459,7 @@ class MorphismElement extends LinkElement {
    showManyArrows /*: boolean */ = false
    arrowColor /*: 'none' | 'source' | 'destination' */ = 'none'
    arrowMargin /*: number */ = 0
+   labelFontSize /*: ?string */ = null
    useMulttableSourceTopRow /*: boolean */ = false
    useMulttableDestinationTopRow /*: boolean */ = false
    mapping /*: Mapping */
@@ -447,6 +479,7 @@ class MorphismElement extends LinkElement {
          showManyArrows: this.showManyArrows,
          arrowColor: this.arrowColor,
          arrowMargin: this.arrowMargin,
+         labelFontSize: this.labelFontSize,
          useMulttableSourceTopRow: this.useMulttableSourceTopRow,
          useMulttableDestinationTopRow: this.useMulttableDestinationTopRow,
          definingPairs: this.mapping.definingPairs,
@@ -464,6 +497,7 @@ class MorphismElement extends LinkElement {
       this.showManyArrows = jsonObject.showManyArrows ?? this.showManyArrows
       this.arrowColor = jsonObject.arrowColor ?? this.arrowColor
       this.arrowMargin = jsonObject.arrowMargin ?? this.arrowMargin
+      this.labelFontSize = jsonObject.labelFontSize ?? this.labelFontSize
       this.useMulttableSourceTopRow = jsonObject.useMulttableSourceTopRow ?? this.useMulttableSourceTopRow
       this.useMulttableDestinationTopRow = jsonObject.useMulttableDestinationTopRow ?? this.useMulttableDestinationTopRow
       this.mapping = new Mapping(this.source.group, this.destination.group, jsonObject.definingPairs)
@@ -543,6 +577,7 @@ const knownFields = [
    // Morphism
    'arrowColor' /*: 'none' | 'source' | 'destination' */,
    'definingPairs' /*: Array<[groupElement, groupElement]> */,
+   'labelFontSize' /*: string */,
    'showInjectionSurjection' /*: boolean */,
    'showManyArrows' /*: boolean */,
 ]

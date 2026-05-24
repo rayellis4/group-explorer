@@ -132,7 +132,7 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
         },
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
-            className : 'CDElement', groupURL : group.URL,
+            className : 'CDElement', name : 'left', groupURL : group.URL,
             x : L, y : vizY, w : W, h : H,
             arrow_generators : [ {generator: a, color: '#660000'},
                                  {generator: b, color: '#006600'} ],
@@ -141,7 +141,7 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
         },
         {
             // same as previous, plus arrow for ab
-            className : 'CDElement', groupURL : group.URL,
+            className : 'CDElement', name : 'middle', groupURL : group.URL,
             x : L + W + gap, y : vizY, w : W, h : H,
             arrow_generators : [ {generator: a, color: '#660000'},
                                  {generator: b, color: '#006600'},
@@ -151,7 +151,7 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
         },
         {
             // circular CD of Z_mn with arrow for ab shown only
-            className : 'CDElement', groupURL : group.URL,
+            className : 'CDElement', name : 'right', groupURL : group.URL,
             x : L + 2 * (W + gap), y : vizY, w : W, h : H,
             arrow_generators : [ {generator: ab, color: '#000066'} ],
             strategy_parameters : [ {generator: ab, layout: 'circular', direction: 'XY', nestingLevel: 0} ]
@@ -160,19 +160,19 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
             className : 'TextElement',
             text : `A Cayley diagram of ${prod(Z(m), Z(n))} with generators of order ${m} and ${n} shown in red and green, respectively.`,
             x : L, y : vizY + H, w : W,
-            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '1'
+            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'left'
         },
         {
             className : 'TextElement',
             text : `The same Cayley diagram as on the left, but now with the product of the red and green generators also shown, colored blue.`,
             x : L + W + gap, y : vizY + H, w : W,
-            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '2'
+            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'middle'
         },
         {
             className : 'TextElement',
             text : `The same Cayley diagram as in the middle, but now with the red and green generators removed. The blue generator traverses all ${m*n} nodes, so we can arrange it in a cycle.`,
             x : L + 2 * (W + gap), y : vizY + H, w : W,
-            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '3'
+            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'right'
         }
     ]
 }
@@ -233,7 +233,7 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
         },
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
-            className : 'CDElement', groupURL : ZmxZn.URL,
+            className : 'CDElement', name : 'left', groupURL : ZmxZn.URL,
             x : L, y : vizY, w : W, h : H,
             arrow_generators : [ {generator: a, color: '#660000'},
                                  {generator: b, color: '#006600'} ],
@@ -242,7 +242,7 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
         },
         {
             // same as previous, plus arrow for maxOrdElt
-            className : 'CDElement', groupURL : ZmxZn.URL,
+            className : 'CDElement', name : 'middle', groupURL : ZmxZn.URL,
             x : L + W + gap, y : vizY, w : W, h : H,
             arrow_generators : [ {generator: a, color: '#660000'},
                                  {generator: b, color: '#006600'},
@@ -252,7 +252,7 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
         },
         {
             // circular CD of Z_mn with arrow for maxOrdElt shown only
-            className : 'CDElement', groupURL : ZmxZn.URL,
+            className : 'CDElement', name : 'right', groupURL : ZmxZn.URL,
             x : L + 2 * (W + gap), y : vizY, w : W, h : H,
             arrow_generators : [ {generator: maxOrdElt, color: '#000066'} ],
             strategy_parameters : [ {generator: maxOrdElt, layout: 'rotated', direction: 'XY', nestingLevel: 0 },
@@ -262,19 +262,19 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
             className : 'TextElement',
             text : `A Cayley diagram of ${prod(Z(m), Z(n))} with generators of order ${m} and ${n} shown in red and green, respectively.`,
             x : L, y : vizY + H, w : W,
-            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '1'
+            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'left'
         },
         {
             className : 'TextElement',
             text : `The same Cayley diagram as on the left, but now with the largest-order element of that group also shown, colored blue.`,
             x : L + W + gap, y : vizY + H, w : W,
-            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '2'
+            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'middle'
         },
         {
             className : 'TextElement',
             text : `The same Cayley diagram as in the middle, but now with the red and green generators removed. The blue generator creates ${m*n/maxOrd} cycles, not one.`,
             x : L + 2 * (W + gap), y : vizY + H, w : W,
-            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : '3'
+            fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'right'
         }
     ]
 }

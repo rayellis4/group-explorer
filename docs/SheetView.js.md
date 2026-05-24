@@ -932,7 +932,7 @@ export class MorphismView extends LinkView {
       this.label.style.border = '2px solid black'
       this.label.style.padding = '5px 10px'
       this.label.style.color = 'black'
-      this.label.style.fontSize = '16px'
+      this.label.style.fontSize = modelElement.labelFontSize ?? '16px'
       this.label.style.textAlign = 'center'
       this.label.style.whiteSpace = 'nowrap'
       this.label.style.position = 'absolute'

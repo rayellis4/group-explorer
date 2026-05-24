@@ -669,40 +669,40 @@ function formatQuotientSheet (group, indexOfN, type) {
          className : 'TextElement',
          x : L, y : vizY - txtH, w : W, h : txtH,
          text : 'ℤ<sub>1</sub>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '2'
+         alignment : 'center', fontSize : '1.25em', opacity : 0
       },
       {
-         className : type, groupURL : './groups/Trivial.group',
+         className : type, name : 'trivial1', groupURL : './groups/Trivial.group',
          x : loc1.x, y : loc1.y, w : loc1.w, h : loc1.h,
          highlight_colors : [high1, [], []]
       },
       {
          className : 'TextElement',
          x : L+W+gap, y : vizY - txtH, w : W, h : txtH,
-         text : libraryN.name, alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '4'
+         text : libraryN.name, alignment : 'center', fontSize : '1.25em', opacity : 0
       },
       {
-         className : type, groupURL : libraryN.URL,
+         className : type, name : 'n', groupURL : libraryN.URL,
          x : loc2.x, y : loc2.y, w : loc2.w, h : loc2.h,
          highlight_colors : [high2, [], []]
       },
       {
          className : 'TextElement',
          x : L+2*W+2*gap, y : vizY - txtH, w : W, h : txtH,
-         text : group.name, alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '6'
+         text : group.name, alignment : 'center', fontSize : '1.25em', opacity : 0
       },
       {
-         className : type, groupURL : group.URL,
+         className : type, name : 'g', groupURL : group.URL,
          x : loc3.x, y : loc3.y, w : loc3.w, h : loc3.h,
          highlight_colors : [high3, [], []]
       },
       {
          className : 'TextElement',
          x : L+3*W+3*gap, y : vizY - txtH, w : W, h : txtH,
-         text : libraryQ.name, alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '8'
+         text : libraryQ.name, alignment : 'center', fontSize : '1.25em', opacity : 0
       },
       {
-         className : type, groupURL : libraryQ.URL,
+         className : type, name : 'q', groupURL : libraryQ.URL,
          x : loc4.x, y : loc4.y, w : loc4.w, h : loc4.h,
          highlight_colors : [high4, [], []]
       },
@@ -710,10 +710,10 @@ function formatQuotientSheet (group, indexOfN, type) {
          className : 'TextElement',
          x : L+4*W+4*gap, y : vizY - txtH, w : W, h : txtH,
          text : 'ℤ<sub>1</sub>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '10'
+         alignment : 'center', fontSize : '1.25em', opacity : 0
       },
       {
-         className : type, groupURL : './groups/Trivial.group',
+         className : type, name : 'trivial2', groupURL : './groups/Trivial.group',
          x : loc5.x, y : loc5.y, w : loc5.w, h : loc5.h,
          highlight_colors : [high5, [], []]
       },
@@ -721,41 +721,41 @@ function formatQuotientSheet (group, indexOfN, type) {
          className : 'TextElement',
          x : L+W+gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(id)</i> = <i>Ker(e)</i>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '4'
+         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_name : 'n'
       },
       {
          className : 'TextElement',
          x : L+2*W+2*gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(e)</i> = <i>Ker(q)</i>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '6'
+         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_name : 'g'
       },
       {
          className : 'TextElement',
          x : L+3*W+3*gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(q)</i> = <i>Ker(z)</i>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_id : '8'
+         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_name : 'q'
       },
       {
          className : 'MorphismElement', name : 'id',
-         source_name : '2', destination_name : '4',
+         source_name : 'trivial1', destination_name : 'n',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : [ [ 0, 0 ] ]
       },
       {
          className : 'MorphismElement', name : 'e',
-         source_name : '4', destination_name : '6',
+         source_name : 'n', destination_name : 'g',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryN.generators.map(gen => [gen, embedding[gen]])
       },
       {
          className : 'MorphismElement', name : 'q',
-         source_name : '6', destination_name : '8',
+         source_name : 'g', destination_name : 'q',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : group.generators.map(gen => [gen, quotientMap[gen]])
       },
       {
          className : 'MorphismElement', name : 'z',
-         source_name : '8', destination_name : '10',
+         source_name : 'q', destination_name : 'trivial2',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryQ.generators.map(gen => [gen, 0])
       }

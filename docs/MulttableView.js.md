@@ -397,7 +397,7 @@ export class MulttableView /*:: implements VizDisplay<MulttableJSON> */ {
         this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // set up scaling, translation from multtable units to screen pixels
-        const scale = this.zoomFactor * Math.min(this.canvas.width / this.table_size, this.canvas.height / this.table_size, 200);
+        const scale = this.zoomFactor * Math.min(this.canvas.width / this.table_size, this.canvas.height / this.table_size);
 
         // translate center of scaled multtable to center of canvas
         let x_translate = (this.canvas.width - scale*this.table_size)/2;
