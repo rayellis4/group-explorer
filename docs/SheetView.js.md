@@ -460,19 +460,11 @@ export class TextView extends NodeView {
 
      // apply results from scratch element to model, domElement
      // adjust modelElement location so modelElement zoom doesn't move the center of the element
-     if (!this.modelElement.w) {
-        this.modelElement.w = scratchWidth
-     } else if (scratchWidth > this.modelElement.w) {
-        this.modelElement.x -= 0.5 * (scratchWidth - this.modelElement.w)
+     if (!this.modelElement.w || scratchWidth > this.modelElement.w) {
         this.modelElement.w = scratchWidth
      }
 
-     if (this.modelElement.h == null) {
-        this.modelElement.h = scratchHeight
-     } else if (scratchHeight > this.modelElement.h) {
-        if (this.modelElement.anchor_id == null) {
-           this.modelElement.y -= 0.5 * (scratchHeight - this.modelElement.h)
-        }
+     if (this.modelElement.h == null || scratchHeight > this.modelElement.h) {
         this.modelElement.h = scratchHeight
      }
 

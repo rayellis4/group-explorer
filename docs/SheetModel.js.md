@@ -281,6 +281,8 @@ class TextElement extends NodeElement {
 
    fromJSON (jsonObject) {
       super.fromJSON(jsonObject)
+      if (jsonObject.w == null) this.w = null
+      if (jsonObject.h == null) this.h = null
       this.text = jsonObject.text ?? this.text
       this.color = jsonObject.color ?? this.color
       this.opacity = jsonObject.opacity ?? this.opacity
