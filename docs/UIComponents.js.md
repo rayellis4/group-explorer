@@ -133,19 +133,31 @@ function makeTooltip (html /*: html */, location /*: ClientLocation */) {
  */
 function makeMockSelect (
    rootElement /*: HTMLElement */,
-   choices /*: Array<{value: string, label?: html}> */
+   choices /*: Array<{value: string, label?: html, selectedLabel?: html} | {header: html, choices: Array<{value: string, label?: html, selectedLabel?: html}>}> */
 ) /*: Promise<string> */ {
+   function flatChoices (items) {
+      return items.flatMap((item) => 'header' in item ? flatChoices(item.choices) : [item])
+   }
+
+   function renderItems (items) {
+      return items.map((item) =>
+         'header' in item
+            ? `<li><details><summary>${item.header}</summary><ul>${renderItems(item.choices)}</ul></details></li>`
+            : `<li data-action="makeSelection('${item.value}')">${item.label || item.value}</li>`
+      ).join('')
+   }
+
    const formattedChoices = [
       `<ul class="menu scrollable" style="resize: none; min-width: ${rootElement.offsetWidth}px; max-height: 25em">`,
-      ...choices.map(({value, label}) => `<li data-action="makeSelection('${value}')">${label || value}</li>`),
+      renderItems(choices),
       '</ul>'
    ].join('')
 
    function makeSelection (value /*: string */) /*: void | string */ {
-      const choice = choices.find((choice) => choice.value == value)
+      const choice = flatChoices(choices).find((c) => c.value == value)
       if (choice != null) {
          rootElement.setAttribute('data-value', value)
-         rootElement.innerHTML = choice.label || choice.value
+         rootElement.innerHTML = choice.selectedLabel || choice.label || choice.value
          return choice.value
       }
    }

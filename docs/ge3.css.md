@@ -311,9 +311,12 @@ Mimics common textarea lower-right corner resize handle
 .menu li {
     white-space: nowrap;
 }
-.menu li:not(:has(> ul)):hover,
+.menu li:not(:has(> ul)):not(:has(> details)):hover,
 .menu li:has(> ul.hidden):hover {
     background-color: var(--list-highlight);
+}
+.menu li > details > ul {
+    padding-left: 1ch;
 }
 
 .menu-inline-arrow {

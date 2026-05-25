@@ -141,7 +141,25 @@ class View {
 
    showGroupSelect () {
       const sortedGroups = Library.getAllGroups().sort((g, h) => g.order - h.order)
-      const groupChoices = sortedGroups.map((g) => ({value: g.URL, label: g.name}))
+
+      const byOrder = new Map()
+      sortedGroups.forEach((g) => {
+         if (!byOrder.has(g.order)) byOrder.set(g.order, [])
+         byOrder.get(g.order).push(g)
+      })
+
+      const groupChoices = []
+      byOrder.forEach((groups, order) => {
+         if (groups.length === 1) {
+            groupChoices.push({value: groups[0].URL, label: `${groups[0].name} (${order})`})
+         } else {
+            groupChoices.push({
+               header: `Order ${order} (${groups.length} groups)`,
+               choices: groups.map((g) => ({value: g.URL, label: g.name, selectedLabel: `${g.name} (${order})`}))
+            })
+         }
+      })
+
       const mockSelectGroup = this.rootElement.querySelector('#visualizer-select-group')
       makeMockSelect(mockSelectGroup, groupChoices).then(() => {}, () => {})
    }
