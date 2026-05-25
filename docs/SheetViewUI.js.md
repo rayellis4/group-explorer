@@ -94,9 +94,7 @@ class SheetEventUI {
             .closest('.NodeElement, .LinkElement')  // closest containing Node/Link
          const modelElement = this.viewModel.modelElements.get(selectedElement?.getAttribute('id'))
          if (modelElement?.isNode) {
-            if (modelElement.anchor_id == null) {
-               this.resizeElement(modelElement)
-            }
+            this.resizeElement(modelElement)
          } else if (modelElement?.isLink) {
             const clickedElement = document.elementFromPoint(event.clientX, event.clientY)
             const viewElement = modelElement.viewElement
@@ -149,11 +147,15 @@ class SheetEventUI {
                   const dh = ghostRect.height - modelRect.height
 
                   if (dx != 0 || dy != 0) {
-                     modelElement.move(dx, dy)
+                     if (modelElement.anchor_id != null) {
+                        this.viewModel.move(modelElement.anchor_id, dx, dy)
+                     } else {
+                        modelElement.move(dx, dy)
+                     }
                   }
 
                   if (dw != 0 || dh != 0) {
-                     modelElement.resize(dw, dh)
+                     modelElement.resize(modelElement.anchor_id != null ? 0 : dw, dh)
                   }
                }
                timerId = null
