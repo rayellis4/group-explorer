@@ -233,6 +233,16 @@ export function redrawNodes () {
   })
 }
 
+export function redrawLinksFor (modelElement /*: SheetModel.NodeElement */) {
+  _view?.viewElements.forEach((viewEl) => {
+    if (   viewEl.modelElement?.isLink
+        && (   viewEl.modelElement.source?.id === modelElement.id
+            || viewEl.modelElement.destination?.id === modelElement.id)) {
+      viewEl.redraw()
+    }
+  })
+}
+
 function makeCssTransform (
   scale /*: THREE.Vector2 | float */ = new THREE.Vector2(1, 1),
   direction /*: THREE.Vector2 */ = new THREE.Vector2(1, 0),
@@ -503,6 +513,11 @@ export class VisualizerView extends NodeView {
     this.unitSquarePositions = this.visualizer.unitSquarePositions()
   }
 
+  restoreHighlights (snapshot) {
+    this.modelElement.highlightColors[0] = snapshot
+    this.redraw()
+  }
+
   getVisualizerJSON () {
     return this.visualizer.toJSON()
   }
@@ -678,6 +693,17 @@ export class CDView extends VisualizerView {
       context.drawImage(this.visualizer.view.canvas, 0, 0)
 
       this.unitSquarePositions = CDView.#sharedViewModel.unitSquarePositions()
+   }
+
+   restoreHighlights (snapshot) {
+      this.modelElement.highlightColors[0] = snapshot
+      if (CDView.#activeView === this) {
+         CDView.#sharedViewModel.model.highlightColors = this.modelElement.highlightColors
+         CDView.#sharedViewModel.model.$touch('highlightColors')
+      } else {
+         this.savedVisualizerJSON = null  // force fast path on next access (reads from modelElement)
+      }
+      this.redraw()
    }
 
    getVisualizerJSON () {

@@ -18,6 +18,7 @@ import * as GEUtils from './GEUtils.js'
 import * as StoredObjects from './StoredObjects.js'
 import {THREE} from '../lib/externals.js'
 import {makeDialog, makeMockSelect} from './UIComponents.js'
+import {redrawLinksFor} from './SheetView.js'
 
 export {TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor}
 /*
@@ -455,6 +456,9 @@ class MorphismEditor extends SheetElementEditor {
          </div>`
       super(morphismElement, morphismEditorHTML, location)
 
+      this.sourceHighlightSnapshot = [...morphismElement.source.highlightColors[0]]
+      this.destHighlightSnapshot = [...morphismElement.destination.highlightColors[0]]
+
       // set column widths in defining pair table
       const DISPLAY_FONT_SIZE = 20
       const domainHeaderSize = document.querySelector('#defining-pair-table th:first-child').getBoundingClientRect().width
@@ -512,6 +516,14 @@ class MorphismEditor extends SheetElementEditor {
          morphism.useMulttableDestinationTopRow =
             document.getElementById('morphism-editor-multtable-destination-top-row').checked
       }
+   }
+
+   rollback () {
+      this.modelElement.source.viewElement.restoreHighlights(this.sourceHighlightSnapshot)
+      this.modelElement.destination.viewElement.restoreHighlights(this.destHighlightSnapshot)
+      redrawLinksFor(this.modelElement.source)
+      redrawLinksFor(this.modelElement.destination)
+      super.rollback()
    }
 
    fillDefiningPairs () {
@@ -682,7 +694,7 @@ class MorphismEditor extends SheetElementEditor {
       })
       this.modelElement.destination.viewElement.visualizer.model.$touch('highlightColors')
       this.modelElement.destination.viewElement.redraw()
-      this.modelElement.viewElement.redraw()
+      redrawLinksFor(this.modelElement.destination)
    }
 
    pullTargetThroughMorphism () {
@@ -726,7 +738,7 @@ class MorphismEditor extends SheetElementEditor {
       })
       this.modelElement.source.viewElement.visualizer.model.$touch('highlightColors')
       this.modelElement.source.viewElement.redraw()
-      this.modelElement.viewElement.redraw()
+      redrawLinksFor(this.modelElement.source)
    }
 }
 /*
