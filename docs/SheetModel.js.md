@@ -583,8 +583,12 @@ const knownFields = [
 ]
 
 // create new sheet, used by GroupInfo routines
-// stores evaluated argument in IndexedDB and opens Sheet.html in new window
-function createNewSheet (jsonObjects /*: Array<SheetItemRequest> */) {
+// accepts {title, elements} or bare array (backward compat)
+// stores in IndexedDB and opens Sheet.html in new window
+function createNewSheet (arg /*: {title: string, elements: Array<SheetItemRequest>} | Array<SheetItemRequest> */) {
+   const title = Array.isArray(arg) ? null : (arg.title ?? null)
+   const jsonObjects = Array.isArray(arg) ? arg : arg.elements
+
    if (Log.isActive('debug')) {
       jsonObjects.forEach((jsonObject) => {
          Object.keys(jsonObject).forEach((field) => {
@@ -595,19 +599,22 @@ function createNewSheet (jsonObjects /*: Array<SheetItemRequest> */) {
       })
    }
 
-   const newWindow = window.open('about:blank')  // workaround for Safarix
-   StoredObjects.setPassedSheet(jsonObjects)
+   const newWindow = window.open('about:blank')  // workaround for Safari
+   StoredObjects.setPassedSheet({title, elements: jsonObjects})
       .then(() => { newWindow.location.href = 'Sheet.html?passedSheet' })
 }
 
 // function used by Sheet.js
-// load passed sheet from IndexedDB
-function loadPassedSheet (sheetModel) {
-   StoredObjects.getPassedSheet()
-      .then((sheetJSON) => {
-         if (sheetJSON != null) {
-            sheetModel.fromJSON(sheetJSON)
-         }
+// load passed sheet from IndexedDB; returns title string or null
+function loadPassedSheet (sheetModel) /*: Promise<?string> */ {
+   return StoredObjects.getPassedSheet()
+      .then((data) => {
+         if (data == null) return null
+         // support both new {title, elements} format and old bare-array format
+         const title = Array.isArray(data) ? null : (data.title ?? null)
+         const sheetJSON = Array.isArray(data) ? data : data.elements
+         sheetModel.fromJSON(sheetJSON)
+         return title
       })
 }
 

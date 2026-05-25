@@ -181,17 +181,9 @@ function showAllVisualizersSheet (group) {
     const txtH = 0.3 * H
     const totalW = 3 * W + 2 * gap
     const L = (window.innerWidth - panelWidth - totalW) / 2
-    const vizY = (window.innerHeight - H) / 2   // center visualizers on midline
-    const T = vizY - txtH                        // title floats above
+    const vizY = 0.4 * (window.innerHeight - H)   // center visualizers just above midline
 
     const allVisualizersSheet = [
-        {
-            className : 'TextElement',
-            x : L, y : T, w : totalW, h : txtH,
-            text : `All Visualizers for the Group ${group.name}`,
-            fontSize : SheetModel.fittedFontSize(`All Visualizers for the Group ${group.name}`, totalW),
-            alignment : 'center', opacity : 0
-        },
         {
             className : 'CDElement', name : 'cd',
             groupURL : group.URL, diagram_name : group.cayleyDiagrams[0]?.name,
@@ -223,18 +215,18 @@ function showAllVisualizersSheet (group) {
             text : 'Cycle Graph', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'cg'
         },
         {
-            className : 'MorphismElement',
+            className : 'MorphismElement', labelFontSize: '1.25em',
             source_name : 'cd', destination_name : 'mt',
             name : '<i>id</i><sub>1</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         },
         {
-            className : 'MorphismElement',
+            className : 'MorphismElement', labelFontSize: '1.25em',
             source_name : 'mt', destination_name : 'cg',
             name : '<i>id</i><sub>2</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         }
     ]
 
-    SheetModel.createNewSheet(allVisualizersSheet)
+    SheetModel.createNewSheet({title: `All Visualizers for the Group ${group.name}`, elements: allVisualizersSheet})
 }

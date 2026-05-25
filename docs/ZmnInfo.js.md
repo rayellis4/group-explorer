@@ -99,10 +99,6 @@ function formatZmnInfo (group) /*: html */ {
 }
 
 function showZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
-   SheetModel.createNewSheet(formatZmnIsomorphismSheet(group, m, n))
-}
-
-function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
     const Z = (k) => `ℤ<sub>${k}</sub>`
     const prod = (A, B) => `${A} × ${B}`
     const a = group.elementOrders.indexOf(m)
@@ -116,20 +112,12 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
     )
     const H = W
     const gap = W / 2
-    const txtH = 0.3 * H
     const totalW = 3 * W + 2 * gap
     const L = (window.innerWidth - panelWidth - totalW) / 2
-    const vizY = (window.innerHeight - H) / 2   // center visualizers on midline
-    const T = vizY - txtH                        // title floats above
+    const vizY = 0.4 * (window.innerHeight - H)  // center visualizers just above midline
     const titleText = `Illustration of the isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`
 
-    return [
-        {
-            className : 'TextElement',
-            text : titleText,
-            x : L, y : T, w : totalW, h : txtH,
-            fontSize : SheetModel.fittedFontSize(titleText, totalW), alignment : 'center', opacity : 0
-        },
+    const sheetElementsAsJSON = [
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
             className : 'CDElement', name : 'left', groupURL : group.URL,
@@ -175,13 +163,11 @@ function formatZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupEle
             fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'right'
         }
     ]
+
+    SheetModel.createNewSheet({title: titleText, elements: sheetElementsAsJSON})
 }
 
 function showNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
-   SheetModel.createNewSheet(formatNoZmnIsomorphismSheet(group, m, n))
-}
-
-function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupElement */) {
     // define constants similar to those in showZmnIsomorphismSheet()
     const Z = ( k ) => `ℤ<sub>${k}</sub>`
     const prod = ( A, B ) => `${A} × ${B}`
@@ -192,17 +178,15 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
     )
     const H = W
     const gap = W / 2
-    const txtH = 0.3 * H
     const totalW = 3 * W + 2 * gap
     const L = (window.innerWidth - panelWidth - totalW) / 2
-    const vizY = (window.innerHeight - H) / 2   // center visualizers on midline
-    const T = vizY - txtH                        // title floats above
+    const vizY = 0.4 * (window.innerHeight - H)  // center visualizers just above midline
     // build the group Z_m x Z_n and find it in the group library.
-    const elements = Array.from( {length: m * n}, ( _ /*: mixed */, i /*: number */ ) => i );
-    const multtable = elements.map( (row /*: number */) => {
+    const groupElems = Array.from( {length: m * n}, ( _ /*: mixed */, i /*: number */ ) => i );
+    const multtable = groupElems.map( (row /*: number */) => {
         const a1 = Math.floor( row / n );
         const b1 = row % n;
-        return elements.map( (col /*: number */) => {
+        return groupElems.map( (col /*: number */) => {
             const a2 = Math.floor( col / n );
             const b2 = col % n;
             return ( a1 + a2 ) % m * n + ( b1 + b2 ) % n;
@@ -215,8 +199,6 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
     const a = f[n]; // of order m
     const b = f[1]; // of order n
     // and an element of maximal order, but not among <a>U<b>
-    const aorbit = ZmxZn.elementPowers[a];
-    const borbit = ZmxZn.elementPowers[b];
     const available = ZmxZn.elements.filter( e =>
                                              !ZmxZn.elementPowers[a].get( e ) && !ZmxZn.elementPowers[b].get( e ) );
     const orders /*: Array<groupElement> */ = available.map( e => ZmxZn.elementOrders[e] );
@@ -224,13 +206,7 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
     const maxOrdElt = available.filter( e => ZmxZn.elementOrders[e] == maxOrd )[0];
     // create a sheet based on that group and those elements
     const titleText = `Why there is no isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`
-    return [
-        {
-            className : 'TextElement',
-            text : titleText,
-            x : L, y : T, w : totalW, h : txtH,
-            fontSize : SheetModel.fittedFontSize(titleText, totalW), alignment : 'center', opacity : 0
-        },
+    const sheetElementsAsJSON = [
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
             className : 'CDElement', name : 'left', groupURL : ZmxZn.URL,
@@ -277,4 +253,6 @@ function formatNoZmnIsomorphismSheet (group, m /*: groupElement */, n /*: groupE
             fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'right'
         }
     ]
+
+    SheetModel.createNewSheet({title: titleText, elements: sheetElementsAsJSON})
 }

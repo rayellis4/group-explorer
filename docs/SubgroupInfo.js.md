@@ -329,15 +329,11 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
          ? captionSize(`<span style="white-space: nowrap">Cl(<i>H</i><sub>${group.order}</sub>) (${group.order})</span>`)
          : captionSize(`<span style="white-space: nowrap"><i>H</i><sub>${group.order}</sub> (order ${group.order})</span>`)
 
-   // Find the size of the title
-   const title = (reduced ? 'Reduced ' : '') + `Subgroup Lattice for the group ${group.name}`
-   const {width: titleWidth, height: titleHeight} = captionSize(`<span style="font-size: 20pt">${title}</span>`)
-
    // Use tiers/chains from layoutNode to construct the sheet
    const hSize = Math.max(...chains) + 1
    const vSize = subgroupOrders.length
    const horizontalSpace = window.innerWidth - SheetModel.sheetPanelWidth()
-   const verticalSpace = window.innerHeight - 4 * titleHeight
+   const verticalSpace = window.innerHeight - document.getElementById('heading').offsetHeight
 
    const naturalWidth = horizontalSpace / hSize
    const naturalHeight = verticalSpace / vSize
@@ -352,23 +348,11 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
    const cellHeight = verticalSpace / Math.max(3, vSize)
    const hMargin = Math.ceil( cellWidth * 0.1 )
    const vMargin = hMargin + Math.max(0, ( cellHeight - cellWidth ) / 2)
-   const latticeTop = 4 * titleHeight
+   const latticeTop = 0
    const latticeLeft = (hSize * cellWidth > horizontalSpace) ? 0 : (horizontalSpace - hSize * cellWidth) / 2
 
    // Build the sheet
    const sheetElementsAsJSON = []
-
-   // Add a title over the lattice, centered on the sheet
-   sheetElementsAsJSON.push({
-      className : 'TextElement',
-      text : title,
-      x : (horizontalSpace - titleWidth) / 2,
-      y : 2 * titleHeight,
-      w : 0,
-      h : titleHeight,
-      fontSize : '20pt',
-      alignment : 'center'
-   })
 
    if (!reduced) {  // labelled visualizer
       // find conjugacy class colors
@@ -465,7 +449,10 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
    // add connections
    sheetElementsAsJSON.push(...getConnectionJSON(covering))
 
-   SheetModel.createNewSheet(sheetElementsAsJSON)
+   const title = reduced
+      ? `Reduced Subgroup Lattice for the group ${group.name}`
+      : `Subgroup Lattice for the group ${group.name}`
+   SheetModel.createNewSheet({title, elements: sheetElementsAsJSON})
 }
 
 function getConnectionJSON (covering) {
@@ -555,10 +542,6 @@ function layoutNodes (nodeTiers, edges) {
 }
 
 function showEmbeddingSheet (group, indexOfH /*: number */, type /*: VisualizerType */) {
-   SheetModel.createNewSheet(formatEmbeddingSheet(group, indexOfH, type))
-}
-
-function formatEmbeddingSheet (group, indexOfH, type) {
    const H = group.subgroups[indexOfH]
    const libraryH = H.isomorphicGroup
    const embedding = H.isomorphicGroupEmbedding
@@ -570,48 +553,35 @@ function formatEmbeddingSheet (group, indexOfH, type) {
    )
    const Hv = W
    const gap = W / 2
-   const txtH = 0.3 * Hv
    const totalW = 2 * W + gap
    const L = (window.innerWidth - panelWidth - totalW) / 2
-   const vizY = (window.innerHeight - Hv) / 2
-   const T = vizY - txtH
-   const titleText = `Embedding ${libraryH.name} as <i>H</i><sub>${indexOfH}</sub> in ${group.name}`
+   const vizY = 0.4 * (window.innerHeight - Hv)
 
    const embeddingSheet = [
       {
-         className : 'TextElement',
-         text : titleText,
-         x : L, y : T, w : totalW, h : txtH,
-         fontSize : SheetModel.fittedFontSize(titleText, totalW),
-         alignment : 'center', opacity : 0
-      },
-      {
-         className : type, groupURL : libraryH.URL,
+         className : type, groupURL : libraryH.URL, name: '1',
          x : L, y : vizY, w : W, h : Hv,
          highlight_colors : [Array( libraryH.order ).fill( 'hsl(0, 100%, 80%)' ), [], []]
       },
       {
-         className : type, groupURL : group.URL,
+         className : type, groupURL : group.URL, name: '2',
          x : L + W + gap, y : vizY, w : W, h : Hv,
          highlight_colors : [Array( group.order ).fill( '' )
             .map( ( _, elt ) => embedding.indexOf( elt ) > -1 ? 'hsl(0, 100%, 80%)' : '' ), [], []]
       },
       {
-         className : 'MorphismElement',
+         className : 'MorphismElement', labelFontSize: '1.25em',
          source_name : '1', destination_name : '2', name : '<i>e</i>',
          definingPairs : libraryH.generators.map(gen => [gen, embedding[gen]]),
          showManyArrows : true, showInjectionSurjection: true
       }
    ]
 
-   return embeddingSheet
+   const title = `Embedding ${libraryH.name} as <i>H</i><sub>${indexOfH}</sub> in ${group.name}`
+   SheetModel.createNewSheet({title: title, elements: embeddingSheet})
 }
 
 function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerType */) {
-   SheetModel.createNewSheet(formatQuotientSheet(group, indexOfN, type))
-}
-
-function formatQuotientSheet (group, indexOfN, type) {
    const N = group.subgroups[indexOfN]
    const libraryQ = N.isomorphicQuotientGroup
    const quotientMap = N.isomorphicQuotientMap
@@ -627,9 +597,8 @@ function formatQuotientSheet (group, indexOfN, type) {
    const gap = W / 2
    const totalW = 5 * W + 4 * gap
    const L = (window.innerWidth - panelWidth - totalW) / 2
-   const vizY = (window.innerHeight - H) / 2
+   const vizY = 0.4 * (window.innerHeight - H)
    const txtH = 0.3 * H
-   const titleText = `Short Exact Sequence showing ${group.name} / ${libraryN.name} ≅ ${libraryQ.name}`
 
    function shrink ( order, x, y, w, h ) {
       const factor = 0.5 * ( 1 + order / group.order ),
@@ -658,18 +627,14 @@ function formatQuotientSheet (group, indexOfN, type) {
    high2[0] = col1;
    high3[0] = col1;
    high4[0] = col4;
+   const headerFontSize = '2em'
+   const captionFontSize = '1.25em'
    const quotientSheet = [
-      {
-         className : 'TextElement',
-         x : L, y : vizY - 2 * txtH, w : totalW, h : txtH,
-         text : titleText,
-         fontSize : SheetModel.fittedFontSize(titleText, totalW), alignment : 'center', opacity : 0
-      },
       {
          className : 'TextElement',
          x : L, y : vizY - txtH, w : W, h : txtH,
          text : 'ℤ<sub>1</sub>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0
+         alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
          className : type, name : 'trivial1', groupURL : './groups/Trivial.group',
@@ -679,7 +644,7 @@ function formatQuotientSheet (group, indexOfN, type) {
       {
          className : 'TextElement',
          x : L+W+gap, y : vizY - txtH, w : W, h : txtH,
-         text : libraryN.name, alignment : 'center', fontSize : '1.25em', opacity : 0
+         text : libraryN.name, alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
          className : type, name : 'n', groupURL : libraryN.URL,
@@ -689,7 +654,7 @@ function formatQuotientSheet (group, indexOfN, type) {
       {
          className : 'TextElement',
          x : L+2*W+2*gap, y : vizY - txtH, w : W, h : txtH,
-         text : group.name, alignment : 'center', fontSize : '1.25em', opacity : 0
+         text : group.name, alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
          className : type, name : 'g', groupURL : group.URL,
@@ -699,7 +664,7 @@ function formatQuotientSheet (group, indexOfN, type) {
       {
          className : 'TextElement',
          x : L+3*W+3*gap, y : vizY - txtH, w : W, h : txtH,
-         text : libraryQ.name, alignment : 'center', fontSize : '1.25em', opacity : 0
+         text : libraryQ.name, alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
          className : type, name : 'q', groupURL : libraryQ.URL,
@@ -710,7 +675,7 @@ function formatQuotientSheet (group, indexOfN, type) {
          className : 'TextElement',
          x : L+4*W+4*gap, y : vizY - txtH, w : W, h : txtH,
          text : 'ℤ<sub>1</sub>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0
+         alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
          className : type, name : 'trivial2', groupURL : './groups/Trivial.group',
@@ -721,45 +686,46 @@ function formatQuotientSheet (group, indexOfN, type) {
          className : 'TextElement',
          x : L+W+gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(id)</i> = <i>Ker(e)</i>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_name : 'n'
+         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_name : 'n'
       },
       {
          className : 'TextElement',
          x : L+2*W+2*gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(e)</i> = <i>Ker(q)</i>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_name : 'g'
+         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_name : 'g'
       },
       {
          className : 'TextElement',
          x : L+3*W+3*gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(q)</i> = <i>Ker(z)</i>',
-         alignment : 'center', fontSize : '1.25em', opacity : 0, anchor_name : 'q'
+         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_name : 'q'
       },
       {
-         className : 'MorphismElement', name : 'id',
+         className : 'MorphismElement', name : 'id', labelFontSize: '1.25em',
          source_name : 'trivial1', destination_name : 'n',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : [ [ 0, 0 ] ]
       },
       {
-         className : 'MorphismElement', name : 'e',
+         className : 'MorphismElement', name : 'e', labelFontSize: '1.25em',
          source_name : 'n', destination_name : 'g',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryN.generators.map(gen => [gen, embedding[gen]])
       },
       {
-         className : 'MorphismElement', name : 'q',
+         className : 'MorphismElement', name : 'q', labelFontSize: '1.25em',
          source_name : 'g', destination_name : 'q',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : group.generators.map(gen => [gen, quotientMap[gen]])
       },
       {
-         className : 'MorphismElement', name : 'z',
+         className : 'MorphismElement', name : 'z', labelFontSize: '1.25em',
          source_name : 'q', destination_name : 'trivial2',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryQ.generators.map(gen => [gen, 0])
       }
    ]
 
-   return quotientSheet
+   const title = `Short Exact Sequence showing ${group.name} / ${libraryN.name} ≅ ${libraryQ.name}`
+   SheetModel.createNewSheet({title: title, elements: quotientSheet})
 }

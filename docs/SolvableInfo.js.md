@@ -141,27 +141,20 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
     const hgap = W / 2
     const vgap = 3 * W / 4
     const L = (sheetWidth - (n * (W + hgap) - hgap)) / 2
-    const top = (sheetHeight - (5 * txtH + 2 * H + vgap)) / 2  // y of title row
-    const vizY = top + 4 * txtH                                  // y of decomposition viz row
-    const fontSize = 0.1 * H
+    const top = 0.4 * (sheetHeight - (3 * txtH + 2 * H + vgap))  // y of description row
+    const vizY = top + txtH                                      // y of decomposition viz row
+    const maxFittedFontSize = 1.5 + 0.5 * (H - 200) / 200
+    const fittedFontSize = SheetModel.fittedFontSize(group.name, W, 0.7, maxFittedFontSize)
     const bottomShift = vgap / 4
 
-    // create sheet title and description
     const titleText = `Solvable Decomposition for the group ${group.name}`
     const sheetElementsAsJSON = [
         {
             className : 'TextElement',
-            text : titleText,
-            x : L, y : top, w : n*W + (n-1)*hgap, h : txtH,
-           fontSize : SheetModel.fittedFontSize(titleText, n*W + (n-1)*hgap, 1.0, 3.0),
-           alignment : 'center', opacity: 0
-        },
-        {
-            className : 'TextElement',
-            text : 'The top row is the solvable decomposition.  '
-                + 'The bottom row are abelian quotient groups.',
-            x : L, y : top + txtH, w : n*W + (n-1)*hgap, h : 2*txtH,
-           fontSize : '1.25em', alignment : 'center', opacity: 0
+            text : '(The top row is the solvable decomposition.  '
+                + 'The bottom row is the abelian quotient groups.)',
+            x : L, y : vizY+2*H+vgap+2*txtH, w : n*W + (n-1)*hgap, h : txtH,
+            fontSize : '1.25em', alignment : 'center', opacity: 0
         }
     ]
     const [s, l] = (type == 'CDElement') ? [0.53, .3] : [1, 0.8]
@@ -173,8 +166,8 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
          sheetElementsAsJSON.push( {
             className : 'TextElement',
             text : entry.isomorphicGroup.name,
-            x : L+index*W+index*hgap, y : top + 3*txtH, w : W, h : txtH,
-            fontSize : SheetModel.fittedFontSize(entry.isomorphicGroup.name, W, 0.7, 1.25),
+            x : L+index*W+index*hgap, y : top, w : W, h : txtH,
+            fontSize: fittedFontSize,
             alignment : 'center', opacity : 0
          } )
        if (index == 0) {
@@ -204,7 +197,7 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
           sheetElementsAsJSON.push( {
              className : 'MorphismElement',
              name : `<i>e</i><sub>${index}</sub>`,
-             labelFontSize : `${fontSize}px`,
+             labelFontSize : '1.25em',
              source_name : previousVizName, destination_name : vizName,
              showManyArrows : true, arrowColor: 'source',
              definingPairs : previous.isomorphicGroup.generators.map(gen => [gen, previous.isomorphicGroupEmbedding[gen]])
@@ -228,7 +221,7 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
           sheetElementsAsJSON.push( {
              className : 'MorphismElement',
              name : `<i>q</i><sub>${index}</sub>`,
-             labelFontSize : `${fontSize}px`,
+             labelFontSize : '1.25em',
              source_name : vizName, destination_name : qVizName,
              showManyArrows : true, arrowColor: 'source',
              definingPairs : entry.isomorphicGroup.generators.map(gen => [gen, previous.isomorphicQuotientMap[gen]])
@@ -242,12 +235,12 @@ function showSolvableDecompositionSheet (group /*: Group */, type /*: 'CDElement
                 + previous.isomorphicQuotientGroup.name,
              x : L+index*W+index*hgap+bottomShift, y : vizY+2*H+vgap,
              w : W, h : txtH,
-             fontSize : '1.25em', alignment : 'center', opacity: 0,
+             fontSize : fittedFontSize, alignment : 'center', opacity: 0,
              anchor_name : qVizName
           } )
        }
        previousVizName = vizName
     })
 
-    SheetModel.createNewSheet(sheetElementsAsJSON)
+    SheetModel.createNewSheet({title: titleText, elements: sheetElementsAsJSON})
 }

@@ -118,28 +118,19 @@ function showAsSheet (group, type /*: VisualizerType*/) {
     const opW = opFrac * W
     const fontSize = 0.1 * H
     const numH = 3 * H / 8
-    const titleH = 0.3 * H
     const totalW = numCols * W + (numCols - 1) * opW
     const L = (window.innerWidth - SheetModel.sheetPanelWidth() - totalW) / 2
-    const T = (window.innerHeight - titleH - numH - H) / 2
+    const T = 0.4 * (window.innerHeight - numH - H)
 
-    const sheetElementsAsJSON = [
-        {
-            className : 'TextElement',
-            x : L, y : T, w : totalW, h : titleH,
-            text : `Class Equation for the Group ${group.name}`,
-            fontSize : SheetModel.fittedFontSize(`Class Equation for the Group ${group.name}`, totalW),
-            alignment : 'center', opacity: 0
-        }
-    ]
+    const sheetElementsAsJSON = []
 
     for (let i = 0; i < fakeN; i++) {
         const fakeIndex = (fakeN == n) ? i
             : (i < 3) ? i : (i == 3) ? -1 : n - 1
         const colX = L + i * (W + opW)
         const opX = colX + W
-        const numY = T + titleH
-        const vizY = T + titleH + numH
+        const numY = T
+        const vizY = T + numH
 
         if (fakeIndex == -1) {
             sheetElementsAsJSON.push(
@@ -171,8 +162,8 @@ function showAsSheet (group, type /*: VisualizerType*/) {
 
     // last column: group order and full group visualizer
     const lastX = L + fakeN * (W + opW)
-    const numY = T + titleH
-    const vizY = T + titleH + numH
+    const numY = T
+    const vizY = T + numH
     let highlights = null
     for (let i = 0; i < n; i++) highlights = addHighlights(group, i, highlights)
     sheetElementsAsJSON.push(
@@ -184,5 +175,5 @@ function showAsSheet (group, type /*: VisualizerType*/) {
           highlight_colors: [highlights, [], []] }
     )
 
-    SheetModel.createNewSheet(sheetElementsAsJSON)
+    SheetModel.createNewSheet({title: `Class Equation for the Group ${group.name}`, elements: sheetElementsAsJSON})
 }

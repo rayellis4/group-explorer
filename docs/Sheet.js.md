@@ -46,7 +46,9 @@ async function load () {
    // check for passedSheet in URL, load it if present
    const invokeParameters = new URL(window.location.href).searchParams
    if (invokeParameters.get('passedSheet') != null) {
-      loadPassedSheet(sheetModel)
+      loadPassedSheet(sheetModel).then((title) => {
+         if (title != null) Heading.setTitle(title)
+      })
    }
 }
 
