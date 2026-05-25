@@ -1119,7 +1119,7 @@ export class MorphismView extends LinkView {
             highlightColor = this.modelElement.source.viewElement.visualizer.model.highlightColors[0]?.[inx]
          } else {
             const destinationIndex = this.modelElement.mapping.image[inx]
-            highlightColor = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]?.[inx]
+            highlightColor = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]?.[destinationIndex]
          }
 
          if (highlightColor == null) {

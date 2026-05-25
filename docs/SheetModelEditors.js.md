@@ -677,7 +677,8 @@ class MorphismEditor extends SheetElementEditor {
       // highlight image in destination
       const destinationHighlights = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]
       this.modelElement.destination.viewElement.visualizer.model.group.elements.forEach((inx) => {
-         destinationHighlights[inx] = colorMap.get(inx) ?? null
+         const c = colorMap.get(inx)
+         destinationHighlights[inx] = c != null ? ('#' + c.getHexString()) : null
       })
       this.modelElement.destination.viewElement.visualizer.model.$touch('highlightColors')
       this.modelElement.destination.viewElement.redraw()
