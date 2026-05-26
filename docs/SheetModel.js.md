@@ -461,7 +461,7 @@ class MorphismElement extends LinkElement {
    showManyArrows /*: boolean */ = false
    arrowColor /*: 'none' | 'source' | 'destination' */ = 'none'
    arrowMargin /*: number */ = 0
-   labelFontSize /*: ?string */ = null
+   fontSize /*: ?string */ = null
    useMulttableSourceTopRow /*: boolean */ = false
    useMulttableDestinationTopRow /*: boolean */ = false
    mapping /*: Mapping */
@@ -481,7 +481,7 @@ class MorphismElement extends LinkElement {
          showManyArrows: this.showManyArrows,
          arrowColor: this.arrowColor,
          arrowMargin: this.arrowMargin,
-         labelFontSize: this.labelFontSize,
+         fontSize: this.fontSize,
          useMulttableSourceTopRow: this.useMulttableSourceTopRow,
          useMulttableDestinationTopRow: this.useMulttableDestinationTopRow,
          definingPairs: this.mapping.definingPairs,
@@ -499,7 +499,7 @@ class MorphismElement extends LinkElement {
       this.showManyArrows = jsonObject.showManyArrows ?? this.showManyArrows
       this.arrowColor = jsonObject.arrowColor ?? this.arrowColor
       this.arrowMargin = jsonObject.arrowMargin ?? this.arrowMargin
-      this.labelFontSize = jsonObject.labelFontSize ?? this.labelFontSize
+      this.fontSize = jsonObject.fontSize ?? this.fontSize
       this.useMulttableSourceTopRow = jsonObject.useMulttableSourceTopRow ?? this.useMulttableSourceTopRow
       this.useMulttableDestinationTopRow = jsonObject.useMulttableDestinationTopRow ?? this.useMulttableDestinationTopRow
       this.mapping = new Mapping(this.source.group, this.destination.group, jsonObject.definingPairs)
@@ -579,7 +579,7 @@ const knownFields = [
    // Morphism
    'arrowColor' /*: 'none' | 'source' | 'destination' */,
    'definingPairs' /*: Array<[groupElement, groupElement]> */,
-   'labelFontSize' /*: string */,
+   'fontSize' /*: string */,
    'showInjectionSurjection' /*: boolean */,
    'showManyArrows' /*: boolean */,
 ]
