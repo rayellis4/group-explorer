@@ -135,7 +135,9 @@ function formatSubgroupInfoHeader (group) {
           <a href="" data-action="showSubgroupLattice(group, 'CDElement', true)">Cayley diagram,</a>
           <a href="" data-action="showSubgroupLattice(group, 'CGElement', true)">cycle graph,</a> or
           <a href="" data-action="showSubgroupLattice(group, 'MTElement', true)">multiplication table,</a>
-          where the subgroups in the same conjugacy class are merged into a single node.</div>`,
+          where the subgroups in the same conjugacy class are merged into a single node.
+          Elements shared by some subgroups in the class carry a white ring;
+          elements shared by all are shown in gray.</div>`,
        (group.isSimple)
           ? `<div>None of the subgroups on the list below is
                <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a>.
@@ -401,15 +403,18 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
          const conjugacyClassSubgroups = classSubgroupsBitSet.toArray()
          const highlightColors = getHighlightColors(group, conjugacyClassSubgroups.length, type)
          const highlights = [[], [], []]
+         const membershipCount = new Array(group.order).fill(0)
          conjugacyClassSubgroups.forEach((subgroupIndex, inx) => {
-            group.subgroups[subgroupIndex].members.toArray()
-               .forEach((el) => highlights[0][el] = '#' + highlightColors[inx].getHexString())
+            group.subgroups[subgroupIndex].members.toArray().forEach((el) => {
+               highlights[0][el] = '#' + highlightColors[inx].getHexString()
+               membershipCount[el]++
+            })
          })
          if (conjugacyClassSubgroups.length > 1) {
-            const H_1 = group.subgroups[conjugacyClassSubgroups[0]]
-            const H_2 = group.subgroups[conjugacyClassSubgroups[1]]
-            const intersection = BitSet.intersection(H_1.members, H_2.members)
-            intersection.toArray().forEach((el) => highlights[0][el] = highlights[1][el] = 'white')
+            membershipCount.forEach((count, el) => {
+               if (count > 1) highlights[1][el] = 'white'
+               if (count === conjugacyClassSubgroups.length) highlights[0][el] = '#b0b0b0'
+            })
          }
 
          sheetElementsAsJSON.push({
