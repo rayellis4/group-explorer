@@ -280,13 +280,13 @@ describe('Group', function () {
   });
 
   // ── commutator ────────────────────────────────────────────────────────────────
-  describe('commutator', function () {
+  describe('commutatorSubgroup', function () {
     it('commutator of a commutative group is the identity', function () {
-      expect(Z4.commutator.members.toArray()).to.deep.equal([0]);
+      expect(Z4.commutatorSubgroup.members.toArray()).to.deep.equal([0]);
     });
 
-    it('commutator of S3 is [0, 1, 2]', function () {
-      expect(S3.commutator.members.toArray()).to.deep.equal([0, 1, 2]);
+    it('commutatorSubgroup of S3 is [0, 1, 2]', function () {
+      expect(S3.commutatorSubgroup.members.toArray()).to.deep.equal([0, 1, 2]);
     });
   });
 
