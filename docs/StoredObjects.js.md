@@ -9,10 +9,9 @@ export {
    getGroupLibrary,
    saveGroupLibrary,
 
-   // Preference routines
-   getPreference,
-   setPreference,
-   removePreference,
+   // Settings routines
+   getSettings,
+   saveSettings,
 
    // Stored sheet routines
    getStoredSheet,
@@ -39,7 +38,7 @@ const GENERAL_STORE = 'GeneralStore'
 const SHEET_STORE = 'StoredSheets'
 const SHEET_BACKUP_STORE = 'StoredSheetsBackup'  // created during migration, kept as safety net
 const GROUP_LIBRARY_KEY = 'GroupLibrary'
-const PREFERENCES_KEY = 'Preferences'
+const SETTINGS_KEY = 'Settings'
 const PASSED_SHEET_KEY = 'PassedSheet'
 const PASSED_JSON_KEY = 'PassedJSON'
 
@@ -121,33 +120,16 @@ async function saveGroupLibrary (groupLibrary /*: libraryType */) /*: Promise<mi
 }
 
 //////////
-// Preference routines
+// Settings routines
 //////////
 
-// cache preferences locally to enable client code serialization
-let preferences /*: {[key: string]: mixed} */ = {}
-
-// workaround to avoid flow parse error on top-level await
-;(async () => {
-   preferences = ((await get(GENERAL_STORE, PREFERENCES_KEY) /*: any */) /*: {[key: string]: mixed} */) || {}
-})()
-
-function getPreference (key /*: string */) /*: mixed */ {
-   return preferences[key]
+function getSettings () /*: Promise<{[key: string]: mixed}> */ {
+   return ((get(GENERAL_STORE, SETTINGS_KEY) /*: any */) /*: Promise<{[key: string]: mixed}> */)
+      .then((result) => result || {})
 }
 
-function setPreference (key /*: string */, value /*: mixed */) /*: Promise<mixed> */ {
-   preferences[key] = value
-   return updatePreferences()
-}
-
-function removePreference (key /*: string */) /*: Promise<mixed> */ {
-   delete(preferences[key])
-   return updatePreferences()
-}
-
-async function updatePreferences () /*: Promise<mixed> */ {
-   return put(GENERAL_STORE, PREFERENCES_KEY, preferences)
+function saveSettings (settings /*: {[key: string]: mixed} */) /*: Promise<mixed> */ {
+   return put(GENERAL_STORE, SETTINGS_KEY, settings)
 }
 
 //////////

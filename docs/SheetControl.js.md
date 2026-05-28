@@ -13,6 +13,7 @@ The factory method [addControl](#addcontrol) is the only object exported.
 ```javascript
  */
 import * as Library from './Library.js'
+import * as Settings from './Settings.js'
 import * as GEUtils from './GEUtils.js'
 import * as Heading from './Heading.js'
 import {serializeSheet, deserializeSheet} from './SheetSerialization.js'
@@ -140,7 +141,7 @@ class View {
    }
 
    showGroupSelect () {
-      const sortedGroups = Library.getAllGroups().sort((g, h) => g.order - h.order)
+      const sortedGroups = Settings.allVisibleGroups().sort((g, h) => g.order - h.order)
 
       const byOrder = new Map()
       sortedGroups.forEach((g) => {

@@ -1,0 +1,1 @@
+../docs/Settings.js.md

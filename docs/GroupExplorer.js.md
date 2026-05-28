@@ -5,8 +5,8 @@ import * as GroupTable from './GroupTable.js'
 import * as GroupTableUI from './GroupTableUI.js'
 import * as Heading from './Heading.js'
 import * as Library from './Library.js'
+import * as Settings from './Settings.js'
 import * as ShowGAPCode from './ShowGAPCode.js'
-import * as StoredObjects from './StoredObjects.js'
 
 export {load}
 
@@ -21,44 +21,28 @@ function load () {
       makeMenu
    )
 
-   displayLibraries(getDisplayLibrariesFromPreferences())
+   displayGroups()
 
-   // listen for library update message from Library
+   // listen for library or settings update
    const channel = new BroadcastChannel('GE3-channel')
    channel.addEventListener('message', async (messageEvent) => {
       const message = messageEvent.data
-      if (message.source != 'library') return
-      await Library.loadLibrary()
-      displayLibraries(getDisplayLibrariesFromPreferences())
+      if (message.source === 'library') {
+         await Library.loadLibrary()
+      }
+      if (message.source === 'library' || message.source === 'settings') {
+         displayGroups()
+      }
    })
-}
-
-// get libraries from preferences in localStorage; default to []
-function getDisplayLibrariesFromPreferences () {
-   return StoredObjects.getPreference('displayLibraries') || []
-}
-
-function updateDisplayLibrariesInPreferences (displayLibraries) {
-   StoredObjects.setPreference('displayLibraries', displayLibraries)
 }
 
 function makeMenu () {
    const menuElements = []
-   if (document.querySelector("tr[data-library='fgb']")) {
-      menuElements.push({label: 'Hide extended library', action: () => hideLibrary('extended')})
-   } else {
-      menuElements.push({label: 'Show extended library', action: () => showLibrary('extended')})
-   }
 
-   if (Library.getAllGroups().some((G) => G.library == 'generated')) {
-      if (document.querySelector("tr[data-library='generated']")) {
-         menuElements.push({label: 'Hide generated groups', action: () => hideLibrary('generated')})
-      } else {
-         menuElements.push({label: 'Show generated groups', action: () => showLibrary('generated')})
-      }
+   if (Library.getAllGroups().some((G) => G.library === 'generated')) {
       menuElements.push({label: 'Delete generated groups', action: () => {
-         Library.deleteGroups(Library.getAllGroups().filter((G) => G.library == 'generated'))
-         displayLibraries(getDisplayLibrariesFromPreferences())
+         Library.deleteGroups(Library.getAllGroups().filter((G) => G.library === 'generated'))
+         displayGroups()
       }})
    }
 
@@ -71,50 +55,19 @@ function makeMenu () {
    return menuElements
 }
 
-function showLibrary (library) {
-   const libraries = getDisplayLibrariesFromPreferences()
-   if (!libraries.includes(library)) {
-      libraries.push(library)
-      updateDisplayLibrariesInPreferences(libraries)
-      displayLibraries(libraries)
-   }
-}
+function displayGroups () {
+   const groupsToDisplay = Settings.allVisibleGroups()
 
-function hideLibrary (library) {
-   const libraries = getDisplayLibrariesFromPreferences()
-   if (libraries.includes(library)) {
-      libraries.splice(libraries.indexOf(library), 1)
-      updateDisplayLibrariesInPreferences(libraries)
-      displayLibraries(libraries)
-   }
-}
-
-// display sets of groups
-// 'extended' groups are those with an explicit library property and not generated
-// 'generated' groups self-identify as G.isGenerated
-// default groups, with no library property and not generated, are always displayed
-function displayLibraries (libraries) {
-   const groupsToDisplay = []
-   const allGroups = Library.getAllGroups()
-   groupsToDisplay.push(...allGroups.filter((G) => G.library == null))
-   if (libraries.includes('extended')) {
-      groupsToDisplay.push(...allGroups.filter((G) => G.library != null && G.library != 'generated'))
-   }
-   if (libraries.includes('generated')) {
-      const generatedGroups = allGroups.filter((G) => G.library == 'generated')
-      generatedGroups
-         .filter((G) => GEUtils.gapidIsUnresolved(G.gapid))
-         .forEach((G) => window.setTimeout(() => {
-            ShowGAPCode.getGAPInfo(G.URL)
-               .then(() => {
-                  const gapid = document.getElementById('group-table-body').querySelector(`[data-group="${G.URL}"] td div`)
-                  if (gapid != null) {
-                     gapid.textContent = G.gapid
-                  }
-               })
-         }, 0))
-      groupsToDisplay.push(...generatedGroups)
-   }
+   // schedule GAP ID resolution for unresolved generated groups
+   groupsToDisplay
+      .filter((G) => G.library === 'generated' && GEUtils.gapidIsUnresolved(G.gapid))
+      .forEach((G) => window.setTimeout(() => {
+         ShowGAPCode.getGAPInfo(G.URL)
+            .then(() => {
+               const gapid = document.getElementById('group-table-body').querySelector(`[data-group="${G.URL}"] td div`)
+               if (gapid != null) gapid.textContent = G.gapid
+            })
+      }, 0))
    // sort by definition length to minimize re-layout jink
    groupsToDisplay.sort((G, H) => H.definition.length - G.definition.length)
 

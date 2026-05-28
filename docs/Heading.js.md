@@ -17,6 +17,7 @@ All menus include an ['About GE3' option](#aboutge3).
  */
 
 import * as GEUtils from './GEUtils.js'
+import * as Settings from './Settings.js'
 import {makeDetachedMenu, makeDialog} from './UIComponents.js'
 
 export {display, setTitle}
@@ -73,6 +74,7 @@ function display (
       clickEvent.stopPropagation()
 
       const menuElements /*: Array<{label: html, action: () => void}> */ = menuGenerator()
+      menuElements.push({label: 'Settings', action: () => Settings.showDialog()})
       menuElements.push({label: 'About GE3', action: () => aboutGE3()})
 
       // Assemble option menu elements

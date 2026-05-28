@@ -251,10 +251,9 @@ const groupFiles = [
    'groups/40,7.group',
    'groups/40,8.group',
 
-   /* Large groups, used in testing but not normally loaded
+   // Notable large groups, often used as stress tests
    'groups/168.group',
    'groups/Tesseract.group',
-    */
 ]
 
 /*

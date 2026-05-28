@@ -7,7 +7,8 @@
     "definition": "⟨<i>a</i>, <i>b</i> : <i>a</i><sup>2</sup>=<wbr><i>b</i><sup>3</sup>=<wbr><i>a</i><i>b</i><i>a</i><i>b</i><i>a</i><i>b</i><i>a</i><i>b</i><i>a</i><i>b</i><i>a</i><i>b</i><i>a</i><i>b</i>=<wbr><i>a</i><sup>-1</sup><i>b</i><sup>-1</sup><i>a</i><i>b</i><i>a</i><sup>-1</sup><i>b</i><sup>-1</sup><i>a</i><i>b</i><i>a</i><sup>-1</sup><i>b</i><sup>-1</sup><i>a</i><i>b</i><i>a</i><sup>-1</sup><i>b</i><sup>-1</sup><i>a</i><i>b</i>=<wbr>1⟩",
     "phrase": "A 168-element subgroup of S₇", 
     "notes": "Let <i>A</i> =\n        { <i>a</i>, <i>b</i>, <i>c</i>,\n          <i>d</i>, <i>e</i>, <i>f</i>,\n          <i>g</i> }\n        be a set of points with the following ternary (cotriangularity) relation\n        defined on them:\n        <i>Rabe</i>, <i>Rcde</i>, <i>Radg</i>,\n        <i>Rbcg</i>, <i>Racf</i>, <i>Rbdf</i>,\n        <i>Refg</i>.\n        This 168-element group is isomorphic to the subgroup of\n        <i>S</i><sub>7</sub> (all permutations of\n        <i>A</i>) which respects the relation <i>R</i>.\n        That is, if $P$ is a permutation in <i>S</i><sub>7</sub>\n        then $P$ is in the subgroup if and only if\n        <i>Rxyz</i> implies <i>R(Px)(Py)(Pz)</i>.\n    ", 
-    "author": "Nathan Carter (ncarter@bentley.edu)", 
+    "library": "notable",
+    "author": "Nathan Carter (ncarter@bentley.edu)",
     "multtable": [
         [
               0,   1,   2,   3,   4,   5,   6,   7,   8,   9, 
