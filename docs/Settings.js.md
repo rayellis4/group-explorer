@@ -4,7 +4,7 @@ import * as Library from './Library.js'
 import {makeDialog} from './UIComponents.js'
 import * as StoredObjects from './StoredObjects.js'
 
-export {allVisibleGroups, get, loadSettings, showDialog}
+export {get, getFilterConfig, loadSettings, showDialog}
 
 /*::
 type SettingsKey = 'showExtendedLt32' | 'showExtendedGe32' | 'showNotable' | 'showGenerated'
@@ -23,8 +23,7 @@ const cache /*: {[SettingsKey]: boolean} */ = Object.assign({}, DEFAULTS)
 // populate cache from IndexedDB on load
 async function loadSettings () {
    const storedSettings = await StoredObjects.getSettings()
-   console.log(storedSettings)
-   Object.assign(cache, storedSettings, DEFAULTS)
+   Object.assign(cache, storedSettings)
 }
 
 // listen for settings changes from other tabs and update cache from message
@@ -38,24 +37,14 @@ function get (key /*: SettingsKey */) /*: boolean */ {
    return cache[key]
 }
 
-function allVisibleGroups () /*: Array<any> */ {
-   const groupVisibility /*: {[string]: 'shown' | 'hidden'} */ = cache.groupVisibility ?? {}
-   return Library.getAllGroups().filter((group) => {
-      const override = groupVisibility[group.URL]
-      if (override != null) return override === 'shown'
-      const lib = group.library
-      if (lib == null)                         return true
-      if (lib === 'fgb' || lib === 'extended') return group.order < 32 ? cache.showExtendedLt32 : cache.showExtendedGe32
-      if (lib === 'notable')                   return cache.showNotable
-      if (lib === 'generated')                 return cache.showGenerated
-      return true
-   })
+function getFilterConfig () /*: {[string]: any} */ {
+   return {...cache}
 }
 
-async function set (key /*: SettingsKey */, value /*: boolean */) {
-   cache[key] = value
+async function set (newSettings /*: {[SettingsKey]: boolean} */) {
+   Object.assign(cache, newSettings)
    await StoredObjects.saveSettings(cache)
-   new BroadcastChannel('GE3-channel').postMessage({source: 'settings', changed: [key], values: {[key]: value}})
+   new BroadcastChannel('GE3-channel').postMessage({source: 'settings', values: {...cache}})
 }
 
 function showDialog () {
@@ -67,13 +56,27 @@ function showDialog () {
       modal.querySelector(`#settings-${key}`).checked = get((key /*: any */))
    })
 
+   const deleteButton = modal.querySelector('#settings-delete-generated')
+   const updateDeleteButton = () => {
+      deleteButton.disabled = !Library.getAllGroups().some((G) => G.library === 'generated')
+   }
+   updateDeleteButton()
+   deleteButton.addEventListener('click', () => {
+      if (window.confirm('Delete all generated groups?')) {
+         Library.deleteGroups(Library.getAllGroups().filter((G) => G.library === 'generated'))
+         updateDeleteButton()
+      }
+   })
+
    modal.querySelector('#settings-cancel').addEventListener('click', () => modal.remove())
 
    modal.querySelector('#settings-save').addEventListener('click', () => {
+      const newSettings /*: {[SettingsKey]: boolean} */ = {}
       modal.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
          const key = checkbox.id.replace('settings-', '')
-         set((key /*: any */), checkbox.checked)
+         if (key in DEFAULTS) newSettings[(key /*: SettingsKey */)] = checkbox.checked
       })
+      set(newSettings)
       modal.remove()
    })
 }
@@ -103,6 +106,10 @@ function dialogHTML () /*: string */ {
          <div>
             <input type="checkbox" id="settings-showGenerated">
             <label for="settings-showGenerated">Generated groups (groups you have defined)</label>
+         </div>
+         <div><b>Library management</b></div>
+         <div>
+            <button id="settings-delete-generated" style="width: auto">Delete generated groups</button>
          </div>
          <div class="flex-h" style="justify-content: space-evenly">
             <button id="settings-cancel">Cancel</button>

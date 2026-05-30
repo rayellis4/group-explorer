@@ -37,26 +37,15 @@ function load () {
 }
 
 function makeMenu () {
-   const menuElements = []
-
-   if (Library.getAllGroups().some((G) => G.library === 'generated')) {
-      menuElements.push({label: 'Delete generated groups', action: () => {
-         Library.deleteGroups(Library.getAllGroups().filter((G) => G.library === 'generated'))
-         displayGroups()
-      }})
-   }
-
-   menuElements.push(
+   return [
       {label: 'New Sheet', action: () => window.open('Sheet.html')},
       {label: '<hr>', action: () => {}},
       {label: 'Group Explorer help', action: () => window.open('help/index.html')}
-   )
-
-   return menuElements
+   ]
 }
 
 function displayGroups () {
-   const groupsToDisplay = Settings.allVisibleGroups()
+   const groupsToDisplay = Library.allVisibleGroups(Settings.getFilterConfig())
 
    // schedule GAP ID resolution for unresolved generated groups
    groupsToDisplay

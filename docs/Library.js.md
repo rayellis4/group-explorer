@@ -30,6 +30,7 @@ import * as StoredObjects from './StoredObjects.js'
 import * as XMLGroup from './XMLGroup.js'
 
 export {
+   allVisibleGroups,
    deleteGroups,
    getAllGroups,
    getGroupsByOrder,
@@ -98,6 +99,20 @@ function getAllGroups () /*: Array<Group> */ {
    return ((Object.values(library) /*: any */) /*: Array<Group> */)
 }
 
+// return groups visible under the given filter config (from Settings.getFilterConfig())
+function allVisibleGroups (filterConfig /*: {[string]: any} */) /*: Array<Group> */ {
+   const groupVisibility = filterConfig.groupVisibility ?? {}
+   return getAllGroups().filter((group) => {
+      const override = groupVisibility[group.URL]
+      if (override != null) return override === 'shown'
+      const lib = group.library
+      if (lib == null)                         return true
+      if (lib === 'fgb' || lib === 'extended') return group.order < 32 ? filterConfig.showExtendedLt32 : filterConfig.showExtendedGe32
+      if (lib === 'notable')                   return filterConfig.showNotable
+      if (lib === 'generated')                 return filterConfig.showGenerated
+      return true
+   })
+}
 
 function getGroupsByOrder (order /*: integer */) /*: Array<Group> */ {
    return Object.values(library).filter((group) => group.order == order)

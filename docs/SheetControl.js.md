@@ -141,7 +141,7 @@ class View {
    }
 
    showGroupSelect () {
-      const sortedGroups = Settings.allVisibleGroups().sort((g, h) => g.order - h.order)
+      const sortedGroups = Library.allVisibleGroups(Settings.getFilterConfig()).sort((g, h) => g.order - h.order)
 
       const byOrder = new Map()
       sortedGroups.forEach((g) => {
