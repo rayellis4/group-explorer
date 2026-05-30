@@ -47,10 +47,12 @@ import type { MSG_loadGroup } from './SheetModel.js'
 export type libraryType = {[key: string]: Group}
 */
 
-let library /*: libraryType */ = {}
+const library /*: libraryType */ = {}
 
 async function loadLibrary () {
-   library = await getStoredGroups()
+   const storedGroups = await getStoredGroups()
+   Object.keys(library).forEach((key) => delete library[key])  // clear library
+   Object.assign(library, storedGroups)
 }
 
 // Populate the in-memory library from a raw stored-groups object (used during DB migration,

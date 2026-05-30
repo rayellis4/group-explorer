@@ -4,7 +4,7 @@ import * as Library from './Library.js'
 import {makeDialog} from './UIComponents.js'
 import * as StoredObjects from './StoredObjects.js'
 
-export {allVisibleGroups, get, showDialog}
+export {allVisibleGroups, get, loadSettings, showDialog}
 
 /*::
 type SettingsKey = 'showExtendedLt32' | 'showExtendedGe32' | 'showNotable' | 'showGenerated'
@@ -21,7 +21,11 @@ const DEFAULTS /*: {[SettingsKey]: boolean} */ = {
 const cache /*: {[SettingsKey]: boolean} */ = Object.assign({}, DEFAULTS)
 
 // populate cache from IndexedDB on load
-StoredObjects.getSettings().then((stored) => Object.assign(cache, stored))
+async function loadSettings () {
+   const storedSettings = await StoredObjects.getSettings()
+   console.log(storedSettings)
+   Object.assign(cache, storedSettings, DEFAULTS)
+}
 
 // listen for settings changes from other tabs and update cache from message
 new BroadcastChannel('GE3-channel').addEventListener('message', (ev) => {

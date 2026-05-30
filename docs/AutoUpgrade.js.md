@@ -311,7 +311,9 @@ export async function initialize () {
    } else {
       // be sure the group library is loaded from local storage before starting anything else
       const Library = await import('./Library.js')
+      const Settings = await import('./Settings.js')
       await Library.loadLibrary()
+      await Settings.loadSettings()
    }
 }
 
