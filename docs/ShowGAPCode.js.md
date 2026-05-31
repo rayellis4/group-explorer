@@ -9,7 +9,7 @@ GAP code in the [GroupInfo](./GroupInfo.html.md) page.
  */
 import * as Library from './Library.js'
 
-export {setup, executeCommands}
+export {setup, resolveGAPInfo}
 
 /*::
 import {Group} from './Group.js'
@@ -157,56 +157,49 @@ function executeCommands (gapCommands /*: string */) /*: Promise<string> */ {
    })
 }
 
-export async function getGAPInfo (groupURL /*: string */) {
-   const checkGroup = () => Library.getAllGroups().find((G) => G.URL == groupURL)
-   if (checkGroup() != null) {
-      const presentation = new URL(groupURL).search.slice(1)
-      const gapid = await getGAPId(presentation)
+// pending queue for microbatch GAP resolution
+const pendingResolutions /*: Array<{presentation: string, resolve: Function, reject: Function}> */ = []
+let batchScheduled = false
 
-      if (gapid != null) {
-         try {
-            const printGAPNameCommand = `Print(StructureDescription(SmallGroup(${gapid})))`
-            const gapName = await executeCommands(printGAPNameCommand)
-            const group = checkGroup()
-            if (group != null) {
-               group.gapid = gapid
-               group.gapname = gapName
-               Library.saveGroup(group)
-            }
-         } catch (_error) { }
+function resolveGAPInfo (presentation /*: string */) /*: Promise<{gapid: string, gapname: string}> */ {
+   return new Promise((resolve, reject) => {
+      pendingResolutions.push({presentation, resolve, reject})
+      if (!batchScheduled) {
+         batchScheduled = true
+         window.setTimeout(processBatch, 0)
       }
-   }
+   })
 }
 
-export async function getGAPId (presentation /*: string */) /*: Promise<?string> */ {
-   const relators = presentation.split(':')[1].split(',')
-   const generators = Array.from(
-      relators.reduce(
-         (generatorSet /*: Set<string> */, relator) => {
-            for (const char of [...new String(relator)]) {
-               generatorSet.add(char.toLowerCase())
-            }
-            return generatorSet
-         }, new Set()))
-      .sort()
+async function processBatch () {
+   batchScheduled = false
+   const batch = pendingResolutions.splice(0)
 
-   let printGAPIdCommand = 'F := FreeGroup(' + generators.map((char) => `"${char}"`).join(',') + ');'
-   printGAPIdCommand += ' G := F / ['
-      + relators.map((relator) =>
-         relator.split('')
-            .map((char) => `F.${generators.indexOf(char.toLowerCase()) + 1}` + ((char == char.toUpperCase()) ? '^-1' : ''))
-            .join('*'))
-         .join(', ')
-      + '];'
-   printGAPIdCommand += ' Print(IdSmallGroup(G));'
+   const gapScript = batch.map(({presentation}) => {
+      const relators = presentation.split(':')[1].split(',')
+      const generators = [...relators.reduce(
+         (genSet /*: Set<string> */, relator) => {
+            for (const char of relator) genSet.add(char.toLowerCase())
+            return genSet
+         }, new Set())
+      ].sort()
+      const freeGroup = `FreeGroup(${generators.map((c) => `"${c}"`).join(',')})`
+      const relations = relators.map((relator) =>
+         relator.split('').map((char) =>
+            `F.${generators.indexOf(char.toLowerCase()) + 1}` + (char === char.toUpperCase() ? '^-1' : '')
+         ).join('*')
+      ).join(',')
+      return `F := ${freeGroup}; G := F/[${relations}]; id := IdSmallGroup(G); ` +
+             `Print(id[1], ",", id[2], "\\t", StructureDescription(SmallGroup(id[1],id[2])), "\\n");`
+   }).join('\n')
 
-   let result = null
    try {
-      const gapIdOutput = await executeCommands(printGAPIdCommand)
-      if (gapIdOutput != null) {
-         result = gapIdOutput?.match(/(\d+)/g)?.join(',')
-      }
-   } catch (_error) { }
-
-   return result      
+      const output = await executeCommands(gapScript)
+      output.trim().split('\n').forEach((line, i) => {
+         const [gapid, gapname] = line.split('\t')
+         batch[i].resolve({gapid: gapid.trim(), gapname: gapname.trim()})
+      })
+   } catch (error) {
+      batch.forEach(({reject}) => reject(error))
+   }
 }

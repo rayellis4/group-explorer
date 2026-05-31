@@ -7,8 +7,7 @@ its order and a defining relation.
 
 ```javascript
  */
-import * as GEUtils from './GEUtils.js'
-import * as ShowGAPCode from './ShowGAPCode.js'
+import * as Library from './Library.js'
 
 export {display}
 
@@ -18,19 +17,28 @@ function display (basicFactsElementId, group) {
 
    document.querySelector('#content.all-info').addEventListener('representationChange',
       () => basicFactsElement.innerHTML = getBasicFactsHTML(basicFactsElementId, group))
+
+   // listen for library or settings update
+   const channel = new BroadcastChannel('GE3-channel')
+   channel.addEventListener('message', async (messageEvent) => {
+      const message = messageEvent.data
+      if (message.source === 'library') {
+         await Library.loadLibrary()
+         const newGroup = Library.getAllGroups().find((G) => G.URL === group.URL)
+         if (newGroup != null && newGroup.gapid != null && newGroup.gapid != '' && newGroup.gapid != group.gapid) {
+            basicFactsElement.querySelectorAll('tr > td:first-child').forEach((el) => {
+               if (el.textContent === 'GAP ID') {
+                  el.parentElement.children[1].textContent = newGroup.gapid
+               } else if (el.textContent === 'GAP name') {
+                  el.parentElement.children[1].textContent = newGroup.gapname
+               }
+            })
+         }
+      }
+   })
 }
 
 function getBasicFactsHTML (basicFactsElementId, group) {
-   // update incomplete info
-   if (GEUtils.gapidIsUnresolved(group.gapid)) {
-      window.setTimeout(() => {
-         ShowGAPCode.getGAPInfo(group.URL)
-            .then(() => document.querySelector('#content.all-info')
-               .dispatchEvent(new CustomEvent('representationChange', {}))
-            )
-      }, 0)
-   }
-
    const basicFacts = [
       {name: 'Order', value: group.order},
       {name: 'GAP name', value: group.gapname},

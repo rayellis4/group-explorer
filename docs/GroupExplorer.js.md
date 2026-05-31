@@ -1,12 +1,10 @@
 // @flow
 
-import * as GEUtils from './GEUtils.js'
 import * as GroupTable from './GroupTable.js'
 import * as GroupTableUI from './GroupTableUI.js'
 import * as Heading from './Heading.js'
 import * as Library from './Library.js'
 import * as Settings from './Settings.js'
-import * as ShowGAPCode from './ShowGAPCode.js'
 
 export {load}
 
@@ -29,9 +27,24 @@ function load () {
       const message = messageEvent.data
       if (message.source === 'library') {
          await Library.loadLibrary()
-      }
-      if (message.source === 'library' || message.source === 'settings') {
-         displayGroups()
+         if (message.created.length > 0 || message.deleted.length > 0 || message.updated.length == 0) {
+            const visibleGroups = Library.allVisibleGroups(Settings.getFilterConfig()).map((G) => G.URL)
+            if (  (message.created.length == 0 && message.updated.length == 0 && message.deleted.length == 0)
+               || [...message.created, ...message.deleted].some((groupURL) => visibleGroups.includes(groupURL))
+            ) {
+               displayGroups()
+            }
+         } else {
+            message.updated.forEach((groupURL) => {
+               const group = Library.getGroupByURL(groupURL)
+               const gapidCell = document.querySelector(`tr[data-group="${groupURL}"] > td:first-child`)
+               if (gapidCell != null) {
+                  gapidCell.children[0].textContent = group.gapid
+               }
+            })
+         }
+      } else if (message.source === 'settings') {
+         displayGroups()  // changed options, update entire page
       }
    })
 }
@@ -47,16 +60,6 @@ function makeMenu () {
 function displayGroups () {
    const groupsToDisplay = Library.allVisibleGroups(Settings.getFilterConfig())
 
-   // schedule GAP ID resolution for unresolved generated groups
-   groupsToDisplay
-      .filter((G) => G.library === 'generated' && GEUtils.gapidIsUnresolved(G.gapid))
-      .forEach((G) => window.setTimeout(() => {
-         ShowGAPCode.getGAPInfo(G.URL)
-            .then(() => {
-               const gapid = document.getElementById('group-table-body').querySelector(`[data-group="${G.URL}"] td div`)
-               if (gapid != null) gapid.textContent = G.gapid
-            })
-      }, 0))
    // sort by definition length to minimize re-layout jink
    groupsToDisplay.sort((G, H) => H.definition.length - G.definition.length)
 

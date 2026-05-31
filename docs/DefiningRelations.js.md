@@ -10,7 +10,6 @@ import {BitSet} from './BitSet.js'
 import {Group} from './Group.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
-import * as ShowGAPCode from './ShowGAPCode.js'
 
 const GENERATED_GROUP_PREFIX = "data:,//GE3/generated"
 
@@ -502,14 +501,10 @@ function generateGroup (
       -1)
    group.names = [namePrefix + ` (${nameSuffix + 1})`]
    group.shortName = `Generated_${group.order}`
-   group.gapid = `${group.order},??`
    group.library = 'generated'
    group.definition = `⟨${formatGenerators(generators)} : ${formatRelators(relators)}⟩`
    group.notes = 'Generated from definition'
    group.URL = `${GENERATED_GROUP_PREFIX}?${generators.join(',')}:${relators.join(',')}`
-
-   window.setTimeout(() => ShowGAPCode.getGAPInfo(group.URL), 0)
-
    group.representations = [Array.from({length: group.order}, (_, inx) => '' + inx)]
    group.cayleyDiagrams = []
    group.symmetryObjects = []

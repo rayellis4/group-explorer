@@ -316,4 +316,3 @@ export async function initialize () {
       await Settings.loadSettings()
    }
 }
-

@@ -13,7 +13,6 @@ A collection of utility routines used throughout GE3.
  * [createActionHandler](#createactionhandler) -- create handler to eval data-action attribute on click
  * [createModelProxy](#createmodelproxy) -- create pub-sub proxy for model object
  * [countBy](#countby) -- returns array of counts of values of indexMap(value)
- * [gapidIsUnresolved](#gapidisunresolved) -- implement shared definition of unresolved group gapid
  * [version](#version) -- generate GE3 version number from <meta> tag in top-level web page
 
 ```javascript
@@ -29,7 +28,6 @@ export {
    createActionHandler,
    createModelProxy,
    countBy,
-   gapidIsUnresolved,
 }
 
 export {version} from './AutoUpgrade.js'
@@ -355,16 +353,4 @@ function countBy (valueArray /*: Array<value> */, indexMap /*: (value) => number
    }, [])
 
    return [...countArray].map((el) => el ?? 0)
-}
-
-/*
-```
-### gapidIsUnresolved
-Shared definition to determine whether group gapid has been resolved: unresolved gapids end with '??'
-(Unresolved id is used pending communication with GAP server in GroupExplorer, GroupInfo.)
-```javascript
-*/
-function gapidIsUnresolved (gapid /*: string */) /*: boolean */ {
-   const unresolved = gapid.endsWith('??')
-   return unresolved
 }

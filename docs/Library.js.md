@@ -90,6 +90,7 @@ function dataToGroup (data /*: any */, contentType /*: string */ = '') /*: Group
 function deleteGroups (groups /*: Array<Group> */) {
    for (const group of groups) {
       delete library[group.URL]
+      deletedGroupURLs.push(group.URL)
    }
    scheduleLocalStoreUpdate()
 }
@@ -252,30 +253,47 @@ async function loadFromPageURL () /*: Promise<Group> */ {
 
 // updates library group definitions and schedules local store update
 function saveGroup (group /*: ?Group */) {
-   let isNewGroup = false
    if (group != null) {
-      isNewGroup = (group.isGenerated && library[group.URL] == null)
+      if (group.isGenerated) {
+         if (library[group.URL] == null) {
+            createdGroupURLs.push(group.URL)
+         } else {
+            updatedGroupURLs.push(group.URL)
+         }
+      }
       library[group.URL] = group
    }
-   scheduleLocalStoreUpdate(isNewGroup)
+   scheduleLocalStoreUpdate()
 }
 
 // schedule local store group library update
 let savedTimeoutID /*: ?TimeoutID */ = null
-let sendNewGroupMessage /*: boolean */ = false  // send message to update GroupExplorer page
-function scheduleLocalStoreUpdate (isNewGroup) {
+const createdGroupURLs /*: Array<string> */ = []
+const updatedGroupURLs /*: Array<string> */ = []
+const deletedGroupURLs /*: Array<string> */ = []
+function scheduleLocalStoreUpdate () {
    if (savedTimeoutID != null) {
       window.clearTimeout(savedTimeoutID)
    }
-   sendNewGroupMessage ||= isNewGroup
    savedTimeoutID = window.setTimeout(async () => {
       savedTimeoutID = null
+      let message = null
+      if (createdGroupURLs.length != 0 || updatedGroupURLs.length != 0 || deletedGroupURLs.length != 0) {
+         message = {
+            source: 'library',
+            created: [...createdGroupURLs],
+            updated: [...updatedGroupURLs],
+            deleted: [...deletedGroupURLs]
+         }
+         createdGroupURLs.length = 0
+         updatedGroupURLs.length = 0
+         deletedGroupURLs.length = 0
+      }
       await StoredObjects.saveGroupLibrary(library)  // wait for store to complete before exiting
-      if (sendNewGroupMessage) {
+      if (message != null) {
          const channel = new BroadcastChannel('GE3-channel')
-         channel.postMessage({source: 'library'})
+         channel.postMessage(message)
          channel.close()
-         sendNewGroupMessage = false
       }
    })
 }

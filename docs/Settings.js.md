@@ -4,7 +4,7 @@ import * as Library from './Library.js'
 import {makeDialog} from './UIComponents.js'
 import * as StoredObjects from './StoredObjects.js'
 
-export {get, getFilterConfig, loadSettings, showDialog}
+export {getFilterConfig, loadSettings, showDialog}
 
 /*::
 type SettingsKey = 'showExtendedLt32' | 'showExtendedGe32' | 'showNotable' | 'showGenerated'
@@ -20,7 +20,7 @@ const DEFAULTS /*: {[SettingsKey]: boolean} */ = {
 // in-memory cache — authoritative source for this tab
 const cache /*: {[SettingsKey]: boolean} */ = Object.assign({}, DEFAULTS)
 
-// populate cache from IndexedDB on load
+// populate cache from IndexedDB.Settings; called from AutoUpgrade.initialize
 async function loadSettings () {
    const storedSettings = await StoredObjects.getSettings()
    Object.assign(cache, storedSettings)
@@ -32,10 +32,6 @@ new BroadcastChannel('GE3-channel').addEventListener('message', (ev) => {
    const values = ev.data.values
    if (values != null) Object.assign(cache, values)
 })
-
-function get (key /*: SettingsKey */) /*: boolean */ {
-   return cache[key]
-}
 
 function getFilterConfig () /*: {[string]: any} */ {
    return {...cache}
@@ -51,10 +47,8 @@ function showDialog () {
    const center = {clientX: window.innerWidth / 2, clientY: window.innerHeight / 2}
    const modal = makeDialog(dialogHTML(), center)
 
-   // initialize checkboxes from current cache — changes held locally until Save
-   Object.keys(DEFAULTS).forEach((key) => {
-      modal.querySelector(`#settings-${key}`).checked = get((key /*: any */))
-   })
+   // initialize checkboxes from current cache — changes held in DOM until Save
+   Object.entries(cache).forEach(([key, value]) => modal.querySelector(`#settings-${key}`).checked = value)
 
    const deleteButton = modal.querySelector('#settings-delete-generated')
    const updateDeleteButton = () => {

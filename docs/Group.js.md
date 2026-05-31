@@ -8,8 +8,9 @@
 import {BitSet} from './BitSet.js';
 import * as DefiningRelations from './DefiningRelations.js';
 import * as GEUtils from './GEUtils.js'
+import * as Library from './Library.js'
 import * as MathUtils from './MathUtils.js';
-import {Subgroup} from './Subgroup.js';
+import * as ShowGAPCode from './ShowGAPCode.js'
 import {SubgroupLattice} from './SubgroupLattice.js';
 
 /*::
@@ -54,7 +55,7 @@ export class Group {
    // Properties from .group file
    names /*: Array<html> */                          = ['Unnamed Group']
    gapname /*: ?string */
-   gapid /*: ?string */
+   // gapid /*: ?string */
    shortName /*: string */                           = 'Unnamed Group'
    links /*: ?Array<string> */
    declaredGenerators /*: ?Array<Array<groupElement>> */
@@ -110,6 +111,42 @@ export class Group {
          this.custom.name = customName
       } else {
          delete this.custom.name
+      }
+   }
+
+   get gapid () /*: string */ {
+      if (this._gapid_lock === undefined) {
+         const groupURL = this.URL
+         Object.defineProperty(this, '_gapid_lock', {
+            value: true,
+            enumerable: false,
+            configurable: true  // so it can be removed later
+         })
+         window.setTimeout(async () => {
+            const presentation = new URL(groupURL).search.slice(1)
+            try {
+               const {gapid, gapname} = await ShowGAPCode.resolveGAPInfo(presentation)
+               const group = Library.getGroupByURL(groupURL)  // make sure the group hasn't been deleted
+               if (group != null && (group.gapid != gapid || group.gapname != gapname)) {
+                  group.gapid = gapid
+                  group.gapname = gapname
+                  Library.saveGroup(group)
+               }
+            } catch (_error) { }
+            delete this._gapid_lock
+         }, 0)
+      }
+
+      return `${this.order},??`
+   }
+
+   set gapid (gapid /*: string */) {
+      if (gapid != null && !gapid.endsWith('??')) {
+         Object.defineProperty(this, 'gapid', {
+            value: gapid,
+            enumerable: true,  // serialize gapid if it is set
+            writable: true
+         })
       }
    }
 
