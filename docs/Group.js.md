@@ -68,7 +68,7 @@ export class Group {
    custom /*: {[key: string]: any} */                = {}
 
    // Group properties set elsewhere
-   library /*: void | 'fgb' | 'generated' */
+   library /*: void | 'extended' | 'notable' | 'generated' */
    lastModifiedOnServer /*: ?string */
    URL /*: string */
 
@@ -270,11 +270,6 @@ export class Group {
    get generators () /*: Array<groupElement> */ {
       const generators = this.declaredGenerators?.[0] || this.subgroups[this.subgroups.length - 1].generators.toArray()
       return generators
-   }
-
-   get isGenerated () /*: boolean */ {
-      this.#setProperty('isGenerated', this.URL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX))
-      return this.isGenerated
    }
 
    get inverses () /*: Array<groupElement> */ {

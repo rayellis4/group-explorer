@@ -108,7 +108,7 @@ function allVisibleGroups (filterConfig /*: {[string]: any} */) /*: Array<Group>
       if (override != null) return override === 'shown'
       const lib = group.library
       if (lib == null)                         return true
-      if (lib === 'fgb' || lib === 'extended') return group.order < 32 ? filterConfig.showExtendedLt32 : filterConfig.showExtendedGe32
+      if (lib === 'extended') return group.order < 32 ? filterConfig.showExtendedLt32 : filterConfig.showExtendedGe32
       if (lib === 'notable')                   return filterConfig.showNotable
       if (lib === 'generated')                 return filterConfig.showGenerated
       return true
@@ -122,10 +122,18 @@ function getGroupsByOrder (order /*: integer */) /*: Array<Group> */ {
 // returns group from library by URL, generating it if needed
 function getGroupByURL (url /*: string */) /*: ?Group */ {
    let group /*: ?Group */ = library[absoluteURL(url)]
-   if (group == null && url.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
+   if (group == null) {
       const presentation = new URL(url).search.slice(1)
-      group = DefiningRelations.generateGroupFromPresentation(presentation)
-      saveGroup(group)
+      if (url.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
+         group = DefiningRelations.generateGroupFromPresentation(presentation)
+         group.URL = url
+         saveGroup(group)
+      } else if (url.startsWith(DefiningRelations.EXTENDED_GROUP_PREFIX)) {
+         group = DefiningRelations.generateGroupFromPresentation(presentation)
+         group.library = 'extended'
+         group.URL = url
+         saveGroup(group)
+      }
    }
 
    return group
@@ -254,12 +262,10 @@ async function loadFromPageURL () /*: Promise<Group> */ {
 // updates library group definitions and schedules local store update
 function saveGroup (group /*: ?Group */) {
    if (group != null) {
-      if (group.isGenerated) {
-         if (library[group.URL] == null) {
-            createdGroupURLs.push(group.URL)
-         } else {
-            updatedGroupURLs.push(group.URL)
-         }
+      if (library[group.URL] == null) {
+         createdGroupURLs.push(group.URL)
+      } else {
+         updatedGroupURLs.push(group.URL)
       }
       library[group.URL] = group
    }
@@ -331,7 +337,7 @@ async function updateAllGroups (manifestURLs /*: Array<string> */) {
    await loadLibrary()
 
    const allURLs /*: Set<string> */ = new Set()
-   Object.values(library || {}).filter((group) => !group.isGenerated).forEach((group) => allURLs.add(group.URL))
+   Object.values(library || {}).filter((group) => !group.URL.startsWith('data:')).forEach((group) => allURLs.add(group.URL))
    manifestURLs.forEach((url) => allURLs.add(url))
 
    // complete updates

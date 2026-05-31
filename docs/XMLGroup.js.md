@@ -27,7 +27,7 @@ export type XMLSymmetryObject = {
  */
 function fromGroupFileXML (text /*: string */) /*: Group */ {
    // Replacing named entities with unicode characters to ensure that later fragments parse successfully...
-   const cleanText = text.replace(/<br.>/g, "&lt;br/&gt;")  // hack to read fgb notes
+   const cleanText = text.replace(/<br.>/g, "&lt;br/&gt;")  // <br/> is not valid XML; escape it before parsing
    const xml /*: Document */ = new DOMParser().parseFromString(cleanText, 'text/xml')
 
    const G = Group.fromMulttable(multtableFromXML(xml))

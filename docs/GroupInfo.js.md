@@ -56,7 +56,7 @@ async function load () {
       ['loaded-names', NamingSchemeInfo.displayLoadedNames],
       ['user-names', NamingSchemeInfo.displayUserNames],
       ['customizations', UserNoteInfo.display],
-      group.isGenerated ? ['', () => {}] : ['file-data', FileDataInfo.display]
+      group.author ? ['file-data', FileDataInfo.display] : ['', () => {}]
    ].forEach(([elementId, displayFunction]) => displayFunction(elementId, group))
 
    // Register for GAP button clicks
