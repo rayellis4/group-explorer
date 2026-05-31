@@ -7,7 +7,7 @@ GAP code in the [GroupInfo](./GroupInfo.html.md) page.
 
 ```javascript
  */
-import * as Library from './Library.js'
+import {parseFormattedPresentation} from './DefiningRelations.js'
 
 export {setup, resolveGAPInfo}
 
@@ -176,13 +176,7 @@ async function processBatch () {
    const batch = pendingResolutions.splice(0)
 
    const gapScript = batch.map(({presentation}) => {
-      const relators = presentation.split(':')[1].split(',')
-      const generators = [...relators.reduce(
-         (genSet /*: Set<string> */, relator) => {
-            for (const char of relator) genSet.add(char.toLowerCase())
-            return genSet
-         }, new Set())
-      ].sort()
+      const [generators, relators] = parseFormattedPresentation(presentation)
       const freeGroup = `FreeGroup(${generators.map((c) => `"${c}"`).join(',')})`
       const relations = relators.map((relator) =>
          relator.split('').map((char) =>

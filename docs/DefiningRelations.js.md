@@ -11,10 +11,17 @@ import {Group} from './Group.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 
-const GENERATED_GROUP_PREFIX = "data:,//GE3/generated"
-const EXTENDED_GROUP_PREFIX  = "data:,//GE3/extended"
+export {
+   findRelations,
+   makePresentation,
+   generateGroupFromPresentation,
+   parseFormattedPresentation,
+   GENERATED_GROUP_PREFIX,
+}
 
-export {findRelations, makePresentation, generateGroupFromPresentation, GENERATED_GROUP_PREFIX, EXTENDED_GROUP_PREFIX}
+export {EXTENDED_GROUP_PREFIX} from './AutoUpgrade.js'
+
+const GENERATED_GROUP_PREFIX = "data:,//GE3/generated"
 
 // Returns an array of relationships as an Array<Array<integer>>, in which, for example,
 //   [[1,1], [2,2,2], [1,2,1,2]] means

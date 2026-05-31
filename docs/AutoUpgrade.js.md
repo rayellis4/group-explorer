@@ -15,7 +15,7 @@ In either case it leaves the group library loaded and ready for synchronous acce
 
 ```js
  */
-export {version}
+export {version, EXTENDED_GROUP_PREFIX}
 
 const codeFiles = [
    './GroupExplorer.html',

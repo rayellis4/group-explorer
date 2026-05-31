@@ -27,14 +27,18 @@ function load () {
       const message = messageEvent.data
       if (message.source === 'library') {
          await Library.loadLibrary()
-         if (message.created.length > 0 || message.deleted.length > 0 || message.updated.length == 0) {
-            const visibleGroups = Library.allVisibleGroups(Settings.getFilterConfig()).map((G) => G.URL)
-            if (  (message.created.length == 0 && message.updated.length == 0 && message.deleted.length == 0)
-               || [...message.created, ...message.deleted].some((groupURL) => visibleGroups.includes(groupURL))
-            ) {
-               displayGroups()
-            }
+         const visibleGroups = Library.allVisibleGroups(Settings.getFilterConfig()).map((G) => G.URL)
+         if (  message.created.some((groupURL) => visibleGroups.includes(groupURL))
+            || (message.created.length == 0 && message.updated.length == 0 && message.deleted.length == 0)
+         ) {
+            displayGroups()
          } else {
+            message.deleted.forEach((groupURL) => {
+               const groupRow = document.querySelector(`tr[data-group="${groupURL}"]`)
+               if (groupRow != null) {
+                  groupRow.remove()
+               }
+            })
             message.updated.forEach((groupURL) => {
                const group = Library.getGroupByURL(groupURL)
                const gapidCell = document.querySelector(`tr[data-group="${groupURL}"] > td:first-child`)
