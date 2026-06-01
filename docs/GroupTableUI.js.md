@@ -9,7 +9,6 @@ These include
 ```javascript
 */
 
-import * as GEUtils from './GEUtils.js'
 import {positionElement} from './UIComponents.js'
 
 export {addGestures}
@@ -18,7 +17,10 @@ function addGestures (table) {
    const tableId = table.getAttribute('id')
    table.insertAdjacentHTML('beforeend',
       `<style>
-          #{tableId} tr.highlighted {
+          #${tableId} tr:hover {
+             background-color: hsl(0, 0%, 96%);
+          }
+          #${tableId} tr.highlighted {
              background-color: hsl(0, 0%, 96%);
           }
           #${tableId} td.emphasized {
@@ -43,7 +45,7 @@ function addGestures (table) {
           #tooltip {
              background-color: black;
              color: white;
-             box-shadow: -8px 8px 8px rgba(0,0,0,0.2);	/* gray mist */
+             box-shadow: -8px 8px 8px rgba(0,0,0,0.2);
              padding: 4px 8px;
              position: fixed;
              white-space: nowrap;
@@ -54,13 +56,13 @@ function addGestures (table) {
              padding-right: 1.5ch;
           }
           #${tableId} th.sortable:after {
-             content: '  ';
+             content: '  ';
           }
           #${tableId} th.sort-up:after {
-             content: "  ▼";
+             content: "  ▼";
           }
           #${tableId} th.sort-down:after {
-             content: "  ▲";
+             content: "  ▲";
              display: inline;
           }
 
@@ -68,14 +70,17 @@ function addGestures (table) {
 
    const tableBody = table.querySelector('tbody')
 
+   // prevent double-tap zoom; single-finger scroll still works
+   tableBody.style.touchAction = 'manipulation'
+
    // set up table sort handler and do initial table sort
    table.querySelectorAll('th.sortable')
       .forEach((el) => el.addEventListener('click', tableSortHandler))
    setTimeout(() => tableSort(document.getElementById('group-table-headers').children[0]))
 
-   // set up highlight, hover help handlers
-   ;['pointerenter', 'pointerout', 'pointerleave']
-      .forEach((eventType) => tableBody.addEventListener(eventType, eventHandler))
+   // set up highlight and hover-help handlers
+   addMouseHandlers(tableBody)
+   addTouchHandlers(tableBody)
 }
 /*
 ```
@@ -121,91 +126,119 @@ function tableSort (column) {
 /*
 ```
 ### Highlighting and hover help
-
-Displays hover help on touch platform by starting 500ms timer when pointer/touch enters element,
-cancelling the timer should the pointer leave.
-
-By default dragging your finger across the screen in a touch device browser will cause scrolling. To
-keep the display steady while moving around to highlight different cells we prevent the default
-action of `touchmove` and use only two-finger scrolling.
-
 ```javascript
  */
-let lastRow = null
-let lastCell = null
-let tooltipTimer = null
-function eventHandler (event) {
-   // only consider one-pointer events
-   if (event.isPrimary == false || (event.touches != null && event.touches.length != 1))
-      return
 
-   const newRow = (row) => {
-      lastRow = row
-      Array.from(document.getElementsByClassName('highlighted')).forEach((el) => el.classList.remove('highlighted'))
-      row?.classList.add('highlighted')
+function clearEmphasis () {
+   document.getElementById('tooltip')?.remove()
+   document.querySelectorAll('.emphasized').forEach((el) => el.classList.remove('emphasized'))
+}
+
+// ── Mouse ──────────────────────────────────────────────────────────────────
+
+let mouseTooltipTimer /*: ?TimeoutID */ = null
+let lastMouseCell /*: ?Element */ = null
+
+function addMouseHandlers (tableBody) {
+   // pointerover bubbles, so one listener on tbody tracks all cell transitions
+   tableBody.addEventListener('pointerover', (event) => {
+      if (event.pointerType !== 'mouse') return
+      const cell = event.target.closest('td')
+      if (cell === lastMouseCell) return
+      clearMouseState()
+      if (cell == null) return
+      lastMouseCell = cell
+      cell.classList.add('emphasized')
+      const title = cell.getAttribute('data-tooltip')
+      if (title != null) {
+         mouseTooltipTimer = setTimeout(() => {
+            cell.insertAdjacentHTML('beforeend', `<div id="tooltip">${title}</div>`)
+            positionElement(document.getElementById('tooltip'), event)
+            mouseTooltipTimer = null
+         }, 150)
+      }
+   })
+
+   tableBody.addEventListener('pointerleave', (event) => {
+      if (event.pointerType !== 'mouse') return
+      clearMouseState()
+   })
+}
+
+function clearMouseState () {
+   if (mouseTooltipTimer != null) {
+      clearTimeout(mouseTooltipTimer)
+      mouseTooltipTimer = null
    }
+   lastMouseCell = null
+   clearEmphasis()
+}
 
-   const newCell = (cell, position) => {
-      lastCell = cell
+// ── Touch ──────────────────────────────────────────────────────────────────
 
-      // clear highlighting, set new
-      Array.from(document.getElementsByClassName('emphasized')).forEach((el) => el.classList.remove('emphasized'))
+let touchCell /*: ?Element */ = null
+let touchDownInfo /*: ?{x: number, y: number, cell: ?Element} */ = null
+let secondTapPending /*: boolean */ = false
+
+function addTouchHandlers (tableBody) {
+   tableBody.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse') return
+      // capture cell at pointerdown — elementFromPoint is reliable here;
+      // at pointerup the finger is lifting and iOS hit-testing becomes unreliable
+      const cell = event.target.closest('td')
+      secondTapPending = touchCell != null && cell?.closest('tr') === touchCell.closest('tr')
+      clearTouchState()
+      touchDownInfo = {x: event.clientX, y: event.clientY, cell}
+   })
+
+   tableBody.addEventListener('pointercancel', () => {
+      touchDownInfo = null
+      secondTapPending = false
+   })
+
+   tableBody.addEventListener('pointerup', (event) => {
+      if (event.pointerType === 'mouse') return
+      if (touchDownInfo == null) return
+      const {x, y, cell} = touchDownInfo
+      touchDownInfo = null
+      if (Math.hypot(event.clientX - x, event.clientY - y) > 20) { secondTapPending = false; return }
+
+      if (secondTapPending) {
+         secondTapPending = false
+         return  // let the click event through to navigate
+      }
+
+      // first tap: highlight + tooltip, block the navigation click that follows
+      const row = cell?.closest('tr')
+      touchCell = cell
+      row?.classList.add('highlighted')
       cell?.classList.add('emphasized')
 
-      if (GEUtils.isTouchDevice()) {
-         // delete old tooltip
-         document.getElementById('tooltip')?.remove()
-
-         // stop timer for old tooltip
-         if (tooltipTimer != null) {
-            clearTimeout(tooltipTimer)
-            tooltipTimer = null
-         }
-
-         // start timer for new tooltip
-         const title = cell?.getAttribute('title')
-         if (title != null) {
-            const displayTooltip = () => {
-               cell.insertAdjacentHTML('beforeend', `<div id="tooltip">${title}</div>`)
-               const tooltip = document.getElementById('tooltip')
-               positionElement(tooltip, position)
-               tooltip.style.visibility = 'visible'
-               tooltipTimer = null
-            }
-            tooltipTimer = setTimeout(displayTooltip, 500)
-         }
+      const title = cell?.getAttribute('data-tooltip')
+      if (title != null) {
+         cell.insertAdjacentHTML('beforeend', `<div id="tooltip">${title}</div>`)
+         const tooltip = document.getElementById('tooltip')
+         // position above the finger so it isn't obscured by the hand
+         const {width, height} = tooltip.getBoundingClientRect()
+         const x = Math.max(0, Math.min(event.clientX - width / 2, window.innerWidth - width))
+         const y = Math.max(0, event.clientY - height - 24)
+         tooltip.style.left = `${x}px`
+         tooltip.style.top  = `${y}px`
       }
-   }
 
-   const position = (event.type == 'touchmove') ? event.touches[0] : event
-   const element = document.elementFromPoint(position.clientX, position.clientY)
-   const cell = element?.closest('td')
-   const row = cell?.closest('tr')
+      tableBody.addEventListener('click', (ev) => ev.preventDefault(), {once: true})
+   })
 
-   switch (event.type) {
-   case 'pointerenter':
-      newRow(row)
-      newCell(cell, position)
-      document.getElementById('group-table-body').addEventListener('touchmove', eventHandler)
-      break
+   // tapping outside the table clears touch selection
+   document.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse') return
+      if (!tableBody.contains(event.target)) clearTouchState()
+   })
+}
 
-   case 'touchmove':
-      event.preventDefault()  // This keeps single-finger moves from scrolling on Mobile Safari
-   case 'pointerout':
-      if (row != lastRow) {
-         newRow(row)
-         newCell(cell, position)
-      } else if (cell != lastCell) {
-         newCell(cell, position)
-      }
-      break
-
-   case 'pointerleave':
-      newRow(null)
-      newCell(null)
-      document.getElementById('group-table-body').removeEventListener('touchmove', eventHandler)
-      break
-
-   default:
-   }
+function clearTouchState () {
+   touchDownInfo = null
+   touchCell = null
+   document.querySelectorAll('.highlighted').forEach((el) => el.classList.remove('highlighted'))
+   clearEmphasis()
 }

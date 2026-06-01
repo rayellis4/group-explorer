@@ -227,7 +227,7 @@ function addToTable (tableElement, group, cayleyTitle) {
       symmetryObjectCell = `<td class="center"><div>none</div></td>`
    } else {
       symmetryObjectCell =
-         `<td class="symmetry-object center" title="Open Symmetry Object visualizer">
+         `<td class="symmetry-object center" data-tooltip="Open Symmetry Object visualizer">
              <a href="SymmetryObject.html?groupURL=${group.URL}" target="_blank">
                 <img src="${group.thumbnails.symmetryObject}" width="100px" height="100px">
              </a>
@@ -238,34 +238,34 @@ function addToTable (tableElement, group, cayleyTitle) {
 
    const rowHTML = [
       `<tr data-group="${group.URL}" data-library="${groupLibrary}">
-          <td class="no-diagram center" title="Open Group Info page">
+          <td class="no-diagram center" data-tooltip="Open Group Info page">
              <a href="GroupInfo.html?groupURL=${group.URL}" target="_blank">
                 <div>${group.gapid}</div>
              </a>
           </td>
-          <td class="no-diagram" title="Open Group Info page">
+          <td class="no-diagram" data-tooltip="Open Group Info page">
              <a href="GroupInfo.html?groupURL=${group.URL}" target="_blank">
                 <div>${group.name}</div>
              </a>
           </td>
           <td class="no-diagram center">${ group.order }</td>
-          <td title="Open Group Info page">
+          <td data-tooltip="Open Group Info page">
              <a href="GroupInfo.html?groupURL=${group.URL}" target="_blank">
                 <div>${group.definition}</div>
              </a>
           </td>
-          <td class="cayley-diagram center" title="Open Cayley Diagram visualizer">
+          <td class="cayley-diagram center" data-tooltip="Open Cayley Diagram visualizer">
              <a href="CayleyDiagram.html?groupURL=${group.URL}${cayleyDiagramSelector}" target="_blank">
                 <img src="${group.thumbnails.cayleyDiagram}" width="100px" height="100px">
              </a>
           </td>
-          <td class="multiplication-table center" title="Open Multiplication Table visualizer">
+          <td class="multiplication-table center" data-tooltip="Open Multiplication Table visualizer">
              <a href="Multtable.html?groupURL=${group.URL}" target="_blank">
                 <img src="${group.thumbnails.multtable}" width="100px" height="100px">
              </a>
           </td>
           ${symmetryObjectCell}
-          <td class="cycle-graph center" title="Open Cycle Graph visualizer">
+          <td class="cycle-graph center" data-tooltip="Open Cycle Graph visualizer">
              <a href="CycleGraph.html?groupURL=${group.URL}" target="_blank">
                 <img src="${group.thumbnails.cycleGraph}" width="100px" height="100px">
              </a>
