@@ -139,7 +139,7 @@ function formatSubgroupInfoHeader (group) {
           Elements shared by some subgroups in the class carry a white ring;
           elements shared by all are shown in gray.</div>`,
        (group.isSimple)
-          ? `<div>None of the subgroups on the list below is
+          ? `<div>None of the subgroups on the list below, other than the trivial subgroup and the group itself, is
                <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a>.
                For this reason, ${group.name} is a
                <a href="./help/rf-groupterms/index.html#simple-group">simple</a> group.</div>`

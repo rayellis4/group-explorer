@@ -288,8 +288,8 @@ export class Group {
    }
 
    get isSimple () /*: boolean */ {
-      this.#setProperty('isSimple', this.subgroups.length > 2
-         && !this.subgroups.some((H, inx) => H.isNormal && inx != 0 && inx != (this.subgroups.length - 1)))
+      this.#setProperty('isSimple', this.order > 1
+         && !this.subgroups.some((H) => H.isNormal && H.order != 1 && H.order != this.order))
       return this.isSimple
    }
 
