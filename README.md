@@ -1,5 +1,5 @@
 
-# Group Explorer 3.7rc21
+# Group Explorer 3.7rc22
 
 *Group Explorer* is interactive visualization software for abstract algebra — specifically finite group theory. It runs entirely in the browser, requires no installation, and is designed for students and instructors building intuition about groups and their structure.
 
@@ -28,10 +28,16 @@ python3 -m http.server 8080
 
 **3.7.0**
 - User-defined groups: define a group by generators and relations; stored locally and usable everywhere a library group can be used
-- Extended library: larger and more exotic groups available via the page menu
+- Extended library: all non-abelian groups of order 22–40 and selected notable large groups, controlled via the Settings dialog; extended groups generated on the fly from a built-in URN manifest (no separate files required)
+- Settings dialog: control which groups appear in the library (extended, notable, generated); accessible from the menu on every page
+- Configurable group table columns: choose which columns appear; sort order and column selection are saved between sessions
+- Group table updates live when generated groups are created — no page refresh needed
+- Custom group names: rename any group from its Group Info page
 - Morphism arrows colored by source/destination highlighting
+- Morphism editor: cancel restores previous highlights; push/pull redraws all connected morphisms
 - Morphism shows image/pre-image of highlighted subset
 - Subgroup lattice on Group Info page includes descriptive captions and compacted layout by conjugacy class
+- Sheet titles displayed in the page heading bar
 - Improved default Cayley diagram layouts, more representative of group structure
 - Cayley diagram: snap-to-axis and coordinate axis display (View tab)
 - Sheet backup/restore; stored sheets list with load, export, and rename
@@ -39,6 +45,7 @@ python3 -m http.server 8080
 - Hamburger menu replaces icon strip in page headers
 - Groups stored in IndexedDB (no more localStorage size limits)
 - jQuery removed from production code
+- Help system: readable line width on wide monitors, display equations visually set off, terminology pages added to navigation
 
 **3.6.1:** Fix error in normalizer calculation
 
