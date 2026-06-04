@@ -122,7 +122,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
    {
       id: 'is-solvable',
       label: 'Solvable',
-      headerHTML: '<a href="help/rf-groupterms/index.html#solvable-group">Solvable</a>',
+      headerHTML: '<a href="help/rf-groupterms/index.html#solvable-group-solvable-decomposition">Solvable</a>',
       defaultVisible: false,
       sortComparator: (v1, v2) => v1.localeCompare(v2),
       cellHTML: (group) => `<td class="no-diagram center">${group.isSolvable ? '✓' : ''}</td>`,

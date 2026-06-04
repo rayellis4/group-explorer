@@ -22,6 +22,15 @@
   <script src="../search/main.js" defer></script>
 <style>
 img { border: 1px solid black; }
+/* Constrain reading width on wide monitors */
+.w3-container > .w3-row { max-width: 1300px; margin: 0 auto; }
+/* Make display-mode equations stand out */
+.MathJax_Display {
+    background: #f0f4f8;
+    border-left: 3px solid #5b8ab8;
+    padding: 0.6em 1em;
+    margin: 0.8em 0 !important;
+}
 </style>
 <body>
 
@@ -119,6 +128,20 @@ img { border: 1px solid black; }
                     
                     
                     
+                        <li><a href="../rf-groupterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Theory Terminology</a></li>
+                    
+                    
+                    
+                        <li><a href="../rf-geterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Explorer Terminology</a></li>
+                    
+                    
+                    
                     
                     
                     
@@ -152,13 +175,12 @@ has a Views section that gives a preview of every visualizer
 for the group and clicking any one opens a large copy
 in its own window. Thumbnails of each visualizer on
 <a href="../rf-um-mainwindow/">the main application page</a> work the same way.</p>
-<p>In this case, although you can edit the appearance of the visualizer
-and save it as an image or print it, once you close the window,
-all your changes are lost.</p>
+<p>In this case, once you close the window, all your changes are lost.</p>
 </li>
 <li>
 <p>You can create visualizers in <a href="../rf-geterms/#sheets">sheets</a>
-    and double-click them to open a large version.</p>
+    and open a large version by selecting <strong>Edit</strong> from the element&rsquo;s context
+    menu (right-click or tap-and-hold).</p>
 <p>In this case, the large view is linked to the small view in the sheet,
 and all changes made to the large view in its own window
 are reflected in the image on the sheet
@@ -170,58 +192,47 @@ diagram.</p>
 <p><img alt="Screenshot of a large view of a Cayley diagram" src="../illustration-largecd.png" /></p>
 <h2 id="page-structure">Page structure</h2>
 <p>Every large visualizer page is split into two halves, like the one shown
-above. The left half will always have the picture&ndash;the visualization. The
+above. The left half will always have the picture — the visualization. The
 right half will be controls that allow you to edit the picture. You
-can hide the right half by swiping right with your mouse or finger;
-if it&rsquo;s hidden, swiping left from the edge of the screen will expose it.</p>
+can hide the right half by dragging it to the right;
+if it&rsquo;s hidden, drag from the right edge of the screen to expose it again.</p>
 <p>If you perform any of the edits described with the controls below but then
 wish to undo them and reset the large visualizer to its original state, just
-reload the page in your browser.  Any changes you have made will be lost.</p>
+reload the page in your browser. Any changes you have made will be lost.</p>
 <h2 id="page-menu">Page Menu</h2>
-<p>In the upper right-hand corner of every page you will find a menu icon </p>
+<p>In the upper right-hand corner of every page you will find a menu icon</p>
 <p><img alt="Screenshot of the menu on the top right of a large visualizer
 page" src="../large-viz-menu.png" /></p>
 <p>with the following options:</p>
 <h4 id="group-info">Group Info</h4>
-<p>The first option takes you to the <a href="../rf-um-groupwindow/">Group Info page</a>, where
-you can see all the information <em>Group Explorer</em> has about a given group.</p>
+<p>Takes you to the <a href="../rf-um-groupwindow/">Group Info page</a>, where
+you can see all the information <em>Group Explorer</em> has about the group.</p>
 <h4 id="group-library">Group Library</h4>
-<p>The second option takes you to the Group Library page, the <a href="../rf-um-mainwindow/">main page of the app
-itself</a>.</p>
+<p>Takes you to the <a href="../rf-um-mainwindow/">Group Library</a>, the main page of the app.</p>
 <h4 id="new-sheet">New Sheet</h4>
-<p>The third option opens a blank sheet, into which you can insert visualizations
-of any groups from the library and connect them with morphisms.  To read more on
-sheets, see <a href="../tu-sheets/">the sheets tutorial</a> or <a href="../rf-um-sheetwindow/">the sheets
-reference</a>.</p>
+<p>Opens a blank sheet, into which you can insert visualizations of any groups
+from the library and connect them with morphisms. To read more on sheets, see
+<a href="../tu-sheets/">the sheets tutorial</a> or <a href="../rf-um-sheetwindow/">the sheets reference</a>.</p>
+<h4 id="settings">Settings</h4>
+<p>Opens the Settings dialog, where you can control which groups appear in the
+library. See <a href="../rf-um-mainwindow/#settings">the Group Library page</a> for details.</p>
 <h4 id="help">Help</h4>
-<p>This option opens the main help file page appropriate to the large visulizer you
-have open. For more information on that controls pane, visit the documentation
-on whichever large visualizer you&rsquo;re using:</p>
+<p>Opens the help page specific to the visualizer you have open:</p>
 <ul>
-<li><a href="../rf-um-cd-options/">Documentation for large Cayley diagram interface</a></li>
-<li><a href="../rf-um-mt-options/">Documentation for large multiplication table interface</a></li>
-<li><a href="../rf-um-cg-options/">Documentation for large cycle graph interface</a></li>
-<li><a href="../rf-um-os-options/">Documentation for large symmetry object interface</a></li>
+<li><a href="../rf-um-cd-options/">Cayley diagram interface</a></li>
+<li><a href="../rf-um-mt-options/">Multiplication table interface</a></li>
+<li><a href="../rf-um-cg-options/">Cycle graph interface</a></li>
+<li><a href="../rf-um-os-options/">Symmetry object interface</a></li>
 </ul>
-<p>There are some controls in common among many of these visualizers; for
-convenience, we provide links to their docuemntation here.</p>
+<p>There are some controls shared by several visualizers; their documentation
+is here:</p>
 <ul>
-<li><a href="../rf-um-subsetlistbox/">Documentation for the subset options controls</a></li>
-<li><a href="../rf-um-modelview/">Documentation for controls for viewing 3D models</a></li>
+<li><a href="../rf-um-subsetlistbox/">Subset options controls</a></li>
+<li><a href="../rf-um-modelview/">Controls for viewing 3D models</a></li>
 </ul>
 <h4 id="about-ge3">About GE3</h4>
-<p>Clicking this menu item pops up a box with information about the copy of
-<em>Group Explorer</em> you&rsquo;re running:</p>
-<p><img alt="Screenshot of the GE3 help popup" src="../GE3-help.png" /></p>
-<p>It includes a link to the <a href="https://nathancarter.github.io/group-explorer">main <em>Group Explorer</em>
-website</a>, which will take you out
-of the app itself and back to the home page of the entire project.</p>
-<p>And it has a link to <a href="https://github.com/nathancarter/group-explorer">the source code
-repository</a> from which the
-application and its website were built.  Visit that site if you would like to
-see how the application was built, make suggestions for its improvement, report
-an error in the documentation, or get involved in improving the software as a
-developer.</p>
+<p>Displays version information and links to the project website and source
+repository.</p>
         </div>
     </div>
 </div>

@@ -1,5 +1,5 @@
 
-If you double-click on a [homomorphism](rf-groupterms.md#homomorphism) in a
+If you right-click [tap] on a [homomorphism](rf-groupterms.md#homomorphism) in a
 [sheet](rf-geterms.md#sheets), you will be presented with the homomorphism
 edit dialog, like the one shown below.
 

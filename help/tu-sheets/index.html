@@ -22,6 +22,15 @@
   <script src="../search/main.js" defer></script>
 <style>
 img { border: 1px solid black; }
+/* Constrain reading width on wide monitors */
+.w3-container > .w3-row { max-width: 1300px; margin: 0 auto; }
+/* Make display-mode equations stand out */
+.MathJax_Display {
+    background: #f0f4f8;
+    border-left: 3px solid #5b8ab8;
+    padding: 0.6em 1em;
+    margin: 0.8em 0 !important;
+}
 </style>
 <body>
 
@@ -116,6 +125,20 @@ img { border: 1px solid black; }
                     
                     
                     
+                        <li><a href="../rf-groupterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Theory Terminology</a></li>
+                    
+                    
+                    
+                        <li><a href="../rf-geterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Explorer Terminology</a></li>
+                    
+                    
+                    
                     
                     
                     
@@ -196,7 +219,7 @@ and
    Furthermore, <em>Group Explorer</em> will not let you mess this up (you cannot
    define a non-homomorphism.)  The morphism editing dialog is shown below.</li>
 </ul>
-<p><img alt="Homomorphism editing dialog" src="../illustration-sheettut4.png" /></p>
+<p><img alt="Homomorphism editing dialog" src="../illustration-morphedit.png" /></p>
 <ul>
 <li>The homomorphism defaults to the zero map (all elements map to the identity,
    in this case <script type="math/tex">e</script>) but you can change it, of course. I will map <script type="math/tex">a</script> to
@@ -244,12 +267,17 @@ providing links for you to browse further yourself.</p>
 <li>Again, expand the &ldquo;Subgroups&rdquo; section of the group info page.</li>
 <li>Follow the link provided at the top of the resulting page,
   offering to create a sheet showing the lattice of subgroups.</li>
-<li>The illustration below shows all subgroups of <script type="math/tex">S_3</script>.
-  (The captions are color-coded by the subgroup conjugacy class.)</li>
+<li>The illustrations below show all subgroups of <script type="math/tex">S_3</script>: first in
+  the full lattice (each subgroup its own node), then in the reduced
+  lattice (conjugate subgroups sharing a single node, color-coded by
+  conjugacy class). The reduced view is most useful for larger
+  non-abelian groups, where conjugacy classes can collapse many nodes
+  into one; for abelian groups the two views are identical.</li>
 </ul>
 </li>
 </ul>
-<p><img alt="The lattice of subgroups for S_3" src="../illustration-sheettut8.png" /></p>
+<p><img alt="The full lattice of subgroups for S_3" src="../illustration-sheettut8.png" /></p>
+<p><img alt="The reduced lattice of subgroups for S_3" src="../illustration-sheettut8a.png" /></p>
 <ul>
 <li>To see the <a href="../rf-groupterms/#solvable-group-solvable-decomposition">solvable decomposition</a> of any
    <a href="../rf-groupterms/#solvable-group-solvable-decomposition">solvable group</a>:<ul>

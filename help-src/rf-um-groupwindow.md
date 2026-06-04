@@ -1,130 +1,160 @@
 
-The Group Info page is the presentation to the user of all information *Group
-Explorer* has about a given group. 
+The Group Info page is the main launchpad for exploring a single group in *Group
+Explorer*. Open it by clicking a group's name or GAP ID in the [Group
+Library](rf-um-mainwindow.md).
 
-It consists of several [collapsible sections](rf-geterms.md#collapsible-sections),
-each with a heading and a body. In addition to being able to expand and collapse
-the sections individually, the [page menu](rf-geterms.md#page-menu) offers
-`Expand all` and `Collapse all` options.
+It consists of several collapsible sections, each with a heading and a body.
+Clicking the heading (or the ▶ triangle beside it) expands or collapses
+the body. The [page menu](rf-geterms.md#page-menu) offers **Expand all** and
+**Collapse all** to open or close all sections at once.
 
-Let us consider each section that appears in a Group Info page separately.  It
-may help you to open [an example group info page
-now](../../GroupInfo.html?groupURL=groups/Z_5.group) and read it alongside this
-help page.
+It may help to open [an example Group Info
+page](../../GroupInfo.html?groupURL=groups/Z_5.group) alongside this help page.
 
-## Facts
+## Basic Facts
 
-The section presents basic facts about a group such as its
-[definition](rf-groupterms.md#definition-of-a-group-via-generators-and-relations),
-[order](rf-groupterms.md#order-of-a-group), and any other names it has besides its primary
-name (which is the title of each Group Info page).  Some (but not all) groups
-contain notes with a description of the group, which appears in this
-section.
+The first section shows fundamental data about the group:
+
+- **Order** — the number of elements
+- **GAP name** — the name used by the [GAP computer algebra system](rf-um-gap.md)
+- **GAP ID** — the numeric ID in GAP's small group library
+- **Other names** — alternative names the group is known by
+- **Definition** — a presentation of the group by [generators and relations](rf-groupterms.md#definition-of-a-group-via-generators-and-relations)
+- **Notes** — a short description of the group, when one is available
+- **More info** — links to external resources about the group
+
+A **Compute this in GAP** button appears for groups that have a GAP ID, opening
+a panel with GAP code to recreate the group.
 
 ## Views
 
-*Group Explorer* is all about visualization, and thus the Views section receives
-high priority. To the right of the heading a row of small thumbnails shows a
-sample of the various ways to visualize the group. Expanding this section
-exposes larger previews of every way to visualize the group, including all the
-[Cayley diagrams](rf-groupterms.md#cayley-diagrams), a [multiplication
+*Group Explorer* is about visualization, so the Views section is prominent.
+The section heading shows a row of small thumbnails; expanding it reveals a full
+table of every way to visualize the group, including all named [Cayley
+diagrams](rf-groupterms.md#cayley-diagrams), a [multiplication
 table](rf-groupterms.md#multiplication-table), a [cycle
 graph](rf-groupterms.md#cycle-graph), and any [objects of
-symmetry](rf-groupterms.md#objects-of-symmetry) the group has.
+symmetry](rf-groupterms.md#objects-of-symmetry) the group possesses.
+
+Clicking any image opens the corresponding full-screen visualizer.
 
 ## Computed properties
 
-*Group Explorer* computes information about each group it loads. For example, it
-computes all of its subgroups, which ones are normal, information about
-conjugacy classes, and more. A summary of this information is shown to the right
-of each subheading in this section, but **much** more information is available
-than it may seem from the summaries. Users are encouraged to expand the bodies
-by clicking on the '▶' sign to the left of each subheading to find out reasons
-for the computations, and often many additional helpful illustrations and
-computations.
+This section is a container of sub-sections, one for each property *Group
+Explorer* computes automatically. Each sub-heading shows a one-line summary
+(such as "yes" or "no"); expanding the body gives the reasoning, related
+computations, and often sheet-based illustrations.
+
+### Abelian Info
+
+Whether the group is [abelian](rf-groupterms.md#abelian-group). For non-abelian
+groups the body shows examples of pairs of elements that fail to commute.
+
+### Class equation
+
+The [class equation](rf-groupterms.md#class-equation) expresses the group order
+as a sum of conjugacy class sizes. The body displays all [conjugacy
+classes](rf-groupterms.md#conjugacy-classes) and verifies the equation.
+
+### Cyclic group
+
+Whether the group is [cyclic](rf-groupterms.md#cyclic-group). For cyclic groups
+the body identifies a generator; for non-cyclic groups it explains why none
+exists.
+
+### Subgroups
+
+The summary line shows the total subgroup count and how many are
+[normal](rf-groupterms.md#normal-subgroup) (e.g. "6 (3 normal)"). The body
+lists every subgroup. Normal subgroups are shown in **bold**. Expanding an
+individual subgroup entry gives:
+
+- its generators, order, and special properties (trivial, whole group,
+  [Sylow](rf-groupterms.md#sylow-p-subgroup), etc.)
+- links to open a sheet showing how it embeds in the whole group
+- for normal subgroups, links to open a sheet showing the quotient group
+
+The body also provides links to view the full [lattice of
+subgroups](rf-groupterms.md#lattice-of-subgroups) as a sheet with each subgroup
+shown as a Cayley diagram, cycle graph, or multiplication table. A second set of
+links shows the lattice collapsed by [conjugacy
+class](rf-groupterms.md#conjugacy-classes), with conjugate subgroup families
+shown in matching colors.
+
+### Order classes
+
+Elements grouped by their [order](rf-groupterms.md#order-of-an-element-in-a-group),
+with a count and list of elements for each order value.
+
+### Solvable group
+
+Whether the group is [solvable](rf-groupterms.md#solvable-group-solvable-decomposition).
+For solvable groups the body describes the [solvable
+decomposition](rf-groupterms.md#solvable-group-solvable-decomposition) — the
+chain of normal subgroups with abelian quotients — and offers a link to open a
+sheet illustrating it.
+
+### ℤ_mn group
+
+For groups of composite order, whether the group is isomorphic to a direct
+product of cyclic groups ℤ_m × ℤ_n. If it is, the body links to a sheet
+showing the isomorphism; if not, it explains why none exists.
 
 ## Generators
 
 Groups can be [generated](rf-groupterms.md#generators-for-a-group-or-subgroup)
-in many ways and some groups come with a few different commonly-used
-sets of generators chosen. If the group has no pre-selected set of
-generators built in, *Group Explorer* computes one such (minimum-size)
-set when the group is loaded. Each list of generators is given in this
-section.
+in many ways. Some groups come with several commonly-used generating sets built
+in; if none is supplied, *Group Explorer* computes a minimal one when the group
+is loaded. Each generating set is listed here.
 
 CITE(VGT-1.4 VGT-2.3)
 
 ## Naming schemes
 
-The structure of a group is independent of whatever symbols we use to
-represent the elements of the group. For this reason, a group may come with
-several different lists of names for its elements, and the user may choose
-any one of them to be used as the primary way of representing the elements
-of the group. This section lets the user make such a selection and also
-create new naming schemes.
+The structure of a group is independent of how its elements are labeled. A group
+may come with several built-in naming schemes, and you can create your own. This
+section shows all available schemes and lets you select which one is active.
 
-This section also lets users remove or edit any of their previously-defined
-naming schemes; this information is stored in the user's web browser so that
-it will be preserved even when they leave the site.
+User-defined schemes can be edited or removed here. The information is stored in
+your browser and persists across sessions.
 
-The section contains a link that reads "Click here to add a new
-[representation](rf-geterms.md#representation-of-a-group) for this group" and possibly
-also links that read "Click here to edit this representation." (Note that
-"[naming scheme](rf-geterms.md#naming-scheme-for-group-elements)" and
-"[representation](rf-geterms.md#representation-of-a-group)" are interchangeable terms.)
-In both cases, if you click the link, an interface like the following one
-appears, allowing you to custom-define a naming scheme for the elements of
-the group.
+To add a new naming scheme, click "Click here to add a new
+[representation](rf-geterms.md#representation-of-a-group) for this group." An
+editor like the one below appears:
 
 ![Group element naming scheme interface](illustration-namescheme.png)
 
-The left column lists the default element names, the center column shows the
-current naming as it will be rendered elsewhere, and the right column contains a
-text area in which you can enter your own representation.  The text area will
-display your entry as plain text, but elsewhere it will be displayed as HTML, so
-if you would like the permutation (0 1 2) to be shown as \(r^{-1}\) in a Cayley
-diagram, enter "&lt;i&gt;r&lt;/i&gt;&lt;sup&gt;-1&lt;/sup&gt;" into the text
-area, as shown in the illustration above. You can preview the HTML by clicking
-"<span style='color: blue'>Display changes</span> as they would appear, without
-saving them.", and they will appear formatted in HTML in the center column.
-When you are done, if you choose "<span style='color: blue'>Save changes</span>
-and close editor.", your changes will be committed and you will have defined a
-new representation (or changed an old representation) of the elements of the
-group.
+The left column shows the default element names, the center shows the current
+naming as it will be rendered, and the right column contains a text area where
+you can enter HTML. For example, to display the permutation (0 1 2) as
+\(r^{-1}\), enter `<i>r</i><sup>-1</sup>`. Click "Display changes as they would
+appear, without saving them" to preview the result in the center column. When
+finished, click "Save changes and close editor" to commit.
 
-A few notes about entering HTML in the text area:
+A few notes:
 
-  * You may use any Unicode character you like, as well as HTML entities like
-  &amp;Zopf; or &amp;#8484;.
+- You may use any Unicode character, as well as HTML entities like &amp;Zopf;
+  or &amp;#8484;.
+- Names can be blank or non-unique — useful for saving partially completed work.
+- HTML styling (e.g. color) may not render identically in every visualizer;
+  multi-line names (containing `<br>` or `<hr>`) may not display as expected.
+  Test your scheme in the visualizers to confirm it looks right.
 
-  * HTML can be more verbose than plain text, so on platforms that support
-  it you can extend the text area by dragging the right-hand edge (as shown
-  above in the representation for (0 1)).
+Built-in naming schemes cannot be edited.
 
-  * Names can be blank, and they don't have to be unique. (In practice, this just
-  means you can save partially completed work that has blanks or duplications that
-  you intend to correct later.)
+## Customizations
 
-  * While *Group Explorer* can generally makes sense of the HTML you enter, some
-  results may be unexpected. You can style the HTML using a construct like
-  &lt;i style="color: red"&gt;r&lt;/i&gt;, but the style may not work in all the
-  visualizers. And multi-line names (those containg &lt;br&gt; or &lt;hr&gt;
-  elements, for example), don't always display as desired. Try it out to make sure!
+This section stores personal information about the group in your browser:
 
-Links in the group info window to edit representations are present only for
-representations that the user has created. Naming schemes built into the
-group in *Group Explorer* are uneditable by the end user.
+- **Group name** — a custom name for the group that appears in the page heading
+  and elsewhere in the app.
+- **Notes** — free-form personal notes, displayed as HTML (same rules as naming
+  schemes above).
 
-## Notes
-
-Users can add their own personal notes to a group to supplement the default
-information in any way they see fit. Such information appears in this
-section, with controls for editing it. Notes will be displayed as HTML,
-as with user-defined [naming schemes](#naming-schemes), and stored in the
-user's browser.
+Both are preserved across sessions.
 
 ## File data
 
-This section presents information about the group definition, as opposed to
-mathematical information about the group itself.  It includes such items as URL
-from which the group definition was downloaded, and its author.
+This section shows bibliographic data about the group definition — such as the
+URL from which it was downloaded and its author. It appears only for groups that
+include author information.

@@ -87,8 +87,8 @@ Once created, these groups
 
 - are stored in the browser's local storage for faster future access
 - function identically to built-in library groups
-- can be listed in the main [*Group Explorer* window](rf-um-mainwindow.md)
-  (newly generated groups may require a page refresh)
+- appear automatically in the main [*Group Explorer* window](rf-um-mainwindow.md)
+  when it is open (no page refresh needed)
 - have properties that can be examined on [Group Info pages](rf-um-groupwindow.md)
 - can be visualized with any of the [large visualizers](rf-um-largewindow.md)
 - can be included in [*Sheets*](rf-um-sheetwindow.md) with other groups
@@ -111,8 +111,16 @@ This format has three parts:
 - `//GE3/generated` - identifies this as a *Group Explorer* generated group
 - The text after `?` - defines the group using [generators and
   relations](rf-groupterms.md#definition-of-a-group-via-generators-and-relations)
-  <br>(*Note:* capital letters in the relations represent inverse elements:
-  A ≡ a<sup>-1</sup>. B ≡ b<sup>-1</sup>, etc.)
+
+Three notations are accepted in the presentation string:
+
+- **Capital-letter inverses**: `A` ≡ a<sup>-1</sup>, `B` ≡ b<sup>-1</sup>, etc.
+  (e.g. `a,b:abAB,a3,b2`)
+- **Minus-sign exponents**: `a-1`, `b-2`, etc.
+  (e.g. `a,b:aba-1b-1,a3,b2`)
+- **Natural equation style** from sources like [groupnames.org](http://groupnames.org):
+  `a,b | a3=b2=1, ab=ba` — the `|` separator and `=` equations are understood
+  directly, making copy-paste from external references straightforward.
 
 #### Example
 
@@ -132,7 +140,7 @@ Here's an example that lets you see generated groups in action:
    built-in group, including thumbnails of the visualizers and all the computed
    properties. You can even add custom element naming schemes and notes!
    
-2. Click on the [cayley diagram](rf-groupterms.md#cayley-diagrams) in the generated
+3. Click on the [cayley diagram](rf-groupterms.md#cayley-diagrams) in the generated
    group's info page to display the new group in a full-sized visualizer. The
    default layout doesn't show the
    \(\mathbb{Z}_3\times\mathbb{Z}_3\times\mathbb{Z}_4\) structure very well --
@@ -142,28 +150,47 @@ Here's an example that lets you see generated groups in action:
    too: note that there are four paths of nine elements around the
    circumference.
    
-3. Back in the subgroup info table of the [Group Info page for
+4. Back in the subgroup info table of the [Group Info page for
    \(\mathbb{Z}_2\times\mathbb{Z}_3\times\mathbb{Z}_3\times\mathbb{Z}_4
    \)](../../GroupInfo.html?groupURL=groups/Z_2%20x%20Z_3%20x%20Z_3%20x%20Z_4.group),
    click on one of the `embedding` or `short exact sequence` links for
    \(H_{46}\) to see the generated group shown in a sheet.
 
-4. Display the [group library](../../GroupExplorer.html) page and look for
-   groups named `'A Generated Group of Order ...'`. (If the page was already
-   open you will have to refresh it manually to see your new additions.)  Make
-   sure you've selected 'Show generated groups' from the [page
-   menu](#page-menu); other options allow you to hide or delete generated
-   groups, as discussed [here](rf-um-mainwindow.md#menu-top-right). (You don't need
-   to worry about deleting the generated groups, by the way: if *Group Explorer*
-   needs them again it'll just regenerate them.)
+5. Display the [group library](../../GroupExplorer.html) page and look for
+   groups named `'A Generated Group of Order ...'`. Make sure **Generated
+   groups** is checked in the [Settings dialog](rf-um-mainwindow.md#settings).
+   (You don't need to worry about deleting generated groups: if *Group
+   Explorer* needs them again it'll just regenerate them.)
+
+### Extended Library Groups
+
+*Group Explorer's* optional non-abelian groups of orders 22–40 are stored using
+the same [data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme) as
+[generated groups](#generated-groups), but with a different prefix:
+
+`data:,//GE3/extended?presentation`
+
+Unlike generated groups, extended library groups are built into *Group Explorer*
+and come with full metadata: GAP names and IDs, alternate names, links to
+external references, and descriptive phrases. They behave identically to the
+default built-in groups (`.group` files) but require no separate files — they
+are generated on the fly from their presentations whenever they are first needed.
+
+The notable large groups, by contrast, use traditional URLs and are downloaded
+as `.group` files just like the default library.
+
+Extended library groups are enabled or disabled in the
+[Settings dialog](rf-um-mainwindow.md#settings). You will not normally need to
+construct or type a `data:,//GE3/extended` URL yourself.
 
 ### Page Menu
 
 All pages have a menu icon in the upper right-hand corner, indicated by a
 so-called "hamburger" icon, \(\equiv\). In addition to page-specific options,
-discussed separately with the various page descriptions, the menu contains a
-link to the help documentation for the page being viewed, and a popup with
-infomation about the copy of *Group Explorer* you're running:
+discussed separately with the various page descriptions, the menu always
+contains a **Settings** option and a link to the help page for the current view,
+as well as a popup with information about the copy of *Group Explorer* you're
+running:
 
 ![Screenshot of the GE3 help popup](GE3-help.png)
 

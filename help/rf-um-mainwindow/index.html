@@ -22,6 +22,15 @@
   <script src="../search/main.js" defer></script>
 <style>
 img { border: 1px solid black; }
+/* Constrain reading width on wide monitors */
+.w3-container > .w3-row { max-width: 1300px; margin: 0 auto; }
+/* Make display-mode equations stand out */
+.MathJax_Display {
+    background: #f0f4f8;
+    border-left: 3px solid #5b8ab8;
+    padding: 0.6em 1em;
+    margin: 0.8em 0 !important;
+}
 </style>
 <body>
 
@@ -55,13 +64,16 @@ img { border: 1px solid black; }
                 <ul>
                 
                     <li><a style="text-decoration: none;"
-                          href="#data-in-the-group-table">Data in the group table</a></li>
+                          href="#the-group-table">The group table</a></li>
+                
+                    <li><a style="text-decoration: none;"
+                          href="#configuring-the-columns">Configuring the columns</a></li>
                 
                     <li><a style="text-decoration: none;"
                           href="#sorting-the-table">Sorting the table</a></li>
                 
                     <li><a style="text-decoration: none;"
-                          href="#menu-top-right">Menu (top right)</a></li>
+                          href="#page-heading">Page heading</a></li>
                 
                 </ul>
 
@@ -116,6 +128,20 @@ img { border: 1px solid black; }
                     
                     
                     
+                        <li><a href="../rf-groupterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Theory Terminology</a></li>
+                    
+                    
+                    
+                        <li><a href="../rf-geterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Explorer Terminology</a></li>
+                    
+                    
+                    
                     
                     
                     
@@ -131,74 +157,89 @@ img { border: 1px solid black; }
             </div>
         </div>
         <div class="w3-threequarter w3-container">
-            <p>This page documents the main window of the <em>Group Explorer</em> web application
-and from which all other page are opened.</p>
-<h2 id="data-in-the-group-table">Data in the group table</h2>
-<p><img alt="A portion of the main page's group library" src="../illustration-tablecorner.png" /></p>
-<p>Each row in the table shown in the main <em>Group Explorer</em> page represents a
-group. By default, the following columns are visible (in this order) when
-<em>Group Explorer</em> has opened:</p>
+            <p>This page documents the main window of the <em>Group Explorer</em> web application,
+from which all other pages are opened.</p>
+<h2 id="the-group-table">The group table</h2>
+<p><img alt="The Group Explorer main page" src="../illustration-tablecorner.png" /></p>
+<p>Each row in the table represents a group in the library. By default the
+following columns are shown:</p>
 <ol>
-<li>GAP Id &ndash; the small group ID of the group in <a href="../rf-um-gap/">GAP</a></li>
-<li>Name - the symbolic name of the group, as shown above</li>
-<li><a href="../rf-groupterms/#order-of-a-group">Order</a></li>
-<li><a href="../rf-groupterms/#definition-of-a-group-via-generators-and-relations">Definition</a></li>
-<li><a href="../rf-groupterms/#cayley-diagrams">Cayley Diagram</a></li>
-<li><a href="../rf-groupterms/#multiplication-table">Multiplication table</a></li>
-<li><a href="../rf-groupterms/#objects-of-symmetry">Object of symmetry</a></li>
-<li><a href="../rf-groupterms/#cycle-graph">Cycle graph</a></li>
+<li><strong>GAP ID</strong> — the group&rsquo;s ID in the <a href="../rf-um-gap/">GAP computer algebra system</a></li>
+<li><strong>Name</strong> — the symbolic name of the group</li>
+<li><a href="../rf-groupterms/#order-of-a-group"><strong>Order</strong></a> — the number of elements in the group</li>
+<li><a href="../rf-groupterms/#definition-of-a-group-via-generators-and-relations"><strong>Definition</strong></a> — a presentation of the group by generators and relations</li>
+<li><a href="../rf-groupterms/#cayley-diagrams"><strong>Cayley diagram</strong></a></li>
+<li><a href="../rf-groupterms/#multiplication-table"><strong>Multiplication table</strong></a></li>
+<li><a href="../rf-groupterms/#objects-of-symmetry"><strong>Object of symmetry</strong></a></li>
+<li><a href="../rf-groupterms/#cycle-graph"><strong>Cycle graph</strong></a></li>
 </ol>
-<p><strong>To learn more about any group in the table, simply click its name. This
-opens its <a href="../rf-um-groupwindow/">Group Info page</a>, which contains
-everything <em>Group Explorer</em> knows about the group and is the launchpad for
-exploring the group.</strong> To ask for explanation about the contents of an
-individual cell in the main group page, click the heading of that column,
-which is a link to the help for that topic.</p>
-<p>The first time you visit the <em>Group Explorer</em> main page, it may take some
-time to load all the groups in the library.  Future times that you visit the
-page, this should be faster, because the application stores some of the data
-in your browser so that it can be accessed more quickly in the future.</p>
+<p>Clicking any thumbnail opens the corresponding visualizer. Clicking a group&rsquo;s
+name or GAP ID opens its <a href="../rf-um-groupwindow/">Group Info page</a>, which is
+the main launchpad for exploring the group.</p>
+<p>On touch devices, tap a row once to highlight it and see a description; tap
+again to open the page.</p>
+<p>The first time you visit the <em>Group Explorer</em> main page it may take a moment
+to load all the groups in the library. Future visits are faster because the
+application stores the library in your browser.</p>
+<h2 id="configuring-the-columns">Configuring the columns</h2>
+<p><img alt="The column configuration panel" src="../illustration-column-config.png" /></p>
+<p>Click the <strong>⚙</strong> icon in the upper right of the page heading to open the
+column configuration panel. In addition to the default columns above, the
+following computed columns are available:</p>
+<ul>
+<li><strong>Subgroups</strong> — total number of subgroups</li>
+<li><a href="../rf-groupterms/#abelian-group"><strong>Abelian</strong></a> — whether the group is abelian</li>
+<li><a href="../rf-groupterms/#cyclic-group"><strong>Cyclic</strong></a> — whether the group is cyclic</li>
+<li><a href="../rf-groupterms/#simple-group"><strong>Simple</strong></a> — whether the group is simple</li>
+<li><a href="../rf-groupterms/#solvable-group-solvable-decomposition"><strong>Solvable</strong></a> — whether the group is solvable</li>
+</ul>
+<p>Your column choices and sort order are saved automatically and restored the
+next time you open <em>Group Explorer</em>. Use <strong>Reset to defaults</strong> at the bottom
+of the panel to restore the original column set.</p>
 <h2 id="sorting-the-table">Sorting the table</h2>
-<p>You can sort the table by GAP id, group name or order; simply click the column
-heading cell.  (The heading for the Order column is also a link to the help
-on group order; click outside the word &ldquo;Order&rdquo; to sort by that column.)</p>
-<h2 id="menu-top-right">Menu (top right)</h2>
-<p>In the upper right-hand corner of the <em>Group Explorer</em> page you will find a
-menu icon for the page:</p>
-<p><img alt="A screenshot of the menu options on the top right of the main page" src="../main-page-menu.png" /></p>
-<p>with the following options:</p>
-<h4 id="show-hide-extended-library">Show / Hide Extended Library</h4>
-<p>The first menu option will show (or hide) an extended collection of groups from the
-<em>Group Explorer</em> library. These larger, generally more complex groups introduce
-new ways of combining groups not illustrated by the default library. They are
-intended for those looking for just a bit more&hellip;</p>
-<h4 id="show-hide-delete-generated-groups-optional">Show / Hide, Delete Generated Groups (optional)</h4>
-<p>In some circumstances <em>Group Explorer</em> will generate a group that is not in one
-of its libraries and store it locally. If the library contains one of these
-groups these options will be displayed. They allow you to show or hide such
-groups when listing the library, and to delete them if they&rsquo;re no longer
-useful. For more information see the discussion in <a href="../rf-geterms/#generated-groups">Group Explorer
-Terminology</a>.</p>
+<p>Click any column heading to sort by that column; click again to reverse the
+sort order. Note that some column headings are also links to help pages —
+clicking the link text navigates to help rather than sorting; click elsewhere
+in the heading cell to sort.</p>
+<h2 id="page-heading">Page heading</h2>
+<p><img alt="The page heading" src="../illustration-heading.png" /></p>
+<p>The page heading contains two icons on the right:</p>
+<ul>
+<li><strong>⚙</strong> — opens the column configuration panel (described above)</li>
+<li><strong>≡</strong> — opens the page menu</li>
+</ul>
+<p>The page menu contains:</p>
 <h4 id="new-sheet">New Sheet</h4>
-<p>This option opens a blank sheet, into which you can insert visualizations of any
-groups from the library and connect them with morphisms.  To read more on
-sheets, see <a href="../tu-sheets/">the sheets tutorial</a> or <a href="../rf-um-sheetwindow/">the sheets
+<p>Opens a blank sheet for building diagrams that connect multiple groups with
+morphisms. See <a href="../tu-sheets/">the sheets tutorial</a> or <a href="../rf-um-sheetwindow/">the sheets
 reference</a>.</p>
-<h4 id="help">Help</h4>
-<p>This option takes you to the main page of these help files.</p>
+<h4 id="group-explorer-help">Group Explorer help</h4>
+<p>Opens this help system.</p>
+<h4 id="settings">Settings</h4>
+<p>Opens the Settings dialog, where you can control which groups appear in the
+library:</p>
+<p><img alt="The Settings dialog" src="../illustration-settings.png" /></p>
+<ul>
+<li><strong>Non-abelian groups, order 22–31</strong> — an extended collection of larger groups</li>
+<li><strong>Non-abelian groups, order 32–40</strong> — a further extension (order 32 alone
+  contains 51 groups)</li>
+<li><strong>Notable large groups</strong> — selected larger groups of special mathematical
+  interest. Be aware that the Tesseract group is computationally demanding:
+  its row takes about 5 seconds to appear in the Group Library, its Group Info
+  page takes around 15 seconds to render, and expanding the Subgroups section
+  can take 20 seconds or more as all its generated subgroups are computed. The
+  app is working during this time — it has not crashed. The wait is rewarded:
+  the Tesseract&rsquo;s Cayley diagram is one of the most complex and beautiful
+  structures in the library.</li>
+<li><strong>Generated groups</strong> — groups you have defined yourself</li>
+</ul>
+<p>Groups take up very little space — the entire default library is smaller than
+a typical photograph — so there is no need to manage storage. The <strong>Delete
+generated groups</strong> button is there if you want a clean slate; any deleted
+group can always be recreated.</p>
 <h4 id="about-ge3">About GE3</h4>
-<p>Clicking this menu item pops up a box with information about the copy of
-<em>Group Explorer</em> you&rsquo;re running:</p>
-<p><img alt="Screenshot of the GE3 help popup" src="../GE3-help.png" /></p>
-<p>It includes a link to the <a href="https://nathancarter.github.io/group-explorer">main <em>Group Explorer</em>
-website</a>, which will take you out
-of the app itself and back to the home page of the entire project.</p>
-<p>And it has a link to <a href="https://github.com/nathancarter/group-explorer">the source code
-repository</a> from which the
-application and its website were built.  Visit that site if you would like to
-see how the application was built, make suggestions for its improvement, report
-an error in the documentation, or get involved in improving the software as a
-developer.</p>
+<p>Displays version information and links to the project website and source
+repository.</p>
         </div>
     </div>
 </div>

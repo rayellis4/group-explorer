@@ -95,7 +95,8 @@ function dialogHTML () /*: string */ {
          </div>
          <div>
             <input type="checkbox" id="settings-showNotable">
-            <label for="settings-showNotable">Notable large groups (Tesseract, GL<sub>3</sub>(𝔽<sub>2</sub>), …)</label>
+            <label for="settings-showNotable">Notable large groups (Tesseract, GL<sub>3</sub>(𝔽<sub>2</sub>), …)
+               <span style="color: #a00">— Tesseract can take 20+ seconds to load; the app is working</span></label>
          </div>
          <div>
             <input type="checkbox" id="settings-showGenerated">

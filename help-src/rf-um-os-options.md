@@ -4,7 +4,7 @@ symmetry](rf-groupterms.md#objects-of-symmetry). An object of symmetry is
 one of *Group Explorer's* four [visualizers](rf-geterms.md#visualizers), all
 of which can appear either in [group info pages](rf-um-groupwindow.md),
 [sheets](rf-geterms.md#sheets), or in their own pages. When they appear in
-their own pages, this is refered to as a "large view," and you can read
+their own pages, this is referred to as a "large view," and you can read
 about it in general [here](rf-um-largewindow.md). This page covers the
 specifics for large views of objects of symmetry.
 
@@ -23,7 +23,7 @@ object, and seeing it in motion can give you a better mental picture of it.
 
 Some groups have more than one object of symmetry defined for them. For this
 reason, the topmost portion of the control pane on the right side of a large
-view for symmetry objecst allows you to choose which of the symmetry objects
+view for symmetry objects allows you to choose which of the symmetry objects
 you wish to view. You choose from a list, as shown in the picture below.
 
 ![Screenshot of the control for choosing an object of symmetry](illustration-osoptions.png)

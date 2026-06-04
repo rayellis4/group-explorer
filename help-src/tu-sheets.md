@@ -66,7 +66,7 @@ and
    Furthermore, *Group Explorer* will not let you mess this up (you cannot
    define a non-homomorphism.)  The morphism editing dialog is shown below.
 
-![Homomorphism editing dialog](illustration-sheettut4.png)
+![Homomorphism editing dialog](illustration-morphedit.png)
 
  * The homomorphism defaults to the zero map (all elements map to the identity,
    in this case \(e\)) but you can change it, of course. I will map \(a\) to
@@ -117,10 +117,16 @@ providing links for you to browse further yourself.
     * Again, expand the "Subgroups" section of the group info page.
     * Follow the link provided at the top of the resulting page,
       offering to create a sheet showing the lattice of subgroups.
-    * The illustration below shows all subgroups of \(S_3\).
-      (The captions are color-coded by the subgroup conjugacy class.)
+    * The illustrations below show all subgroups of \(S_3\): first in
+      the full lattice (each subgroup its own node), then in the reduced
+      lattice (conjugate subgroups sharing a single node, color-coded by
+      conjugacy class). The reduced view is most useful for larger
+      non-abelian groups, where conjugacy classes can collapse many nodes
+      into one; for abelian groups the two views are identical.
 
-![The lattice of subgroups for S_3](illustration-sheettut8.png)
+![The full lattice of subgroups for S_3](illustration-sheettut8.png)
+
+![The reduced lattice of subgroups for S_3](illustration-sheettut8a.png)
 
  * To see the [solvable decomposition](rf-groupterms.md#solvable-group-solvable-decomposition) of any
    [solvable group](rf-groupterms.md#solvable-group-solvable-decomposition):

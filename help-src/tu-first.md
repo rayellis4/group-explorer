@@ -52,7 +52,7 @@ theorem by showing *how the group acts on itself.*
  * [Definition of a Cayley diagram](rf-groupterms.md#cayley-diagrams)
  * [Introduction to Cayley diagrams](gs-cd-intro.md) (Getting Started pages)
  * [Basic manipulations of a Cayley diagram](tu-cd-manip.md) (Tutorial)
- * [Complete information about the Cayley diagram interfacel](rf-um-cd-options.md) (User Manual)
+ * [Complete information about the Cayley diagram interface](rf-um-cd-options.md) (User Manual)
 
 CITE(VGT-2.4 MM-1.2 DE-3)
 
@@ -70,8 +70,8 @@ CITE(VGT-5.1)
 
 ## Features
 
-Here are some of hte most important things not to miss about how *Group
-Explorer* makes gropu theory more accessible and intuitive.
+Here are some of the most important things not to miss about how *Group
+Explorer* makes group theory more accessible and intuitive.
 
 ### Each picture of a group is very interactive
 
@@ -83,7 +83,7 @@ views as images to use in a document, email, or website.
 
 ### *Group Explorer* has a large library of groups
 
-![A screenshot of the group library](illustration-grouptable.png)
+![A screenshot of the group library](illustration-tablecorner.png)
 
 [The main page of the
 application](../../GroupExplorer.html)

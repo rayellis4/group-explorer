@@ -34,9 +34,9 @@ nav:
         - Cayley Diagram Tutorial: tu-cd-manip.md
         - Sheets Tutorial: tu-sheets.md
     - User Manual: rf-um-index.md
+    - Group Theory Terminology: rf-groupterms.md
+    - Group Explorer Terminology: rf-geterms.md
     - "": # subtopics within "User Manual"
-        - Group Theory Terminology: rf-groupterms.md
-        - Group Explorer Terminology: rf-geterms.md
         - Group Info Pages: rf-um-groupwindow.md
         - Group Library: rf-um-mainwindow.md
         - GAP: rf-um-gap.md

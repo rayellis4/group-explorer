@@ -22,6 +22,15 @@
   <script src="../search/main.js" defer></script>
 <style>
 img { border: 1px solid black; }
+/* Constrain reading width on wide monitors */
+.w3-container > .w3-row { max-width: 1300px; margin: 0 auto; }
+/* Make display-mode equations stand out */
+.MathJax_Display {
+    background: #f0f4f8;
+    border-left: 3px solid #5b8ab8;
+    padding: 0.6em 1em;
+    margin: 0.8em 0 !important;
+}
 </style>
 <body>
 
@@ -79,6 +88,9 @@ img { border: 1px solid black; }
                           href="#generated-groups">Generated Groups</a></li>
                 
                     <li><a style="text-decoration: none;"
+                          href="#extended-library-groups">Extended Library Groups</a></li>
+                
+                    <li><a style="text-decoration: none;"
                           href="#page-menu">Page Menu</a></li>
                 
                     <li><a style="text-decoration: none;"
@@ -134,6 +146,20 @@ img { border: 1px solid black; }
                                style="text-decoration: none;"
                                class=""
                                >User Manual</a></li>
+                    
+                    
+                    
+                        <li><a href="../rf-groupterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Theory Terminology</a></li>
+                    
+                    
+                    
+                        <li><a href="./"
+                               style="text-decoration: none;"
+                               class="current"
+                               >Group Explorer Terminology</a></li>
                     
                     
                     
@@ -221,8 +247,8 @@ produced when needed, as in these circumstances:</p>
 <ul>
 <li>are stored in the browser&rsquo;s local storage for faster future access</li>
 <li>function identically to built-in library groups</li>
-<li>can be listed in the main <a href="../rf-um-mainwindow/"><em>Group Explorer</em> window</a>
-  (newly generated groups may require a page refresh)</li>
+<li>appear automatically in the main <a href="../rf-um-mainwindow/"><em>Group Explorer</em> window</a>
+  when it is open (no page refresh needed)</li>
 <li>have properties that can be examined on <a href="../rf-um-groupwindow/">Group Info pages</a></li>
 <li>can be visualized with any of the <a href="../rf-um-largewindow/">large visualizers</a></li>
 <li>can be included in <a href="../rf-um-sheetwindow/"><em>Sheets</em></a> with other groups</li>
@@ -243,9 +269,17 @@ or &lsquo;data:,//GE3/generated?a,b:abAB,aaaaaa,aaabAAAB,bbbbbaaab,bbaabAABBB&rs
 <li><code>data:</code> - indicates this is embedded data rather than a file location</li>
 <li><code>//GE3/generated</code> - identifies this as a <em>Group Explorer</em> generated group</li>
 <li>The text after <code>?</code> - defines the group using <a href="../rf-groupterms/#definition-of-a-group-via-generators-and-relations">generators and
-  relations</a>
-  <br>(<em>Note:</em> capital letters in the relations represent inverse elements:
-  A ≡ a<sup>-1</sup>. B ≡ b<sup>-1</sup>, etc.)</li>
+  relations</a></li>
+</ul>
+<p>Three notations are accepted in the presentation string:</p>
+<ul>
+<li><strong>Capital-letter inverses</strong>: <code>A</code> ≡ a<sup>-1</sup>, <code>B</code> ≡ b<sup>-1</sup>, etc.
+  (e.g. <code>a,b:abAB,a3,b2</code>)</li>
+<li><strong>Minus-sign exponents</strong>: <code>a-1</code>, <code>b-2</code>, etc.
+  (e.g. <code>a,b:aba-1b-1,a3,b2</code>)</li>
+<li><strong>Natural equation style</strong> from sources like <a href="http://groupnames.org">groupnames.org</a>:
+  <code>a,b | a3=b2=1, ab=ba</code> — the <code>|</code> separator and <code>=</code> equations are understood
+  directly, making copy-paste from external references straightforward.</li>
 </ul>
 <h4 id="example">Example</h4>
 <p>Here&rsquo;s an example that lets you see generated groups in action:</p>
@@ -286,21 +320,34 @@ or &lsquo;data:,//GE3/generated?a,b:abAB,aaaaaa,aaabAAAB,bbbbbaaab,bbaabAABBB&rs
 </li>
 <li>
 <p>Display the <a href="../../GroupExplorer.html">group library</a> page and look for
-   groups named <code>'A Generated Group of Order ...'</code>. (If the page was already
-   open you will have to refresh it manually to see your new additions.)  Make
-   sure you&rsquo;ve selected &lsquo;Show generated groups&rsquo; from the <a href="#page-menu">page
-   menu</a>; other options allow you to hide or delete generated
-   groups, as discussed <a href="../rf-um-mainwindow/#menu-top-right">here</a>. (You don&rsquo;t need
-   to worry about deleting the generated groups, by the way: if <em>Group Explorer</em>
-   needs them again it&rsquo;ll just regenerate them.)</p>
+   groups named <code>'A Generated Group of Order ...'</code>. Make sure <strong>Generated
+   groups</strong> is checked in the <a href="../rf-um-mainwindow/#settings">Settings dialog</a>.
+   (You don&rsquo;t need to worry about deleting generated groups: if <em>Group
+   Explorer</em> needs them again it&rsquo;ll just regenerate them.)</p>
 </li>
 </ol>
+<h3 id="extended-library-groups">Extended Library Groups</h3>
+<p><em>Group Explorer&rsquo;s</em> optional non-abelian groups of orders 22–40 are stored using
+the same <a href="https://en.wikipedia.org/wiki/Data_URI_scheme">data URI scheme</a> as
+<a href="#generated-groups">generated groups</a>, but with a different prefix:</p>
+<p><code>data:,//GE3/extended?presentation</code></p>
+<p>Unlike generated groups, extended library groups are built into <em>Group Explorer</em>
+and come with full metadata: GAP names and IDs, alternate names, links to
+external references, and descriptive phrases. They behave identically to the
+default built-in groups (<code>.group</code> files) but require no separate files — they
+are generated on the fly from their presentations whenever they are first needed.</p>
+<p>The notable large groups, by contrast, use traditional URLs and are downloaded
+as <code>.group</code> files just like the default library.</p>
+<p>Extended library groups are enabled or disabled in the
+<a href="../rf-um-mainwindow/#settings">Settings dialog</a>. You will not normally need to
+construct or type a <code>data:,//GE3/extended</code> URL yourself.</p>
 <h3 id="page-menu">Page Menu</h3>
 <p>All pages have a menu icon in the upper right-hand corner, indicated by a
 so-called &ldquo;hamburger&rdquo; icon, <script type="math/tex">\equiv</script>. In addition to page-specific options,
-discussed separately with the various page descriptions, the menu contains a
-link to the help documentation for the page being viewed, and a popup with
-infomation about the copy of <em>Group Explorer</em> you&rsquo;re running:</p>
+discussed separately with the various page descriptions, the menu always
+contains a <strong>Settings</strong> option and a link to the help page for the current view,
+as well as a popup with information about the copy of <em>Group Explorer</em> you&rsquo;re
+running:</p>
 <p><img alt="Screenshot of the GE3 help popup" src="../GE3-help.png" /></p>
 <h3 id="collapsible-sections">Collapsible Sections</h3>
 <p>Many pages have collapsible sections, indicated by &lsquo;▶&rsquo; and &lsquo;▼&rsquo; characters to the

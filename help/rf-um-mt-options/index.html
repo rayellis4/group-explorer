@@ -22,6 +22,15 @@
   <script src="../search/main.js" defer></script>
 <style>
 img { border: 1px solid black; }
+/* Constrain reading width on wide monitors */
+.w3-container > .w3-row { max-width: 1300px; margin: 0 auto; }
+/* Make display-mode equations stand out */
+.MathJax_Display {
+    background: #f0f4f8;
+    border-left: 3px solid #5b8ab8;
+    padding: 0.6em 1em;
+    margin: 0.8em 0 !important;
+}
 </style>
 <body>
 
@@ -119,6 +128,20 @@ img { border: 1px solid black; }
                     
                     
                     
+                        <li><a href="../rf-groupterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Theory Terminology</a></li>
+                    
+                    
+                    
+                        <li><a href="../rf-geterms/"
+                               style="text-decoration: none;"
+                               class=""
+                               >Group Explorer Terminology</a></li>
+                    
+                    
+                    
                     
                     
                     
@@ -139,7 +162,7 @@ table</a>. A multiplication table is one
 of <em>Group Explorer&rsquo;s</em> four <a href="../rf-geterms/#visualizers">visualizers</a>, all of
 which can appear either in <a href="../rf-um-groupwindow/">group info pages</a>,
 <a href="../rf-geterms/#sheets">sheets</a>, or in their own pages. When they appear in
-their own pages, this is refered to as a &ldquo;large view,&rdquo; and you can read
+their own pages, this is referred to as a &ldquo;large view,&rdquo; and you can read
 about it in general <a href="../rf-um-largewindow/">here</a>. This page covers the
 specifics for large views of multiplication tables.</p>
 <p><img alt="A large view of a multiplication table" src="../illustration-mtwindow.png" /></p>
@@ -213,7 +236,7 @@ just black text on white background.</p>
 <p>Note that the colorization scheme you choose is overridden by any
 highlighting you do on the Subsets tab, documented on a separate page, as
 indicated below.</p>
-<h3 id="element-recoloring-on-reorganization">Element recoloring on reorganization</h3>
+<h3 id="element-coloring-on-reorganization">Element coloring on reorganization</h3>
 <p>When you change the rows and columns of the multiplication table, either by
 dragging one of the rows/columns to a new location or by organizing the table by a
 different subgroup, the colors of the cells change, too. <em>Group Explorer</em> does

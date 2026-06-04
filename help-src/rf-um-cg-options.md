@@ -4,7 +4,7 @@ graph](rf-groupterms.md#cycle-graph). A cycle graph is one of
 *Group Explorer's* four [visualizers](rf-geterms.md#visualizers), all of
 which can appear either in [group info pages](rf-um-groupwindow.md),
 [sheets](rf-geterms.md#sheets), or in their own pages. When they appear in
-their own pages, this is refered to as a "large view," and you can read
+their own pages, this is referred to as a "large view," and you can read
 about it in general [here](rf-um-largewindow.md). This page covers the
 specifics for large views of cycle graphs.
 
