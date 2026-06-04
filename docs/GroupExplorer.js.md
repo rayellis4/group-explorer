@@ -5,19 +5,52 @@ import * as GroupTableUI from './GroupTableUI.js'
 import * as Heading from './Heading.js'
 import * as Library from './Library.js'
 import * as Settings from './Settings.js'
+import * as StoredObjects from './StoredObjects.js'
 
 export {load}
 
-// Load group library from urls
-function load () {
+/*::
+type TableConfig = {
+   visible: {[string]: boolean},
+   sort: {id: string, dir: string},
+}
+*/
+
+let tableConfig /*: TableConfig */ = defaultTableConfig()
+
+function defaultTableConfig () /*: TableConfig */ {
+   return {
+      visible: Object.fromEntries(GroupTable.COLUMNS.map((col) => [col.id, col.defaultVisible])),
+      sort: {id: 'order', dir: 'sort-up'},
+   }
+}
+
+async function load () {
    insertHTML()
 
-   // Create heading
    Heading.display(
       document.getElementById('heading'),
       `<img style="border: 1px solid black;" src="images/logo.png"/>`,
       makeMenu
    )
+
+   // gear icon for column config — inserted into heading bar left of the hamburger menu
+   const gearBtn = document.createElement('div')
+   gearBtn.id = 'column-config-btn'
+   gearBtn.innerHTML = '⚙'
+   gearBtn.title = 'Configure columns'
+   gearBtn.style.cssText = 'color: black; margin: auto 0.5ch; cursor: pointer; user-select: none; font-size: 2rem'
+   document.getElementById('heading-menu').insertAdjacentElement('beforebegin', gearBtn)
+
+   // merge stored config on top of defaults so new columns get their default visibility
+   const stored = await StoredObjects.getTableConfig()
+   if (stored?.visible != null) {
+      const defaults = defaultTableConfig()
+      tableConfig = {
+         visible: {...defaults.visible, ...stored.visible},
+         sort: stored.sort || defaults.sort,
+      }
+   }
 
    displayGroups()
 
@@ -64,34 +97,30 @@ function makeMenu () {
 function displayGroups () {
    const groupsToDisplay = Library.allVisibleGroups(Settings.getFilterConfig())
 
-   // sort by definition length to minimize re-layout jink
+   // sort by definition length to minimize re-layout jink during incremental load
    groupsToDisplay.sort((G, H) => H.definition.length - G.definition.length)
 
-   // save the sorting info to sort the table the same way after changing the displayed libraries
-   const sortedHeader = document.querySelector('#group-table-headers th.sort-down, #group-table-headers th.sort-up')
-   const sortInfo = (sortedHeader == null)
-                  ? {headerIndex: 0, sortDirection: 'sort-down'}
-                  : {headerIndex: Array.from(sortedHeader.parentElement.children).indexOf(sortedHeader),
-                     sortDirection: sortedHeader.classList.contains('sort-down') ? 'sort-up' : 'sort-down'}
-
-   // populate table 
    const groupTable = document.getElementById('group-table')
    GroupTable.display(groupTable, groupsToDisplay)
-   GroupTableUI.addGestures(groupTable)
+   GroupTableUI.addGestures(groupTable, {
+      config: tableConfig,
+      onConfigChange: (patch) => {
+         Object.assign(tableConfig, patch)
+         StoredObjects.saveTableConfig(tableConfig)
+      },
+   })
 
-   // give the browser time to work
-   window.setTimeout(
-      () => {
-         Array.from(document.querySelector('#group-table-headers').children)
-              .forEach((header, inx) => {
-                 header.classList.remove('sort-down')
-                 header.classList.remove('sort-up')
-                 if (inx == sortInfo.headerIndex) {
-                    header.classList.add(sortInfo.sortDirection)
-                 }
-              })
-         document.querySelector('#group-table-headers th.sort-down, #group-table-headers th.sort-up').click()
-      }, 0)
+   // restore sort from config after the table is in the DOM
+   window.setTimeout(() => {
+      const sortTh = groupTable.querySelector(`th[data-col-id="${tableConfig.sort.id}"]`)
+      const target = sortTh ?? groupTable.querySelector('th.sortable')
+      if (target != null) {
+         // tableSort toggles direction based on current class state; pre-set so one click
+         // lands on the desired direction.  sort-up needs no pre-set (no class → click → sort-up).
+         if (tableConfig.sort.dir === 'sort-down') target.classList.add('sort-up')
+         target.click()
+      }
+   }, 0)
 }
 
 function insertHTML () {

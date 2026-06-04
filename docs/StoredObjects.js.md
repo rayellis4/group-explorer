@@ -13,6 +13,10 @@ export {
    getSettings,
    saveSettings,
 
+   // Table config routines
+   getTableConfig,
+   saveTableConfig,
+
    // Stored sheet routines
    getStoredSheet,
    saveStoredSheet,
@@ -41,6 +45,7 @@ const GROUP_LIBRARY_KEY = 'GroupLibrary'
 const SETTINGS_KEY = 'Settings'
 const PASSED_SHEET_KEY = 'PassedSheet'
 const PASSED_JSON_KEY = 'PassedJSON'
+const TABLE_CONFIG_KEY = 'TableConfig'
 
 async function getObjectStore (objectStoreName /*: string */, mode /*: 'readwrite' | 'readonly' */) {
    const db = await openDatabase()
@@ -130,6 +135,19 @@ function getSettings () /*: Promise<{[key: string]: mixed}> */ {
 
 function saveSettings (settings /*: {[key: string]: mixed} */) /*: Promise<mixed> */ {
    return put(GENERAL_STORE, SETTINGS_KEY, settings)
+}
+
+//////////
+// Table config routines
+//////////
+
+function getTableConfig () /*: Promise<{[key: string]: mixed}> */ {
+   return ((get(GENERAL_STORE, TABLE_CONFIG_KEY) /*: any */) /*: Promise<{[key: string]: mixed}> */)
+      .then((result) => result || {})
+}
+
+function saveTableConfig (config /*: {[key: string]: mixed} */) /*: Promise<mixed> */ {
+   return put(GENERAL_STORE, TABLE_CONFIG_KEY, config)
 }
 
 //////////

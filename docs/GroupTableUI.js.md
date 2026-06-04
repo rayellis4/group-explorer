@@ -2,18 +2,33 @@
 
 # GroupTableUI component
 
-This componenet implements user interactions with the library table in the [GroupExplorer main page](./GroupExplorer.html.md)
+This component implements user interactions with the library table in the [GroupExplorer main page](./GroupExplorer.html.md)
 These include
  * [Table sort](#table-sort)
+ * [Column configuration](#column-configuration)
  * [Highlighting and Hover Help](#highlighting-and-hover-help)
 ```javascript
 */
 
-import {positionElement} from './UIComponents.js'
+import {positionElement, makeDialog} from './UIComponents.js'
+import {COLUMNS} from './GroupTable.js'
 
 export {addGestures}
 
-function addGestures (table) {
+/*::
+type TableConfig = {
+   visible: {[string]: boolean},
+   sort: {id: string, dir: string},
+}
+type ConfigChangeCallback = (patch: {[string]: any}) => void
+*/
+
+// set by addGestures, used by tableSort to persist sort state
+let onConfigChange /*: ?ConfigChangeCallback */ = null
+
+function addGestures (table /*: HTMLElement */, {config, onConfigChange: callback} /*: {config: TableConfig, onConfigChange: ConfigChangeCallback} */) {
+   onConfigChange = callback
+
    const tableId = table.getAttribute('id')
    table.insertAdjacentHTML('beforeend',
       `<style>
@@ -68,17 +83,28 @@ function addGestures (table) {
 
        </style>`)
 
+   // apply initial column visibility
+   COLUMNS.forEach((col) => {
+      const visible = config.visible[col.id] ?? col.defaultVisible
+      table.classList.toggle(`hide-${col.id}`, !visible)
+   })
+
    const tableBody = table.querySelector('tbody')
 
    // prevent double-tap zoom; single-finger scroll still works
    tableBody.style.touchAction = 'manipulation'
 
-   // set up table sort handler and do initial table sort
+   // sort handlers (initial sort is applied by GroupExplorer after addGestures)
    table.querySelectorAll('th.sortable')
       .forEach((el) => el.addEventListener('click', tableSortHandler))
-   setTimeout(() => tableSort(document.getElementById('group-table-headers').children[0]))
 
-   // set up highlight and hover-help handlers
+   // gear icon — column visibility dropdown
+   document.getElementById('column-config-btn')
+      .addEventListener('click', (event) => {
+         event.stopPropagation()
+         showColumnDropdown(table, config)
+      })
+
    addMouseHandlers(tableBody)
    addTouchHandlers(tableBody)
 }
@@ -87,41 +113,96 @@ function addGestures (table) {
 ### Table sort
 ```javascript
  */
-// callback to sort table on column value, invoked by clicking on column head
-function tableSortHandler (event /*: JQueryEventObject */) {
-   const column = event.currentTarget;
-   tableSort(column)
+function tableSortHandler (event /*: MouseEvent */) {
+   tableSort(event.currentTarget)
 }
 
-function tableSort (column) {
-   const columnIndex = Array.from(document.querySelectorAll('#group-table-headers th'))
-      .findIndex((headerColumn) => headerColumn == column)
-   const sortAscending = !column.classList.contains('sort-up')
+function tableSort (column /*: HTMLElement */, direction /*: ?string */) {
+   const colId = column.dataset.colId
+   const colDef = COLUMNS.find((col) => col.id === colId)
+   if (colDef?.sortComparator == null) return
+
+   // direction param is used for programmatic restore; user clicks toggle
+   const sortAscending = direction != null
+      ? direction === 'sort-up'
+      : !column.classList.contains('sort-up')
+
    document.querySelectorAll('#group-table-headers th.sortable')
       .forEach((headerColumn) => {
-         const classList = headerColumn.classList
-         classList.remove('sort-down')
-         classList.remove('sort-up')
-         if (headerColumn == column) {
-            classList.add(sortAscending ? 'sort-up' : 'sort-down')
+         headerColumn.classList.remove('sort-down', 'sort-up')
+         if (headerColumn === column) {
+            headerColumn.classList.add(sortAscending ? 'sort-up' : 'sort-down')
          }
       })
 
-   const compareFunction = [
-      (v1, v2) => {
-         const [[v11, v12], [v21, v22]] = [v1.split(','), v2.split(',')]
-         return v11 - v21 || v12 - v22
-      },
-      (v1, v2) => v1.replace('(', '').toString().localeCompare(v2.replace('(', '')),
-      (v1, v2) => v1 - v2,
-   ][columnIndex]
-   const getCellValue = (row, columnIndex) /*: string */ => row.children[columnIndex].textContent;
-   const sortFunction = (a /*: HTMLTableCellElement */, b /*: HTMLTableCellElement */) =>
-      compareFunction(getCellValue(sortAscending ? a : b, columnIndex), getCellValue(sortAscending ? b : a, columnIndex))
+   const colIndex = COLUMNS.indexOf(colDef)
+   const getCellValue = (row) => row.children[colIndex].textContent
+   const sortFunction = (a /*: HTMLTableRowElement */, b /*: HTMLTableRowElement */) =>
+      colDef.sortComparator(
+         getCellValue(sortAscending ? a : b),
+         getCellValue(sortAscending ? b : a)
+      )
    const tableBody = document.querySelector('#group-table tbody')
    Array.from(tableBody.children)
         .sort(sortFunction)
         .forEach((row) => tableBody.append(row))
+
+   if (onConfigChange != null) {
+      onConfigChange({sort: {id: colId, dir: sortAscending ? 'sort-up' : 'sort-down'}})
+   }
+}
+/*
+```
+### Column configuration
+```javascript
+*/
+function showColumnDropdown (table /*: HTMLElement */, config /*: TableConfig */) {
+   document.getElementById('column-dropdown')?.remove()
+
+   const dropdownHTML = [
+      `<div id="column-dropdown" class="menu" style="resize: none">
+         <style>
+            #column-dropdown label:hover {background-color: var(--list-highlight);}
+            #column-dropdown label {display: flex; align-items: center; gap: 8px; padding: 2px 4px; cursor: pointer;}
+         </style>`,
+         COLUMNS.map((col) =>
+            `<label data-id="${col.id}">
+               <input type="checkbox" ${(config.visible[col.id] ?? col.defaultVisible) ? "checked" : ""}>${col.label}
+             </label>`).join(''),
+        `<hr>
+         <div id="column-dropdown-reset">Reset to defaults</div>
+       </div>`
+   ].join('')
+
+   const button = document.getElementById('column-config-btn')
+   const buttonRectangle = button.getBoundingClientRect()
+   const dropdownLocation = {clientX: buttonRectangle.left, clientY: buttonRectangle.bottom}
+   const dialogModal = makeDialog(dropdownHTML, dropdownLocation, (ev) => {
+      if (!document.getElementById('column-dropdown')?.contains(ev.target)) dialogModal.remove()
+   })
+   document.getElementById('column-dropdown').classList.remove('dialog')
+   document.getElementById('column-dropdown').addEventListener('change', (ev) => {
+      const label = ev.target.closest('label[data-id]')
+      const checkbox = label?.querySelector('input[type="checkbox"]')
+      if (checkbox == null) return
+      ev.stopPropagation()
+      const colId = label.getAttribute('data-id')
+      config.visible[colId] = checkbox.checked
+      table.classList.toggle(`hide-${colId}`, !checkbox.checked)
+      if (onConfigChange != null) onConfigChange({visible: {...config.visible}})
+   })
+   document.getElementById('column-dropdown-reset').addEventListener('click', () => {
+      const defaults = Object.fromEntries(COLUMNS.map((col) => [col.id, col.defaultVisible]))
+      Object.assign(config.visible, defaults)
+      COLUMNS.forEach((col) => {
+         table.classList.toggle(`hide-${col.id}`, !defaults[col.id])
+      })
+      document.getElementById('column-dropdown').querySelectorAll('input[type="checkbox"]')
+         .forEach((cb, i) => {
+            cb.checked = COLUMNS[i].defaultVisible
+         })
+      if (onConfigChange != null) onConfigChange({visible: {...defaults}})
+   })
 }
 /*
 ```
