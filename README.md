@@ -1,5 +1,5 @@
 
-# Group Explorer 3.7rc22
+# Group Explorer 3.7rc23
 
 *Group Explorer* is interactive visualization software for abstract algebra — specifically finite group theory. It runs entirely in the browser, requires no installation, and is designed for students and instructors building intuition about groups and their structure.
 
@@ -36,6 +36,7 @@ python3 -m http.server 8080
 - Morphism arrows colored by source/destination highlighting
 - Morphism editor: cancel restores previous highlights; push/pull redraws all connected morphisms
 - Morphism shows image/pre-image of highlighted subset
+- Morphism editor: inline highlight controls sync bidirectionally with any open external editor for that visualizer
 - Subgroup lattice on Group Info page includes descriptive captions and compacted layout by conjugacy class
 - Sheet titles displayed in the page heading bar
 - Improved default Cayley diagram layouts, more representative of group structure
