@@ -19,6 +19,7 @@ import * as StoredObjects from './StoredObjects.js'
 import {THREE} from '../lib/externals.js'
 import {makeDialog, makeMockSelect} from './UIComponents.js'
 import {redrawLinksFor} from './SheetView.js'
+import {addControl as addHighlightControl} from './HighlightControl.js'
 
 export {TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor}
 /*
@@ -258,6 +259,7 @@ class MorphismEditor extends SheetElementEditor {
              <div>Morphism name:
                  <input id="morphism-editor-name" type="text" value="${morphismElement.name}">
              </div>
+                 <details open><summary>Options:</summary>
              <div><input id="morphism-editor-show-domain-codomain" type="checkbox"
                   ${morphismElement.showDomainAndCodomain ? 'checked="true"' : ''}>
                  <label for="morphism-editor-show-domain-codomain">Show domain and codomain</label>
@@ -288,7 +290,13 @@ class MorphismEditor extends SheetElementEditor {
                        >Use top row of destination multtable for morphisms</label>
                   </div>`
                : '') +
-            `<div id="morphism-arrow-color">Arrow color:
+            `<div>Arrows margin:
+                 <input id="morphism-editor-arrow-margin" class="synced" type="text" size="3"
+                        value="${100*morphismElement.arrowMargin}"><br>
+                 <input class="synced" type="range" min="0" max="5" step="0.1"
+                        value="${100*morphismElement.arrowMargin}">
+             </div>
+             <div id="morphism-arrow-color">Arrow color:
                  <input id="morphism-arrow-color-none" value="left" name="arrow-color" type="radio"
                     ${(morphismElement.arrowColor == 'none') ? 'checked="true"' : ''}>
                  <label for="morphism-arrow-color-none">none</label>
@@ -299,19 +307,7 @@ class MorphismEditor extends SheetElementEditor {
                     ${(morphismElement.arrowColor == 'destination') ? 'checked="true"' : ''}>
                  <label for="morphism-arrow-color-destination">destination</label>
              </div>
-             <div>Arrows margin:
-                 <input id="morphism-editor-arrow-margin" class="synced" type="text" size="3"
-                        value="${100*morphismElement.arrowMargin}"><br>
-                 <input class="synced" type="range" min="0" max="5" step="0.1"
-                        value="${100*morphismElement.arrowMargin}">
-             </div>
-             <div id="morphism-subgroup-transform" style="margin-bottom: 0.5em">Display morphism of highlighted subset:
-                 <div id="morphism-subgroup-transform-buttons" class="flex-h">
-                    <button data-action="this.pushSourceThroughMorphism()">Push source ➛ image</button>
-                    <button data-action="this.pullTargetThroughMorphism()">Pull destination ➛ preimage</button>
-                 </div>
-                 <div id="morphism-subgroup-transform-warning" style="text-align: center"></div>
-             </div>
+             </details>
              <div>Define homomorphism:
                 <table id="defining-pair-table">
                    <thead>
@@ -331,6 +327,21 @@ class MorphismEditor extends SheetElementEditor {
                  =
                  <div id="codomain-select" class="mock-select" data-action="this.showCodomainChoices()"></div>
              </div>
+             <details id="morphism-domain-highlights">
+                 <summary>Domain highlights</summary>
+                 <div id="morphism-domain-highlight-control" class="morphism-highlights"></div>
+                 <div class="flex-h" style="justify-content: center; margin-top: 0.5em">
+                    <button data-action="this.pushSourceThroughMorphism()">Push source ➛ image</button>
+                 </div>
+             </details>
+             <details id="morphism-codomain-highlights">
+                 <summary>Codomain highlights</summary>
+                 <div id="morphism-codomain-highlight-control" class="morphism-highlights"></div>
+                 <div id="morphism-subgroup-transform-warning" style="text-align: center"></div>
+                 <div class="flex-h" style="justify-content: center; margin-top: 0.5em">
+                    <button data-action="this.pullTargetThroughMorphism()">Pull destination ➛ preimage</button>
+                 </div>
+             </details>
              <details id="morphism-preview">
                  <summary>Full morphism mapping:</summary>
                  <table id="morphism-preview-table" class="scrollable-body">
@@ -406,6 +417,16 @@ class MorphismEditor extends SheetElementEditor {
                    overflow-y: auto;
                    max-height: 25em;
                    width: 100%;
+                }
+                .morphism-highlights {
+                   font-size: 0.8em;
+                   max-height: 25em;
+                   overflow: hidden auto;
+                   border: 1px solid #ccc;
+                   border-radius: 4px;
+                   background: #f5f5f5;
+                   padding: 0.3em 0.5em;
+                   margin: 0.3em 0;
                 }
 
                 #morphism-arrow-color-none {
@@ -492,6 +513,13 @@ class MorphismEditor extends SheetElementEditor {
       this.fillDefiningPairs()
       this.setupMorphismAdd()
       this.updatePreview()
+
+      addHighlightControl(
+         document.getElementById('morphism-domain-highlight-control'),
+         morphismElement.source.viewElement.highlightModelProxy)
+      addHighlightControl(
+         document.getElementById('morphism-codomain-highlight-control'),
+         morphismElement.destination.viewElement.highlightModelProxy)
    }
 
    updateModelElement () {
@@ -748,6 +776,7 @@ class MorphismEditor extends SheetElementEditor {
  */
 class RemoteEditor {
    static #messageHandler  // singleton message handler to update visualizers
+   static #editorWindows = new Map()  // elementId → editor window reference
 
    static #editPageURLs = {
       MTElement: './Multtable.html',
@@ -768,10 +797,14 @@ class RemoteEditor {
          window.addEventListener('message', RemoteEditor.#messageHandler)
       }
 
-      // open visualizer/editor window
+      // open visualizer/editor window; store reference for Sheet→Editor push
       const editPageURL = `${RemoteEditor.#editPageURLs[modelElement.className]}?SheetEditor` +
          (window.location.href.includes('log=debug') ? '&log=debug' : '')  // open in debug if we're in debug
-      window.open(editPageURL)
+      const editorWindow = window.open(editPageURL)
+      RemoteEditor.#editorWindows.set(modelElement.id, editorWindow)
+
+      // register push callback on modelElement so CDView's subscriber can trigger it
+      modelElement.onVisualizerChange = (json) => RemoteEditor.pushToEditor(modelElement.id, json)
 
       // store initial message
       const initialMessage = {
@@ -779,5 +812,15 @@ class RemoteEditor {
          json: modelElement.getVisualizerJSON()
       }
       StoredObjects.setPassedJSON(initialMessage)
+   }
+
+   // push updated JSON to an open editor tab for this element, if one exists
+   static pushToEditor (elementId, json) {
+      const editorWindow = RemoteEditor.#editorWindows.get(elementId)
+      if (editorWindow == null || editorWindow.closed) {
+         RemoteEditor.#editorWindows.delete(elementId)
+         return
+      }
+      editorWindow.postMessage({source: 'sheet', elementId, json}, '*')
    }
 }

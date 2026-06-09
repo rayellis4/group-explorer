@@ -296,16 +296,18 @@ class TextElement extends NodeElement {
 
 class VisualizerElement extends NodeElement {
    group /*: Group */
-   highlightColors /*: Array<Array<color>> */
+   highlightColors /*: Array<Array<color>> */  // golden record is in the visualizer; this is just initialization
    visualizer /*: any */  // opaque JSON blob; live visualizer object lives in SheetView
    isVisualizer = true
 
    toJSON () {
+      const visualizerJSON = this.getVisualizerJSON?.()
       return {
          ...super.toJSON(),
          groupURL: this.group.URL,
-         highlight_colors: this.highlightColors,
-         visualizer: this.visualizer
+         // highlightColors inside visualizer is golden; highlight_colors here is for CDView fast-path init
+         highlight_colors: visualizerJSON?.highlightColors ?? this.highlightColors ?? [[], [], []],
+         visualizer: visualizerJSON ?? this.visualizer
       }
    }
 
@@ -321,14 +323,14 @@ class VisualizerElement extends NodeElement {
 
 class CDElement extends VisualizerElement {
    className = 'CDElement'
-   diagramControl
+   diagramControl  // initialization only; baked into visualizer JSON on first getVisualizerJSON() call
 
    toJSON () {
-      // serialize this.diagramControl manually?
-      return {
-         ...super.toJSON(),
-         diagram_control: this.diagramControl
+      const json = super.toJSON()
+      if (json.visualizer == null) {
+         json.diagram_control = this.diagramControl
       }
+      return json
    }
 
    fromJSON (jsonObject) {

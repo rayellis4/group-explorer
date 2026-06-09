@@ -64,6 +64,7 @@ async function load () {
       SheetEditor.enableChangeBroadcast(() => {
          return { elementId: elementId, json: cayleyDiagramModel.toJSON() }
       })
+      SheetEditor.listenForSheetUpdates((json) => cayleyDiagramModel.fromJSON(json))
 
       cayleyDiagramViewModel.resize()  // need to fix initial aspect ratio when editing
       window.setInterval(() => SheetEditor.broadcastChange(), 1000)  // There's got to be a better way than polling...

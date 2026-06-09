@@ -83,9 +83,10 @@ individual arrow by [zooming in](rf-um-sheetwindow.md#zoom-and-pan-sheet-view)
 on it, especially on touch devices.) And you can highlight subsets of the group
 in the visualizers. I've taken the liberty of highlighting \(\mathbb{Z}_6\) red
 and its [image](rf-groupterms.md#image-of-a-subset-under-a-morphism) in \(S_3\)
-red also. (To do so, open the element context menu for the visualizer you'd like
-to highligh and select "Edit". Then play with its subsets [as documented
-here](rf-um-subsetlistbox.md).)
+red also. (To do so, either expand the highlight panel for the domain or codomain
+directly in the morphism dialog, or open the context menu for the
+visualizer in the sheet and select "Edit" — both give access to the same
+[subset highlight controls](rf-um-subsetlistbox.md).)
 
 ![Homomorphism from Z_6 to S_3 with domain and image highlighted](illustration-sheettut6.png)
 

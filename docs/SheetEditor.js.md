@@ -9,9 +9,10 @@
 import * as StoredObjects from './StoredObjects.js'
 import * as Log from './Log.js'
 
-export {broadcastChange, getInitialData, enableChangeBroadcast}
+export {broadcastChange, getInitialData, enableChangeBroadcast, listenForSheetUpdates}
 
 let broadcastChange = () => {}
+let lastJsonString  // module-level so listenForSheetUpdates can set it to suppress echo-back
 
 async function getInitialData () {
    const {elementId, json} = await StoredObjects.getPassedJSON()
@@ -28,31 +29,31 @@ changes in the editor are broadcast back to the Sheet using the `window.postMess
 function. Since ability to function as an editor is common across the visualizers, it
 has been abstracted here.
 
-`enableChangeBroadcast`is passed a function that takes no arguments and generates JSON.
-This would typically be something like`() => MulttableView.toJSON().`From the passed function
-a`changeBroadcaster`function is created and returned. This function compares
-the current JSON with JSON from the previous invocation and posts the new JSON if there is a change.
+`enableChangeBroadcast` is passed a function that takes no arguments and generates JSON.
+`changeBroadcaster` compares current JSON with the previous broadcast and posts if changed.
+
+`listenForSheetUpdates` sets up the reverse path: Sheet→Editor updates. It calls `fromJSONCallback`
+when the Sheet posts a change, and updates `lastJsonString` to prevent the editor echoing it back.
 ```javascript
 */
 function enableChangeBroadcast (jsonGenerator) {
-   broadcastChange = (function (json_generator) {
-      let lastJsonString
-
-      function changeBroadcaster() {
-         const {elementId, json: currentJson} = json_generator()
-         const currentJsonString = JSON.stringify(currentJson)
-         if (currentJsonString != lastJsonString) {
-            lastJsonString = currentJsonString
-            const msg = {
-               source: 'editor',
-               elementId: elementId,
-               json: currentJson,
-            };
-            Log.debug(`message posted for ${elementId}: ${currentJsonString}`)
-            window.opener?.postMessage(msg, new URL(window.location.href).origin)
-         }
+   broadcastChange = function changeBroadcaster() {
+      const {elementId, json: currentJson} = jsonGenerator()
+      const currentJsonString = JSON.stringify(currentJson)
+      if (currentJsonString != lastJsonString) {
+         lastJsonString = currentJsonString
+         const msg = {source: 'editor', elementId, json: currentJson}
+         Log.debug(`message posted for ${elementId}: ${currentJsonString}`)
+         window.opener?.postMessage(msg, new URL(window.location.href).origin)
       }
+   }
+}
 
-      return changeBroadcaster
-   })(jsonGenerator)
+function listenForSheetUpdates (fromJSONCallback) {
+   window.addEventListener('message', (event) => {
+      if (event.data?.source !== 'sheet') return
+      const {json} = event.data
+      fromJSONCallback(json)
+      lastJsonString = JSON.stringify(json)  // prevent echo-back on next broadcastChange()
+   })
 }

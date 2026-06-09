@@ -320,8 +320,7 @@ export class View {
 
    updateVisualizer (modelElement, json) {
       const viewElement = this.viewElements.get(modelElement.id)
-      viewElement.visualizer.fromJSON(json)
-      viewElement.redraw()
+      viewElement.updateFromJSON(json)
       this.#redrawLinks(modelElement)
    }
 
@@ -513,9 +512,33 @@ export class VisualizerView extends NodeView {
     this.unitSquarePositions = this.visualizer.unitSquarePositions()
   }
 
+  updateFromJSON (json) {
+    this.visualizer.fromJSON(json)
+    this.redraw()
+  }
+
   restoreHighlights (snapshot) {
     this.modelElement.highlightColors[0] = snapshot
     this.redraw()
+  }
+
+  get highlightModelProxy () {
+    if (this._highlightSubscriber == null) {
+      let debounceTimer = null
+      this._highlightSubscriber = {
+        update: (field, value) => {
+          if (field === 'highlightColors' || (field === 'highlightControl' && value?.nextId != null)) {
+            clearTimeout(debounceTimer)
+            debounceTimer = setTimeout(() => {
+              this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.())
+            }, 100)
+          }
+        }
+      }
+      this.visualizer.model.$subscribe(this._highlightSubscriber, 'highlightColors')
+      this.visualizer.model.$subscribe(this._highlightSubscriber, 'highlightControl')
+    }
+    return this.visualizer.model
   }
 
   getVisualizerJSON () {
@@ -644,7 +667,7 @@ export class CDView extends VisualizerView {
             CDView.#activeView.savedVisualizerJSON = CDView.#sharedViewModel.toJSON()
          }
          if (this.savedVisualizerJSON == null) { // first time through
-            const visualizer = this.modelElement.visualizer
+            const visualizer = this.modelElement.visualizer  // remove after use? it's no longer golden
             if (  CDView.#sharedViewModel.group == this.modelElement.group
                && visualizer?.view_state == null
                && this.modelElement.diagramControl?.strategy_parameters == null
@@ -657,7 +680,7 @@ export class CDView extends VisualizerView {
                const cdModel = cdViewModel.model
                cdModel.reset()
                cdModel.highlightControl = null
-               cdModel.diagramControl = null
+               cdModel.diagramControl = null  // copy from this.modelElement.diagramControl?
                cdModel.group = this.modelElement.group
                this.savedVisualizerJSON = this.#initFromVisualizer(cdViewModel)
             }
@@ -668,6 +691,50 @@ export class CDView extends VisualizerView {
 
       CDView.#activeView = this
       return CDView.#sharedViewModel
+   }
+
+   get highlightModelProxy () {
+      if (this._highlightModelProxy == null) {
+         const visualizer = this.visualizer
+         const model = createModelProxy(new CayleyDiagramModel(this.modelElement.group))
+         model.highlightColors = [...visualizer.model.highlightColors]
+         model.highlightControl = (visualizer.model.highlightControl?.toJSON == null)
+            ? visualizer.model.highlightControl
+            : visualizer.model.highlightControl.toJSON()
+         // store subscriber on instance — WeakRef in createModelProxy would otherwise GC it
+         this._highlightSubscriber = {
+            update: (field, value) => {
+               if (field === 'highlightColors') {
+                  const visualizer = this.visualizer
+                  visualizer.model.highlightColors = [...value]
+                  visualizer.model.highlightControl = model.highlightControl.toJSON()
+                  this.redraw()
+                  redrawLinksFor(this.modelElement)
+                  this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.())
+               } else if (field === 'highlightControl' && value?.nextId != null) {
+                  // subset created/destroyed — write structure to live model without changing colors
+                  this.visualizer.model.highlightControl = value.toJSON()
+                  this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.())
+               }
+            }
+         }
+         model.$subscribe(this._highlightSubscriber, 'highlightColors')
+         model.$subscribe(this._highlightSubscriber, 'highlightControl')
+         this._highlightModelProxy = model
+      }
+      return this._highlightModelProxy
+   }
+
+   updateFromJSON (json) {
+      this.visualizer.fromJSON(json)
+      if (this._highlightModelProxy != null) {
+         const hc = this.visualizer.model.highlightControl
+         this._highlightModelProxy.highlightControl.fromJSON(hc?.toJSON == null ? hc : hc.toJSON())
+         this._highlightModelProxy.highlightColors = [...this.visualizer.model.highlightColors]
+         // subscriber handles redraw
+      } else {
+         this.redraw()
+      }
    }
 
    destroy () {
@@ -708,11 +775,11 @@ export class CDView extends VisualizerView {
 
    getVisualizerJSON () {
       const visualizerJSON = super.getVisualizerJSON()
+      // diagramControl is initialization-only; bake it into the visualizer JSON once, then clear it
       if (this.modelElement.diagramControl != null) {
          visualizerJSON.diagram_control = this.modelElement.diagramControl
+         delete this.modelElement.diagramControl
       }
-      delete this.modelElement.diagramControl
-
       return visualizerJSON
    }
 }

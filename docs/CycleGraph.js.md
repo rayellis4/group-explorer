@@ -65,10 +65,8 @@ async function load () {
       SheetEditor.enableChangeBroadcast(() => {
          return { elementId: elementId, json: cycleGraphModel.toJSON() }
       })
-
-      // run SheetEditor.broadcastChange() when highlightColors or highlightControl object changes
-      cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlightColors')
-      cycleGraphModel.$subscribe(broadcastChangeUpdater, 'highlightControl')
+      SheetEditor.listenForSheetUpdates((json) => cycleGraphModel.fromJSON(json))
+      window.setInterval(() => SheetEditor.broadcastChange(), 1000)
    }
 
    // Create Control Panel
@@ -81,9 +79,6 @@ async function load () {
    // Register window resize handler
    window.addEventListener('resize', () => cycleGraphViewModel.resize())
 }
-
-// an unexported module const, so it won't be garbage collected
-const broadcastChangeUpdater = {update: (_field, _value) => SheetEditor.broadcastChange()}
 
 function insertHTML () {
    document.body.classList.add('flex-v')

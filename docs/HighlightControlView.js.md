@@ -31,7 +31,7 @@ class HighlightControlView {
       // Create document fragment to lay out HighlightControl UI and
       rootElement.insertAdjacentHTML('beforeend', HighlightControlView.highlightControlHTML)
 
-      makeFixedMenu(document.getElementById('subset-page'), (action, event) => {
+      makeFixedMenu(rootElement.querySelector('#subset-page'), (action, event) => {
          Log.debug(`HighlightControlView.constructor executing ${action}`)
          eval(action)
       })
@@ -158,7 +158,7 @@ class HighlightControlView {
    updateHighlightMark () {
       window.setTimeout(() => {
          // clear current highlight markings
-         document.querySelectorAll('#subset-page .highlight-mark')
+         this.rootElement.querySelectorAll('#subset-page .highlight-mark')
             .forEach((element) => element.classList.remove('highlight-mark'))
 
          if (this.viewModel.highlightedItems[0] != null) {

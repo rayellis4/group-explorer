@@ -92,8 +92,12 @@ target. The number and the slider are synchronized, as described
 ### Show image/preimage of a highlighted subset
 
 These buttons will highlight the image (preimage) of the highlighted
-subset in the domain (codomain). The highlights can be set as desired
-by [editing the visualizer element](rf-um-sheetwindow.md#edit).
+subset in the domain (codomain). Highlights can be set in two ways:
+by expanding the domain or codomain highlight panel directly in this
+dialog (click the triangle next to "Domain highlights" or "Codomain
+highlights"), or by right-clicking [tapping] the visualizer in the
+sheet and selecting "Edit." Both give access to the same
+[subset highlight controls](rf-um-subsetlistbox.md).
 
 ## Mathematical definition of the homomorphism
 

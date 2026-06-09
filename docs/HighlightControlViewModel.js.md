@@ -85,7 +85,12 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 
    set model (model /*: SubscriptionProxy<CycleGraphModel> */) {
       this.#model = model
-      const inputHighlightControl = model.highlightControl
+      // normalize: if model.highlightControl is already a live ViewModel (e.g. morphism editor reopened),
+      // convert to JSON so fromJSON receives the expected plain-object format
+      const rawHighlightControl = model.highlightControl
+      const inputHighlightControl = rawHighlightControl instanceof HighlightControlViewModel
+         ? rawHighlightControl.toJSON()
+         : rawHighlightControl
       const inputHighlightColors = model.highlightColors
 
       this.model.highlightControl = this  // enter a reference to us in the model
@@ -168,6 +173,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
          const displayItem = new (classMap[displayItemJSON.class_name])(this).fromJSON(displayItemJSON)
          this.displayMap.set(displayItemJSON.id, displayItem)
       })
+
       this.highlightedItems = jsonObject.highlighted_items.map((item) => this.displayMap.get(item))
 
       this.#updateHighlightColors()
