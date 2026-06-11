@@ -169,8 +169,8 @@ the one shown below for examining subgroups of the group under study. (Note that
 some of the normally collapsed entries in this example have been expanded to
 show their contents.)</p>
 <p><img alt="A screenshot of the user interface for subsets and partitions" src="../illustration-subsetlistbox.png" /></p>
-<p>The particular subsets panel shown above is for <a href="../../GroupInfo.html?groupURL=groups/S_3.group"><script type="math/tex">S_3</script>, the symmetric group on
-three elements</a>.</p>
+<p>The particular subsets panel shown above is for <a href="../../GroupInfo.html?groupURL=groups/Z_3 sdp Z_4.group"><script type="math/tex">Z_3 \rtimes Z_4</script></a>,
+a semidirect product of order 12. Two of the normally-collapsed entries have been expanded to show their details.</p>
 <h2 id="tour-of-the-subsets-pane">Tour of the subsets pane</h2>
 <p>The topmost portion of the interface lists all the subgroups of the group shown
 in the main portion of the view, beginning with <script type="math/tex">H_0</script>, the trivial
@@ -180,12 +180,15 @@ and their properties when loading; the user cannot add or remove any entries
 from this section.</p>
 <p>The information exposed by expanding an individual subgroup&rsquo;s <a href="../rf-geterms/#collapsible-sections">collapsible
 section</a> depends on the nature of the
-subgroup.  All subgroups show the library group isomorphic to the subgroup, and
+subgroup. All subgroups show the library group isomorphic to the subgroup and
 a list of the elements in the subgroup. In addition, <a href="../rf-groupterms/#normal-subgroup">normal
-subgroups</a>, distinguised by their blue
+subgroups</a>, distinguished by their blue
 font, show the library group isomorphic to the subgroup&rsquo;s <a href="../rf-groupterms/#quotient-group">quotient
-group</a>. <script type="math/tex">H_3</script> and <script type="math/tex">H_4</script> in the above
-snapshot show examples of each.</p>
+group</a>. If the subgroup is the
+<a href="../rf-groupterms/#center">center</a> of the group, its summary line reads
+&ldquo;<script type="math/tex">H_n = Z = \langle\ldots\rangle</script>&rdquo; and its expanded details identify it
+explicitly. <script type="math/tex">H_1</script> and <script type="math/tex">H_4</script> in the above screenshot show examples of a
+center subgroup and a Sylow subgroup respectively.</p>
 <p>The next portion of the window lists user-defined subsets, which is empty by
 default. You can add and delete subsets relevant to your study of the group;
 <a href="#topmost-items-on-the-popup-menu">see below</a>.</p>

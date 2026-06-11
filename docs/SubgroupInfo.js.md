@@ -161,6 +161,7 @@ function formatSubgroupListElement (subgroup) {
    const generators = subgroup.generators.toArray()
       .map( el => subgroup.group.representation[el] );
 
+   const ifCenter = (subgroup == subgroup.group.center) ? '= <i>Z</i>' : ''
    let line;
    switch (subgroup.order) {
    case 0:
@@ -169,7 +170,7 @@ function formatSubgroupListElement (subgroup) {
              <details subgroup="${subgroupIndex}">
                 <summary>
                    <span class="normal-group title">
-                      ${htmlName()} = ⟨ ${generators[0]} ⟩ is the trivial subgroup { ${generators[0]} }.
+                      ${htmlName()} ${ifCenter} = ⟨ ${generators[0]} ⟩ is the trivial subgroup { ${generators[0]} }.
                    </span>
                 </summary>
              </details>
@@ -181,7 +182,7 @@ function formatSubgroupListElement (subgroup) {
              <details subgroup="${subgroupIndex}">
                 <summary>
                    <span class="normal-group title">
-                      ${htmlName()} = ⟨ ${generators.join(', <wbr>')} ⟩ is the group itself.
+                      ${htmlName()} ${ifCenter} = ⟨ ${generators.join(', <wbr>')} ⟩ is the group itself.
                    </span>
                 </summary>
              </details>
@@ -193,7 +194,7 @@ function formatSubgroupListElement (subgroup) {
              <details subgroup="${subgroupIndex}">
                 <summary>
                    <span ${(subgroup.isNormal) ? 'class="normal-group title"' : 'class="title"'}>
-                      ${htmlName()} = ⟨ ${generators.join(', <wbr>')} ⟩ is a subgroup of order ${subgroup.order}.
+                      ${htmlName()} ${ifCenter} = ⟨ ${generators.join(', <wbr>')} ⟩ is a subgroup of order ${subgroup.order}.
                    </span>
                 </summary>
              </details>
@@ -230,6 +231,11 @@ function formatSubgroupListContent (group, subgroupIndex, cayleyDiagramGenerator
              <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'CGElement')">cycle graph</a>,
              <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'MTElement')">multiplication table</a>.`,
          '</div>',
+         (subgroup == group.center)
+            ? `<div><i>H</i><sub>${subgroupIndex}</sub> is the
+                  <a href="./help/rf-groupterms/index.html#center" target="_blank">center</a> of ${group.name},
+                  written Z(${group.name}). Its elements commute with every element of ${group.name}.</div>`
+            : '',
          (subgroup.isNormal)
             ? `<div>It is a <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a> subgroup.
                   See the <a href="./help/rf-groupterms/index.html#short-exact-sequence">short exact sequence</a>

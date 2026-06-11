@@ -509,6 +509,10 @@ class DisplayItemView {
             }
          }
 
+         if (subgroup === this.viewModel.group.center) {
+            subgroopInfo += `<div>${this.name} is the <a href="./help/rf-groupterms/index.html#center" target="_blank">center</a> of ${this.viewModel.group.name}, written Z(${this.viewModel.group.name}).</div>`
+         }
+
          return subgroopInfo + baseInfo
       }
 
@@ -597,26 +601,29 @@ class DisplayItemView {
 
    #subgroopDisplayLine () /*: html */ {
       const item = this.item
-      const generators = this.viewModel.group.subgroups[item.subgroupIndex].generators.toArray()
-                            .map((el) => this.viewModel.group.representation[el])
+      const group = this.viewModel.group
+      const generators = group.subgroups[item.subgroupIndex].generators.toArray()
+                            .map((el) => group.representation[el])
+      const isCenter = group.subgroups[item.subgroupIndex] === group.center
+      const centerInfix = isCenter ? 'Z = ' : ''
       switch (item.subgroupIndex) {
       case 0:
          return `<li id="${this.id}">
                <details subgroup="${this.id}"><summary><span class="normal-group" ${this.clickAction} ${this.contextAction}>
-                   ${this.name} = ⟨ ${generators[0]} ⟩ is the trivial subgroup { ${generators[0]} }.
+                   ${this.name} = ${centerInfix}⟨ ${generators[0]} ⟩ is the trivial subgroup { ${generators[0]} }.
                </span></summary></details>
             </li>`
-      case this.viewModel.group.subgroups.length - 1:
+      case group.subgroups.length - 1:
          return `<li id="${this.id}">
                <details subgroup="${this.id}"><summary><span class="normal-group" ${this.clickAction} ${this.contextAction}>
-                   ${this.name} = ⟨ ${generators.join(', <wbr>')} ⟩ is the group itself.
+                   ${this.name} = ${centerInfix}⟨ ${generators.join(', <wbr>')} ⟩ is the group itself.
                </span></summary></details>
             </li>`
       default: {
-         const isNormal = this.viewModel.group.subgroups[item.subgroupIndex].isNormal
+         const isNormal = group.subgroups[item.subgroupIndex].isNormal
          return `<li id="${this.id}">
                <details subgroup="${this.id}"><summary><span ${isNormal ? 'class="normal-group"' : ''} ${this.clickAction} ${this.contextAction}>
-                  ${this.name} = ⟨ ${generators.join(', <wbr>')} ⟩ is a subgroup of order ${this.viewModel.group.subgroups[item.subgroupIndex].order}.
+                  ${this.name} = ${centerInfix}⟨ ${generators.join(', <wbr>')} ⟩ is a subgroup of order ${group.subgroups[item.subgroupIndex].order}.
                </span></summary></details>
             </li>`
       }

@@ -7,8 +7,8 @@ show their contents.)
 
 ![A screenshot of the user interface for subsets and partitions](illustration-subsetlistbox.png)
 
-The particular subsets panel shown above is for [\(S_3\), the symmetric group on
-three elements](../../GroupInfo.html?groupURL=groups/S_3.group).
+The particular subsets panel shown above is for [\(Z_3 \rtimes Z_4\)](../../GroupInfo.html?groupURL=groups/Z_3 sdp Z_4.group),
+a semidirect product of order 12. Two of the normally-collapsed entries have been expanded to show their details.
 
 ## Tour of the subsets pane
 
@@ -21,12 +21,15 @@ from this section.
 
 The information exposed by expanding an individual subgroup's [collapsible
 section](rf-geterms.md#collapsible-sections) depends on the nature of the
-subgroup.  All subgroups show the library group isomorphic to the subgroup, and
+subgroup. All subgroups show the library group isomorphic to the subgroup and
 a list of the elements in the subgroup. In addition, [normal
-subgroups](rf-groupterms.md#normal-subgroup), distinguised by their blue
+subgroups](rf-groupterms.md#normal-subgroup), distinguished by their blue
 font, show the library group isomorphic to the subgroup's [quotient
-group](rf-groupterms.md#quotient-group). \(H_3\) and \(H_4\) in the above
-snapshot show examples of each.
+group](rf-groupterms.md#quotient-group). If the subgroup is the
+[center](rf-groupterms.md#center) of the group, its summary line reads
+"\(H_n = Z = \langle\ldots\rangle\)" and its expanded details identify it
+explicitly. \(H_1\) and \(H_4\) in the above screenshot show examples of a
+center subgroup and a Sylow subgroup respectively.
 
 The next portion of the window lists user-defined subsets, which is empty by
 default. You can add and delete subsets relevant to your study of the group;

@@ -75,6 +75,15 @@ the question, "What must I add to this subset to get a subgroup?" Another
 way to think of a subset's closure is that it is the subgroup for which the
 subset is a set of [generators](#generators-for-a-group-or-subgroup).
 
+### Center
+
+The **center** of a group \(G\), written \(Z(G)\) (from the German *zentrum*, meaning center),
+is the set of all elements that commute with every element of \(G\):
+
+\[Z(G) = \{ g \in G \mid gx = xg \text{ for all } x \in G \}\]
+
+The center is always a normal subgroup of \(G\). If \(Z(G) = G\) then \(G\) is [abelian](#abelian-group). If \(Z(G) = \{e\}\) then \(G\) is said to have trivial center.
+
 ### Commutative group
 
 See [Abelian](#abelian-group).
