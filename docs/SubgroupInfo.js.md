@@ -132,9 +132,9 @@ function formatSubgroupInfoHeader (group) {
           You can also calculate it in GAP:</div>
           <button class="gap-compute" data-GAP="getting the lattice of subgroups of a group">Compute this in GAP</button>
           <div>And you can see the subgroup lattice by conjugacy class by
-          <a href="" data-action="showSubgroupLattice(group, 'CDElement', true)">Cayley diagram,</a>
-          <a href="" data-action="showSubgroupLattice(group, 'CGElement', true)">cycle graph,</a> or
-          <a href="" data-action="showSubgroupLattice(group, 'MTElement', true)">multiplication table,</a>
+          <a href="" data-action="showSubgroupLattice(group, 'CGElement', true)">cycle graph,</a>
+          <a href="" data-action="showSubgroupLattice(group, 'MTElement', true)">multiplication table,</a> or
+          <a href="" data-action="showSubgroupLattice(group, 'CDElement', true)">Cayley diagram.</a>
           where the subgroups in the same conjugacy class are merged into a single node.
           Elements shared by some subgroups in the class carry a white ring;
           elements shared by all are shown in gray.</div>`,
@@ -229,7 +229,7 @@ function formatSubgroupListContent (group, subgroupIndex, cayleyDiagramGenerator
                 >${isomorphicGroup.name}</a>. You can see the embedding by
              <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'CDElement')">Cayley diagram</a>,
              <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'CGElement')">cycle graph</a>,
-             <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'MTElement')">multiplication table</a>.`,
+             or <a href="" data-action="showEmbeddingSheet(group, ${subgroupIndex}, 'MTElement')">multiplication table</a>.`,
          '</div>',
          (subgroup == group.center)
             ? `<div><i>H</i><sub>${subgroupIndex}</sub> is the
@@ -245,7 +245,7 @@ function formatSubgroupListContent (group, subgroupIndex, cayleyDiagramGenerator
                      >${subgroup.isomorphicQuotientGroup.name},</a> by
                   <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'CDElement')">Cayley diagram</a>,
                   <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'CGElement')">cycle graph</a>,
-                  <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'MTElement')">multiplication table</a>.
+                  or <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'MTElement')">multiplication table</a>.
                </div>`
             : '',
          `<div>The elements of <i>H</i><sub>${subgroupIndex}</sub> are { ${elementRepresentations.join(', ')} }.</div>`,
@@ -379,6 +379,7 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
             className : type,
             name : `viz-${subgroupIndex}`,
             groupURL : group.URL,
+            diagram_name : group.cayleyDiagrams[0]?.name,
             x : latticeLeft + chains[subgroupIndex] * cellWidth + hMargin,
             y : latticeTop + tiers[subgroupIndex] * cellHeight + vMargin,
             w : cellWidth - 2 * hMargin,
@@ -427,6 +428,7 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
             className : type,
             name : `viz-${classIndex}`,
             groupURL : group.URL,
+            diagram_name : group.cayleyDiagrams[0]?.name,
             x : latticeLeft + chains[classIndex] * cellWidth + hMargin,
             y : latticeTop + tiers[classIndex] * cellHeight + vMargin,
             w : cellWidth - 2 * hMargin,

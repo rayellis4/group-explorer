@@ -74,9 +74,9 @@ function makeClassEquationContent (group) {
       `<div>To see a visual representation of this class equation, click one of the following links:
           <br>
           Show me by
-          <a href="" data-action="showAsSheet(group, 'CDElement')">Cayley diagrams</a>,
           <a href="" data-action="showAsSheet(group, 'MTElement')">multiplication tables</a>,
-          or <a href="" data-action="showAsSheet(group, 'CGElement')">cycle graphs</a>.
+          <a href="" data-action="showAsSheet(group, 'CGElement')">cycle graphs</a>,
+          or <a href="" data-action="showAsSheet(group, 'CDElement')">Cayley diagrams</a>.
        </div>
        <button class="gap-compute" data-GAP="computing the numbers in a class equation">Compute this in GAP</button>
        </details>`)
