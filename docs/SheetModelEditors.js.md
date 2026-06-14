@@ -611,7 +611,7 @@ class MorphismEditor extends SheetElementEditor {
       const validSources = this.modelElement.mapping.validSources(codomainChoice)
       const choices = validSources.map((source) => {
          return {value: source, label: this.modelElement.source.group.representation[source]}
-      })
+      }).sort((a, b) => a.label.localeCompare(b.label))
       makeMockSelect(document.getElementById('domain-select'), choices)
          .then(
             (domainChoice) => this.setupCodomainChoice(domainChoice),
@@ -624,7 +624,7 @@ class MorphismEditor extends SheetElementEditor {
       const validTargets = this.modelElement.mapping.validTargets(domainChoice)
       const choices = validTargets.map((target) => {
          return {value: target, label: this.modelElement.destination.group.representation[target]}
-      })
+      }).sort((a, b) => a.label.localeCompare(b.label))
       makeMockSelect(document.getElementById('codomain-select'), choices)
          .then(
             (codomainChoice) => this.setupDomainChoice(codomainChoice),
