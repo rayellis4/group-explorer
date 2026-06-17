@@ -990,36 +990,50 @@ function normalizeScene (chunkTree) {
 }
 
 function generateStrategy (G) {
-   // Shortcut to generate layout for Abelian group
    if (G.isAbelian) {
-      return generateAbelianStrategy(G)
+      return generateAbelianStrategy(G)  // Abelian group
    }
 
-   const normalSubgroups = G.subgroups.filter((H) => H.isNormal && H.order != 1 && H.order != G.order)
-
-   // Use fallback strategy for simple groups
-   //   and for subgroups that aren't isomorphic to anything in the library
-   if (normalSubgroups.length == 0 || normalSubgroups.some((N) => N.isomorphicGroup == null)) {
-      return generateFallbackStrategy(G)  // a simple group
+   if (G.isSimple) {
+      return generateFallbackStrategy(G)  // a simple group, completely heuristic layout
    }
 
    // Recognize dihedral, semidihedral, and modular groups
-   const dihedralStrategy = generateDihedralStrategy(G, normalSubgroups)
-   if (dihedralStrategy != null) {
-      return dihedralStrategy
+   //   |G| = 2*n, cyclic normal subgroup N, |N| = |G|/2, and non-normal quotient |G/N| = 2
+   if (G.order % 2 == 0) {
+      const N = G.nontrivialProperNormalSubgroups.find((N) => N.index == 2 && N.isomorphicGroup.isCyclic)
+      if (N != null) {
+         const H = G.subgroups.find((H) => !H.isNormal && H.order == 2 && !N.members.isSet(H.generators.first()))
+         if (H != null) {
+            return generateDihedralStrategy(N, H)
+         }
+      }
    }
 
+   // we just need one, all complements are isomorphic
+   const getComplement = (N) =>
+      G.nontrivialProperSubgroups.find((H) => G.closure(BitSet.union(N.members, H.members)).popcount() == G.order)
+
+   /* Placeholder for when we figure out how to draw a good Cayley diagram for a central product
+   const normalSubgroupsInCenter = G.nontrivialProperNormalSubgroups.filter((H) => G.center.members.contains(H.members))
+   const maybeCentralExtensions = normalSubgroupsInCenter.reduce((extensions, N) => {
+      const K = complement(N)
+      if (N.order * K.order > G.order) {
+         // need more refinement here
+         extensions.push([N, K])
+      }
+      return extensions
+   }, [])
+    */
+
    // make split extension, array of [normalSubroup, complement] subgroups
-   const splitExtensions = normalSubgroups.reduce(
-      (complements, N) => {
-         const complement = G.subgroups
-            .find((H) => H.order != 1 && H.order != G.order && H.order == G.order / N.order
-               && BitSet.intersection(H.members, N.members).popcount() == 1)
-         if (complement != null) {
-            complements.push([N, complement])
-         }
-         return complements
-      }, [])
+   const splitExtensions = G.nontrivialProperNormalSubgroups.reduce((extensions, N) => {
+      const H = getComplement(N)
+      if (H != null && N.order * H.order == G.order) {
+         extensions.push([N, H])
+      }
+      return extensions
+   }, [])
 
    // Direct product: there are split extensions, some quotient is also a normal subgroup
    if (splitExtensions.length != 0 && splitExtensions.some(([_N, H]) => H.isNormal)) {
@@ -1027,17 +1041,27 @@ function generateStrategy (G) {
    }
 
    // Recognize dicyclic, quaternion groups
-   const dicyclicStrategy = generateDicyclicStrategy(G, normalSubgroups)
-   if (dicyclicStrategy != null) {
-      return dicyclicStrategy
+   //   |G| = 4*n, non-split extension C_2n . C_2
+   if (G.order % 4 == 0) {
+      const N = G.nontrivialProperNormalSubgroups.find((N) => N.index == 2 && N.isomorphicGroup.isCyclic)
+      if (N != null) {
+         const H = G.subgroups
+            .find((H) => H.order == 4
+                      && H.generators.popcount() == 1
+                      && BitSet.intersection(N.members, H.members).popcount() == 2)
+         if (H != null) {
+            return generateDicyclicStrategy(N, H)
+         }
+      }
    }
 
-   // Semidirect product: there are split extension, no quotient is a normal subgroup
-   if (splitExtensions.length != 0 && splitExtensions.every(([_N, H]) => !H.isNormal)) {
+   // Semidirect product: there are split extensions, but no quotient is a normal subgroup
+   if (splitExtensions.length != 0 && !splitExtensions.every(([_N, H]) => H.isNormal)) {
       return generateSemidirectProductStrategy(G, splitExtensions)
    }
 
-   const nonSplitStrategy = generateNonSplitStrategy(G, normalSubgroups)
+   // No split extension
+   const nonSplitStrategy = generateNonSplitStrategy(G)
    if (nonSplitStrategy != null) {
       return nonSplitStrategy
    }
@@ -1219,56 +1243,29 @@ function generateStrategyForSplitExtension (N, H) {
    return strategies
 }
 
-/* Dihedral, semidihedral, and modular group strategy: draw two concentric rings
- *
- * |G| = 2*n, cyclic normal subgroup N, |N| = |G|/2, and non-normal quotient |G/N| = 2
- */
-function generateDihedralStrategy (G, normalSubgroups) {
-   if (G.order % 2 != 0) {
-      return null
-   }
+// Dihedral, semidihedral, and modular group strategy: draw two concentric rings
+function generateDihedralStrategy (N, H) {
+   const strategies = [
+      {generator: H.generators.first(), layout: 'linear', direction: 'X', nestingLevel: 0},
+      {generator: N.generators.first(), layout: 'rotated', direction: 'XY', nestingLevel: 1}
+   ]
 
-   const N = normalSubgroups.find((N) => N.order == G.order / 2 && N.generators.popcount() == 1)
-   const H = (N == null)
-      ? null
-      : G.subgroups.find((H) => !H.isNormal && H.order == 2 && !N.members.isSet(H.generators.first()))
-   if (H != null) {
-      const strategies = [
-         {generator: H.generators.first(), layout: 'linear', direction: 'X', nestingLevel: 0},
-         {generator: N.generators.first(), layout: 'rotated', direction: 'XY', nestingLevel: 1}
-      ]
-      return strategies
-   }
-
-   return null
+   return strategies
 }
 
-/* Dicyclic (and quaternion) strategy: draw bullseye pattern
- *
- * |G| = 4*n, non-split extension C_2n . C_2
- */
-function generateDicyclicStrategy (G, normalSubgroups) {
-   if (G.order % 4 != 0) {
-      return null
-   }
+// Dicyclic (and quaternion) strategy: draw bullseye pattern
+function generateDicyclicStrategy (N, H) {
+   const strategies = [
+      {generator: H.generators.first(), layout: 'rotated', direction: 'XY', nestingLevel: 1},
+      {generator: N.generators.first(), layout: 'linear', direction: 'X', nestingLevel: 0}
+   ]
 
-   const N = normalSubgroups.find((N) => N.order == G.order / 2 && N.generators.popcount() == 1)
-   const H = (N == null)
-      ? null
-      : G.subgroups.find((H) => H.order == 4 && H.generators.popcount() == 1 && BitSet.intersection(N.members, H.members).popcount() == 2)
-   if (H != null) {
-      const strategies = [
-         {generator: H.generators.first(), layout: 'rotated', direction: 'XY', nestingLevel: 1},
-         {generator: N.generators.first(), layout: 'linear', direction: 'X', nestingLevel: 0}
-      ]
-
-      return strategies
-   }
-
-   return null
+   return strategies
 }
 
-function generateNonSplitStrategy (G, normalSubgroups) {
+// Non-split strategy
+function generateNonSplitStrategy (G) {
+   const normalSubgroups = G.nontrivialProperNormalSubgroups
    const [N, H] = normalSubgroups.reduce(([N0, H0], N) => {
       if (N.order == G.order / 4) {
          const H = G.subgroups.find((H) => H.order == 8

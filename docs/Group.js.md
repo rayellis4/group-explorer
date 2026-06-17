@@ -310,6 +310,23 @@ export class Group {
       return this.nonAbelianExample
    }
 
+   get nontrivialProperNormalSubgroups () {
+      this.#setProperty('nontrivialProperNormalSubgroups',
+         this.nontrivialProperSubgroups.filter((H) => H.isNormal))
+      return this.nontrivialProperNormalSubgroups
+   }
+
+   get nontrivialProperSubgroups () {
+      this.#setProperty('nontrivialProperSubgroups',
+         this.subgroups.filter((H) => H.order != 1 && H.order != this.order))
+      return this.nontrivialProperSubgroups
+   }
+
+   get normalSubgroups () {
+      this.#setProperty('normalSubgroups', this.subgroups.filter((H) => H.isNormal))
+      return this.normalSubgroups
+   }
+
    get order () /*: number */ {
       return this.multtable.length
    }
