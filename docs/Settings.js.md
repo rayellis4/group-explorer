@@ -91,7 +91,7 @@ function dialogHTML () /*: string */ {
          <div>
             <input type="checkbox" id="settings-showExtendedGe32">
             <label for="settings-showExtendedGe32">Non-abelian groups, order 32–40
-               <span style="color: #a00">— order 32 alone has 51 groups</span></label>
+               <span style="color: #a00">— order 32 alone has 44 non-abelian groups</span></label>
          </div>
          <div>
             <input type="checkbox" id="settings-showNotable">
