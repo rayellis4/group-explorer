@@ -18,172 +18,19 @@ import {createModelProxy} from './GEUtils.js'
 import {MulttableModel} from './MulttableModel.js'
 import {createLargeMulttableView} from './MulttableView.js'
 
-export let Graphic /*: HTMLElement */ = null
+let Graphic /*: HTMLElement */ = null
 export let graphicRect /*: DOMRect */ = new DOMRect(0, 0, 0, 0)
-export let PixelsPerModelUnit /*: float */ = 0
+let PixelsPerModelUnit /*: float */ = 0
 export let zoomFactor /*: float */ = 1
-export let panVector /*: PhysicalUnits */ // pan expressed in window pixels
+let panVector /*: THREE.Vector2 */ // pan offset in graphic pixels
 let _view /*: ?View */ = null  // set by View constructor; used by module-level functions
 
-
-/*
-```
-## Units
-
-Routines to annotate basis for pixel measures that expose THREE.Vector2 methods.
-
-model unit -- #graphic is [0,1+x] x [0,1+y], where x * y = 0
-
-zoomFactor -- size of physical display / size of logical display
-
-```
-Units
-├─ PhysicalUnits     pixels as displayed (includes effect of zooming, panning)
-│  ├─ WindowUnits    PhysicalUnits relative to window
-│  └─ GraphicUnits   PhysicalUnits relative to #graphic (WindowUnits offset by #graphic(top, left))
-├─ LogicalUnits      pixels before zooming (PhysicalUnits scaled by zoomFactor)
-│  └─ SheetUnits     pixels before zooming relative to Sheet display
-
-```js
- */
-export class PhysicalUnits extends THREE.Vector2 {
-  /*::
-    // $FlowFixMe
-    multiplyScalar: (float) => PhysicalUnits
-  */
-  toLogicalUnits () /*: LogicalUnits */ {
-    return new LogicalUnits(this.x, this.y).multiplyScalar(1 / zoomFactor)
-  }
-}
-
-export class LogicalUnits extends THREE.Vector2 {
-  /*::
-    // $FlowFixMe
-    multiplyScalar: (float) => LogicalUnits
-  */
-  toPhysicalUnits () /*: PhysicalUnits */ {
-    return new PhysicalUnits(this.x, this.y).multiplyScalar(zoomFactor)
-  }
-}
-
-export class WindowUnits extends PhysicalUnits {
-  /*::
-    // $FlowFixMe
-    add: (PhysicalUnits) => WindowUnits
-    // $FlowFixMe
-    clone: () => WindowUnits
-    // $FlowFixMe
-    multiplyScalar: (float) => WindowUnits
-    // $FlowFixMe
-       sub: (PhysicalUnits) => WindowUnits
-
-   Events from the system come in these units
-  */
-  constructor (
-    arg1 /*: ?number | MouseEvent | TouchEvent | Touch | WindowUnits | DOMRect |  THREE.Vector2 */,
-    y /*: ?number */
-  ) {
-    (typeof arg1 === 'number' && typeof y === 'number') ? super(arg1, y) : super()
-    if (arg1 != null) {
-      if (y == null) {
-        if (   arg1 instanceof MouseEvent
-            || (typeof Touch !== 'undefined' && arg1 instanceof Touch)
-        ) {
-          this.set(arg1.clientX, arg1.clientY)
-        } else if (typeof TouchEvent !== 'undefined' && arg1 instanceof TouchEvent) {
-          if (arg1.type === 'touchend') {
-            this.set(arg1.changedTouches[0].clientX, arg1.changedTouches[0].clientY)
-          } else if (arg1.touches.length === 1) {
-            this.set(arg1.touches[0].clientX, arg1.touches[0].clientY)
-          } else { // average position of touches
-            this.set(...Array.from(arg1.touches)
-              .reduce(([x, y], touch) => [x + touch.clientX, y + touch.clientY], [0, 0])
-              .map((pos) => pos / arg1.touches.length))
-          }
-        } else if (arg1 instanceof THREE.Vector2) {
-          this.set(arg1.x, arg1.y)
-        } else if (arg1 instanceof DOMRect) {
-          this.set(arg1.x, arg1.y)
-        }
-      }
-    }
-  }
-
-  toGraphicUnits () /*: GraphicUnits */ {
-    return new GraphicUnits(this.x, this.y).sub(new GraphicUnits(graphicRect.x, graphicRect.y))
-  }
-
-  toSheetUnits () /*: SheetUnits */ {
-    return this.toGraphicUnits().toSheetUnits()
-  }
-}
-
-export class GraphicUnits extends PhysicalUnits {
-  /*::
-    // $FlowFixMe
-    add: (PhysicalUnits) => GraphicUnits
-    // $FlowFixMe
-    clone: () => GraphicUnits
-    // $FlowFixMe
-    multiplyScalar: (float) => GraphicUnits
-    // $FlowFixMe
-    set: (float, float) => GraphicUnits
-    // $FlowFixMe
-    sub: (PhysicalUnits) => GraphicUnits
-  */
-  toWindowUnits () /*: WindowUnits */ {
-    return new WindowUnits(this.x, this.y)
-      .add(new PhysicalUnits(graphicRect.x, graphicRect.y))
-  }
-
-  toSheetUnits () /*: SheetUnits */ {
-    const thisAsSheet = this.clone()
-      .sub(panVector)
-      .sub(graphicPOV())
-      .multiplyScalar(1 / zoomFactor)
-      .add(graphicPOV())
-
-    return new SheetUnits(thisAsSheet.x, thisAsSheet.y)
-  }
-}
-
-export class SheetUnits extends LogicalUnits {
-  /*::
-    // $FlowFixMe
-    add: (LogicalUnits) => SheetUnits
-    // $FlowFixMe
-    applyMatrix3: (THREE.Matrix3) => SheetUnits
-    // $FlowFixMe
-    addScaledVector: (LogicalUnits, float) => SheetUnits
-    // $FlowFixMe
-    addVectors: (SheetUnits, SheetUnits) => SheetUnits
-    // $FlowFixMe
-    clone: () => SheetUnits
-    // $FlowFixMe
-    lerpVectors: (SheetUnits, SheetUnits, float) => SheetUnits
-    // $FlowFixMe
-    multiplyScalar: (float) => SheetUnits
-    // $FlowFixMe
-    sub: (LogicalUnits) => SheetUnits
-  */
-  toGraphicUnits () /*: GraphicUnits */ {
-    return new GraphicUnits(this.x, this.y)
-      .sub(graphicPOV())
-      .multiplyScalar(zoomFactor)
-      .add(graphicPOV())
-      .add(panVector)
-  }
-
-  toWindowUnits () /*: WindowUnits */ {
-    return this.toGraphicUnits().toWindowUnits()
-  }
-}
 
 export function init () {
   Graphic = document.getElementById('graphic')
   graphicRect = ((Graphic.getBoundingClientRect() /*: any */) /*: DOMRect */)
   PixelsPerModelUnit = Math.min(graphicRect.width, graphicRect.height)
-  panVector = new PhysicalUnits()
+  panVector = new THREE.Vector2()
 
   new ResizeObserver((entries) => {
     if (entries.findIndex((entry) => entry.target.id === 'graphic') !== -1) {
@@ -192,12 +39,51 @@ export function init () {
   }).observe(document.getElementById('graphic'))
 }
 
-function graphicPOV () /*: GraphicUnits */ {
-  const pov = new GraphicUnits(graphicRect.width, graphicRect.height).multiplyScalar(0.5)
-  return pov
+// Model coordinates: the coordinate system the sheet model uses (pre-zoom, pre-pan,
+// relative to #graphic origin). All SheetElement positions are stored in these units.
+// Display coordinates: graphic-relative pixels as positioned by CSS transforms
+// (post-zoom, post-pan, relative to #graphic origin).
+
+function graphicCenter () /*: THREE.Vector2 */ {
+  return new THREE.Vector2(graphicRect.width, graphicRect.height).multiplyScalar(0.5)
 }
 
-// pan Sheet by {dx, dy} WindowUnits
+export function modelToDisplay (pt /*: THREE.Vector2 */) /*: THREE.Vector2 */ {
+  const center = graphicCenter()
+  return pt.clone().sub(center).multiplyScalar(zoomFactor).add(center).add(panVector)
+}
+
+export function displayToModel (pt /*: THREE.Vector2 */) /*: THREE.Vector2 */ {
+  const center = graphicCenter()
+  return pt.clone().sub(panVector).sub(center).multiplyScalar(1 / zoomFactor).add(center)
+}
+
+export function fromEvent (
+  event /*: MouseEvent | TouchEvent | Touch */
+) /*: THREE.Vector2 */ {
+  let windowX, windowY
+  if (   event instanceof MouseEvent
+      || (typeof Touch !== 'undefined' && event instanceof Touch)
+  ) {
+    windowX = event.clientX
+    windowY = event.clientY
+  } else if (typeof TouchEvent !== 'undefined' && event instanceof TouchEvent) {
+    if (event.type === 'touchend') {
+      windowX = event.changedTouches[0].clientX
+      windowY = event.changedTouches[0].clientY
+    } else if (event.touches.length === 1) {
+      windowX = event.touches[0].clientX
+      windowY = event.touches[0].clientY
+    } else { // average position of touches
+      ;[windowX, windowY] = Array.from(event.touches)
+        .reduce(([x, y], touch) => [x + touch.clientX, y + touch.clientY], [0, 0])
+        .map((pos) => pos / event.touches.length)
+    }
+  }
+  return displayToModel(new THREE.Vector2(windowX - graphicRect.x, windowY - graphicRect.y))
+}
+
+// pan Sheet by {dx, dy} display pixels
 export function pan (dx /*: float */, dy /*: float */) {
   panVector.set(panVector.x + dx, panVector.y + dy)
   updateTransforms()
@@ -227,7 +113,7 @@ function updateTransforms () {
   _view?.viewElements.forEach((viewEl) => viewEl.updateTransform())
 }
 
-export function redrawNodes () {
+function redrawNodes () {
   _view?.viewElements.forEach((viewEl) => {
     if (viewEl.modelElement?.isNode) viewEl.redraw()
   })
@@ -246,7 +132,7 @@ export function redrawLinksFor (modelElement /*: SheetModel.NodeElement */) {
 function makeCssTransform (
   scale /*: THREE.Vector2 | float */ = new THREE.Vector2(1, 1),
   direction /*: THREE.Vector2 */ = new THREE.Vector2(1, 0),
-  position /*: GraphicUnits | SheetUnits */ = new GraphicUnits() // Pixels of the transform's reference
+  position /*: THREE.Vector2 */ = new THREE.Vector2() // display coords, or model coords within a zoomed container
 ) /*: string */ {
   scale = (typeof scale === 'number') ? new THREE.Vector2(scale, scale) : scale
   return `matrix(${scale.x * direction.x}, ${scale.x * direction.y},
@@ -267,8 +153,8 @@ export class View {
 
    get zoomFactor () /*: float */ { return zoomFactor }
 
-   viewportOrigin () /*: SheetUnits */ {
-      return new GraphicUnits(0, 0).toSheetUnits()
+   viewportOrigin () /*: THREE.Vector2 */ {
+      return displayToModel(new THREE.Vector2(0, 0))
    }
 
    viewportScale () /*: float */ {
@@ -335,7 +221,7 @@ export class View {
    }
 }
 
-export class SheetView {
+class SheetView {
    view /*: View */
    modelElement /*: SheetModel.SheetElement */
    domElement /*: HTMLElement */
@@ -370,7 +256,7 @@ export class SheetView {
   }
 }
 
-export class NodeView extends SheetView {
+class NodeView extends SheetView {
   /*::
     +modelElement: SheetModel.NodeElement
   */
@@ -381,7 +267,7 @@ export class NodeView extends SheetView {
       this.domElement.classList.add('NodeElement')
    }
 
-   get center () /*: SheetUnits */ {
+   get center () /*: THREE.Vector2 */ {
       return this.position.addScaledVector(this.size, 0.5)
   }
 
@@ -389,16 +275,16 @@ export class NodeView extends SheetView {
     return new DOMRect(...this.position.toArray(), ...this.size.toArray())
   }
 
-  get position () /*: SheetUnits */ {
-     return new SheetUnits(this.modelElement.x, this.modelElement.y)
+  get position () /*: THREE.Vector2 */ {
+     return new THREE.Vector2(this.modelElement.x, this.modelElement.y)
   }
 
-  get size () /*: LogicalUnits */ {
-     return new LogicalUnits(this.modelElement.w, this.modelElement.h)
+  get size () /*: THREE.Vector2 */ {
+     return new THREE.Vector2(this.modelElement.w, this.modelElement.h)
   }
 }
 
-export class TextView extends NodeView {
+class TextView extends NodeView {
   /*::
     +modelElement: SheetModel.TextElement
   */
@@ -413,7 +299,7 @@ export class TextView extends NodeView {
    }
 
   updateTransform () {
-    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits())
+    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, modelToDisplay(this.position))
   }
 
   redraw () {
@@ -484,7 +370,7 @@ export class TextView extends NodeView {
   }
 }
 
-export class VisualizerView extends NodeView {
+class VisualizerView extends NodeView {
    unitSquarePositions /*: Array<THREE.Vector2> */
    lastZoom /*: float */
   /*::
@@ -499,7 +385,7 @@ export class VisualizerView extends NodeView {
 
   updateTransform () {
     const transformZoom = zoomFactor / this.lastZoom
-    this.domElement.style.transform =  makeCssTransform(transformZoom, undefined, this.position.toGraphicUnits())
+    this.domElement.style.transform =  makeCssTransform(transformZoom, undefined, modelToDisplay(this.position))
   }
 
   redraw () {
@@ -546,7 +432,7 @@ export class VisualizerView extends NodeView {
   }
 }
 
-export class CGView extends VisualizerView {
+class CGView extends VisualizerView {
   /*::
     +modelElement: SheetModel.CGElement
   */
@@ -571,7 +457,7 @@ export class CGView extends VisualizerView {
    }
 }
 
-export class MTView extends VisualizerView {
+class MTView extends VisualizerView {
   /*::
     +modelElement: SheetModel.MTElement
   */
@@ -602,7 +488,7 @@ export class MTView extends VisualizerView {
    }
 }
 
-export class CDView extends VisualizerView {
+class CDView extends VisualizerView {
    savedVisualizerJSON
 
    static #sharedViewModel /*: CayleyDiagramViewModel */ = null
@@ -861,8 +747,8 @@ class Arrow {
   }
 
   update (
-    start /*: SheetUnits */,
-    end /*: SheetUnits */,
+    start /*: THREE.Vector2 */,  // model coords; container div is CSS-scaled by zoomFactor so these map correctly to display pixels
+    end /*: THREE.Vector2 */,
     lineWidth /*: number */ = 1,
     headOffset /*: float */ = 1,
     color /*: color */ = 'black'
@@ -881,18 +767,18 @@ class Arrow {
 
       if (headOffset === 1) {
         const headFraction = headLength / lineLength
-        end = new SheetUnits().lerpVectors(start, end, 1 - headFraction)
+        end = new THREE.Vector2().lerpVectors(start, end, 1 - headFraction)
         headOffset = 1 + headFraction / (3 * (1 - headFraction))
       }
 
       const headScale = new THREE.Vector2(headLength / 90, headWidth / 31)
-      const headCenter = new SheetUnits().lerpVectors(start, end, headOffset)
+      const headCenter = new THREE.Vector2().lerpVectors(start, end, headOffset)
 
       this.head.style.transform = makeCssTransform(headScale, direction, headCenter)
     }
 
     const lineLength = start.distanceTo(end)
-    const lineCenter = new SheetUnits().addVectors(start, end).multiplyScalar(0.5)
+    const lineCenter = new THREE.Vector2().addVectors(start, end).multiplyScalar(0.5)
     const lineScale = new THREE.Vector2(lineLength / LINE_LEN, 1)
     this.line.style.transform =
         `matrix(${lineScale.x * direction.x}, ${lineScale.x * direction.y},
@@ -901,7 +787,7 @@ class Arrow {
   }
 }
 
-export class LinkView extends SheetView {
+class LinkView extends SheetView {
   /*::
     +modelElement: SheetModel.LinkElement
   */
@@ -926,33 +812,33 @@ export class LinkView extends SheetView {
      return this.view.viewElements.get(this.modelElement.source.id)
   }
 
-  getCrossingEndpoints () /*: [SheetUnits, SheetUnits] */ {
+  getCrossingEndpoints () /*: [THREE.Vector2, THREE.Vector2] */ {
     const source = this.source
     const destination = this.destination
 
-    const sourceSize = new LogicalUnits(source.w, source.h)
-    const destinationSize = new LogicalUnits(destination.w, destination.h)
-    const sourceCenter = new SheetUnits(source.x, source.y).addScaledVector(sourceSize, 0.5)
-    const destinationCenter = new SheetUnits(destination.x, destination.y).addScaledVector(destinationSize, 0.5)
+    const sourceSize = new THREE.Vector2(source.w, source.h)
+    const destinationSize = new THREE.Vector2(destination.w, destination.h)
+    const sourceCenter = new THREE.Vector2(source.x, source.y).addScaledVector(sourceSize, 0.5)
+    const destinationCenter = new THREE.Vector2(destination.x, destination.y).addScaledVector(destinationSize, 0.5)
 
     const entryInterpolationFactor = Math.min(
       Math.abs(sourceSize.x / (2 * (destinationCenter.x - sourceCenter.x))),
       Math.abs(sourceSize.y / (2 * (destinationCenter.y - sourceCenter.y))))
     const entry =
-      new SheetUnits().lerpVectors(sourceCenter, destinationCenter, entryInterpolationFactor)
+      new THREE.Vector2().lerpVectors(sourceCenter, destinationCenter, entryInterpolationFactor)
 
     const exitInterpolationFactor = Math.min(
       Math.abs(destinationSize.x / (2 * (destinationCenter.x - sourceCenter.x))),
       Math.abs(destinationSize.y / (2 * (destinationCenter.y - sourceCenter.y))))
     const exit =
-      new SheetUnits().lerpVectors(destinationCenter, sourceCenter, exitInterpolationFactor)
+      new THREE.Vector2().lerpVectors(destinationCenter, sourceCenter, exitInterpolationFactor)
 
     return [entry, exit]
   }
 }
 
 /* Connector is constructed from a <div> containing a single Arrow */
-export class ConnectingView extends LinkView {
+class ConnectingView extends LinkView {
   /*::
     +modelElement: SheetModel.ConnectingElement
     arrow: Arrow
@@ -970,7 +856,7 @@ export class ConnectingView extends LinkView {
    }
 
   updateTransform () {
-    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, new SheetUnits().toGraphicUnits())
+    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, modelToDisplay(new THREE.Vector2()))
   }
 
   redraw () {
@@ -980,7 +866,7 @@ export class ConnectingView extends LinkView {
     if (this.modelElement.hasArrowhead) {
       this.arrow.head.style.display = 'block'
 
-      const headLocation = new SheetUnits().addVectors(...this.getCrossingEndpoints()).multiplyScalar(0.5)
+      const headLocation = new THREE.Vector2().addVectors(...this.getCrossingEndpoints()).multiplyScalar(0.5)
       const headOffset = start.distanceTo(headLocation) / start.distanceTo(end)
       this.arrow.update(start, end, this.modelElement.thickness, headOffset, this.modelElement.color)
     } else {
@@ -996,13 +882,13 @@ export class ConnectingView extends LinkView {
  *    a single Arrow from the source group visualizer to the target (showManyArrows = false)
  *    an Array of Arrows from each element in the source visualizer to its mapping in the target (showManyArrows = true)
  */
-export class MorphismView extends LinkView {
+class MorphismView extends LinkView {
   /*::
     +modelElement: SheetModel.MorphismElement
     label: HTMLElement
     arrow: Arrow
     arrows: Array<Arrow>
-    position: SheetUnits
+    position: THREE.Vector2
     labelContent: html
   */
    constructor (view /*: View */, modelElement /*: SheetModel.MorphismElement */) {
@@ -1032,9 +918,9 @@ export class MorphismView extends LinkView {
   updateTransform () {
     const source = this.source
     const destination = this.destination
-    this.position = new SheetUnits(Math.min(source.x, destination.x), Math.min(source.y, destination.y))
+    this.position = new THREE.Vector2(Math.min(source.x, destination.x), Math.min(source.y, destination.y))
 
-    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, this.position.toGraphicUnits())
+    this.domElement.style.transform = makeCssTransform(zoomFactor, undefined, modelToDisplay(this.position))
   }
 
   redraw () {
@@ -1057,10 +943,12 @@ export class MorphismView extends LinkView {
     }
 
     const [entry, exit] = this.getCrossingEndpoints().map((v) => v.sub(this.position))
-    const center = new SheetUnits().addVectors(entry, exit).multiplyScalar(0.5)
-    const labelSize = new LogicalUnits(this.label.offsetWidth, this.label.offsetHeight) // note label size is as zoomed
+    const center = new THREE.Vector2().addVectors(entry, exit).multiplyScalar(0.5)
+    const labelSize = new THREE.Vector2(this.label.offsetWidth, this.label.offsetHeight) // note label size is as zoomed
     const topLeftCorner = center.clone().addScaledVector(labelSize, -0.5)
 
+    // topLeftCorner is in model coords; scale=1 is correct because the parent
+    // container is already CSS-scaled by zoomFactor
     this.label.style.transform = makeCssTransform(1, undefined, topLeftCorner)
   }
 
@@ -1115,7 +1003,7 @@ export class MorphismView extends LinkView {
     const lineLength = enter.distanceTo(exit)
     const padding = LINE_WIDTH + 0.5 * Math.sqrt(0.1 * LINE_WIDTH * lineLength)
     const paddingRatio = padding / lineLength
-    const start = new SheetUnits().lerpVectors(enter, exit, -paddingRatio)
+    const start = new THREE.Vector2().lerpVectors(enter, exit, -paddingRatio)
     this.arrow.update(start, exit, LINE_WIDTH, undefined, LINE_COLOR)
   }
 
@@ -1191,16 +1079,16 @@ export class MorphismView extends LinkView {
     // update arrow from each source group element
     for (let inx = 0; inx < source.group.order; inx++) {
       // for each source & destination, transform from visualizer unit square to sheet
-      let start = new SheetUnits(...sources[inx].toArray()).applyMatrix3(sourceToSheet)
-      let end = new SheetUnits(...destinations[mapping[inx]].toArray()).applyMatrix3(destinationToSheet)
+      let start = new THREE.Vector2(...sources[inx].toArray()).applyMatrix3(sourceToSheet)
+      let end = new THREE.Vector2(...destinations[mapping[inx]].toArray()).applyMatrix3(destinationToSheet)
 
       // adjust start & end if there is an offset
       if (offsetDistance !== 0) {
         const offsetPercentage = offsetDistance / start.distanceTo(end);
         // $FlowFixMe -- syntax unsupported by Flow
         [start, end] = [
-          new SheetUnits().lerpVectors(start, end, offsetPercentage),
-          new SheetUnits().lerpVectors(end, start, offsetPercentage)
+          new THREE.Vector2().lerpVectors(start, end, offsetPercentage),
+          new THREE.Vector2().lerpVectors(end, start, offsetPercentage)
         ]
       }
 
@@ -1229,37 +1117,4 @@ export class MorphismView extends LinkView {
       this.arrows[inx].update(start, end, LINE_WIDTH, undefined, arrowColor)
     }
   }
-}
-
-// Draw black cross with 100px arms at (x, y) pixels in domElement
-export function testCross (
-  x /*: float */,
-  y /*: float */,
-  domElement /*: HTMLElement */ = Graphic,
-  color /*: color */ = 'black'
-) /*: HTMLCanvasElement */ {
-  const canvas = document.createElement('canvas')
-  canvas.classList.add('TestCross')
-  canvas.style.position = 'absolute'
-  canvas.style.pointerEvents = 'none'
-  canvas.style.left = 0
-  canvas.style.top = 0
-  canvas.setAttribute('width', '200px')
-  canvas.setAttribute('height', '200px')
-  canvas.style.transform = `translate(${x - 100}px, ${y - 100}px)`
-  canvas.style.zIndex = 10000
-  canvas.style.backgroundColor = 'rgba(0,0,0,0)'
-  domElement.append(canvas)
-
-  const context = canvas.getContext('2d')
-  context.lineWidth = 1
-  context.strokeStyle = color
-  context.beginPath()
-  context.moveTo(0, 100)
-  context.lineTo(200, 100)
-  context.moveTo(100, 0)
-  context.lineTo(100, 200)
-  context.stroke()
-
-  return canvas
 }

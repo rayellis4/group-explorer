@@ -253,10 +253,7 @@ class SheetEventUI {
    setupDragAndDrop () {
       recognizeDragAndDrop (this.rootElement,
          (_startEvent, previousEvent, endEvent, _isDrop) => {
-            const previousPosition = new View.WindowUnits(previousEvent)
-            const newPosition = new View.WindowUnits(endEvent)
-            const movement = previousPosition.sub(newPosition)
-            View.pan(-movement.x, -movement.y)
+            View.pan(endEvent.clientX - previousEvent.clientX, endEvent.clientY - previousEvent.clientY)
 
             this.scheduleRedraw()
          },
@@ -431,10 +428,9 @@ class SheetEventUI {
       const linkJson = { source_name: source.name, destination_name: destination.name }
       const link = this.viewModel.addObjectAsElement(linkJson, type)
 
-      const editPosition = source.viewElement.center
-         .add(destination.viewElement.center)
-         .multiplyScalar(0.5).toWindowUnits()
-      this.getEditor(link, {clientX: editPosition.x, clientY: editPosition.y})
+      const midpoint = source.viewElement.center.add(destination.viewElement.center).multiplyScalar(0.5)
+      const displayPos = View.modelToDisplay(midpoint)
+      this.getEditor(link, {clientX: displayPos.x + View.graphicRect.x, clientY: displayPos.y + View.graphicRect.y})
    }
 
    validAnchor (maybeTarget, source) {
