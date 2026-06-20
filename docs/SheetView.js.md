@@ -570,6 +570,14 @@ class CDView extends VisualizerView {
                cdModel.group = this.modelElement.group
                this.savedVisualizerJSON = this.#initFromVisualizer(cdViewModel)
             }
+         } else if (
+            CDView.#sharedViewModel.group == this.modelElement.group
+            && this.modelElement.visualizer?.view_state == null
+            && this.modelElement.diagramControl?.strategy_parameters == null
+            && CDView.#activeView?.modelElement.visualizer?.view_state == null
+            && CDView.#activeView?.modelElement.diagramControl?.strategy_parameters == null
+         ) {  // fast path: same group, both elements clean — only update highlights
+            CDView.#sharedViewModel.model.highlightColors = this.modelElement.highlightColors
          } else {
             CDView.#sharedViewModel.fromJSON(this.savedVisualizerJSON)
          }
