@@ -1,5 +1,5 @@
 
-# Group Explorer 3.7rc23
+# Group Explorer 3.7rc24
 
 *Group Explorer* is interactive visualization software for abstract algebra — specifically finite group theory. It runs entirely in the browser, requires no installation, and is designed for students and instructors building intuition about groups and their structure.
 
