@@ -1,1 +1,0 @@
-../docs/MulttableViewUI.js.md

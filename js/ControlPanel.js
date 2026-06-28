@@ -1,1 +1,0 @@
-../docs/ControlPanel.js.md

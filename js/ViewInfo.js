@@ -1,1 +1,0 @@
-../docs/ViewInfo.js.md

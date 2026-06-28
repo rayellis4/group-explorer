@@ -1,1 +1,0 @@
-../docs/NamingSchemeInfo.js.md

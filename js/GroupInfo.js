@@ -1,1 +1,0 @@
-../docs/GroupInfo.js.md

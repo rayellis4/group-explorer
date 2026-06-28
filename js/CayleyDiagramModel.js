@@ -1,1 +1,0 @@
-../docs/CayleyDiagramModel.js.md

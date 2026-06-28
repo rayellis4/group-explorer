@@ -1,1 +1,0 @@
-../docs/IsomorphicGroups.js.md

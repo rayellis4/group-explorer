@@ -1,1 +1,0 @@
-../docs/UserNoteInfo.js.md

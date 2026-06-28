@@ -1,1 +1,0 @@
-../docs/GeneratorInfo.js.md

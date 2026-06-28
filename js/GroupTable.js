@@ -1,1 +1,0 @@
-../docs/GroupTable.js.md

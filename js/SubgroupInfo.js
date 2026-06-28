@@ -1,1 +1,0 @@
-../docs/SubgroupInfo.js.md

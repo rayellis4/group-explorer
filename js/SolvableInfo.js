@@ -1,1 +1,0 @@
-../docs/SolvableInfo.js.md

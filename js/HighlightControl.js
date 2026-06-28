@@ -1,1 +1,0 @@
-../docs/HighlightControl.js.md

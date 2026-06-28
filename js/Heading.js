@@ -1,1 +1,0 @@
-../docs/Heading.js.md
