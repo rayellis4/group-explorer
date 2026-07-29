@@ -2,7 +2,7 @@ import type { SheetElement, TextElement, VisualizerElement, ConnectingElement, M
 import type * as SheetModel from './SheetModel.ts';
 declare abstract class SheetElementEditor {
     modelElement: SheetElement;
-    initialJSON: SheetModel.SheetElementJSON;
+    initialJSON: SheetModel.SheetJSON;
     location: NumberLocation;
     editor: HTMLElement;
     constructor(modelElement: SheetElement, dialogHTML: html, location: NumberLocation);

@@ -52,6 +52,9 @@ class CycleGraphViewModel {
     get model() {
         return this.#model;
     }
+    get modelProxy() {
+        return this.#model;
+    }
     set model(cycleGraphModel) {
         this.#model = cycleGraphModel;
         this.#modelFields.forEach((field) => {
@@ -79,7 +82,8 @@ class CycleGraphViewModel {
         }
     }
     // Functions used by Sheet
-    setSize(x, y) { this.view.setSize(x, y); }
+    getSize() { return this.view.getSize(); }
+    setSize(w, h) { this.view.setSize(w, h); }
     resize() { this.view.resize(); }
     showGraphic() { this.view.queueShowGraphic(); }
     unitSquarePositions() { return this.view.unitSquarePositions(); }
@@ -89,7 +93,7 @@ class CycleGraphViewModel {
     fromJSON(jsonObject) { this.model.fromJSON(jsonObject); }
     draw(group) { this.#group = group; }
 }
-class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
+class CycleGraphView {
     viewModel;
     bbox;
     canvas;

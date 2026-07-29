@@ -113,7 +113,7 @@ function showZmnIsomorphismSheet (group: Group, m: groupElement, n: groupElement
     const vizY = 0.4 * (window.innerHeight - H)  // center visualizers just above midline
     const titleText = `Illustration of the isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`
 
-    const sheetElementsAsJSON: SheetModel.SheetJSON[] = [
+    const sheetElementsAsJSON: SheetModel.SheetElementRequest[] = [
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
             className : 'CDElement', id : 'left', groupURL : group.URL,
@@ -202,7 +202,7 @@ function showNoZmnIsomorphismSheet (group: Group, m: groupElement, n: groupEleme
     const maxOrdElt = available.filter( e => ZmxZn.elementOrders[e] == maxOrd )[0];
     // create a sheet based on that group and those elements
     const titleText = `Why there is no isomorphism between ${prod(Z(m), Z(n))} and ${Z(m*n)}`
-    const sheetElementsAsJSON: SheetModel.SheetJSON[] = [
+    const sheetElementsAsJSON: SheetModel.SheetElementRequest[] = [
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
             className : 'CDElement', id : 'left', groupURL : ZmxZn.URL,

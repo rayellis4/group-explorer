@@ -91,9 +91,10 @@ function makeLayout(chunkTree, arrows, generatesFromStrategy) {
  *     and make cubes look flat; look at origin, and adjust camera
  *     distance so that diagram fills field of view
  */
-function getPOV(chunkTree, generatesFromStrategy) {
+export function getPOV(chunkOrNodePositions, generatesFromStrategy) {
+    const nodes = (chunkOrNodePositions instanceof Chunk) ? chunkOrNodePositions.allChildNodes : chunkOrNodePositions;
     const pov = { position: new THREE.Vector3(), up: new THREE.Vector3() };
-    const nodePositions = chunkTree.allChildNodes.map((node) => node.position);
+    const nodePositions = nodes.map((node) => node.position);
     if (generatesFromStrategy) {
         // GE3 3.6 defaults for generated layout
         if (nodePositions.every((position) => position.x == 0.0)) {
@@ -143,7 +144,7 @@ function getPOV(chunkTree, generatesFromStrategy) {
             pov.up.set(0, 1, 0);
         }
     }
-    const radius = getRadius(new THREE.Vector3(), chunkTree.allChildNodes) || 1; // zero radius, one element
+    const radius = getRadius(new THREE.Vector3(), nodes) || 1; // zero radius, one element
     pov.position.multiplyScalar(radius);
     return pov;
 }

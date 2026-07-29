@@ -125,7 +125,7 @@ function showSolvableDecompositionSheet (group: Group, type: SheetModel.Visualiz
     const bottomShift = vgap / 4
 
     const titleText = `Solvable Decomposition for the group ${group.name}`
-    const sheetElementsAsJSON: SheetModel.SheetJSON[] = [
+    const sheetElementsAsJSON: SheetModel.SheetElementRequest[] = [
         {
             className : 'TextElement',
             text : '(The top row is the solvable decomposition.  '

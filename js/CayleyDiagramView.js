@@ -63,10 +63,21 @@ export class CayleyDiagramViewModel {
     get group() {
         return this.model.group;
     }
+    get highlightColors() {
+        return [[...this.view.color_highlights], [...this.view.ring_highlights], [...this.view.square_highlights]];
+    }
+    set highlightColors(highlightColors) {
+        this.view.color_highlights = [...highlightColors[HIGHLIGHT_NODE]];
+        this.view.ring_highlights = [...highlightColors[HIGHLIGHT_RING]];
+        this.view.square_highlights = [...highlightColors[HIGHLIGHT_SQUARE]];
+    }
     get view() {
         return this.#view;
     }
     get model() {
+        return this.#model;
+    }
+    get modelProxy() {
         return this.#model;
     }
     setModel(model) {
@@ -77,45 +88,65 @@ export class CayleyDiagramViewModel {
         }
         this.#model.viewState = {
             toJSON: () => {
+                const toXYZ = (vector3) => JSON.parse(JSON.stringify(vector3));
+                const toNodeDataJSON = ({ position, element, label, color }) => {
+                    return { position: toXYZ(position), element, label, color };
+                };
+                const toArrowDataJSON = ({ start_node, end_node, generator, bidirectional, thirdPoint, keepCurved, offset, color }) => {
+                    return {
+                        start_element: start_node.element,
+                        end_element: end_node.element,
+                        generator,
+                        bidirectional,
+                        thirdPoint: toXYZ(thirdPoint),
+                        keepCurved,
+                        offset,
+                        color
+                    };
+                };
+                const toChunkDataJSON = ({ box, name, widths, nodes }) => {
+                    return {
+                        box: JSON.parse(JSON.stringify(box)).elements,
+                        name,
+                        nodes: nodes.map((node) => node.element),
+                        widths: toXYZ(widths)
+                    };
+                };
                 return {
-                    pov: { position: this.view.camera.position.clone(), up: this.view.camera.up.clone() },
-                    nodes: this.view.nodes.map((object3D) => object3D.userData.node),
-                    arrows: this.view.lines.map((object3D) => object3D.userData.arrow), // turn nodes into element#
-                    chunks: this.view.chunks.map((object3D) => object3D.userData.chunk) // turn this into subgroupChunkIndex
+                    pov: { position: toXYZ(this.view.camera.position), up: toXYZ(this.view.camera.up) },
+                    nodes: this.view.nodes.map((object3D) => toNodeDataJSON(object3D.userData.node)),
+                    arrows: this.view.lines.map((object3D) => toArrowDataJSON(object3D.userData.arrow)),
+                    chunks: this.view.chunks.map((object3D) => toChunkDataJSON(object3D.userData.chunk))
                 };
             },
             fromJSON: (json) => {
+                const fromXYZ = ({ x, y, z }) => { return new THREE.Vector3().set(x, y, z); };
                 const pov = {
-                    position: new THREE.Vector3().copy(json.pov.position),
-                    up: new THREE.Vector3().copy(json.pov.up)
+                    position: fromXYZ(json.pov.position),
+                    up: fromXYZ(json.pov.up)
                 };
-                const nodes = json.nodes.map((node) => {
-                    return {
-                        position: new THREE.Vector3().copy(node.position),
-                        element: node.element,
-                        label: node.label,
-                        color: node.color
-                    };
+                const nodes = json.nodes.map(({ position, element, label, color }) => {
+                    return { position: fromXYZ(position), element, label, color };
                 });
                 const nodeMap = new Map(nodes.map((node) => [node.element, node]));
-                const arrows = json.arrows.map((arrow) => {
+                const arrows = json.arrows.map(({ start_element, end_element, generator, bidirectional, thirdPoint, keepCurved, offset, color }) => {
                     return {
-                        start_node: nodeMap.get(arrow.start_node.element),
-                        end_node: nodeMap.get(arrow.end_node.element),
-                        generator: arrow.generator,
-                        bidirectional: arrow.bidirectional,
-                        thirdPoint: new THREE.Vector3().copy(arrow.thirdPoint),
-                        keepCurved: arrow.keepCurved,
-                        offset: arrow.offset,
-                        color: arrow.color
+                        start_node: nodeMap.get(start_element),
+                        end_node: nodeMap.get(end_element),
+                        generator,
+                        bidirectional,
+                        thirdPoint: fromXYZ(thirdPoint),
+                        keepCurved,
+                        offset,
+                        color
                     };
                 });
-                const chunks = json.chunks.map((chunk) => {
+                const chunks = json.chunks.map(({ box, name, widths, nodes }) => {
                     return {
-                        box: new THREE.Matrix4().copy(chunk.box),
-                        name: chunk.name,
-                        widths: new THREE.Vector3().copy(chunk.widths),
-                        nodes: chunk.nodes.map((node) => nodeMap.get(node.element))
+                        box: new THREE.Matrix4().fromArray(box),
+                        name,
+                        widths: fromXYZ(widths),
+                        nodes: nodes.map((node) => nodeMap.get(node))
                     };
                 });
                 this.updateModel('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks });
@@ -169,9 +200,7 @@ export class CayleyDiagramViewModel {
             case 'highlightColors':
                 if (value != null) {
                     // spread new highlightColors across color_highlights, ring_highlights, square_highlights
-                    this.view.color_highlights = [...value[HIGHLIGHT_NODE]];
-                    this.view.ring_highlights = [...value[HIGHLIGHT_RING]];
-                    this.view.square_highlights = [...value[HIGHLIGHT_SQUARE]];
+                    this.highlightColors = value;
                     this.view.drawAllHighlights();
                 }
                 break;
@@ -186,7 +215,8 @@ export class CayleyDiagramViewModel {
         }
     }
     // Functions used by Sheet
-    setSize(x, y) { this.view.setSize(x, y); }
+    getSize() { return this.view.getSize(); }
+    setSize(w, h) { this.view.setSize(w, h); }
     resize() { this.view.resize(); }
     showGraphic() { this.view.render(); }
     unitSquarePositions() { return this.view.unitSquarePositions(); }

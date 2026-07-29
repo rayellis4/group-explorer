@@ -2,7 +2,7 @@ import type { LayoutData as LayoutType } from './CayleyDiagramView.ts';
 import type { Group } from './Group.ts';
 import type { HighlightControlModelInterface } from './HighlightControl.ts';
 export { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js';
-export type { POV, NodeData as NodeType, ArrowData as ArrowType, ChunkData as ChunkType, LayoutData as LayoutType } from './CayleyDiagramView.ts';
+export type { POV, NodeData as NodeType, ArrowData as ArrowType, ChunkData as ChunkType, LayoutData as LayoutType, POVJSON, NodeDataJSON, ArrowDataJSON, ChunkDataJSON, LayoutDataJSON, } from './CayleyDiagramView.ts';
 export type CayleyDiagramModelJSON = {
     group_url: string;
     background: CayleyDiagramModel['background'];

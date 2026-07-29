@@ -46,6 +46,7 @@ import * as THREE from '../lib/externals.js'
 import type { Updatable, SubscriptionProxy } from './GEUtils.ts'
 import type { Group } from './Group.ts'
 import type { MulttableModel, MulttableColoration, MulttableColorReordering, MulttableJSON } from './MulttableModel.ts'
+import type { SheetVisualizerInterface } from './SheetModel.ts'
 import type { Subgroup } from './Subgroup.ts'
 
 /*::
@@ -70,8 +71,8 @@ const HIGHLIGHT_BACKGROUND = 0
 const HIGHLIGHT_BORDER = 1
 const HIGHLIGHT_CORNER = 2
 
-export class MulttableViewModel implements Updatable {
-   #model!: MulttableModel
+export class MulttableViewModel implements Updatable, SheetVisualizerInterface<MulttableJSON> {
+   #model!: GEUtils.SubscriptionProxy<MulttableModel>
    #view!: MulttableView
    #modelFields: (keyof MulttableModel)[] = [
       'group',
@@ -96,6 +97,10 @@ export class MulttableViewModel implements Updatable {
    }
 
    get model (): MulttableModel {
+      return this.#model
+   }
+
+   get modelProxy (): GEUtils.SubscriptionProxy<MulttableModel> {
       return this.#model
    }
 
@@ -225,13 +230,14 @@ export class MulttableViewModel implements Updatable {
    }
    
    // Functions used by Sheet
-   setSize (x: number, y: number)              { this.view.setSize(x, y) }
+   getSize (): {w: number, h: number}          { return this.getSize() }
+   setSize (w: number, h: number)              { this.view.setSize(w, h) }
    resize ()                                   { this.view.resize(); this.showGraphic() }
    showGraphic ()                              { this.view.queueShowGraphic() }
-   unitSquarePositions ()                      { return this.view.unitSquarePositions() }
-   getImage ()                                 { return this.view.getImage() }
+   unitSquarePositions (): THREE.Vector2[]     { return this.view.unitSquarePositions() }
+   getImage (): HTMLImageElement               { return this.view.getImage() }
    get canvas (): HTMLCanvasElement            { return this.view.canvas }
-   toJSON ()                                   { return this.model.toJSON() }
+   toJSON (): MulttableJSON                    { return this.model.toJSON() }
    fromJSON (jsonObject: MulttableJSON)        { this.model.fromJSON(jsonObject) }
    draw (group: Group)                         { this.#group = group }
 }

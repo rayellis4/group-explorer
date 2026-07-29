@@ -155,7 +155,7 @@ export class SheetViewModel {
         const element = this.modelElements.get(id);
         if (element == null || !('isVisualizer' in element))
             return;
-        element.visualizer = json;
+        element.visualizerJSON = json; // FIXME
         this.#view.updateVisualizer(element, json);
     }
 }

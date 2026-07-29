@@ -73,6 +73,9 @@ export class MulttableViewModel {
     get model() {
         return this.#model;
     }
+    get modelProxy() {
+        return this.#model;
+    }
     set model(multtableModel) {
         this.#model = multtableModel;
         this.#modelFields.forEach((field) => {
@@ -177,7 +180,8 @@ export class MulttableViewModel {
         return cosets;
     }
     // Functions used by Sheet
-    setSize(x, y) { this.view.setSize(x, y); }
+    getSize() { return this.getSize(); }
+    setSize(w, h) { this.view.setSize(w, h); }
     resize() { this.view.resize(); this.showGraphic(); }
     showGraphic() { this.view.queueShowGraphic(); }
     unitSquarePositions() { return this.view.unitSquarePositions(); }

@@ -3,6 +3,7 @@ import * as THREE from '../lib/externals.js';
 import type { Updatable, SubscriptionProxy } from './GEUtils.ts';
 import type { Group } from './Group.ts';
 import type { MulttableModel, MulttableColoration, MulttableColorReordering, MulttableJSON } from './MulttableModel.ts';
+import type { SheetVisualizerInterface } from './SheetModel.ts';
 import type { Subgroup } from './Subgroup.ts';
 export type MulttableViewOptions = {
     container?: HTMLElement;
@@ -10,11 +11,12 @@ export type MulttableViewOptions = {
     height?: number;
     width?: number;
 };
-export declare class MulttableViewModel implements Updatable {
+export declare class MulttableViewModel implements Updatable, SheetVisualizerInterface<MulttableJSON> {
     #private;
     get view(): MulttableView;
     set view(view: MulttableView);
     get model(): MulttableModel;
+    get modelProxy(): GEUtils.SubscriptionProxy<MulttableModel>;
     set model(multtableModel: SubscriptionProxy<MulttableModel>);
     get coloration(): MulttableColoration;
     get colorReordering(): MulttableColorReordering;
@@ -29,7 +31,11 @@ export declare class MulttableViewModel implements Updatable {
     layoutSubgroup(G: Group, H: Subgroup): groupElement[];
     layoutNormalSubgroup(G: Group, H: Subgroup): groupElement[];
     layoutNonNormalSubgroup(G: Group, H: Subgroup): Array<groupElement>;
-    setSize(x: number, y: number): void;
+    getSize(): {
+        w: number;
+        h: number;
+    };
+    setSize(w: number, h: number): void;
     resize(): void;
     showGraphic(): void;
     unitSquarePositions(): THREE.Vector2[];

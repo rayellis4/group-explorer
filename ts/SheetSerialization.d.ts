@@ -105,25 +105,37 @@ type v1SheetType = {
     showManyArrows?: boolean;
 };
 type v1CDVisualizer = {
-    arrowhead_placement?: integer;
-    arrows: any[];
-    background?: color;
+    arrowhead_placement: integer;
+    arrows: {
+        start_element: groupElement;
+        end_element: groupElement;
+        generator: groupElement;
+        thirdPoint: {
+            x: float;
+            y: float;
+            z: float;
+        };
+        offset: float;
+        color: color;
+    }[];
+    background: color;
     cameraJSON: any;
-    cameraUp?: THREE.Vector3;
+    cameraUp: THREE.Vector3;
     chunk?: integer;
     color_highlights?: Maybe<color>[];
     diagram_name?: Maybe<string>;
-    fog_level?: integer;
-    groupURL?: string;
-    label_scale_factor?: float;
-    line_width?: float;
-    nodes?: any[];
-    right_multiply?: boolean;
+    fog_level: integer;
+    groupURL: string;
+    label_scale_factor: float;
+    line_width: float;
+    nodes: any[];
+    right_multiply: boolean;
     ring_highlights?: Maybe<color>[];
-    sphere_base_radius?: float;
+    sphere_base_radius: float;
+    sphere_scale_factor: float;
     square_highlights?: Maybe<color>[];
     strategy_parameters?: StrategyParameters[];
-    zoom_level?: float;
+    zoom_level: float;
 };
 type v1CGVisualizer = {
     groupURL: string;

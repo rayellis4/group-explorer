@@ -1,16 +1,47 @@
 import { Mapping, definingPairType } from './Mapping.js';
+import * as THREE from '../lib/externals.js';
 import type { ArrowGenerator, StrategyParameters } from './CayleyDiagramGenerator.ts';
+import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.js';
+import type { CycleGraphJSON } from './CycleGraphModel.ts';
 import type { Group } from './Group.ts';
+import type { MulttableJSON } from './MulttableModel.ts';
 export type VisualizerType = 'CDElement' | 'MTElement' | 'CGElement';
-type ConcreteSheetElementClass = TextElement | CDElement | CGElement | MTElement | ConnectingElement | MorphismElement;
-type ConcreteSheetElementClassName = 'TextElement' | 'CDElement' | 'CGElement' | 'MTElement' | 'ConnectingElement' | 'MorphismElement';
-export type SheetJSON = NodeElementJSON | VisualizerElementJSON | LinkElementJSON | TextElementJSON | CDElementJSON | CGElementJSON | MTElementJSON | ConnectingElementJSON | MorphismElementJSON;
+export type ConcreteSheetTypes = {
+    TextElement: TextElementJSON;
+    CDElement: CDElementJSON;
+    CGElement: CGElementJSON;
+    MTElement: MTElementJSON;
+    ConnectingElement: ConnectingElementJSON;
+    MorphismElement: MorphismElementJSON;
+};
+export type SheetTypes = {
+    VisualizerElement: SheetTypes['CDElement'] | SheetTypes['CGElement'] | SheetTypes['MTElement'];
+    NodeElement: SheetTypes['TextElement'] | SheetTypes['VisualizerElement'];
+    LinkElement: SheetTypes['ConnectingElement'] | SheetTypes['MorphismElement'];
+} & ConcreteSheetTypes;
+export type SheetJSON = SheetTypes[keyof SheetTypes];
 export type alignmentType = 'left' | 'center' | 'right';
-type arrowColorType = 'none' | 'source' | 'destination';
-interface SheetElementFields {
+export type arrowColorType = 'none' | 'source' | 'destination';
+export interface SheetVisualizerInterface<JSONType> {
+    group: Group;
+    highlightColors: Maybe<color>[][];
+    canvas: HTMLCanvasElement;
+    getSize: () => {
+        w: number;
+        h: number;
+    };
+    setSize: (w: number, h: number) => void;
+    resize: () => void;
+    showGraphic: () => void;
+    unitSquarePositions: () => THREE.Vector2[];
+    getImage: () => HTMLImageElement;
+    toJSON: () => JSONType;
+    fromJSON: (jsonObject: JSONType) => void;
+}
+export interface SheetElementJSON {
     id?: string;
 }
-export interface NodeElementFields extends SheetElementFields {
+export interface NodeElementJSON extends SheetElementJSON {
     x: float;
     y: float;
     w: float;
@@ -18,7 +49,8 @@ export interface NodeElementFields extends SheetElementFields {
     z?: float;
     anchor_id?: string;
 }
-export interface TextElementFields extends NodeElementFields {
+export interface TextElementJSON extends NodeElementJSON {
+    className: 'TextElement';
     alignment?: alignmentType;
     color?: color;
     fontSize?: string;
@@ -27,37 +59,36 @@ export interface TextElementFields extends NodeElementFields {
     opacity?: float;
     text?: string;
 }
-export interface VisualizerElementFields extends NodeElementFields {
-    groupURL: string;
-    highlight_colors?: Maybe<color>[][];
-    visualizer?: unknown;
+export interface VisualizerElementJSON extends NodeElementJSON {
+    visualizerJSON: {
+        group_url: string;
+        highlight_colors?: Maybe<color>[][];
+    };
 }
-export interface CDElementFields extends VisualizerElementFields {
-    arrow_generators?: ArrowGenerator[];
-    chunk_subgroup_index?: integer;
-    diagram_control?: unknown;
-    diagram_name?: string;
-    strategy_parameters?: StrategyParameters[];
+export interface CDElementJSON extends VisualizerElementJSON {
+    className: 'CDElement';
+    visualizerJSON: CayleyDiagramModelJSON;
 }
-export interface CGElementFields extends VisualizerElementFields {
+export interface CGElementJSON extends VisualizerElementJSON {
+    className: 'CGElement';
+    visualizerJSON: CycleGraphJSON;
 }
-export interface MTElementFields extends VisualizerElementFields {
-    color_reordering?: 'topRowFixed' | 'elementColorsFixed';
-    coloration?: 'rainbow' | 'grayscale' | 'none';
-    elements?: groupElement[];
-    organizing_subgroup?: integer;
-    separation?: float;
+export interface MTElementJSON extends VisualizerElementJSON {
+    className: 'MTElement';
+    visualizerJSON: MulttableJSON;
 }
-export interface LinkElementFields extends SheetElementFields {
+export interface LinkElementJSON extends SheetElementJSON {
     source_id: string;
     destination_id: string;
 }
-export interface ConnectingElementFields extends LinkElementFields {
+export interface ConnectingElementJSON extends LinkElementJSON {
+    className: 'ConnectingElement';
     thickness?: float;
     color?: color;
     hasArrowhead?: boolean;
 }
-export interface MorphismElementFields extends LinkElementFields {
+export interface MorphismElementJSON extends LinkElementJSON {
+    className: 'MorphismElement';
     morphismName?: string;
     arrowColor?: arrowColorType;
     arrowMargin?: number;
@@ -70,59 +101,29 @@ export interface MorphismElementFields extends LinkElementFields {
     useMulttableSourceTopRow?: boolean;
     useMulttableDestinationTopRow?: boolean;
 }
-export interface SheetElementJSON extends SheetElementFields {
-    className: ConcreteSheetElementClassName;
-}
-export interface NodeElementJSON extends NodeElementFields {
-    className: 'TextElement' | 'CDElement' | 'CGElement' | 'MTElement';
-}
-export interface TextElementJSON extends TextElementFields {
-    className: 'TextElement';
-}
-export interface VisualizerElementJSON extends VisualizerElementFields {
-    className: 'CDElement' | 'CGElement' | 'MTElement';
-}
-export interface CDElementJSON extends CDElementFields {
-    className: 'CDElement';
-}
-export interface CGElementJSON extends CGElementFields {
-    className: 'CGElement';
-}
-export interface MTElementJSON extends MTElementFields {
-    className: 'MTElement';
-}
-export interface LinkElementJSON extends LinkElementFields {
-    className: 'ConnectingElement' | 'MorphismElement';
-}
-export interface ConnectingElementJSON extends ConnectingElementFields {
-    className: 'ConnectingElement';
-}
-export interface MorphismElementJSON extends MorphismElementFields {
-    className: 'MorphismElement';
-}
 export declare function sheetPanelWidth(): number;
 export declare function fittedFontSize(html: html, maxWidth: float, min?: float, max?: float): string;
 export declare class SheetModel {
     #private;
     nextId: number;
-    classMap: Record<string, new (...args: any[]) => {
-        fromJSON(jsonObject: unknown): ConcreteSheetElementClass;
+    classMap: Record<keyof ConcreteSheetTypes, new (...args: any[]) => {
+        fromJSON(jsonObject: unknown): any;
     }>;
     get sheetElements(): Map<string, SheetElement>;
     toJSON(): SheetJSON[];
     fromJSON(json: string | SheetJSON[]): void;
-    addObjectAsElement(plainObject: SheetJSON, className: string): SheetElement;
+    addObjectAsElement(plainObject: SheetJSON, className: keyof ConcreteSheetTypes): SheetElement;
     canConnect(linkElementOrType: LinkElement | 'ConnectingElement' | 'MorphismElement', sourceElementOrId: SheetElement | string, destinationElementOrId: SheetElement | string): boolean;
 }
 export declare abstract class SheetElement {
     #private;
     id: string;
-    className: string;
+    className: keyof ConcreteSheetTypes;
     constructor(model: SheetModel, id: string);
     get model(): SheetModel;
     abstract get z(): integer;
     toJSON(): SheetElementJSON;
-    fromJSON(jsonObject: SheetElementJSON): this;
+    fromJSON(_jsonObject: SheetElementJSON): this;
 }
 export declare abstract class NodeElement extends SheetElement {
     x: float;
@@ -137,7 +138,7 @@ export declare abstract class NodeElement extends SheetElement {
     fromJSON(jsonObject: NodeElementJSON): this;
 }
 export declare class TextElement extends NodeElement {
-    className: string;
+    readonly className: keyof ConcreteSheetTypes;
     text: string;
     color: color;
     opacity: float;
@@ -150,23 +151,28 @@ export declare class TextElement extends NodeElement {
 }
 export declare abstract class VisualizerElement extends NodeElement {
     group: Group;
-    highlightColors: Maybe<color>[][];
-    visualizer: unknown;
+    visualizerJSON: {
+        group_url: string;
+        highlight_colors?: Maybe<color>[][];
+    };
     isVisualizer: boolean;
-    toJSON(): VisualizerElementJSON;
     fromJSON(jsonObject: VisualizerElementJSON): this;
 }
 export declare class CDElement extends VisualizerElement {
-    className: string;
-    diagramControl?: Record<string, unknown>;
+    readonly className: keyof ConcreteSheetTypes;
+    visualizerJSON: CayleyDiagramModelJSON;
     toJSON(): CDElementJSON;
     fromJSON(jsonObject: CDElementJSON): this;
 }
 export declare class CGElement extends VisualizerElement {
-    className: string;
+    readonly className: keyof ConcreteSheetTypes;
+    visualizerJSON: CycleGraphJSON;
+    toJSON(): CGElementJSON;
+    fromJSON(jsonObject: CGElementJSON): this;
 }
 export declare class MTElement extends VisualizerElement {
-    className: string;
+    readonly className: keyof ConcreteSheetTypes;
+    visualizerJSON: MulttableJSON;
     organizingSubgroup: integer;
     separation: float;
     toJSON(): MTElementJSON;
@@ -181,7 +187,7 @@ export declare abstract class LinkElement extends SheetElement {
     fromJSON(jsonObject: LinkElementJSON): this;
 }
 export declare class ConnectingElement extends LinkElement {
-    className: string;
+    readonly className: keyof ConcreteSheetTypes;
     thickness: float;
     color: color;
     hasArrowhead: boolean;
@@ -192,7 +198,7 @@ export declare class MorphismElement extends LinkElement {
     #private;
     source: VisualizerElement;
     destination: VisualizerElement;
-    className: string;
+    readonly className: keyof ConcreteSheetTypes;
     morphismName: string;
     showDomainAndCodomain: boolean;
     showDefiningPairs: boolean;
@@ -208,9 +214,38 @@ export declare class MorphismElement extends LinkElement {
     toJSON(): MorphismElementJSON;
     fromJSON(jsonObject: MorphismElementJSON): this;
 }
+export interface SheetElementRequest {
+    className: keyof SheetTypes;
+    id?: string;
+    x?: float;
+    y?: float;
+    w?: float;
+    h?: float;
+    anchor_id?: string;
+    alignment?: alignmentType;
+    color?: color;
+    fontSize?: string;
+    fontColor?: string;
+    opacity?: float;
+    text?: string;
+    groupURL?: string;
+    highlight_colors?: Maybe<color>[][];
+    arrow_generators?: ArrowGenerator[];
+    diagram_name?: string;
+    strategy_parameters?: StrategyParameters[];
+    organizing_subgroup?: integer;
+    source_id?: string;
+    destination_id?: string;
+    thickness?: float;
+    hasArrowhead?: boolean;
+    morphismName?: string;
+    arrowColor?: arrowColorType;
+    definingPairs?: definingPairType[];
+    showInjectionSurjection?: boolean;
+    showManyArrows?: boolean;
+}
 export declare function createNewSheet(arg: {
     title: string;
-    elements: SheetJSON[];
-} | SheetJSON[]): void;
+    elements: SheetElementRequest[];
+} | SheetElementRequest[]): void;
 export declare function loadPassedSheet(sheetModel: SheetModel): Promise<Maybe<string>>;
-export {};

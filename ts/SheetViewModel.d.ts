@@ -56,7 +56,7 @@ export declare class SheetViewModel implements Updatable {
     viewportScale(): float;
     move(id: string, dx: number, dy: number): void;
     resize(id: string, dw: number, dh: number): void;
-    addObjectAsElement(plainObject: SheetJSON, className: string): SheetElement;
+    addObjectAsElement(plainObject: SheetJSON, className: keyof SheetModel_.ConcreteSheetTypes): SheetElement;
     removeElement(element: SheetElement): void;
     getVisualizerJSON(id: string): unknown;
     updateVisualizer(id: string, json: unknown): void;

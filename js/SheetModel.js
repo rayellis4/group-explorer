@@ -12,20 +12,7 @@ import * as Library from './Library.js';
 import * as Log from './Log.js';
 import { Mapping } from './Mapping.js';
 import * as StoredObjects from './StoredObjects.js';
-/*
-export interface VizDisplay<VisDispJSON> {
-   group: Group;
-   getSize(): {w: number, h: number};
-   setSize(w: number, h: number): void;
-   getImage(): Image;
-   toJSON(): VizDispJSON;
-   fromJSON(VizDispJSON): void;
-   unitSquarePosition(groupElement): {x: float, y: float};
-};
-
-export type MSG_external<VizType: any> = any;
-export type MSG_editor<VizType: any> = any;
- */
+;
 // #sheet-control has font-size: 1.25rem; #control-panel has min-width: 20em => 25rem total
 export function sheetPanelWidth() {
     return 25 * parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -161,11 +148,10 @@ export class SheetElement {
     }
     toJSON() {
         return {
-            id: this.id,
-            className: this.className
+            id: this.id
         };
     }
-    fromJSON(jsonObject) {
+    fromJSON(_jsonObject) {
         return this;
     }
 }
@@ -229,6 +215,7 @@ export class TextElement extends NodeElement {
     toJSON() {
         return {
             ...super.toJSON(),
+            className: 'TextElement',
             text: this.text,
             color: this.color,
             opacity: this.opacity,
@@ -258,91 +245,72 @@ export class TextElement extends NodeElement {
 }
 export class VisualizerElement extends NodeElement {
     group;
-    highlightColors; // golden record is in the visualizer; this is just initialization
-    visualizer; // opaque JSON blob; live visualizer object lives in SheetView
+    visualizerJSON;
     isVisualizer = true;
-    toJSON() {
-        // @ts-expect-error: getVisualizerJSON is added in SheetViewModel.addElement
-        const visualizerJSON = this.getVisualizerJSON();
-        return {
-            ...super.toJSON(),
-            groupURL: this.group.URL,
-            // highlightColors inside visualizer is golden; highlight_colors here is for CDView fast-path init
-            highlight_colors: visualizerJSON?.highlightColors ?? this.highlightColors ?? [[], [], []],
-            visualizer: visualizerJSON ?? this.visualizer
-        };
-    }
     fromJSON(jsonObject) {
+        this.group = Library.getGroupByURL(jsonObject.visualizerJSON.group_url);
+        if (this.group == null) {
+            const errorMessage = `unable to get group from ${jsonObject.visualizerJSON.group_url}`;
+            Log.err(errorMessage);
+            throw new TypeError(errorMessage);
+        }
         super.fromJSON(jsonObject);
-        this.group = Library.getGroupByURL(jsonObject.groupURL);
-        this.highlightColors = jsonObject.highlight_colors ?? [[], [], []];
-        this.visualizer = jsonObject.visualizer;
         return this;
     }
 }
 export class CDElement extends VisualizerElement {
     className = 'CDElement';
-    diagramControl; // initialization only; baked into visualizer JSON on first getVisualizerJSON() call
     toJSON() {
-        const json = super.toJSON();
-        if (json.visualizer == null) {
-            json.diagram_control = this.diagramControl;
-        }
-        return json;
+        return {
+            ...super.toJSON(),
+            className: 'CDElement',
+            // @ts-expect-error: getVisualizerJSON is not statically available here; it's added in SheetViewModel.addElement
+            visualizerJSON: this.getVisualizerJSON()
+        };
     }
     fromJSON(jsonObject) {
         super.fromJSON(jsonObject);
-        // @ts-expect-error: null => initialization in progress
-        this.diagramControl = null;
-        const moveField = (field) => {
-            if (this.diagramControl == null) {
-                this.diagramControl = {};
-            }
-            this.diagramControl[field] = jsonObject[field];
-            delete jsonObject[field];
-        };
-        // remove diagram_name, strategy_parameters, arrow_generators from JSON and place in diagramControl
-        if ('diagram_name' in jsonObject) {
-            moveField('diagram_name');
-        }
-        else if ('strategy_parameters' in jsonObject) {
-            moveField('strategy_parameters');
-            if ('arrow_generators' in jsonObject) {
-                moveField('arrow_generators');
-            }
-        }
-        // prefer explicit diagram_control in jsonObject
-        if ('diagram_control' in jsonObject != null) {
-            this.diagramControl = jsonObject.diagram_control;
-        }
+        this.visualizerJSON = jsonObject.visualizerJSON;
         return this;
     }
 }
 export class CGElement extends VisualizerElement {
     className = 'CGElement';
+    toJSON() {
+        return {
+            ...super.toJSON(),
+            className: 'CGElement',
+            // @ts-expect-error: getVisualizerJSON is not statically available here; it's added in SheetViewModel.addElement
+            visualizerJSON: this.getVisualizerJSON()
+        };
+    }
+    fromJSON(jsonObject) {
+        super.fromJSON(jsonObject);
+        this.visualizerJSON = jsonObject.visualizerJSON;
+        return this;
+    }
 }
 export class MTElement extends VisualizerElement {
     className = 'MTElement';
     organizingSubgroup = 0;
     separation = 0;
     toJSON() {
-        const json = super.toJSON();
-        if (json.visualizer == null) { // do we ever have to check this for MTElement?
-            json.organizing_subgroup = this.organizingSubgroup;
-            json.separation = this.separation;
-        }
-        return json;
+        return {
+            ...super.toJSON(),
+            className: 'MTElement',
+            // @ts-expect-error: getVisualizerJSON is not statically available here; it's added in SheetViewModel.addElement
+            visualizerJSON: this.getVisualizerJSON()
+        };
     }
     fromJSON(jsonObject) {
         super.fromJSON(jsonObject);
-        this.organizingSubgroup = jsonObject.organizing_subgroup ?? 0;
-        this.separation = jsonObject.separation ?? 0;
+        this.visualizerJSON = jsonObject.visualizerJSON;
         return this;
     }
 }
 export class LinkElement extends SheetElement {
-    source; // not covariant
-    destination; // not covariant
+    source;
+    destination;
     isLink = true;
     // z level of link is determined from z levels of source/destination
     get z() {
@@ -356,6 +324,12 @@ export class LinkElement extends SheetElement {
         };
     }
     fromJSON(jsonObject) {
+        // test connectivity
+        if (!this.model.canConnect(this, jsonObject.source_id, jsonObject.destination_id)) {
+            const errorMessage = `Unable to connect '${jsonObject.source_id}' and '${jsonObject.destination_id}'`;
+            Log.warn(errorMessage);
+            throw new TypeError(errorMessage);
+        }
         super.fromJSON(jsonObject);
         this.source = this.model.sheetElements.get(jsonObject.source_id.toString());
         this.destination = this.model.sheetElements.get(jsonObject.destination_id.toString());
@@ -370,16 +344,13 @@ export class ConnectingElement extends LinkElement {
     toJSON() {
         return {
             ...super.toJSON(),
+            className: 'ConnectingElement',
             thickness: this.thickness,
             color: this.color,
             hasArrowhead: this.hasArrowhead
         };
     }
     fromJSON(jsonObject) {
-        // test connectivity
-        if (!this.model.canConnect(this, jsonObject.source_id, jsonObject.destination_id)) {
-            throw new TypeError(`Unable to create connection between '${jsonObject.source_id}' and '${jsonObject.destination_id}'`);
-        }
         super.fromJSON(jsonObject);
         this.thickness = jsonObject.thickness ?? 4;
         this.color = jsonObject.color ?? 'black';
@@ -406,8 +377,9 @@ export class MorphismElement extends LinkElement {
             : super.z;
     }
     toJSON() {
-        const json = {
+        return {
             ...super.toJSON(),
+            className: 'MorphismElement',
             morphismName: this.morphismName,
             showDomainAndCodomain: this.showDomainAndCodomain,
             showDefiningPairs: this.showDefiningPairs,
@@ -420,14 +392,8 @@ export class MorphismElement extends LinkElement {
             useMulttableDestinationTopRow: this.useMulttableDestinationTopRow,
             definingPairs: this.mapping?.definingPairs ?? []
         };
-        return json;
     }
     fromJSON(jsonObject) {
-        // test connectivity
-        if (!this.model.canConnect(this, jsonObject.source_id, jsonObject.destination_id)) {
-            throw new TypeError(`Unable to create morphism between '${jsonObject.source_id}' and '${jsonObject.destination_id}'`);
-        }
-        // override default naming: priority for Morphism is jsonObject.name > this._name > new mathy name
         super.fromJSON(jsonObject);
         this.morphismName = jsonObject.morphismName ?? this.#getMathyName();
         this.showDomainAndCodomain = jsonObject.showDomainAndCodomain ?? false;
@@ -439,7 +405,9 @@ export class MorphismElement extends LinkElement {
         this.fontSize = jsonObject.fontSize ?? null;
         this.useMulttableSourceTopRow = jsonObject.useMulttableSourceTopRow ?? false;
         this.useMulttableDestinationTopRow = jsonObject.useMulttableDestinationTopRow ?? false;
-        this.mapping = new Mapping(this.source.group, this.destination.group, jsonObject.definingPairs);
+        const sourceGroup = Library.getGroupByURL(this.source.visualizerJSON.group_url);
+        const destinationGroup = Library.getGroupByURL(this.destination.visualizerJSON.group_url);
+        this.mapping = new Mapping(sourceGroup, destinationGroup, jsonObject.definingPairs);
         return this;
     }
     // Find the simplest mathy name for this morphism that's not yet used on this sheet.
@@ -473,9 +441,44 @@ _a = MorphismElement;
 export function createNewSheet(arg) {
     const title = Array.isArray(arg) ? null : (arg.title ?? null);
     const jsonObjects = Array.isArray(arg) ? arg : arg.elements;
+    const translatedRequest = translateRequest(jsonObjects);
     const newWindow = window.open('about:blank'); // workaround for Safari
-    StoredObjects.setPassedSheet({ title, elements: jsonObjects })
+    StoredObjects.setPassedSheet({ title, elements: translatedRequest })
         .then(() => { newWindow.location.href = 'Sheet.html?passedSheet'; });
+}
+function translateRequest(requests) {
+    const results = requests.map((request) => {
+        const result = { ...request };
+        // create visualizer and move relevant values to visualizer
+        if (['CDElement', 'CGElement', 'MTElement'].includes(request.className)) {
+            result.visualizerJSON = {};
+            result.visualizerJSON.group_url = request.groupURL;
+            result.visualizerJSON.highlight_colors = request.highlight_colors ?? [[], [], []];
+            switch (request.className) {
+                case 'CDElement':
+                    if (['arrow_generators', 'diagram_name', 'strategy_parameters'].some((field) => field in request)) {
+                        result.visualizerJSON.diagram_control = {};
+                        if ('diagram_name' in request) {
+                            result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name'];
+                        }
+                        else if ('strategy_parameters' in request) {
+                            result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters'];
+                            if ('arrow_generators' in request) {
+                                result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators'];
+                            }
+                        }
+                    }
+                    break;
+                case 'MTElement':
+                    if ('organizing_subgroup' in request) {
+                        result.visualizerJSON['organizing_subgroup'] = request['organizing_subgroup'];
+                    }
+                    break;
+            }
+        }
+        return result;
+    });
+    return results;
 }
 // function used by Sheet.js
 // load passed sheet from IndexedDB; returns title string or null

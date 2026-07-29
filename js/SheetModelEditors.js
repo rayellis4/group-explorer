@@ -464,8 +464,8 @@ export class MorphismEditor extends SheetElementEditor {
              </style>
          </div>`;
         super(morphismElement, morphismEditorHTML, location);
-        this.sourceHighlightSnapshot = [...morphismElement.source.highlightColors[0]];
-        this.destHighlightSnapshot = [...morphismElement.destination.highlightColors[0]];
+        this.sourceHighlightSnapshot = [...morphismElement.source.viewElement.visualizer.model.highlightColors[0]];
+        this.destHighlightSnapshot = [...morphismElement.destination.viewElement.visualizer.model.highlightColors[0]];
         // set column widths in defining pair table
         const DISPLAY_FONT_SIZE = 20;
         const domainHeaderSize = document.querySelector('#defining-pair-table th:first-child').getBoundingClientRect().width;
@@ -678,7 +678,7 @@ export class MorphismEditor extends SheetElementEditor {
             const c = colorMap.get(inx);
             destinationHighlights[inx] = c != null ? ('#' + c.getHexString()) : null;
         });
-        this.modelElement.destination.viewElement.visualizer.model.$touch('highlightColors');
+        this.modelElement.destination.viewElement.visualizer.modelProxy.$touch('highlightColors');
         this.modelElement.destination.viewElement.redraw();
         redrawLinksFor(this.modelElement.destination);
     }
@@ -719,7 +719,7 @@ export class MorphismEditor extends SheetElementEditor {
         this.modelElement.source.viewElement.visualizer.model.group.elements.forEach((inx) => {
             sourceHighlights[inx] = colorMap.has(inx) ? ('#' + colorMap.get(inx).getHexString()) : null;
         });
-        this.modelElement.source.viewElement.visualizer.model.$touch('highlightColors');
+        this.modelElement.source.viewElement.visualizer.modelProxy.$touch('highlightColors');
         this.modelElement.source.viewElement.redraw();
         redrawLinksFor(this.modelElement.source);
     }

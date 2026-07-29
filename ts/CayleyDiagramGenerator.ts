@@ -148,9 +148,11 @@ function makeLayout (chunkTree: Chunk, arrows: ArrowType[], generatesFromStrateg
  *     and make cubes look flat; look at origin, and adjust camera
  *     distance so that diagram fills field of view
  */
-function getPOV (chunkTree: Chunk, generatesFromStrategy: boolean) {
+export function getPOV (chunkOrNodePositions: Chunk | {position: THREE.Vector3}[], generatesFromStrategy: boolean) {
+   const nodes = (chunkOrNodePositions instanceof Chunk) ? chunkOrNodePositions.allChildNodes : chunkOrNodePositions
+
    const pov = {position: new THREE.Vector3(), up: new THREE.Vector3()}
-   const nodePositions = chunkTree.allChildNodes.map((node) => node.position)
+   const nodePositions = nodes.map((node) => node.position)
    if (generatesFromStrategy) {
       // GE3 3.6 defaults for generated layout
       if (nodePositions.every((position) => position.x == 0.0)) {
@@ -193,7 +195,7 @@ function getPOV (chunkTree: Chunk, generatesFromStrategy: boolean) {
       }
    }
 
-   const radius = getRadius(new THREE.Vector3(), chunkTree.allChildNodes) || 1  // zero radius, one element
+   const radius = getRadius(new THREE.Vector3(), nodes) || 1  // zero radius, one element
    pov.position.multiplyScalar(radius)
 
    return pov
@@ -963,7 +965,7 @@ function getCentroid (nodes: Chunk[] | NodeType[]): THREE.Vector3 {
         .multiplyScalar(1 / nodes.length)
 }
 
-function getRadius (center: THREE.Vector3, nodes: Chunk[] | NodeType[]) {
+function getRadius (center: THREE.Vector3, nodes: {position: THREE.Vector3}[]) {
     const squaredRadius = nodes
         .reduce<float>((squaredRadius, node) => Math.max(squaredRadius, node.position.distanceToSquared(center)), 0)
 

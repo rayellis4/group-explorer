@@ -11,27 +11,52 @@ import * as Library from './Library.js'
 import * as Log from './Log.js'
 import { Mapping, definingPairType } from './Mapping.js'
 import * as StoredObjects from './StoredObjects.js'
+import * as THREE from '../lib/externals.js'
 
 import type { ArrowGenerator, StrategyParameters } from './CayleyDiagramGenerator.ts'
+import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.js'
+import type { CycleGraphJSON } from './CycleGraphModel.ts'
 import type { Group } from './Group.ts'
+import type { MulttableJSON } from './MulttableModel.ts'
 
 export type VisualizerType = 'CDElement' | 'MTElement' | 'CGElement'
-
-type ConcreteSheetElementClass =
-   TextElement | CDElement | CGElement | MTElement | ConnectingElement | MorphismElement
-type ConcreteSheetElementClassName =
-   'TextElement' | 'CDElement' | 'CGElement' | 'MTElement' | 'ConnectingElement' | 'MorphismElement'
-
-export type SheetJSON = NodeElementJSON | VisualizerElementJSON | LinkElementJSON |
-   TextElementJSON | CDElementJSON | CGElementJSON | MTElementJSON | ConnectingElementJSON | MorphismElementJSON 
+export type ConcreteSheetTypes = {
+   TextElement: TextElementJSON,
+   CDElement: CDElementJSON,
+   CGElement: CGElementJSON,
+   MTElement: MTElementJSON,
+   ConnectingElement: ConnectingElementJSON,
+   MorphismElement: MorphismElementJSON,
+}
+export type SheetTypes = {
+   VisualizerElement: SheetTypes['CDElement'] | SheetTypes['CGElement'] | SheetTypes['MTElement'],
+   NodeElement: SheetTypes['TextElement'] | SheetTypes['VisualizerElement'],
+   LinkElement: SheetTypes['ConnectingElement'] | SheetTypes['MorphismElement'] 
+} & ConcreteSheetTypes
+export type SheetJSON = SheetTypes[keyof SheetTypes]
 
 export type alignmentType  = 'left' | 'center' | 'right'
-type arrowColorType = 'none' | 'source' | 'destination'
+export type arrowColorType = 'none' | 'source' | 'destination'
 
-interface SheetElementFields {
+
+export interface SheetVisualizerInterface<JSONType> {
+   group: Group,
+   highlightColors: Maybe<color>[][],
+   canvas: HTMLCanvasElement,
+   getSize: () => {w: number, h: number},
+   setSize: (w: number, h: number) => void,
+   resize: () => void,
+   showGraphic: () => void,
+   unitSquarePositions: () => THREE.Vector2[],
+   getImage: () => HTMLImageElement,
+   toJSON: () => JSONType,
+   fromJSON: (jsonObject: JSONType) => void
+};
+
+export interface SheetElementJSON {
    id?: string
 }
-export interface NodeElementFields extends SheetElementFields {
+export interface NodeElementJSON extends SheetElementJSON {
    x: float,
    y: float,
    w: float,
@@ -39,7 +64,8 @@ export interface NodeElementFields extends SheetElementFields {
    z?: float,
    anchor_id?: string
 }
-export interface TextElementFields extends NodeElementFields {
+export interface TextElementJSON extends NodeElementJSON {
+   className: 'TextElement',
    alignment?: alignmentType,
    color?: color,  // background color
    fontSize?: string,
@@ -48,37 +74,38 @@ export interface TextElementFields extends NodeElementFields {
    opacity?: float,  // background opacity
    text?: string,
 }
-export interface VisualizerElementFields extends NodeElementFields {
-   groupURL: string,
-   highlight_colors?: Maybe<color>[][],
-   visualizer?: unknown
+export interface VisualizerElementJSON extends NodeElementJSON {
+   // model element contains visualizerJSON (possibly stale)
+   // modelElement.viewElement holds the active visualizer object
+   visualizerJSON: {
+      group_url: string,
+      highlight_colors?: Maybe<color>[][]
+   }
 }
-export interface CDElementFields extends VisualizerElementFields {
-   arrow_generators?: ArrowGenerator[],
-   chunk_subgroup_index?: integer,
-   diagram_control?: unknown, // Record<string, unknown>,
-   diagram_name?: string,
-   strategy_parameters?: StrategyParameters[]
+export interface CDElementJSON extends VisualizerElementJSON {
+   className: 'CDElement',
+   visualizerJSON: CayleyDiagramModelJSON
 }
-export interface CGElementFields extends VisualizerElementFields {
+export interface CGElementJSON extends VisualizerElementJSON {
+   className: 'CGElement',
+   visualizerJSON: CycleGraphJSON
 }
-export interface MTElementFields extends VisualizerElementFields {
-   color_reordering?: 'topRowFixed' | 'elementColorsFixed',
-   coloration?: 'rainbow' | 'grayscale' | 'none',
-   elements?: groupElement[],
-   organizing_subgroup?: integer,
-   separation?: float
+export interface MTElementJSON extends VisualizerElementJSON {
+   className: 'MTElement',
+   visualizerJSON: MulttableJSON,
 }
-export interface LinkElementFields extends SheetElementFields {
+export interface LinkElementJSON extends SheetElementJSON {
    source_id: string,
    destination_id: string,
 }
-export interface ConnectingElementFields extends LinkElementFields {
+export interface ConnectingElementJSON extends LinkElementJSON {
+   className: 'ConnectingElement',
    thickness?: float,
    color?: color,
    hasArrowhead?: boolean
 }
-export interface MorphismElementFields extends LinkElementFields {
+export interface MorphismElementJSON extends LinkElementJSON {
+   className: 'MorphismElement',
    morphismName?: string,
    arrowColor?: arrowColorType,
    arrowMargin?: number,
@@ -91,51 +118,6 @@ export interface MorphismElementFields extends LinkElementFields {
    useMulttableSourceTopRow?: boolean,
    useMulttableDestinationTopRow?: boolean,
 }
-export interface SheetElementJSON extends SheetElementFields {
-   className: ConcreteSheetElementClassName
-}
-export interface NodeElementJSON extends NodeElementFields {
-   className: 'TextElement' | 'CDElement' | 'CGElement' | 'MTElement'
-}
-export interface TextElementJSON extends TextElementFields {
-   className: 'TextElement'
-}
-export interface VisualizerElementJSON extends VisualizerElementFields {
-   className: 'CDElement' | 'CGElement' | 'MTElement'
-}
-export interface CDElementJSON extends CDElementFields {
-   className: 'CDElement'
-}
-export interface CGElementJSON extends CGElementFields {
-   className: 'CGElement'
-}
-export interface MTElementJSON extends MTElementFields {
-   className: 'MTElement'
-}
-export interface LinkElementJSON extends LinkElementFields {
-   className: 'ConnectingElement' | 'MorphismElement'
-}
-export interface ConnectingElementJSON extends ConnectingElementFields {
-   className: 'ConnectingElement'
-}
-export interface MorphismElementJSON extends MorphismElementFields {
-   className: 'MorphismElement'
-}
-
-/*
-export interface VizDisplay<VisDispJSON> {
-   group: Group;
-   getSize(): {w: number, h: number};
-   setSize(w: number, h: number): void;
-   getImage(): Image;
-   toJSON(): VizDispJSON;
-   fromJSON(VizDispJSON): void;
-   unitSquarePosition(groupElement): {x: float, y: float};
-};
-
-export type MSG_external<VizType: any> = any;
-export type MSG_editor<VizType: any> = any;
- */
 
 // #sheet-control has font-size: 1.25rem; #control-panel has min-width: 20em => 25rem total
 export function sheetPanelWidth () {
@@ -151,12 +133,12 @@ export function fittedFontSize (html: html, maxWidth: float, min: float = 1.5, m
    return `${px.toFixed(1)}px`
 }
 
-interface SheetElementJSONWithId extends SheetElementJSON { id: string }
+interface SheetElementJSONWithId extends SheetElementJSON { id: string, className: keyof ConcreteSheetTypes }
 
 export class SheetModel {
    #sheetElements: Map<string, SheetElement> = new Map()
    nextId = 0
-   classMap: Record<string, new (...args: any[]) => { fromJSON (jsonObject: unknown): ConcreteSheetElementClass}> = {
+   classMap: Record<keyof ConcreteSheetTypes, new (...args: any[]) => { fromJSON (jsonObject: unknown): any}> = {
       TextElement: TextElement,
       CDElement: CDElement,
       CGElement: CGElement,
@@ -174,7 +156,7 @@ export class SheetModel {
    }
 
    fromJSON (json: string | SheetJSON[]) {
-      const jsonObjects: SheetElementJSON[] = (typeof json == 'string')
+      const jsonObjects: SheetJSON[] = (typeof json == 'string')
          ? JSON.parse(json)
          : json
 
@@ -236,7 +218,7 @@ export class SheetModel {
       })
    }
 
-   addObjectAsElement (plainObject: SheetJSON, className: string): SheetElement {
+   addObjectAsElement (plainObject: SheetJSON, className: keyof ConcreteSheetTypes): SheetElement {
       if (!('id' in plainObject)) {
          while (this.sheetElements.has(this.nextId.toString())) {  // find an unused id
             this.nextId++
@@ -282,7 +264,7 @@ export class SheetModel {
 // SheetModel helper classes
 export abstract class SheetElement {
    id: string
-   className!: string
+   className!: keyof ConcreteSheetTypes
    #model: SheetModel
 
    constructor (model: SheetModel, id: string) {
@@ -298,12 +280,11 @@ export abstract class SheetElement {
 
    toJSON (): SheetElementJSON {
       return {
-         id: this.id,
-         className: this.className as ConcreteSheetElementClassName
+         id: this.id
       }
    }
 
-   fromJSON (jsonObject: SheetElementJSON) {
+   fromJSON (_jsonObject: SheetElementJSON) {
       return this
    }
 }
@@ -361,8 +342,7 @@ export abstract class NodeElement extends SheetElement {
 }
 
 export class TextElement extends NodeElement {
-   className = 'TextElement'
-
+   readonly className: keyof ConcreteSheetTypes = 'TextElement'
    text!: string
    color!: color    // background color
    opacity!: float  // opacity in [0,1]: 0 => transparent, 1 => completely opaque
@@ -373,7 +353,8 @@ export class TextElement extends NodeElement {
 
    toJSON (): TextElementJSON {
       return {
-         ...super.toJSON() as TextElementJSON,
+         ...super.toJSON(),
+         className: 'TextElement',
          text: this.text,
          color: this.color,
          opacity: this.opacity,
@@ -404,107 +385,90 @@ export class TextElement extends NodeElement {
 
 export abstract class VisualizerElement extends NodeElement {
    group!: Group
-   highlightColors!: Maybe<color>[][]  // golden record is in the visualizer; this is just initialization
-   visualizer: unknown  // opaque JSON blob; live visualizer object lives in SheetView
+   visualizerJSON!: {
+      group_url: string,
+      highlight_colors?: Maybe<color>[][]
+   }
    isVisualizer = true
 
-   toJSON (): VisualizerElementJSON {
-      // @ts-expect-error: getVisualizerJSON is added in SheetViewModel.addElement
-      const visualizerJSON = this.getVisualizerJSON()
-      return {
-         ...super.toJSON() as VisualizerElementJSON,
-         groupURL: this.group.URL,
-         // highlightColors inside visualizer is golden; highlight_colors here is for CDView fast-path init
-         highlight_colors: visualizerJSON?.highlightColors ?? this.highlightColors ?? [[], [], []],
-         visualizer: visualizerJSON ?? this.visualizer
-      }
-   }
-
    fromJSON (jsonObject: VisualizerElementJSON) {
+      this.group = Library.getGroupByURL(jsonObject.visualizerJSON.group_url) as Group
+      if (this.group == null) {
+         const errorMessage = `unable to get group from ${jsonObject.visualizerJSON.group_url}`
+         Log.err(errorMessage)
+         throw new TypeError(errorMessage)
+      }
       super.fromJSON(jsonObject)
-      this.group = Library.getGroupByURL(jsonObject.groupURL as string) as Group
-      this.highlightColors = jsonObject.highlight_colors as Maybe<color>[][] ?? [[], [], []]
-      this.visualizer = jsonObject.visualizer
-
       return this
    }
 }
 
 export class CDElement extends VisualizerElement {
-   className = 'CDElement'
-   diagramControl?: Record<string, unknown>  // initialization only; baked into visualizer JSON on first getVisualizerJSON() call
+   readonly className: keyof ConcreteSheetTypes = 'CDElement'
+   declare visualizerJSON: CayleyDiagramModelJSON
 
    toJSON (): CDElementJSON {
-      const json = super.toJSON() as CDElementJSON
-      if (json.visualizer == null) {
-         json.diagram_control = this.diagramControl
+      return {
+         ...super.toJSON(),
+         className: 'CDElement',
+         // @ts-expect-error: getVisualizerJSON is not statically available here; it's added in SheetViewModel.addElement
+         visualizerJSON: this.getVisualizerJSON()
       }
-      return json
    }
 
    fromJSON (jsonObject: CDElementJSON) {
       super.fromJSON(jsonObject)
-
-      // @ts-expect-error: null => initialization in progress
-      this.diagramControl = null
-
-      const moveField = (field: keyof CDElementJSON) => {
-         if (this.diagramControl == null) {
-            this.diagramControl = {}
-         }
-         this.diagramControl[field] = jsonObject[field]
-         delete jsonObject[field]
-      }
-
-      // remove diagram_name, strategy_parameters, arrow_generators from JSON and place in diagramControl
-      if ('diagram_name' in jsonObject) {
-         moveField('diagram_name')
-      } else if ('strategy_parameters' in jsonObject) {
-         moveField('strategy_parameters')
-         if ('arrow_generators' in jsonObject) {
-            moveField('arrow_generators')
-         }
-      }
-
-      // prefer explicit diagram_control in jsonObject
-      if ('diagram_control' in jsonObject != null) {
-         this.diagramControl = jsonObject.diagram_control as Record<string, unknown>
-      }
-
+      this.visualizerJSON = jsonObject.visualizerJSON
       return this
    }
 }
 
 export class CGElement extends VisualizerElement {
-   className = 'CGElement'
+   readonly className: keyof ConcreteSheetTypes = 'CGElement'
+   declare visualizerJSON: CycleGraphJSON
+
+   toJSON (): CGElementJSON {
+      return {
+         ...super.toJSON(),
+         className: 'CGElement',
+         // @ts-expect-error: getVisualizerJSON is not statically available here; it's added in SheetViewModel.addElement
+         visualizerJSON: this.getVisualizerJSON()
+      }
+   }
+
+   fromJSON (jsonObject: CGElementJSON) {
+      super.fromJSON(jsonObject)
+      this.visualizerJSON = jsonObject.visualizerJSON
+      return this
+   }
 }
 
 export class MTElement extends VisualizerElement {
-   className = 'MTElement'
+   readonly className: keyof ConcreteSheetTypes = 'MTElement'
+   declare visualizerJSON: MulttableJSON
+
    organizingSubgroup: integer = 0
    separation: float = 0
 
    toJSON (): MTElementJSON {
-      const json = super.toJSON() as MTElementJSON
-      if (json.visualizer == null) {  // do we ever have to check this for MTElement?
-         json.organizing_subgroup = this.organizingSubgroup
-         json.separation = this.separation
+      return {
+         ...super.toJSON(),
+         className: 'MTElement',
+         // @ts-expect-error: getVisualizerJSON is not statically available here; it's added in SheetViewModel.addElement
+         visualizerJSON: this.getVisualizerJSON()
       }
-      return json
    }
 
    fromJSON (jsonObject: MTElementJSON) {
       super.fromJSON(jsonObject)
-      this.organizingSubgroup = jsonObject.organizing_subgroup ?? 0
-      this.separation = jsonObject.separation ?? 0
-
+      this.visualizerJSON = jsonObject.visualizerJSON
       return this
    }
 }
 
 export abstract class LinkElement extends SheetElement {
-   source!: NodeElement  // not covariant
-   destination!: NodeElement  // not covariant
+   source!: NodeElement
+   destination!: NodeElement
    isLink = true
 
    // z level of link is determined from z levels of source/destination
@@ -521,8 +485,14 @@ export abstract class LinkElement extends SheetElement {
    }
 
    fromJSON (jsonObject: LinkElementJSON) {
-      super.fromJSON(jsonObject)
+      // test connectivity
+      if (!this.model.canConnect(this, jsonObject.source_id, jsonObject.destination_id)) {
+         const errorMessage = `Unable to connect '${jsonObject.source_id}' and '${jsonObject.destination_id}'`
+         Log.warn(errorMessage)
+         throw new TypeError(errorMessage)
+      }
 
+      super.fromJSON(jsonObject)
       this.source = this.model.sheetElements.get(jsonObject.source_id.toString()) as NodeElement
       this.destination = this.model.sheetElements.get(jsonObject.destination_id.toString()) as NodeElement
 
@@ -531,14 +501,15 @@ export abstract class LinkElement extends SheetElement {
 }
 
 export class ConnectingElement extends LinkElement {
-   className = 'ConnectingElement'
+   readonly className: keyof ConcreteSheetTypes = 'ConnectingElement'
    thickness!: float  // 'width'? 'lineWidth'?
    color!: color
    hasArrowhead!: boolean // 'directed'?
 
    toJSON (): ConnectingElementJSON {
       return {
-         ...super.toJSON() as ConnectingElementJSON,
+         ...super.toJSON(),
+         className: 'ConnectingElement',
          thickness: this.thickness,
          color: this.color,
          hasArrowhead: this.hasArrowhead
@@ -546,10 +517,6 @@ export class ConnectingElement extends LinkElement {
    }
 
    fromJSON (jsonObject: ConnectingElementJSON) {
-      // test connectivity
-      if (!this.model.canConnect(this, jsonObject.source_id, jsonObject.destination_id)) {
-         throw new TypeError(`Unable to create connection between '${jsonObject.source_id}' and '${jsonObject.destination_id}'`)
-      }
       super.fromJSON(jsonObject)
       this.thickness = jsonObject.thickness ?? 4
       this.color = jsonObject.color ?? 'black'
@@ -562,7 +529,7 @@ export class MorphismElement extends LinkElement {
    declare source: VisualizerElement
    declare destination: VisualizerElement
    
-   className = 'MorphismElement'
+   readonly className: keyof ConcreteSheetTypes = 'MorphismElement'
    morphismName!: string
    showDomainAndCodomain!: boolean
    showDefiningPairs!: boolean
@@ -582,8 +549,9 @@ export class MorphismElement extends LinkElement {
    }
 
    toJSON (): MorphismElementJSON {
-      const json = {
-         ...super.toJSON() as MorphismElementJSON,
+      return {
+         ...super.toJSON(),
+         className: 'MorphismElement',
          morphismName: this.morphismName,
          showDomainAndCodomain: this.showDomainAndCodomain,
          showDefiningPairs: this.showDefiningPairs,
@@ -596,16 +564,9 @@ export class MorphismElement extends LinkElement {
          useMulttableDestinationTopRow: this.useMulttableDestinationTopRow,
          definingPairs: this.mapping?.definingPairs ?? []
       }
-
-      return json
    }
 
    fromJSON (jsonObject: MorphismElementJSON) {
-      // test connectivity
-      if (!this.model.canConnect(this, jsonObject.source_id, jsonObject.destination_id)) {
-         throw new TypeError(`Unable to create morphism between '${jsonObject.source_id}' and '${jsonObject.destination_id}'`)
-      }
-      // override default naming: priority for Morphism is jsonObject.name > this._name > new mathy name
       super.fromJSON(jsonObject)
       this.morphismName = jsonObject.morphismName ?? this.#getMathyName()
       this.showDomainAndCodomain = jsonObject.showDomainAndCodomain ?? false
@@ -617,7 +578,10 @@ export class MorphismElement extends LinkElement {
       this.fontSize = jsonObject.fontSize ?? null
       this.useMulttableSourceTopRow = jsonObject.useMulttableSourceTopRow ?? false
       this.useMulttableDestinationTopRow = jsonObject.useMulttableDestinationTopRow ?? false
-      this.mapping = new Mapping(this.source.group, this.destination.group, jsonObject.definingPairs)
+
+      const sourceGroup = Library.getGroupByURL(this.source.visualizerJSON.group_url) as Group
+      const destinationGroup = Library.getGroupByURL(this.destination.visualizerJSON.group_url) as Group
+      this.mapping = new Mapping(sourceGroup, destinationGroup, jsonObject.definingPairs)
 
       return this
    }
@@ -648,15 +612,107 @@ export class MorphismElement extends LinkElement {
   }
 }
 
+export interface SheetElementRequest {
+   // Discriminator
+   className: keyof SheetTypes
+
+   // SheetElement
+   id?: string
+
+   // NodeElement
+   x?: float,
+   y?: float,
+   w?: float,
+   h?: float,  // undefined h => h determined automatically on first display
+   anchor_id?: string
+
+   // TextElement
+   alignment?: alignmentType,
+   color?: color,  // background color
+   fontSize?: string,
+   fontColor?: string,
+   opacity?: float,  // background opacity
+   text?: string,
+
+   // Visualizer
+   groupURL?: string,
+   highlight_colors?: Maybe<color>[][],
+
+   // CDElement
+   arrow_generators?: ArrowGenerator[],
+   diagram_name?: string,
+   strategy_parameters?: StrategyParameters[]
+
+   // MTElement
+   organizing_subgroup?: integer,
+
+   // LinkElement
+   source_id?: string,
+   destination_id?: string,
+
+   // ConnectingElement
+   thickness?: float,
+// color?: color,
+   hasArrowhead?: boolean
+
+   // MorphismElement
+   morphismName?: string,
+   arrowColor?: arrowColorType,
+   definingPairs?: definingPairType[]
+// fontSize?: Maybe<string>,
+   showInjectionSurjection?: boolean,
+   showManyArrows?: boolean,
+}
+
 // create new sheet, used by GroupInfo routines
 // accepts {title, elements} or bare array (backward compat)
 // stores in IndexedDB and opens Sheet.html in new window
-export function createNewSheet (arg: {title: string, elements: SheetJSON[]} | SheetJSON[]) {
+export function createNewSheet (arg: {title: string, elements: SheetElementRequest[]} | SheetElementRequest[]) {
    const title = Array.isArray(arg) ? null : (arg.title ?? null)
    const jsonObjects = Array.isArray(arg) ? arg : arg.elements
+   const translatedRequest = translateRequest(jsonObjects)
    const newWindow = window.open('about:blank') as Window // workaround for Safari
-   StoredObjects.setPassedSheet({title, elements: jsonObjects})
+   StoredObjects.setPassedSheet({title, elements: translatedRequest})
       .then(() => { newWindow.location.href = 'Sheet.html?passedSheet' })
+}
+
+function translateRequest (requests: SheetElementRequest[]): SheetJSON[] {
+   const results: any = requests.map((request) => {
+      const result = {...request} as Record<string, any>
+
+      // create visualizer and move relevant values to visualizer
+      if (['CDElement', 'CGElement', 'MTElement'].includes(request.className)) {
+         result.visualizerJSON = {}
+         result.visualizerJSON.group_url = request.groupURL
+         result.visualizerJSON.highlight_colors = request.highlight_colors ?? [[], [], []]
+
+         switch (request.className) {
+            case 'CDElement':
+               if (['arrow_generators', 'diagram_name', 'strategy_parameters'].some((field) => field in request)) {
+                  result.visualizerJSON.diagram_control = {}
+                  if ('diagram_name' in request) {
+                     result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name']
+                  } else if ('strategy_parameters' in request) {
+                     result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters']
+                     if ('arrow_generators' in request) {
+                        result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators']
+                     }
+                  }
+               }
+               break
+
+            case 'MTElement':
+               if ('organizing_subgroup' in request) {
+                  result.visualizerJSON['organizing_subgroup'] = request['organizing_subgroup']
+               }
+               break         
+         }
+      }
+
+      return result as SheetJSON
+   })
+   
+   return results
 }
 
 // function used by Sheet.js

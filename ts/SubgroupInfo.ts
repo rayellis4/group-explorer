@@ -368,7 +368,7 @@ function showSubgroupLattice (
    const latticeLeft = (hSize * cellWidth > horizontalSpace) ? 0 : (horizontalSpace - hSize * cellWidth) / 2
 
    // Build the sheet
-   const sheetElementsAsJSON: SheetModel.SheetJSON[] = []
+   const sheetElementsAsJSON: SheetModel.SheetElementRequest[] = []
 
    if (!reduced) {  // labelled visualizer
       // find conjugacy class colors
@@ -578,7 +578,7 @@ function showEmbeddingSheet (group: Group, indexOfH: number, type: SheetModel.Vi
    const L = (window.innerWidth - panelWidth - totalW) / 2
    const vizY = 0.4 * (window.innerHeight - Hv)
 
-   const embeddingSheet: SheetModel.SheetJSON[] = [
+   const embeddingSheet: SheetModel.SheetElementRequest[] = [
       {
          className : type, groupURL : libraryH.URL, id: '1',
          x : L, y : vizY, w : W, h : Hv,
@@ -650,7 +650,7 @@ function showQuotientSheet (group: Group, indexOfN: number, type: SheetModel.Vis
    high4[0] = col4;
    const headerFontSize = '2em'
    const captionFontSize = '1.25em'
-   const quotientSheet: SheetModel.SheetJSON[] = [
+   const quotientSheet: SheetModel.SheetElementRequest[] = [
       {
          className : 'TextElement',
          x : L, y : vizY - txtH, w : W, h : txtH,

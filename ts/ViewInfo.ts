@@ -202,7 +202,7 @@ function showAllVisualizersSheet (group: Group) {
     const L = (window.innerWidth - panelWidth - totalW) / 2
     const vizY = 0.4 * (window.innerHeight - H)   // center visualizers just above midline
 
-    const allVisualizersSheet: SheetModel.SheetJSON[] = [
+    const allVisualizersSheet: SheetModel.SheetElementRequest[] = [
         {
             className : 'CDElement', id : 'cd',
             groupURL : group.URL, diagram_name : group.cayleyDiagrams[0]?.name,

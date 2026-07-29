@@ -1,11 +1,14 @@
 import * as THREE from '../lib/externals.js';
 import { CayleyDiagramModel, CayleyDiagramModelJSON } from './CayleyDiagramModel.js';
+import { CycleGraphJSON } from './CycleGraphModel.js';
+import { MulttableJSON } from './MulttableModel.js';
 import type { CayleyDiagramViewModel } from './CayleyDiagramView.ts';
 import type { CycleGraphViewModel } from './CycleGraphView.ts';
 import type { SubscriptionProxy } from './GEUtils.ts';
+import type { HighlightControlModelInterface } from './HighlightControl.ts';
 import type { MulttableViewModel } from './MulttableView.ts';
-import type { SheetViewModel, SheetElement, NodeElement, TextElement, VisualizerElement, CDElement, CGElement, MTElement, LinkElement, ConnectingElement, MorphismElement } from './SheetViewModel.ts';
 import type * as SheetModel from './SheetModel.ts';
+import type { SheetViewModel, SheetElement, NodeElement, TextElement, VisualizerElement, CDElement, CGElement, MTElement, LinkElement, ConnectingElement, MorphismElement } from './SheetViewModel.ts';
 export declare let graphicRect: DOMRect;
 export declare let zoomFactor: float;
 export declare function init(): void;
@@ -67,24 +70,26 @@ export declare abstract class VisualizerView extends NodeView {
         update: (field: string, value: unknown) => void;
     };
     constructor(view: View, modelElement: VisualizerElement, domElement?: HTMLElement);
-    abstract get visualizer(): any;
+    abstract get visualizer(): CayleyDiagramViewModel | CycleGraphViewModel | MulttableViewModel;
+    abstract updateFromJSON(json: unknown): void;
     updateTransform(): void;
     redraw(): void;
-    updateFromJSON(json: unknown): void;
-    restoreHighlights(snapshot: NonNullable<SheetModel.VisualizerElementJSON['highlight_colors']>[number][number][]): void;
-    get highlightModelProxy(): any;
-    getVisualizerJSON(): any;
+    restoreHighlights(snapshot: NonNullable<SheetModel.VisualizerElementJSON['visualizerJSON']['highlight_colors']>[number]): void;
+    get highlightModelProxy(): SubscriptionProxy<HighlightControlModelInterface>;
+    getVisualizerJSON(): CycleGraphJSON;
 }
 export declare class CGView extends VisualizerView {
     modelElement: CGElement;
     cgViewModel: CycleGraphViewModel;
     constructor(view: View, modelElement: CGElement);
+    updateFromJSON(json: CycleGraphJSON): void;
     get visualizer(): CycleGraphViewModel;
 }
 export declare class MTView extends VisualizerView {
     modelElement: MTElement;
     mtViewModel: MulttableViewModel;
     constructor(view: View, modelElement: MTElement);
+    updateFromJSON(json: MulttableJSON): void;
     get visualizer(): MulttableViewModel;
 }
 export declare class CDView extends VisualizerView {
@@ -93,15 +98,13 @@ export declare class CDView extends VisualizerView {
         onVisualizerChange?: (json: unknown) => void;
     };
     private _highlightModelProxy;
-    savedVisualizerJSON: Maybe<CayleyDiagramModelJSON>;
     constructor(view: View, modelElement: CDElement);
     get visualizer(): CayleyDiagramViewModel;
     get highlightModelProxy(): SubscriptionProxy<CayleyDiagramModel>;
     updateFromJSON(json: CayleyDiagramModelJSON): void;
     destroy(): void;
     redraw(): void;
-    restoreHighlights(snapshot: NonNullable<SheetModel.VisualizerElementJSON['highlight_colors']>[number][number][]): void;
-    getVisualizerJSON(): any;
+    restoreHighlights(snapshot: NonNullable<SheetModel.VisualizerElementJSON['visualizerJSON']['highlight_colors']>[number]): void;
 }
 declare class Arrow {
     static PIXELS_PER_INCH: number;

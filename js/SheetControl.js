@@ -67,12 +67,13 @@ class ViewModel {
                 delete element.h;
                 break;
             case 'CDElement':
-                element.highlightColors = {};
             case 'CGElement':
             case 'MTElement':
                 element.w = 0.1 * scale;
                 element.h = 0.1 * scale;
-                element.groupURL = groupURL;
+                element.visualizerJSON = {
+                    group_url: groupURL
+                };
                 break;
         }
         this.#model.addObjectAsElement(element, className);

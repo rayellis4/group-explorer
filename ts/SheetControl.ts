@@ -23,7 +23,7 @@ import { SheetModel } from './SheetModel.js'
 import * as SheetView from './SheetView.js'
 
 import type { Group } from './Group.ts'
-import type { SheetJSON } from './SheetModel.ts'
+import type { SheetJSON, ConcreteSheetTypes } from './SheetModel.ts'
 import type { SheetViewModel } from './SheetViewModel.ts'
 
 type NamedSheet = { sheetName: string, sheetJSON: WrappedSheet }
@@ -84,15 +84,16 @@ class ViewModel {
             break
 
          case 'CDElement':
-            element.highlightColors = {}
          case 'CGElement':
          case 'MTElement':
             element.w = 0.1 * scale
             element.h = 0.1 * scale
-            element.groupURL = groupURL
+            element.visualizerJSON = {
+               group_url: groupURL
+            }
             break
       }
-      this.#model.addObjectAsElement(element as unknown as SheetJSON, className)
+      this.#model.addObjectAsElement(element as unknown as SheetJSON, className as keyof ConcreteSheetTypes)
    }
 
    toJSON () {

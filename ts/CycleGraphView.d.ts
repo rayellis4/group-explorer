@@ -3,6 +3,7 @@ import * as THREE from '../lib/externals.js';
 export { CycleGraphViewModel, CycleGraphView, createUnlabelledCycleGraphView, createLargeCycleGraphView, createInteractiveCycleGraphView };
 import type { CycleGraphJSON, CycleGraphModel } from './CycleGraphModel.js';
 import type { Group } from './Group.js';
+import type { SheetVisualizerInterface } from './SheetModel.ts';
 export type CycleGraphOptions = {
     container?: Maybe<HTMLElement>;
     group?: Group;
@@ -21,16 +22,21 @@ type Path = {
     cycle?: groupElement[];
     pathIndex?: number;
 };
-declare class CycleGraphViewModel implements GEUtils.Updatable {
+declare class CycleGraphViewModel implements GEUtils.Updatable, SheetVisualizerInterface<CycleGraphJSON> {
     #private;
     get view(): CycleGraphView;
     set view(view: CycleGraphView);
     get model(): CycleGraphModel;
+    get modelProxy(): GEUtils.SubscriptionProxy<CycleGraphModel>;
     set model(cycleGraphModel: GEUtils.SubscriptionProxy<CycleGraphModel>);
     get group(): Group;
     get highlightColors(): Maybe<color>[][];
     update(field: string, value: any): void;
-    setSize(x: number, y: number): void;
+    getSize(): {
+        w: number;
+        h: number;
+    };
+    setSize(w: number, h: number): void;
     resize(): void;
     showGraphic(): void;
     unitSquarePositions(): THREE.Vector2[];

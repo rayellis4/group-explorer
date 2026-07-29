@@ -29,6 +29,7 @@ export {
 
 import type { CycleGraphJSON, CycleGraphModel } from './CycleGraphModel.js'
 import type { Group } from './Group.js'
+import type { SheetVisualizerInterface } from './SheetModel.ts'
 
 export type CycleGraphOptions = {
    container?: Maybe<HTMLElement>,
@@ -63,7 +64,7 @@ const HIGHLIGHT_TOP = 2
 ViewModel
 View
  */
-class CycleGraphViewModel implements GEUtils.Updatable {
+class CycleGraphViewModel implements GEUtils.Updatable, SheetVisualizerInterface<CycleGraphJSON> {
    #model!: GEUtils.SubscriptionProxy<CycleGraphModel>
    #view!: CycleGraphView
    #group!: Group
@@ -84,6 +85,10 @@ class CycleGraphViewModel implements GEUtils.Updatable {
    }
 
    get model (): CycleGraphModel {
+      return this.#model
+   }
+
+   get modelProxy (): GEUtils.SubscriptionProxy<CycleGraphModel> {
       return this.#model
    }
 
@@ -118,18 +123,19 @@ class CycleGraphViewModel implements GEUtils.Updatable {
    }
 
    // Functions used by Sheet
-   setSize (x: number, y: number)              { this.view.setSize(x, y) }
+   getSize (): {w: number, h: number}          { return this.view.getSize() }
+   setSize (w: number, h: number)              { this.view.setSize(w, h) }
    resize ()                                   { this.view.resize() }
    showGraphic ()                              { this.view.queueShowGraphic() }
-   unitSquarePositions ()                      { return this.view.unitSquarePositions() }
-   getImage ()                                 { return this.view.getImage() }
+   unitSquarePositions (): THREE.Vector2[]     { return this.view.unitSquarePositions() }
+   getImage (): HTMLImageElement               { return this.view.getImage() }
    get canvas (): HTMLCanvasElement            { return this.view.canvas }
-   toJSON ()                                   { return this.model.toJSON() }
+   toJSON (): CycleGraphJSON                   { return this.model.toJSON() }
    fromJSON (jsonObject: CycleGraphJSON)       { this.model.fromJSON(jsonObject) }
    draw (group: Group)                         { this.#group = group }
 }
 
-class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
+class CycleGraphView {
     viewModel!: CycleGraphViewModel
     bbox!: {left: float, right: float, top: float, bottom: float}
     canvas: HTMLCanvasElement

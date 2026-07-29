@@ -3,12 +3,23 @@ import { CayleyDiagramModel } from './CayleyDiagramModel.js';
 import * as THREE from '../lib/externals.js';
 export { DEFAULT_SPHERE_COLOR as DEFAULT_NODE_COLOR } from './AbstractDiagramDisplay.js';
 import type { ArrowGenerator, StrategyParameters } from './CayleyDiagramGenerator.ts';
-import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.js';
-import type { Group } from './Group.js';
-import type { Updatable, SubscriptionProxy } from './GEUtils.js';
+import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.ts';
+import type { Group } from './Group.ts';
+import type { Updatable, SubscriptionProxy } from './GEUtils.ts';
+import type { SheetVisualizerInterface } from './SheetModel.ts';
 export type { Layout, Direction, StrategyParameters } from './CayleyDiagramGenerator.ts';
 import type { LineType, AbstractDiagramDisplayOptions } from './AbstractDiagramDisplay.ts';
 export type { LineType } from './AbstractDiagramDisplay.ts';
+export type SphereUserData = {
+    node: NodeData;
+    ring_highlight?: THREE.Sprite;
+    square_highlight?: THREE.Sprite;
+    label?: THREE.Sprite;
+};
+export type LineUserData = {
+    arrow: ArrowData;
+    arrowhead?: THREE.ArrowHelper;
+};
 export type POV = {
     position: THREE.Vector3;
     up: THREE.Vector3;
@@ -41,36 +52,43 @@ export type LayoutData = {
     arrows: ArrowData[];
     chunks: ChunkData[];
 };
-export type SphereUserData = {
-    node: NodeData;
-    ring_highlight?: THREE.Sprite;
-    square_highlight?: THREE.Sprite;
-    label?: THREE.Sprite;
+export type Vector3JSON = {
+    x: number;
+    y: number;
+    z: number;
 };
-export type LineUserData = {
-    arrow: ArrowData;
-    arrowhead?: THREE.ArrowHelper;
+export type Matrix4JSON = number[];
+export type POVJSON = {
+    position: Vector3JSON;
+    up: Vector3JSON;
 };
-type NodeDataJSON = {
-    position: {
-        x: float;
-        y: float;
-        z: float;
-    };
+export type NodeDataJSON = {
+    position: Vector3JSON;
     element: groupElement;
     label: html;
+    color: color;
 };
-type ArrowDataJSON = {
+export type ArrowDataJSON = {
     start_element: groupElement;
     end_element: groupElement;
     generator: groupElement;
-    thirdPoint: {
-        x: float;
-        y: float;
-        z: float;
-    };
+    bidirectional: boolean;
+    thirdPoint: Vector3JSON;
+    keepCurved: boolean;
     offset: Maybe<float>;
     color: color;
+};
+export type ChunkDataJSON = {
+    box: Matrix4JSON;
+    name: html;
+    widths: Vector3JSON;
+    nodes: groupElement[];
+};
+export type LayoutDataJSON = {
+    pov: POVJSON;
+    nodes: NodeDataJSON[];
+    arrows: ArrowDataJSON[];
+    chunks: ChunkDataJSON[];
 };
 export type CayleyDiagramJSON = {
     background: color;
@@ -103,16 +121,23 @@ export type CayleyDiagramViewOptions = {
     diagramName?: string;
     container?: HTMLElement;
 } & AbstractDiagramDisplayOptions;
-export declare class CayleyDiagramViewModel implements Updatable {
+export declare class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterface<CayleyDiagramModelJSON> {
     #private;
     get group(): Group;
+    get highlightColors(): Maybe<color>[][];
+    set highlightColors(highlightColors: Maybe<color>[][]);
     get view(): CayleyDiagramView;
     get model(): CayleyDiagramModel;
+    get modelProxy(): SubscriptionProxy<CayleyDiagramModel>;
     setModel(model: SubscriptionProxy<CayleyDiagramModel>): void;
     setView(view: CayleyDiagramView): void;
     updateModel(field: keyof CayleyDiagramModel, value: any): void;
     update(field: string, value: any): void;
-    setSize(x: number, y: number): void;
+    getSize(): {
+        w: number;
+        h: number;
+    };
+    setSize(w: number, h: number): void;
     resize(): void;
     showGraphic(): void;
     unitSquarePositions(): THREE.Vector2[];

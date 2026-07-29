@@ -105,7 +105,6 @@ export class CayleyDiagramModel {
         this.arrowhead_placement = json.arrowhead_placement ?? this.arrowhead_placement;
         this.label_scale_factor = json.label_scale_factor ?? this.label_scale_factor;
         this.showingAxes = json.showing_axes ?? this.showingAxes;
-        this.highlightColors = json.highlight_colors ?? this.highlightColors;
         // let owners deserialize opaque slots
         if (this.highlightControl?.fromJSON == null) {
             this.highlightControl = json.highlight_control;
@@ -125,6 +124,8 @@ export class CayleyDiagramModel {
         else if (json.view_state != null) {
             this.viewState.fromJSON(json.view_state);
         }
+        // don't want to do this before the nodes are laid down setting view_state
+        this.highlightColors = json.highlight_colors ?? this.highlightColors;
         return this;
     }
 }

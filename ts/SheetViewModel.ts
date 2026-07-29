@@ -12,6 +12,9 @@ import type * as THREE from 'three'
 import type { Updatable, SubscriptionProxy } from './GEUtils.ts'
 import { SheetModel, SheetJSON } from './SheetModel.js'
 import * as SheetModel_ from './SheetModel.js'
+import { CayleyDiagramModelJSON } from './CayleyDiagramModel.js'
+import { CycleGraphJSON } from './CycleGraphModel.js'
+import { MulttableJSON } from './MulttableModel.js'
 
 interface SheetViewExtensions<T> {
    viewElement: T,
@@ -117,7 +120,7 @@ export class SheetViewModel implements Updatable {
                delete json.id
                json.x = (json.x ?? 0) + 10
                json.y = (json.y ?? 0) + 10
-               this.addObjectAsElement(json, element.className)
+               this.addObjectAsElement(json as SheetJSON, element.className)
             },
             configurable: true,
          })
@@ -178,7 +181,7 @@ export class SheetViewModel implements Updatable {
       })
    }
 
-   addObjectAsElement (plainObject: SheetJSON, className: string): SheetElement {
+   addObjectAsElement (plainObject: SheetJSON, className: keyof SheetModel_.ConcreteSheetTypes): SheetElement {
       return this.#model.addObjectAsElement(plainObject, className) as SheetElement
    }
 
@@ -208,7 +211,7 @@ export class SheetViewModel implements Updatable {
       const element = this.modelElements.get(id) as VisualizerElement
       if (element == null || !('isVisualizer' in element))
          return
-      element.visualizer = json
+      element.visualizerJSON = json as CayleyDiagramModelJSON | CycleGraphJSON | MulttableJSON  // FIXME
       this.#view.updateVisualizer(element, json)      
    }
 }

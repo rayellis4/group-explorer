@@ -440,7 +440,7 @@ class SheetEventUI {
       source: SheetViewModel.NodeElement,
       destination: SheetViewModel.NodeElement
    ) {
-      const linkJson: SheetModel.LinkElementJSON =
+      const linkJson: SheetModel.SheetTypes['LinkElement'] =
          { className: type, source_id: source.id, destination_id: destination.id }
       const link = this.viewModel.addObjectAsElement(linkJson, type) as SheetViewModel.LinkElement
 

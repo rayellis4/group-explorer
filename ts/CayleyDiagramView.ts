@@ -37,10 +37,10 @@ import * as THREE from '../lib/externals.js'
 export { DEFAULT_SPHERE_COLOR as DEFAULT_NODE_COLOR } from './AbstractDiagramDisplay.js'
 
 import type { ArrowGenerator, StrategyParameters } from './CayleyDiagramGenerator.ts'
-import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.js'
-import type { Group } from './Group.js';
-import type { Updatable, SubscriptionProxy } from './GEUtils.js'
-// import {VizDisplay} from './SheetModel.js';
+import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.ts'
+import type { Group } from './Group.ts';
+import type { Updatable, SubscriptionProxy } from './GEUtils.ts'
+import type { SheetVisualizerInterface } from './SheetModel.ts'
 // import type {VisualizerElementJSON} from './SheetModel.js';
 // import type {XMLCayleyDiagram} from './XMLGroup.js';
 
@@ -48,6 +48,18 @@ export type { Layout, Direction, StrategyParameters } from './CayleyDiagramGener
 
 import type { LineType, AbstractDiagramDisplayOptions } from './AbstractDiagramDisplay.ts';
 export type { LineType } from './AbstractDiagramDisplay.ts';
+
+export type SphereUserData = {
+    node: NodeData,
+    ring_highlight?: THREE.Sprite,
+    square_highlight?: THREE.Sprite,
+    label?: THREE.Sprite,
+};
+
+export type LineUserData = {
+   arrow: ArrowData,
+   arrowhead?: THREE.ArrowHelper,
+};
 
 export type POV = { position: THREE.Vector3, up: THREE.Vector3 }
 
@@ -66,7 +78,7 @@ export type ArrowData = {
    thirdPoint: THREE.Vector3,
    keepCurved: boolean,  // true => use specified offset
    offset: Maybe<float>,  // undefined => straight line
-   color: color,
+   color: color
 }
 
 export type ChunkData = {
@@ -83,33 +95,42 @@ export type LayoutData = {
    chunks: ChunkData[]
 }
 
+export type Vector3JSON = { x: number, y: number, z: number }
+export type Matrix4JSON = number[]
 
-export type SphereUserData = {
-    node: NodeData,
-    ring_highlight?: THREE.Sprite,
-    square_highlight?: THREE.Sprite,
-    label?: THREE.Sprite,
-};
+export type POVJSON = { position: Vector3JSON, up: Vector3JSON }
 
-export type LineUserData = {
-   arrow: ArrowData,
-   arrowhead?: THREE.ArrowHelper,
-};
-
-type NodeDataJSON = {
-    position: {x: float, y: float, z: float},
+export type NodeDataJSON = {
+    position: Vector3JSON,
     element: groupElement,
     label: html,
-};
+    color: color,
+}
 
-type ArrowDataJSON = {
+export type ArrowDataJSON = {
     start_element: groupElement,
     end_element: groupElement,
     generator: groupElement,
-    thirdPoint: {x: float, y: float, z: float},
+    bidirectional: boolean,
+    thirdPoint: Vector3JSON,
+    keepCurved: boolean,
     offset: Maybe<float>,
-    color: color,
-};
+    color: color
+}
+
+export type ChunkDataJSON = {
+   box: Matrix4JSON,
+   name: html,
+   widths: Vector3JSON,
+   nodes: groupElement[],
+}
+
+export type LayoutDataJSON = {
+   pov: POVJSON,
+   nodes: NodeDataJSON[],
+   arrows: ArrowDataJSON[],
+   chunks: ChunkDataJSON[],
+}
 
 export type CayleyDiagramJSON = {
     background: color,
@@ -152,7 +173,7 @@ const highlightNames = {
    HIGHLIGHT_SQUARE: 'a square around the node'
 }
 
-export class CayleyDiagramViewModel implements Updatable {
+export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterface<CayleyDiagramModelJSON> {
    #model!: SubscriptionProxy<CayleyDiagramModel>
    #view!: CayleyDiagramView
    #modelFields: (keyof CayleyDiagramModel)[] = [
@@ -174,11 +195,25 @@ export class CayleyDiagramViewModel implements Updatable {
       return this.model.group
    }
 
+   get highlightColors (): Maybe<color>[][] {
+      return [[...this.view.color_highlights], [...this.view.ring_highlights], [...this.view.square_highlights]]
+   }
+
+   set highlightColors (highlightColors: Maybe<color>[][]) {
+      this.view.color_highlights =  [...highlightColors[HIGHLIGHT_NODE]]
+      this.view.ring_highlights =   [...highlightColors[HIGHLIGHT_RING]]
+      this.view.square_highlights = [...highlightColors[HIGHLIGHT_SQUARE]]
+   }
+
    get view (): CayleyDiagramView {
       return this.#view
    }
 
    get model (): CayleyDiagramModel {
+      return this.#model
+   }
+
+   get modelProxy (): SubscriptionProxy<CayleyDiagramModel> {
       return this.#model
    }
 
@@ -189,46 +224,76 @@ export class CayleyDiagramViewModel implements Updatable {
          this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
       }
       this.#model.viewState = {
-         toJSON: (): LayoutData => {
+         toJSON: (): LayoutDataJSON => {
+            const toXYZ: (vector3: THREE.Vector3) => {x: number, y: number, z: number} =
+               (vector3) => JSON.parse(JSON.stringify(vector3))
+
+            const toNodeDataJSON: (arg0: NodeData) => NodeDataJSON =
+               ({position, element, label, color})=> {
+                  return { position: toXYZ(position), element, label, color }
+               }
+               
+            const toArrowDataJSON: (arg0: ArrowData) => ArrowDataJSON =
+               ({start_node, end_node, generator, bidirectional, thirdPoint, keepCurved, offset, color}) => {
+                  return {
+                     start_element: start_node.element,
+                     end_element: end_node.element,
+                     generator,
+                     bidirectional,
+                     thirdPoint: toXYZ(thirdPoint),
+                     keepCurved,
+                     offset,
+                     color
+                  }
+               }
+
+            const toChunkDataJSON: (arg0: ChunkData) => ChunkDataJSON =
+               ({box, name, widths, nodes}) => {
+                  return {
+                     box: JSON.parse(JSON.stringify(box)).elements as Matrix4JSON,
+                     name,
+                     nodes: nodes.map((node) => node.element),
+                     widths: toXYZ(widths)
+                  }
+               }
+               
             return {
-               pov: { position: this.view.camera.position.clone(), up: this.view.camera.up.clone() },
-               nodes: this.view.nodes.map((object3D) => object3D.userData.node),
-               arrows: this.view.lines.map((object3D) => object3D.userData.arrow),  // turn nodes into element#
-               chunks: this.view.chunks.map((object3D) => object3D.userData.chunk)  // turn this into subgroupChunkIndex
+               pov: { position: toXYZ(this.view.camera.position), up: toXYZ(this.view.camera.up) },
+               nodes: this.view.nodes.map((object3D) => toNodeDataJSON(object3D.userData.node)),
+               arrows: this.view.lines.map((object3D) => toArrowDataJSON(object3D.userData.arrow)),
+               chunks: this.view.chunks.map((object3D) => toChunkDataJSON(object3D.userData.chunk))
             }
          },
-         fromJSON: (json: LayoutData) => {
-            const pov = {
-               position: new THREE.Vector3().copy(json.pov.position),
-               up: new THREE.Vector3().copy(json.pov.up)
+         fromJSON: (json: LayoutDataJSON) => {
+            const fromXYZ: (arg0: Vector3JSON) => THREE.Vector3 =
+               ({x, y, z}) => { return new THREE.Vector3().set(x, y, z) }
+            const pov: POV = {
+               position: fromXYZ(json.pov.position),
+               up: fromXYZ(json.pov.up)
             }
-            const nodes = json.nodes.map((node) => {
-               return {
-                  position: new THREE.Vector3().copy(node.position),
-                  element: node.element,
-                  label: node.label,
-                  color: node.color
-               }
+            const nodes: NodeData[] = json.nodes.map(({position, element, label, color}) => {
+               return { position: fromXYZ(position), element, label, color }
             })
-            const nodeMap = new Map(nodes.map((node) => [node.element, node]))
-            const arrows = json.arrows.map((arrow) => {
+            const nodeMap: Map<groupElement, NodeData> = new Map(nodes.map((node) => [node.element, node]))
+            const arrows: ArrowData[] = json.arrows.map(
+               ({start_element, end_element, generator, bidirectional, thirdPoint, keepCurved, offset, color}) => {
+                  return {
+                     start_node: nodeMap.get(start_element) as NodeData,
+                     end_node: nodeMap.get(end_element) as NodeData,
+                     generator,
+                     bidirectional,
+                     thirdPoint: fromXYZ(thirdPoint),
+                     keepCurved,
+                     offset,
+                     color
+                  }
+               })
+            const chunks: ChunkData[] = json.chunks.map(({box, name, widths, nodes}) => {
                return {
-                  start_node: nodeMap.get(arrow.start_node.element),
-                  end_node: nodeMap.get(arrow.end_node.element),
-                  generator: arrow.generator,
-                  bidirectional: arrow.bidirectional,
-                  thirdPoint: new THREE.Vector3().copy(arrow.thirdPoint),
-                  keepCurved: arrow.keepCurved,
-                  offset: arrow.offset,
-                  color: arrow.color
-               }
-            })
-            const chunks = json.chunks.map((chunk) => {
-               return {
-                  box:  new THREE.Matrix4().copy(chunk.box),
-                  name: chunk.name,
-                  widths: new THREE.Vector3().copy(chunk.widths),
-                  nodes: chunk.nodes.map((node) => nodeMap.get(node.element))
+                  box: new THREE.Matrix4().fromArray(box),
+                  name,
+                  widths: fromXYZ(widths),
+                  nodes: nodes.map((node) => nodeMap.get(node) as NodeData)
                }
             })
             this.updateModel('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks })
@@ -283,9 +348,7 @@ export class CayleyDiagramViewModel implements Updatable {
       case 'highlightColors':
          if (value != null) {
             // spread new highlightColors across color_highlights, ring_highlights, square_highlights
-            this.view.color_highlights =  [...value[HIGHLIGHT_NODE]]
-            this.view.ring_highlights =   [...value[HIGHLIGHT_RING]]
-            this.view.square_highlights = [...value[HIGHLIGHT_SQUARE]]
+            this.highlightColors = value
             this.view.drawAllHighlights()
          }
          break
@@ -301,13 +364,14 @@ export class CayleyDiagramViewModel implements Updatable {
    }
 
    // Functions used by Sheet
-   setSize (x: number, y: number)                 { this.view.setSize(x, y) }
+   getSize (): {w: number, h: number}             { return this.view.getSize() }
+   setSize (w: number, h: number)                 { this.view.setSize(w, h) }
    resize ()                                      { this.view.resize() }
    showGraphic ()                                 { this.view.render() }
-   unitSquarePositions ()                         { return this.view.unitSquarePositions() }
-   getImage ()                                    { return this.view.getImage() }
+   unitSquarePositions (): THREE.Vector2[]        { return this.view.unitSquarePositions() }
+   getImage (): HTMLImageElement                  { return this.view.getImage() }
    get canvas (): HTMLCanvasElement               { return this.view.canvas }
-   toJSON ()                                      { return this.model.toJSON() }
+   toJSON (): CayleyDiagramModelJSON              { return this.model.toJSON() }
    fromJSON (jsonObject: CayleyDiagramModelJSON)  { this.model.fromJSON(jsonObject) }
    draw (
       group: Group,

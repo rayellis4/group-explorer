@@ -31,7 +31,7 @@ import type * as SheetModel from './SheetModel.ts'
  */
 abstract class SheetElementEditor {
    modelElement: SheetElement
-   initialJSON: SheetModel.SheetElementJSON
+   initialJSON: SheetModel.SheetJSON
    location: NumberLocation
    editor: HTMLElement
 
@@ -488,8 +488,8 @@ export class MorphismEditor extends SheetElementEditor {
          </div>`
       super(morphismElement, morphismEditorHTML, location)
 
-      this.sourceHighlightSnapshot = [...morphismElement.source.highlightColors[0]]
-      this.destHighlightSnapshot = [...morphismElement.destination.highlightColors[0]]
+      this.sourceHighlightSnapshot = [...morphismElement.source.viewElement.visualizer.model.highlightColors[0]]
+      this.destHighlightSnapshot = [...morphismElement.destination.viewElement.visualizer.model.highlightColors[0]]
 
       // set column widths in defining pair table
       const DISPLAY_FONT_SIZE = 20
@@ -550,10 +550,10 @@ export class MorphismEditor extends SheetElementEditor {
          (document.getElementById('morphism-editor-show-many-arrows') as HTMLInputElement).checked
       morphism.arrowColor =
          (document.getElementById('morphism-arrow-color-source') as HTMLInputElement).checked
-            ? 'source'
+            ? 'source' as SheetModel.arrowColorType
             : (document.getElementById('morphism-arrow-color-destination') as HTMLInputElement).checked
-               ? 'destination'
-               : 'none'
+               ? 'destination' as SheetModel.arrowColorType
+               : 'none' as SheetModel.arrowColorType
 
       morphism.arrowMargin =
          parseFloat((document.getElementById('morphism-editor-arrow-margin') as HTMLInputElement).value)/100
@@ -750,7 +750,7 @@ export class MorphismEditor extends SheetElementEditor {
             const c = colorMap.get(inx)
             destinationHighlights[inx] = c != null ? ('#' + c.getHexString()) : null
          })
-      this.modelElement.destination.viewElement.visualizer.model.$touch('highlightColors')
+      this.modelElement.destination.viewElement.visualizer.modelProxy.$touch('highlightColors')
       this.modelElement.destination.viewElement.redraw()
       redrawLinksFor(this.modelElement.destination)
    }
@@ -795,7 +795,7 @@ export class MorphismEditor extends SheetElementEditor {
       this.modelElement.source.viewElement.visualizer.model.group.elements.forEach((inx: groupElement) => {
          sourceHighlights[inx] = colorMap.has(inx) ? ('#' + colorMap.get(inx).getHexString()) : null
       })
-      this.modelElement.source.viewElement.visualizer.model.$touch('highlightColors')
+      this.modelElement.source.viewElement.visualizer.modelProxy.$touch('highlightColors')
       this.modelElement.source.viewElement.redraw()
       redrawLinksFor(this.modelElement.source)
    }

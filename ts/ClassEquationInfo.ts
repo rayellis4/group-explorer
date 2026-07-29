@@ -108,7 +108,7 @@ function showAsSheet (group:Group, type: SheetModel.VisualizerType) {
     const L = (window.innerWidth - SheetModel.sheetPanelWidth() - totalW) / 2
     const T = 0.4 * (window.innerHeight - numH - H)
 
-    const sheetElementsAsJSON: SheetModel.SheetJSON[] = []
+    const sheetElementsAsJSON: SheetModel.SheetElementRequest[] = []
 
     for (let i = 0; i < fakeN; i++) {
         const fakeIndex = (fakeN == n) ? i
