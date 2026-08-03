@@ -1,3 +1,8 @@
-export { display, setTitle };
-declare function display(headingElement: any, label: any, menuGenerator: any): void;
-declare function setTitle(title: any): void;
+type headingMenu = Array<{
+    label: html;
+    action: () => void;
+}>;
+export type HeadingManuGenerator = () => headingMenu;
+export declare function display(headingElement: HTMLElement, label: html, menuGenerator: HeadingManuGenerator): void;
+export declare function setTitle(title: html): void;
+export {};

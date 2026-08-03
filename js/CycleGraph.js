@@ -1,4 +1,10 @@
-// @flow
+/*
+# CycleGraph
+
+Assembles large cycle graph visualizer html page
+
+```js
+ */
 import { ControlPanel } from './ControlPanel.js';
 import { CycleGraphModel } from './CycleGraphModel.js';
 import { createInteractiveCycleGraphView } from './CycleGraphView.js';
@@ -8,25 +14,20 @@ import * as HighlightControl from './HighlightControl.js';
 import * as Library from './Library.js';
 import * as SheetEditor from './SheetEditor.js';
 import * as Log from './Log.js';
-export { load };
-/*::
-import type {Group} from './Group.js'
-import type {Updatable} from './CycleGraphModel.js'
- */
-async function load() {
+export async function load() {
     // Add top level HTML
     insertHTML();
     document.body.addEventListener('contextmenu', (ev) => ev.preventDefault());
     // If this page is editing a sheet...
-    const { elementId, json: initialJSON } /*: unknown */ = await (window.location.href.includes('SheetEditor')
+    const { elementId, json: initialJSON } = (await (window.location.href.includes('SheetEditor')
         ? SheetEditor.getInitialData()
-        : { elementId: null, json: null });
+        : { elementId: null, json: null }));
     // Get group, either from page URL or data from Sheet
-    const group /*: Group */ = await ((initialJSON?.group_url == null)
+    const group = await ((initialJSON?.group_url == null)
         ? Library.loadFromPageURL()
-        : Library.getGroupByURL(initialJSON.group_url));
+        : Library.getGroupByURL(initialJSON.group_url)); // FIXME: refine error for typo in URL
     // Create Header
-    Heading.display((document.getElementById('heading') /*:: as any as HTMLElement */), `Cycle Graph for ${group.name}`, () => [
+    Heading.display(document.getElementById('heading'), `Cycle Graph for ${group.name}`, () => [
         { label: 'Group Info', action: () => window.open(`GroupInfo.html?groupURL=${group.URL}`) },
         { label: 'Group Library', action: () => window.open('GroupExplorer.html') },
         { label: 'New Sheet', action: () => window.open('Sheet.html') },
@@ -34,7 +35,7 @@ async function load() {
         { label: 'Cycle Graph Help', action: () => window.open('help/rf-um-cg-options/index.html') },
     ]);
     // Create CycleGraph model
-    const cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */ = createModelProxy(new CycleGraphModel(group));
+    const cycleGraphModel = createModelProxy(new CycleGraphModel(group));
     // Create cycleGraphView in graphic div and attach to cycleGraphModel
     const cycleGraphViewModel = createInteractiveCycleGraphView(cycleGraphModel, {
         container: document.getElementById('graphic')

@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # BasicFactInfo
 
@@ -9,13 +9,13 @@ its order and a defining relation.
  */
 import * as Library from './Library.js'
 
-export {display}
+import type { Group } from './Group.ts'
 
-function display (basicFactsElementId, group) {
-   const basicFactsElement = document.getElementById(basicFactsElementId)
+export function display (basicFactsElementId: string, group: Group) {
+   const basicFactsElement = document.getElementById(basicFactsElementId) as HTMLElement
    basicFactsElement.innerHTML = getBasicFactsHTML(basicFactsElementId, group)
 
-   document.querySelector('#content.all-info').addEventListener('representationChange',
+   ;(document.querySelector('#content.all-info') as HTMLElement).addEventListener('representationChange',
       () => basicFactsElement.innerHTML = getBasicFactsHTML(basicFactsElementId, group))
 
    // listen for library or settings update
@@ -28,9 +28,9 @@ function display (basicFactsElementId, group) {
          if (newGroup != null && newGroup.gapid != null && newGroup.gapid != '' && newGroup.gapid != group.gapid) {
             basicFactsElement.querySelectorAll('tr > td:first-child').forEach((el) => {
                if (el.textContent === 'GAP ID') {
-                  el.parentElement.children[1].textContent = newGroup.gapid
+                  (el.parentElement as HTMLElement).children[1].textContent = newGroup.gapid
                } else if (el.textContent === 'GAP name') {
-                  el.parentElement.children[1].textContent = newGroup.gapname
+                 (el.parentElement as HTMLElement).children[1].textContent = newGroup.gapname ?? null
                }
             })
          }
@@ -38,7 +38,7 @@ function display (basicFactsElementId, group) {
    })
 }
 
-function getBasicFactsHTML (basicFactsElementId, group) {
+function getBasicFactsHTML (basicFactsElementId: string, group: Group): html {
    const basicFacts = [
       {name: 'Order', value: group.order},
       {name: 'GAP name', value: group.gapname},

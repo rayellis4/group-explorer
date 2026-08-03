@@ -1,4 +1,10 @@
-// @flow
+/*
+# DefiningRelations
+
+Generally convert group presentation to/from a multiplication table
+
+```js
+*/
 /*
  * Find relations among a set of generators for a group
  *   (adapted from Butler, ch 5)
@@ -12,23 +18,23 @@ import * as Log from './Log.js';
 export { findRelations, makePresentation, generateGroupFromPresentation, parseFormattedPresentation, GENERATED_GROUP_PREFIX, };
 export { EXTENDED_GROUP_PREFIX } from './AutoUpgrade.js';
 const GENERATED_GROUP_PREFIX = "data:,//GE3/generated";
-// Returns an array of relationships as an Array<Array<integer>>, in which, for example,
+// Returns an array of relationships as a groupElement[][], in which, for example,
 //   [[1,1], [2,2,2], [1,2,1,2]] means
 //     1) el[1]*el[1] = e
 //     2) el[2]*el[2]*el[2] = e
 //     3) el[1]*el[2]*el[1]*el[2] = e
-function findRelations(group /*: Group */, generators /*: Array<groupElement> */ = group.generators) {
+function findRelations(group, generators = group.generators) {
     const relators = findRawRelations(group, generators);
     relators.forEach((relator, inx) => relators[inx] = relator.map((el) => (el < 0) ? group.inverses[-el] : el));
     return relators;
 }
-function findRawRelations(group /*: Group */, generators /*: Array<groupElement> */ = group.generators) {
-    let G /*: Group */ = group;
-    let words /*: Array<Array<groupElement>> */ = [[]];
+function findRawRelations(group, generators = group.generators) {
+    let G = group;
+    let words = [[]];
     generators.forEach((gen) => words[gen] = [gen]);
-    let colored /*: Array<BitSet> */ = [];
+    let colored = [];
     generators.forEach((gen) => colored[gen] = new BitSet(G.order));
-    const relators /*: Array<Array<groupElement>> */ = [];
+    const relators = [];
     // make spanning tree
     const spanning_tree = [0];
     const in_tree = new BitSet(G.order, spanning_tree);
@@ -45,8 +51,9 @@ function findRawRelations(group /*: Group */, generators /*: Array<groupElement>
         });
     }
     const uncolored = colored
-        .reduce((edges /*: Array<[groupElement, groupElement]> */, marks, generator) => {
-        edges.push(...marks.clone().complement().toArray().map((src) => [src, generator]));
+        .reduce((edges, marks, generator) => {
+        edges.push(...marks.clone().complement().toArray()
+            .map((src) => [src, generator]));
         return edges;
     }, [])
         .sort(([src1, gen1], [src2, gen2]) => {
@@ -54,7 +61,7 @@ function findRawRelations(group /*: Group */, generators /*: Array<groupElement>
             - (words[src1].length + words[G.mult(src1, gen1)].length);
     });
     while (uncolored.length > 0) {
-        const [source, generator] = ((uncolored.pop() /*: any */) /*: [groupElement, groupElement] */);
+        const [source, generator] = uncolored.pop();
         if (colored[generator].isSet(source))
             continue;
         colored[generator].set(source);
@@ -65,7 +72,7 @@ function findRawRelations(group /*: Group */, generators /*: Array<groupElement>
         // apply relator to each node
         for (const element of G.elements) {
             // apply relator
-            const [_, uncolored_edges] /*: [groupElement, Array<[groupElement, groupElement]>] */ = relator.reduce(([node, uncolored_edges], gen) => {
+            const [_, uncolored_edges] = relator.reduce(([node, uncolored_edges], gen) => {
                 if (gen < 0) {
                     const next = G.mult(node, G.inverses[-gen]);
                     if (!colored[-gen].isSet(next))
@@ -85,9 +92,9 @@ function findRawRelations(group /*: Group */, generators /*: Array<groupElement>
     }
     return relators;
 }
-function makePresentation(group /*: Group */) {
+function makePresentation(group) {
     const relations = findRawRelations(group);
-    const characterMap /*: Map<char, string> */ = relations.reduce((characterMap, relator) => {
+    const characterMap = relations.reduce((characterMap, relator) => {
         relator.forEach((char) => {
             if (!characterMap.has(Math.abs(char))) {
                 const offset = characterMap.size / 2;
@@ -107,23 +114,17 @@ function makePresentation(group /*: Group */) {
         .join(',');
     return generatorString + ':' + relatorString;
 }
-/*::
-   type RelationTableRow = Array<?groupElement> & {isDead: ?boolean, isFilled: ?boolean}
-   type RelationTable = Array<RelationTableRow>
-   type CosetTableRow = Array<?groupElement>
-   type CosetTable = Array<CosetTableRow>
- */
-function generateGroupFromPresentation(presentation /*: string */) {
+function generateGroupFromPresentation(presentation) {
     // parse presentation
-    const [generators /*: Array<string> */, relators /*: Array<string> */] = parseFormattedPresentation(presentation);
+    const [generators, relators] = parseFormattedPresentation(presentation);
     // create, fill cosetTable
-    const [relationTable /*: RelationTable */, cosetTable /*: CosetTable */] = generateCosetTable(generators, relators);
+    const [relationTable, cosetTable] = generateCosetTable(generators, relators);
     // check results
     checkCosetTable(presentation, relationTable, cosetTable);
     // create multtable from cosetTable
-    const multtable /*: Array<Array<number>> */ = createMulttable(generators, cosetTable);
+    const multtable = createMulttable(generators, cosetTable);
     // create, decorate group
-    const group /*: Group */ = generateGroup(generators, relators, multtable, cosetTable);
+    const group = generateGroup(generators, relators, multtable, cosetTable);
     // check to see whether the group is extraordinarily large
     if (group.order > 200 || group.subgroups.length > 1000) {
         const warning = `The 'data:,//GE3/generated...' URL generates a group of order ${group.order} with ` +
@@ -136,15 +137,15 @@ function generateGroupFromPresentation(presentation /*: string */) {
     }
     return group;
 }
-function generateCosetTable(generators /*: Array<string> */, relators /*: Array<string> */) {
+function generateCosetTable(generators, relators) {
     /*
     Initialize:
       relationKeys -- index of generator associated with each column of relationTable
       relationTable -- group element X relator character count
       cosetTable -- group element X ({generator, generator inverse} * |generator|)
      */
-    const cosetTable /*: CosetTableType */ = [((Array(2 * generators.length).fill(null) /*: any */) /*: CosetTableRowType */)];
-    const relationKeys /*: Array<number> */ = [];
+    const cosetTable = [Array(2 * generators.length).fill(null)];
+    const relationKeys = [];
     for (let relatorIndex = 0; relatorIndex < relators.length; relatorIndex++) {
         for (let generatorIndex = 0; generatorIndex < relators[relatorIndex].length; generatorIndex++) {
             const char = relators[relatorIndex][generatorIndex];
@@ -152,16 +153,16 @@ function generateCosetTable(generators /*: Array<string> */, relators /*: Array<
             relationKeys.push(index);
         }
     }
-    function newRelation(element /*: groupElement */) {
-        const result = ((Array(relationKeys.length).fill(null) /*: any */) /*: CosetTableRowType */);
+    function newRelation(element) {
+        const result = Array(relationKeys.length).fill(null);
         for (let relatorIndex = 0, charIndex = 0; relatorIndex < relators.length; charIndex += relators[relatorIndex++].length) {
             result[charIndex] = element;
         }
         result.push(element);
         return result;
     }
-    const relationTable /*: CosetTableType */ = [newRelation(0)];
-    function setRule(prevElement /*: ?groupElement */, prevGeneratorIndex /*: integer */, currElement /*: groupElement */, nextGeneratorIndex /*: integer */, nextElement /*: ?groupElement */) {
+    const relationTable = [newRelation(0)];
+    function setRule(prevElement, prevGeneratorIndex, currElement, nextGeneratorIndex, nextElement) {
         const prevGeneratorInverse = inverseIndex(prevGeneratorIndex);
         const nextGeneratorInverse = inverseIndex(nextGeneratorIndex);
         if (prevElement != null && cosetTable[prevElement][prevGeneratorIndex] == null) {
@@ -209,9 +210,9 @@ function generateCosetTable(generators /*: Array<string> */, relators /*: Array<
             updateMade = false;
             for (const [rowIndex, columnIndex] of relationTableNullIterator()) {
                 const relation = relationTable[rowIndex];
-                const prevElement = ((relation[columnIndex - 1] /*: any */) /*: groupElement */);
+                const prevElement = relation[columnIndex - 1];
                 const prevIndex = relationKeys[columnIndex - 1];
-                const nextElement = ((relation[columnIndex + 1] /*: any */) /*: groupElement */);
+                const nextElement = relation[columnIndex + 1];
                 const nextIndex = relationKeys[columnIndex];
                 const fromPrev = cosetTable[prevElement]?.[prevIndex];
                 const fromNext = cosetTable[nextElement]?.[inverseIndex(nextIndex)];
@@ -265,11 +266,11 @@ function generateCosetTable(generators /*: Array<string> */, relators /*: Array<
     }
     // replace all references of larger el in relations, cosetTable with reference to lower
     // mark larger el row dead, to be garbage collected at end of update
-    const mergeReferences = (el1 /*: groupElement */, el2 /*: groupElement */) => {
+    const mergeReferences = (el1, el2) => {
         const mergeQueue = [];
         mergeQueue.push((el1 < el2) ? [el1, el2] : [el2, el1]);
         while (mergeQueue.length > 0) {
-            const [low, high] = ((mergeQueue.pop() /*: any */) /*: [groupElement, groupElement] */);
+            const [low, high] = mergeQueue.pop();
             if (low == high) {
                 continue;
             }
@@ -344,7 +345,7 @@ function generateCosetTable(generators /*: Array<string> */, relators /*: Array<
         }
         // add new row to each element of the rules, relationTable
         const newElement = cosetTable.length;
-        cosetTable.push(((Array(2 * generators.length).fill(null) /*: any */) /*: CosetTableRowType */));
+        cosetTable.push(Array(2 * generators.length).fill(null));
         relationTable.push(newRelation(newElement));
         // add new data to rules table
         setRule(relation[columnIndex - 1], relationKeys[columnIndex - 1], newElement, relationKeys[columnIndex], relation[columnIndex + 1]);
@@ -353,13 +354,13 @@ function generateCosetTable(generators /*: Array<string> */, relators /*: Array<
     Log.info(`Iteration count in DefiningRelations.getGroupFromPresentation: ${iteration}`);
     return [relationTable, cosetTable];
 }
-function isUpperCase(char /*: string */) {
+function isUpperCase(char) {
     return char.toUpperCase() == char;
 }
-function inverseIndex(index /*: integer */) {
+function inverseIndex(index) {
     return index + ((index % 2 == 0) ? 1 : -1);
 }
-function checkCosetTable(presentation /*: string */, relationTable, cosetTable) {
+function checkCosetTable(presentation, relationTable, cosetTable) {
     if (relationTable.some((relation) => !relation.isFilled)) {
         for (let inx = 0; inx < cosetTable.length; inx++) {
             for (let jnx = 0; jnx < cosetTable[0].length; jnx++) {
@@ -373,9 +374,9 @@ function checkCosetTable(presentation /*: string */, relationTable, cosetTable) 
         throw new Error(`DefiningRelations.generateGroupFromPresentation failed on ${presentation}`);
     }
 }
-function createMulttable(generators /*: Array<string> */, cosetTable /*: Array<Array<groupElement>> */) {
+function createMulttable(generators, cosetTable) {
     const order = cosetTable.length;
-    const multtable /*: Array<Array<groupElement>> */ = Array.from({ length: order }, () => Array(order)); // .from({length: order}, () => null))
+    const multtable = Array.from({ length: order }, () => Array(order));
     for (let inx = 0; inx < order; inx++) {
         multtable[inx][0] = inx;
     }
@@ -401,13 +402,13 @@ function createMulttable(generators /*: Array<string> */, cosetTable /*: Array<A
     }
     return multtable;
 }
-function generateGroup(generators /*: Array<string> */, relators /*: Array<string> */, multtable /*: Array<Array<number>> */, cosetTable /*: CosetTable */) {
+function generateGroup(generators, relators, multtable, cosetTable) {
     const group = Group.fromMulttable(multtable);
     const namePrefix = `A Generated Group of Order ${group.order}`;
     const nameSuffix = Math.max(...Library.getGroupsByOrder(group.order)
         .filter((G) => G.name.startsWith(namePrefix))
         .map((G) => G.name.slice(namePrefix.length).match(/\d/))
-        .map((match) => parseInt(((match /*: any */) /*: RegExp$matchResult */))), -1);
+        .map((match) => parseInt(match[0])), -1);
     group.names = [namePrefix + ` (${nameSuffix + 1})`];
     group.shortName = `Generated_${group.order}`;
     group.library = 'generated';
@@ -419,8 +420,9 @@ function generateGroup(generators /*: Array<string> */, relators /*: Array<strin
     group.symmetryObjects = [];
     group.declaredGenerators = [];
     // put generators from group.subgroups first if it's shorter
-    if (group.subgroups.at(-1).generators.popcount() < generators.length) {
-        group.declaredGenerators.push(group.subgroups.at(-1).generators.toArray());
+    const groupAsSubgroup = group.subgroups.at(-1);
+    if (groupAsSubgroup.generators.popcount() < generators.length) {
+        group.declaredGenerators.push(groupAsSubgroup.generators.toArray());
     }
     group.declaredGenerators.push(generators.map((_, inx) => cosetTable[0][2 * inx]));
     // generate element representations that match the presentation
@@ -446,7 +448,7 @@ function generateGroup(generators /*: Array<string> */, relators /*: Array<strin
     return group;
 }
 // reads 'a,b | a3=b2=1, bab=a-1', returns [generators, relators] as [['a','b'],['aaa','bb','baba']]
-function parseFormattedPresentation(presentation /*: string */) {
+function parseFormattedPresentation(presentation) {
     presentation = presentation.replaceAll(/%20/g, '').replaceAll(/\|/g, ':'); // cut-and-paste from groupnames.org
     const [generatorString, relatorString] = presentation.split(':');
     const generators = generatorString.split(',').sort();
@@ -456,7 +458,7 @@ function parseFormattedPresentation(presentation /*: string */) {
         const relators = Array
             .from(relatorExpression.matchAll(/([-a-zA-Z0-9]+)([=,])/g))
             .map(([_relator, relatorTerm, separator]) => { return [relatorTerm, separator]; })
-            .reduce((relators, [relatorTerm, separator], inx, arr) => {
+            .reduce((relators, [relatorTerm, separator], _inx, arr) => {
             if (separator == ',') { // ',' separator only on last term
                 const relator = parseFormattedRelator(relatorTerm);
                 if (relator != '1') { // last term != '1', expression is 'term = lastTerm'
@@ -482,7 +484,7 @@ function parseFormattedPresentation(presentation /*: string */) {
     }).flat(1);
     return [generators, relators];
 }
-function parseFormattedRelator(relator /*: string */) {
+function parseFormattedRelator(relator) {
     const results = [];
     for (let inx = 0; inx < relator.length; inx++) {
         let result = relator[inx];
@@ -501,19 +503,19 @@ function parseFormattedRelator(relator /*: string */) {
     }
     return results.join('');
 }
-function formatGenerators(generators /*: Array<string> */) {
+function formatGenerators(generators) {
     const formattedGenerators = generators
         .map((gen) => `<i>${gen}</i>`)
         .join(', ');
     return formattedGenerators;
 }
-function formatRelators(relators /*: Array<string> */) {
+function formatRelators(relators) {
     const formattedRelators = relators
         .map((relator) => formatRelator(relator) + '=<wbr>')
         .join('') + '1';
     return formattedRelators;
 }
-function formatRelator(relator /*: string */) {
+function formatRelator(relator) {
     const translatedRelator = [];
     let currentChar = relator.charAt(0);
     let currentCount = 1;

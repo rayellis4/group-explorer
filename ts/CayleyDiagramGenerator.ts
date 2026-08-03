@@ -1,74 +1,42 @@
-/* @flow
+/*
 
 # CayleyDiagramGenerator
 
 ```javascript
  */
-import {THREE} from '../lib/externals.js';
-import {BitSet} from './BitSet.js';
+import * as THREE from '../lib/externals.js';
+import { BitSet } from './BitSet.js';
 
-export {
-   DIRECTION_INDEX,
-   AXIS_NAME,
-   layoutCayleyDiagram,
-   nextArrowColor,
-   getDefaultStrategies
-}
-/*::
-import type {Tree} from './GEUtils.js';
-import XMLGroup from './XMLGroup.js';
-import type {XMLCayleyDiagram} from './XMLGroup.js';
-import type {NodeData, ArrowData, ChunkData} from './CayleyDiagramView.js';
+import { DEFAULT_NODE_COLOR } from "./CayleyDiagramModel.js"
+import type { NodeType, ArrowType, ChunkType, LayoutType } from "./CayleyDiagramModel.js"
+import type { Group } from './Group.ts'
+import type { Subgroup } from './Subgroup.ts'
+import { XMLCayleyDiagram } from './XMLGroup.js';
 
-export type Layout = 'linear' | 'circular' | 'rotated';
 type LineDirection = 'X' | 'Y' | 'Z';
 type PlaneDirection = 'YZ' | 'XZ' | 'XY';
+export type Layout = 'linear' | 'circular' | 'rotated';
 export type Direction = LineDirection | PlaneDirection;
-export type StrategyParameters = {generator: groupElement, layout: Layout, direction: Direction, nestingLevel: number};
-export type ArrowGenerator = {generator: groupElement, color: color}
-
-type NodeType = {
-   position: THREE.Vector3,
-   element: groupElement,
-   label: html,
-   color: color
-}
-type ArrowType = {
-   start_node: NodeType,
-   end_node: NodeType,
+export type StrategyParameters = {
    generator: groupElement,
-   bidirectional: boolean,
-   thirdPoint: THREE.Vector3
-   keepCurved: boolean,
-   offset: number,
-   color: color
-}
-type ChunkType = {
-   box: THREE.Matrix4,
-   name: html,
-   widths: THREE.Vector3,
-   nodes: Array<NodeType>
-}
-type Layout = {
-   pov: { position: THREE.Vector3, up: THREE.Vector3 },
-   nodes: Array<NodeType>,
-   arrows: Array<ArrowType>,
-   chunks: Array<ChunkType>
-}
-*/
+   layout: Layout,
+   direction: Direction,
+   nestingLevel: number
+ }
+export type ArrowGenerator = { generator: groupElement, color: color }
+
+export const DIRECTION_INDEX = { X: 0, Y: 1, Z: 2, YZ: 0, XZ: 1, XY: 2 };
+export const AXIS_NAME: LineDirection[] = ['X', 'Y', 'Z'];
 
 const DEFAULT_ARC_OFFSET = 0.15
 
-const DIRECTION_INDEX = { X: 0, Y: 1, Z: 2, YZ: 0, XZ: 1, XY: 2 };
-const AXIS_NAME = ['X', 'Y', 'Z'];
-
-function layoutCayleyDiagram (
-   group /*: Group */,
-   nameOrStrategies /*: void | string | Array<StrategyParameters> */,
-   arrowGenerators /*: ?Array<ArrowGenerator> */,
-   rightMultiply /*: ?boolean */,
-   chunkSubgroupIndex /*: ?number */
-) /*: Layout */ {
+export function layoutCayleyDiagram (
+   group: Group,
+   nameOrStrategies?: string | StrategyParameters[] | undefined,
+   arrowGenerators?: Maybe<ArrowGenerator[]>,
+   rightMultiply?: boolean,
+   chunkSubgroupIndex?: Maybe<integer>
+): LayoutType {
    if (nameOrStrategies == null) {
       return drawDefault(group)
    } else if (typeof nameOrStrategies == 'string') {
@@ -78,38 +46,45 @@ function layoutCayleyDiagram (
    }
 }
 
-function getDefaultStrategies (group /*: Group */) /*: Array<StrategyParameters> */ {
+export function getDefaultStrategies (group: Group): StrategyParameters[] {
    return generateStrategy(group)
 }
 
-function drawDefault (group) {
+function drawDefault (group: Group) {
    if (group.elements.length == 1) {
-      const nodes = [{position: new THREE.Vector3(), element: 0, label: group.representation[0]}]
-      const chunkTree = new Chunk(nodes, null)
+      const nodes = [
+         { position: new THREE.Vector3(), element: 0, label: group.representation[0], color: DEFAULT_NODE_COLOR }
+      ]
+      const chunkTree = new Chunk(nodes)
       return makeLayout(chunkTree, [], true)
    }
 
    const strategyParameters = generateStrategy(group)
-   const strategies = strategyParameters.map(
-      ({generator, layout, direction, nestingLevel}) =>
-         new STRATEGY_BY_LAYOUT[layout](generator, direction, nestingLevel)
+   const strategies = strategyParameters.map( ({generator, layout, direction, nestingLevel}:
+          {generator: groupElement, layout: Layout, direction: Direction, nestingLevel: integer}) =>
+      new STRATEGY_BY_LAYOUT[layout](generator, direction, nestingLevel)
    )
 
    const chunkTree = generateTree(group, strategies)
    chunkTree.strategy.layoutChunk(chunkTree)
    normalizeScene(chunkTree)
 
-   const arrowGeneratorElements = strategies.map((strategy) => strategy.generator).reverse()
+   const arrowGeneratorElements = strategies.map((strategy: AbstractLayoutStrategy) => strategy.generator).reverse()
    const arrows = createArrows(group, chunkTree, arrowGeneratorElements, true)
    setArrowColors(arrows, null)
 
    return makeLayout(chunkTree, arrows, true)
 }
 
-function drawDiagram (group, diagramName, arrowGenerators, rightMultiply = true) {
-   const cayleyDiagram = group.cayleyDiagrams.find((cd) => cd.name == diagramName)
+function drawDiagram (
+   group: Group,
+   diagramName: string,
+   arrowGenerators: Maybe<ArrowGenerator[]>,
+   rightMultiply: boolean = true
+) {
+   const cayleyDiagram = group.cayleyDiagrams.find((cd) => cd.name == diagramName) as XMLCayleyDiagram
    const nodes = cayleyDiagram.points.map((point, element) => createNode(group, element, point))
-   const chunkTree = new Chunk(nodes, null).setPositionFromChildren()
+   const chunkTree = new Chunk(nodes).setPositionFromChildren()
    const arrowGeneratorElements = (arrowGenerators == null)
       ? cayleyDiagram.arrows
       : arrowGenerators.map((ag) => ag.generator)
@@ -119,10 +94,18 @@ function drawDiagram (group, diagramName, arrowGenerators, rightMultiply = true)
    return makeLayout(chunkTree, arrows, false)
 }
 
-function drawFromStrategy (group, strategyParameters, arrowGenerators, rightMultiply = true, chunkSubgroupIndex) {
+function drawFromStrategy (
+   group: Group,
+   strategyParameters: StrategyParameters[],
+   arrowGenerators: Maybe<ArrowGenerator[]>,
+   rightMultiply: boolean = true,
+   chunkSubgroupIndex?: Maybe<integer>
+) {
    if (group.elements.length == 1) {
-      const nodes = [{position: new THREE.Vector3(), element: 0, label: group.representation[0]}]
-      const chunkTree = new Chunk(nodes, null)
+      const nodes = [
+         { position: new THREE.Vector3(), element: 0, label: group.representation[0], color: DEFAULT_NODE_COLOR }
+      ]
+      const chunkTree = new Chunk(nodes)
       return makeLayout(chunkTree, [], true)
    }
 
@@ -146,7 +129,7 @@ function drawFromStrategy (group, strategyParameters, arrowGenerators, rightMult
    return { pov: getPOV(chunkTree, true), nodes: chunkTree.allChildNodes, arrows, chunks }
 }
 
-function makeLayout (chunkTree, arrows, generatesFromStrategy) {
+function makeLayout (chunkTree: Chunk, arrows: ArrowType[], generatesFromStrategy: boolean): LayoutType {
    return { pov: getPOV(chunkTree, generatesFromStrategy), nodes: chunkTree.allChildNodes, arrows, chunks: [] }
 }
 
@@ -165,7 +148,7 @@ function makeLayout (chunkTree, arrows, generatesFromStrategy) {
  *     and make cubes look flat; look at origin, and adjust camera
  *     distance so that diagram fills field of view
  */
-function getPOV (chunkTree, generatesFromStrategy) {
+function getPOV (chunkTree: Chunk, generatesFromStrategy: boolean) {
    const pov = {position: new THREE.Vector3(), up: new THREE.Vector3()}
    const nodePositions = chunkTree.allChildNodes.map((node) => node.position)
    if (generatesFromStrategy) {
@@ -216,10 +199,10 @@ function getPOV (chunkTree, generatesFromStrategy) {
    return pov
 }
 
-function setArrowColors (arrows, passedArrowGenerators) {
+function setArrowColors (arrows: ArrowType[], passedArrowGenerators: Maybe<ArrowGenerator[]>) {
    if (passedArrowGenerators == null) {
       const coloredGeneratorMap = new Map()
-      const colorsUsed = []
+      const colorsUsed: color[] = []
       arrows.forEach((arrow) => {
          arrow.color = coloredGeneratorMap.get(arrow.generator)
          if (arrow.color == null) {
@@ -229,16 +212,17 @@ function setArrowColors (arrows, passedArrowGenerators) {
          }
       })
    } else {
-      const arrowGeneratorMap =
-         new Map(passedArrowGenerators.map((arrowGenerator) => [arrowGenerator.generator, arrowGenerator]))
-      arrows.forEach((arrow) => arrow.color = arrowGeneratorMap.get(arrow.generator).color)
+      const arrowGeneratorMap = new Map<groupElement, ArrowGenerator>(
+         passedArrowGenerators.map((arrowGenerator) => [arrowGenerator.generator, arrowGenerator])
+      )
+      arrows.forEach((arrow) => arrow.color = (arrowGeneratorMap.get(arrow.generator) as ArrowGenerator).color)
    }
 }
 
 // colors from Mat Macaulay's slides, Sasha Trubetskoy's list of distinct colors
 const ARROW_COLORS =
    ['#89b910', '#b79100', '#f58231', '#469990', '#808000', '#007700', '#0d0db0', '#990000']
-function nextArrowColor (colorsUsed = []) {
+export function nextArrowColor (colorsUsed: color[] = []): color {
    let nextColor
    if (colorsUsed.length < ARROW_COLORS.length) {
       const unusedColors = [...ARROW_COLORS]
@@ -248,7 +232,7 @@ function nextArrowColor (colorsUsed = []) {
             unusedColors.splice(unusedColorIndex, 1)
          }
       })
-      nextColor = unusedColors.pop()
+      nextColor = unusedColors.pop() as color
    } else {  // run through color paletter, just create a color from a random hue
       const randomHue = Math.round(Math.random() * 360)
       nextColor = `hsl(${randomHue}, 55%, 50%)`
@@ -256,34 +240,34 @@ function nextArrowColor (colorsUsed = []) {
    return nextColor
 }
 
-function createChunks (group, chunkTree, chunkSubgroupIndex) {
+function createChunks (group: Group, chunkTree: Chunk, chunkSubgroupIndex: Maybe<integer>): ChunkType[] {
    if (chunkSubgroupIndex == null) {
       return []
    }
 
-   const findChunksByStrategy = (strategy, chunk = chunkTree) => {
+   const findChunksByStrategy = (strategy: AbstractLayoutStrategy, chunk: Chunk = chunkTree): Chunk[] => {
       if (chunk.strategy == strategy) {
          return [chunk]
       } else {
-         return chunk.children.map((child) => findChunksByStrategy(strategy, child)).flat(2)
+         return chunk.chunks.map((child) => findChunksByStrategy(strategy, child)).flat(2)
       }
    }
 
-   const findChunksBySubgroupIndex = (subgroupIndex, chunk = chunkTree) => {
-      if (!chunk.isChunk || chunk.strategy?.elements == null) {
-         return []
-      } else if (chunk.strategy.elements.equals(group.subgroups[subgroupIndex].members)) {
+   const findChunksBySubgroupIndex = (subgroupIndex: integer, chunk: Chunk = chunkTree): Chunk[]  => {
+      if (chunk.strategy.elements?.equals(group.subgroups[subgroupIndex].members)) {
          return findChunksByStrategy(chunk.strategy)
+      } else if (chunk.chunks.length > 0) {
+         return findChunksBySubgroupIndex(subgroupIndex, chunk.chunks[0])
       } else {
-         return findChunksBySubgroupIndex(subgroupIndex, chunk.children[0])
+         return []
       }
    }
 
    const chunks = findChunksBySubgroupIndex(chunkSubgroupIndex)
 
-   const chunkData = chunks.map((chunk) => {
+   const chunkData: ChunkType[] = chunks.map((chunk) => {
       const allChildNodes = chunk.allChildNodes
-      const chunkData = {
+      const chunkData: ChunkType = {
          name: allChildNodes[0].label + `<i>H</i><sub>${chunkSubgroupIndex}</sub>`,
          box: chunk.transformedChunkBox,
          widths: chunk.originalChunkSize,
@@ -295,14 +279,19 @@ function createChunks (group, chunkTree, chunkSubgroupIndex) {
    return chunkData
 }
 
-function createArrows (group, chunkTree, generators /*: Array<element> */, rightMultiply) /*: Array<ArrowData> */ {
-   const areColinear = (position1, position2, position3) => {
+function createArrows (
+   group: Group,
+   chunkTree: Chunk,
+   generators: groupElement[],
+   rightMultiply: boolean
+): ArrowType[] {
+   const areColinear = (position1: THREE.Vector3, position2: THREE.Vector3, position3: THREE.Vector3): boolean => {
       const v1 = new THREE.Vector3().subVectors(position1, position2)
       const v2 = new THREE.Vector3().subVectors(position1, position3)
       return new THREE.Vector3().crossVectors(v1, v2).length() < 1.0e-6
    }
 
-   const isCurved = (startNode /*: NodeData */, endNode /*: NodeData */) /*: boolean? */ => {
+   const isCurved = (startNode: NodeType, endNode: NodeType): boolean => {
       const commonChunk = getCommonChunk(startNode, endNode)
       let drawCurved = commonChunk.strategy instanceof CurvedLayoutStrategy
          && !areColinear(commonChunk.position, startNode.position, endNode.position)
@@ -314,10 +303,12 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
          && leftBoundary[1].strategy instanceof LinearLayoutStrategy
          && leftBoundary[1].children.length == 2
       ) {
-         const startNodeParentIndex = commonChunk.children.findIndex((chunk) => chunk.children.some((node) => node == startNode))
-         const endNodeParentIndex = commonChunk.children.findIndex((chunk) => chunk.children.some((node) => node == endNode))
-         if (  commonChunk.children[startNodeParentIndex].children[1] == startNode
-            && commonChunk.children[endNodeParentIndex].children[1] == endNode
+         const startNodeParentIndex =
+            commonChunk.chunks.findIndex((child) => child.leaves.some((node) => node == startNode))
+         const endNodeParentIndex =
+            commonChunk.chunks.findIndex((child) => child.leaves.some((node) => node == endNode))
+         if (  commonChunk.chunks[startNodeParentIndex].leaves[1] == startNode
+            && commonChunk.chunks[endNodeParentIndex].leaves[1] == endNode
             && Math.abs(startNodeParentIndex - endNodeParentIndex) != 1
             && Math.abs(startNodeParentIndex - endNodeParentIndex) != commonChunk.children.length - 1
          ) {
@@ -329,18 +320,18 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
    }
 
    // find lowest chunk in tree containing both nodes
-   const getCommonChunk = (node1, node2) => {
+   const getCommonChunk = (node1: NodeType, node2: NodeType): Chunk => {
       const ancestry1 = chunkTree.getNodeAncestry(node1)
       const ancestry2 = chunkTree.getNodeAncestry(node2)
       for (let inx = 0; inx < ancestry1.length; inx++) {
          if (ancestry1[inx] == ancestry2[inx]) {
-            return ancestry1[inx]
+            return ancestry1[inx] as Chunk
          }
       }
-      return null
+      return chunkTree  // always a safe bet
    }
 
-   const getThirdPointForLinearLayoutStrategy = (node1, node2) => {
+   const getThirdPointForLinearLayoutStrategy = (node1: NodeType, node2: NodeType): THREE.Vector3 => {
       const ancestry = chunkTree.getNodeAncestry(node1)
       const commonChunk = getCommonChunk(node1, node2)
       const chunkIndex = ancestry.findIndex((chunk) => chunk == commonChunk)
@@ -348,8 +339,8 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
       // look past colinear lines: they don't help to determine the display plane
       let child = null
       for (let inx = chunkIndex - 1; inx >= 0; inx--) {
-         const maybeChild = ancestry[inx]
-         if (   !maybeChild.strategy instanceof LinearLayoutStrategy
+         const maybeChild = ancestry[inx] as Chunk
+         if ( !(maybeChild.strategy instanceof LinearLayoutStrategy)
             || maybeChild.strategy.direction != commonChunk.strategy.direction) {
                child = maybeChild
                break
@@ -358,8 +349,8 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
 
       let parent = null
       for (let inx = chunkIndex + 1; inx < ancestry.length; inx++) {
-         const maybeParent = ancestry[inx]
-         if (   !maybeParent.strategy instanceof LinearLayoutStrategy
+         const maybeParent = ancestry[inx] as Chunk
+         if (   !(maybeParent.strategy instanceof LinearLayoutStrategy)
             || maybeParent.strategy.direction != commonChunk.strategy.direction) {
                parent = maybeParent
                break
@@ -376,7 +367,12 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
       return thirdPoint
    }
 
-   const getThirdPointFromCombinedChunks = (otherChunk, commonChunk, node1, node2) => {
+   const getThirdPointFromCombinedChunks = (
+      otherChunk: Chunk,
+      commonChunk: Chunk,
+      node1: NodeType,
+      node2: NodeType
+   ): THREE.Vector3 => {
       const commonChunkDirectionIndex = DIRECTION_INDEX[commonChunk.strategy.direction]
       const otherChunkDirectionIndex = DIRECTION_INDEX[otherChunk.strategy.direction]
 
@@ -403,7 +399,11 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
       return thirdPoint
    }
 
-   const getThirdPointFromNormalAndEndpoints = (normal, position1, position2) => {
+   const getThirdPointFromNormalAndEndpoints = (
+      normal: THREE.Vector3,
+      position1: THREE.Vector3,
+      position2: THREE.Vector3
+   ): THREE.Vector3 => {
       const inPlane = position1.clone().sub(position2).cross(normal)
       const midPoint = position1.clone().add(position2).multiplyScalar(0.5)
       const dotProduct = midPoint.dot(inPlane)
@@ -415,12 +415,12 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
       return thirdPoint
    }
 
-   const areCoplanar = (normal, point1, point2) => {
+   const areCoplanar = (normal: THREE.Vector3, point1: THREE.Vector3, point2: THREE.Vector3): boolean => {
       const result = point1.clone().sub(point2).dot(normal) < 1.e-6
       return result
    }
 
-   const getThirdPointForCurvedLayoutStrategy = (node1, node2) => {
+   const getThirdPointForCurvedLayoutStrategy = (node1: NodeType, node2: NodeType): THREE.Vector3 => {
       const position1 = node1.position
       const position2 = node2.position
       const commonChunk = getCommonChunk(node1, node2)
@@ -439,7 +439,7 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
          if (areCoplanar(commonChunkNormal, position1, position2)) {
             // find point at which commonChunkNormal intersects this plane
             const centroid = commonChunk.children
-               .reduce((centroid, child) => centroid.add(child.position), new THREE.Vector3())
+               .reduce<THREE.Vector3>((centroid, child) => centroid.add(child.position), new THREE.Vector3())
                .multiplyScalar(1 / commonChunk.children.length)
             const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(commonChunkNormal, position1)
             thirdPoint = plane.projectPoint(centroid, new THREE.Vector3())
@@ -454,7 +454,7 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
    }
 
    // this is a stand-alone line
-   const getThirdPointForSingleLine = (chunk) => {
+   const getThirdPointForSingleLine = (chunk: Chunk): THREE.Vector3 => {
       let thirdPoint
 
       // deal with colinear line-of-lines case?
@@ -478,7 +478,7 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
       return thirdPoint
    }
 
-   const getThirdPoint = (node1, node2) => {
+   const getThirdPoint = (node1: NodeType, node2: NodeType): THREE.Vector3 => {
       // strategy == null => not generated
       if (chunkTree.strategy == null) {
          return new THREE.Vector3()
@@ -494,23 +494,25 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
 
    const nodes = chunkTree.allChildNodes.sort((a, b) => a.element - b.element)
 
-   const multiply = (a, b) => rightMultiply ? group.mult(a, b) : group.mult(b, a);
+   const multiply = (a: groupElement, b: groupElement): groupElement =>
+      rightMultiply ? group.mult(a, b) : group.mult(b, a);
 
-   const newArrows = []
+   const newArrows: ArrowType[] = []
    for (const generator of generators) {
       for (const element of group.elements) {
          const product = multiply(element, generator)
          const bidirectional = (multiply(product, generator) == element)
          if (!bidirectional || element < product) {  // test element < product so we only draw an undirected line once
             const generatedCurved = isCurved(nodes[element], nodes[product])
-            const newArrow = {
+            const newArrow: ArrowType = {
                start_node: nodes[element],
                end_node: nodes[product],
                generator: generator,
                bidirectional: bidirectional,
                thirdPoint: getThirdPoint(nodes[element], nodes[product]),
                keepCurved: generatedCurved,
-               offset: generatedCurved ? DEFAULT_ARC_OFFSET : null, // undefined,  // Heuristic value
+               offset: generatedCurved ? DEFAULT_ARC_OFFSET : null,  // Heuristic value
+               color: 'white'  // keeps typechecker happy, soon to be overwritten
             }
             newArrows.push(newArrow)
          }
@@ -521,61 +523,60 @@ function createArrows (group, chunkTree, generators /*: Array<element> */, right
 }
 
 class AbstractLayoutStrategy {
-    /*::
-      +layoutNodes: (children: Array<Array<NodeData>> ) => Array<Array<NodeData>>;
-      generator: groupElement;
-      +layout: Layout;
-      direction: Direction;
-      nesting_level: number;
-      elements: BitSet;
-    */
-    constructor (generator /*: groupElement */, direction /*: Direction */, nesting_level /*: number */) {
-        this.generator = generator;          // element# (not 0)
-        this.direction = direction;          // X/Y/Z for linear, YZ/XZ/XY for curved
-        this.directionIndex = DIRECTION_INDEX[direction]
-        this.nesting_level = nesting_level;  // 0 for innermost, increasing to outermost
-    }
+   generator: groupElement
+   readonly layout!: Layout
+   direction: Direction
+   directionIndex: integer
+   nesting_level: integer
+   elements: Maybe<BitSet>
 
-    get strategyParameters () /*: StrategyParameters */ {
-        return { generator: this.generator,
-                 layout: this.layout,
-                 direction: this.direction,
-                 nestingLevel: this.nesting_level,
-               };
-    }
+   constructor (generator: groupElement, direction: Direction, nesting_level: integer) {
+      this.generator = generator;          // element# (not 0)
+      this.direction = direction;          // X/Y/Z for linear, YZ/XZ/XY for curved
+      this.directionIndex = DIRECTION_INDEX[direction]
+      this.nesting_level = nesting_level;  // 0 for innermost, increasing to outermost
+   }
+   
+   get strategyParameters (): StrategyParameters {
+      return { generator: this.generator,
+         layout: this.layout,
+         direction: this.direction,
+         nestingLevel: this.nesting_level,
+      };
+   }
 
-    transformChild (child /*: Array<NodeData> */, transform /*: THREE.Matrix4 */) {
-        if (child.isChunk) {
-            child.transform(transform)
-        } else {
-            child.position = child.position.applyMatrix4(transform)
-        }
-    }
+   transformChild (child: Chunk | NodeType, transform: THREE.Matrix4) {
+      if ('transform' in child) {
+         child.transform(transform)
+      } else {
+         child.position = child.position.applyMatrix4(transform)
+      }
+   }
 
-    layoutChunk (chunk) {
-        if (chunk.children[0].isChunk) {
-            chunk.children.forEach((child) => child.strategy.layoutChunk(child))
-        }
-        this.layoutNodes(chunk)
-        chunk.setPositionFromChildren()
+   layoutChunk (chunk: Chunk) {
+      chunk.chunks.forEach((child) => child.strategy.layoutChunk(child))
+      this.layoutNodes(chunk)
+      chunk.setPositionFromChildren()
 
-        return chunk
-    }
+      return chunk
+   }
+
+   layoutNodes (_chunk: Chunk) {
+      // Subclass responsibility
+   }
 }
 
 // Scale and translate children to distribute them from 0 to 1 along the <direction> line
 class LinearLayoutStrategy extends AbstractLayoutStrategy {
-    constructor (generator /*: groupElement */, direction /*: Direction */, nesting_level /*: number */) {
+    readonly layout: Layout = 'linear'
+
+    constructor (generator: groupElement, direction: Direction, nesting_level: integer) {
         super(generator, direction, nesting_level);
     }
 
-    get layout () /*: Layout */ {
-        return 'linear';
-    }
-
-    layoutNodes (chunk) {
+    layoutNodes (chunk: Chunk) {
         // number of children
-        const childCount = chunk.children.length;
+        const childCount = chunk.children.length
 
         const childWidth = getWidth(chunk.allChildNodes, this.directionIndex)
         let transform = new THREE.Matrix4()
@@ -597,23 +598,25 @@ class LinearLayoutStrategy extends AbstractLayoutStrategy {
 
 // calculate position transform as a function of angle theta for circular layout strategy
 const positionTransforms = {
-    YZ: (r, theta) => new THREE.Vector3(0,                        0.5 - r*Math.cos(theta),  0.5 - r*Math.sin(theta)),
-    XZ: (r, theta) => new THREE.Vector3(0.5 + r*Math.sin(theta),  0,                        0.5 - r*Math.cos(theta)),
-    XY: (r, theta) => new THREE.Vector3(0.5 + r*Math.sin(theta),  0.5 - r*Math.cos(theta),  0),
+   YZ: (r: float, theta: float) =>
+      new THREE.Vector3(0,                        0.5 - r*Math.cos(theta),  0.5 - r*Math.sin(theta)),
+   XZ: (r: float, theta: float) =>
+      new THREE.Vector3(0.5 + r*Math.sin(theta),  0,                        0.5 - r*Math.cos(theta)),
+   XY: (r: float, theta: float) =>
+      new THREE.Vector3(0.5 + r*Math.sin(theta),  0.5 - r*Math.cos(theta),  0),
 }
 
 class CurvedLayoutStrategy extends AbstractLayoutStrategy {
-    /*::
-      position: (r: number, theta: number) => THREE.Vector3;
-    */
-    constructor(generator /*: groupElement */, direction /*: Direction */, nesting_level /*: number */) {
+    positionTransform: (r: number, theta: number) => THREE.Vector3
+
+    constructor(generator: groupElement, direction: Direction, nesting_level: number) {
         super(generator, direction, nesting_level);
-        this.positionTransform = (r, theta) => positionTransforms[((direction /*: any */) /*: PlaneDirection */)](r, theta);
+        this.positionTransform = positionTransforms[direction as PlaneDirection]
     }
 
     // radius -- mean radius of annulus that contains children
     // scale -- factor by which to shrink the children of this chunk so they will fit around the circumference
-    getRadiusAndScale (chunk) {
+    getRadiusAndScale (chunk: Chunk) {
         // find height, width of child of prototypical chunk child
         const dir = [
             {lengthDirection: 1, widthDirection: 2},  // YZ length: Y, width: Z
@@ -622,17 +625,17 @@ class CurvedLayoutStrategy extends AbstractLayoutStrategy {
         ]
 
         const nodeSize = 0.3 / Math.sqrt(chunk.allChildNodes.length)  // leave room for nodes in layout
-        const childWidth = getWidth(chunk.children[0].allChildNodes, dir[this.directionIndex].widthDirection) + nodeSize
-        const childHeight = getWidth(chunk.children[0].allChildNodes, dir[this.directionIndex].lengthDirection) + nodeSize
+        const childNodes = (chunk.isLeaf) ? chunk.leaves : chunk.chunks[0].allChildNodes
+        const childWidth = getWidth(childNodes, dir[this.directionIndex].widthDirection) + nodeSize
+        const childHeight = getWidth(childNodes, dir[this.directionIndex].lengthDirection) + nodeSize
         const childCount = chunk.children.length
 
         let radius = childHeight * 5 / 6
         let scale = 1
 
        // ad-hoc adjustment for two-node children
-        if (  chunk.children[0].isChunk
-            && !chunk.children[0].children[0].isChunk
-            && chunk.children[0].children.length == 2
+       if (  !chunk.isLeaf
+          && chunk.chunks[0].leaves.length == 2
         ) {
             radius = 0.75 + 0.01 * childCount / 2
             scale = 0.5 - 0.01 * childCount
@@ -653,15 +656,13 @@ class CurvedLayoutStrategy extends AbstractLayoutStrategy {
 // Scale children to fit and translate them so they're distributed
 //   around the 0.5*e^i*[0,2*PI] circle centered at [.5,.5]
 class CircularLayoutStrategy extends CurvedLayoutStrategy {
-    constructor(generator /*: groupElement */, direction /*: Direction */, nesting_level /*: number */) {
+    readonly layout: Layout = 'circular'
+
+    constructor(generator: groupElement, direction: Direction, nesting_level: integer) {
         super(generator, direction, nesting_level);
     }
 
-    get layout() /*: Layout */ {
-        return 'circular';
-    }
-
-    layoutNodes (chunk) {
+    layoutNodes (chunk: Chunk) {
         const [radius, scale] = this.getRadiusAndScale(chunk)
 
         const transform = (new THREE.Matrix4()).makeScale(
@@ -678,59 +679,61 @@ class CircularLayoutStrategy extends CurvedLayoutStrategy {
 
 // calculate position transform as a function of angle theta for rotation layout strategy
 const GE2_positionTransforms = {  // GE2
-    YZ: (r, theta) => new THREE.Vector3(0,                        0.5 - r*Math.sin(theta),  0.5 - r*Math.cos(theta)),
-    XZ: (r, theta) => new THREE.Vector3(0.5 + r*Math.sin(theta),  0,                        0.5 + r*Math.cos(theta)),
-    XY: (r, theta) => new THREE.Vector3(0.5 + r*Math.sin(theta),  0.5 - r*Math.cos(theta),  0),
+   YZ: (r: float, theta: float) =>
+      new THREE.Vector3(0,                        0.5 - r*Math.sin(theta),  0.5 - r*Math.cos(theta)),
+   XZ: (r: float, theta: float) =>
+      new THREE.Vector3(0.5 + r*Math.sin(theta),  0,                        0.5 + r*Math.cos(theta)),
+   XY: (r: float, theta: float) =>
+      new THREE.Vector3(0.5 + r*Math.sin(theta),  0.5 - r*Math.cos(theta),  0),
 }
 
 // GE2, Current GE3
 const rotationTransforms = {
-    YZ: (theta) => new THREE.Matrix4().makeRotationX(theta + Math.PI/2),
-    XZ: (theta) => new THREE.Matrix4().makeRotationY(theta + Math.PI/2),
-    XY: (theta) => new THREE.Matrix4().makeRotationZ(theta + Math.PI/2),
+    YZ: (theta: float) => new THREE.Matrix4().makeRotationX(theta + Math.PI/2),
+    XZ: (theta: float) => new THREE.Matrix4().makeRotationY(theta + Math.PI/2),
+    XY: (theta: float) => new THREE.Matrix4().makeRotationZ(theta + Math.PI/2),
 }
 
 // calculate rotation transform as a function of angle theta for plane directions
 const proposedRotationTransforms = {
-    YZ: (theta) => new THREE.Matrix4().makeRotationX(theta),
-    XZ: (theta) => new THREE.Matrix4().makeRotationY(theta),
-    XY: (theta) => new THREE.Matrix4().makeRotationZ(theta),
+    YZ: (theta: float) => new THREE.Matrix4().makeRotationX(theta),
+    XZ: (theta: float) => new THREE.Matrix4().makeRotationY(theta),
+    XY: (theta: float) => new THREE.Matrix4().makeRotationZ(theta),
 }
 
 // Scale children to fit, rotate them PI/2 + 2*inx*PI/n, and translate them
 //   so they're distributed around the 0.5*e^i*[0,2*PI] circle centered at [.5,.5]
 class RotatedLayoutStrategy extends CurvedLayoutStrategy {
-    /*::
-      rotation: (theta: number) => THREE.Matrix4;
-    */
-    constructor(generator /*: groupElement */, direction /*: Direction */, nesting_level /*: number */) {
+    layout: Layout = 'rotated'
+    rotationTransform: (theta: number) => THREE.Matrix4;
+
+    constructor(generator: groupElement, direction: Direction, nesting_level: integer) {
         super(generator, direction, nesting_level);
         // ToDo: make a choice with Nathan and remove this
         if (localStorage.getItem('POV') == 'GE2') {
-            this.positionTransform = GE2_positionTransforms[direction]
+            this.positionTransform = GE2_positionTransforms[direction as PlaneDirection]
         }
         this.rotationTransform = (localStorage.getItem('POV') == 'proposed')
-            ? proposedRotationTransforms[direction]
-            : rotationTransforms[direction]
+            ? proposedRotationTransforms[direction as PlaneDirection]
+            : rotationTransforms[direction as PlaneDirection]
     }
 
-    get layout() /*: Layout */ {
-        return 'rotated';
-    }
-
-    layoutNodes (chunk) {
+    layoutNodes (chunk: Chunk) {
         const [radius, scale] = this.getRadiusAndScale(chunk)
 
         // scale and translate to origin
         const centroid = getCentroid(chunk.children)
-        const toOrigin = new THREE.Matrix4().makeScale(scale, scale, scale).setPosition(centroid.clone().multiplyScalar(-scale))
+        const toOrigin = new THREE.Matrix4()
+            .makeScale(scale, scale, scale)
+            .setPosition(centroid.clone().multiplyScalar(-scale))
 
         // scale, rotate, and translate each child
         chunk.children.forEach((child, inx) => {
             const theta = inx*2*Math.PI/chunk.children.length
 
             const rotate = this.rotationTransform(theta)
-            const toNewPosition = new THREE.Matrix4().makeTranslation(centroid.clone().add(this.positionTransform(radius, theta)))
+            const toNewPosition = new THREE.Matrix4()
+                .makeTranslation(centroid.clone().add(this.positionTransform(radius, theta)))
 
             // scale and translate child to origin, rotate (about origin), and translate to new position
             this.transformChild(child, toNewPosition.clone().multiply(rotate.clone().multiply(toOrigin)))
@@ -738,52 +741,67 @@ class RotatedLayoutStrategy extends CurvedLayoutStrategy {
     }
 }
 
-const STRATEGY_BY_LAYOUT = {
+type AbstractLayoutStrategyType =
+   new (generator: groupElement, direction: Direction, nesting_level: integer) => AbstractLayoutStrategy
+
+const STRATEGY_BY_LAYOUT: { [key: string]: AbstractLayoutStrategyType } = {
     linear: LinearLayoutStrategy,
     circular: CircularLayoutStrategy,
     rotated: RotatedLayoutStrategy
-};
+}
 
 class Chunk {
-    children
-    position
-    transformedChunkBox
-    originalChunkSize
-   #allChildNodes
+   chunks: Chunk[] = []
+   leaves: NodeType[] = []
+   position!: THREE.Vector3
+   strategy!: AbstractLayoutStrategy
+   transformedChunkBox!: THREE.Matrix4
+   originalChunkSize!: THREE.Vector3
+   #allChildNodes!: NodeType[]
+    
+   constructor (children: Chunk[] | NodeType[], strategy?: AbstractLayoutStrategy) {
+      if (children[0] != null) {
+         if (Object.getPrototypeOf(children[0]) === Object.prototype) {
+            this.leaves.push(...children as NodeType[])
+         } else {
+            this.chunks.push(...children as Chunk[])
+         }
+      }
+      if (strategy != null)
+         this.strategy = strategy
+   }
 
-    constructor (children, strategy) {
-        this.children = children
-        this.strategy = strategy
-    }
+   get children (): Chunk[] | NodeType[]  {
+      return (this.isLeaf) ? this.leaves : this.chunks
+   }
 
-    get isChunk () {
-        return true
-    }
-
-    get allChildNodes () /*: Array<NodeData> */ {
+   get isLeaf (): boolean {
+      return this.leaves.length > 0
+   }
+   
+    get allChildNodes (): NodeType[] {
        if (this.#allChildNodes == null) {
-          this.#allChildNodes = this.children.map((child) =>
-             child.isChunk
-                ? child.allChildNodes
-                : [child]
-          ).flat()
+          const childNodes = (chunk: Chunk): NodeType[] =>
+             (chunk.isLeaf)
+                ? [...chunk.leaves]
+                : chunk.chunks.map((child) => childNodes(child)).flat(1)
+          this.#allChildNodes = childNodes(this).flat(1)
        }
 
        return this.#allChildNodes
     }
 
-    get leftBoundary () {
-        const leftBoundary = (this.children[0].isChunk)
-            ? [this, ...this.children[0].leftBoundary]
-            : [this]
-        return leftBoundary
+    get leftBoundary (): Chunk[] {
+       const leftBoundary = (this.isLeaf)
+          ? [this]
+          : [this, ...this.chunks[0].leftBoundary]
+       return leftBoundary
     }
 
-    getNodeAncestry (node) {
-        const ancestors = this.children[0].isChunk
-            ? [...this.children.find((child) => child.allChildNodes.includes(node)).getNodeAncestry(node), this]
-            : [this]
-
+    getNodeAncestry (node: NodeType): (Chunk | NodeType)[] {
+       const ancestors = (this.isLeaf)
+          ? [this]
+          : [...(this.chunks.find((child) => child.allChildNodes.includes(node)) as Chunk).getNodeAncestry(node), this]
         return ancestors
     }
 
@@ -791,7 +809,7 @@ class Chunk {
         // initialize from children, but only after they've been positioned
         const allChildNodes = this.allChildNodes
 
-        const [xMin, xMax, yMin, yMax, zMin, zMax] = allChildNodes.reduce(
+        const [xMin, xMax, yMin, yMax, zMin, zMax] = allChildNodes.reduce<[float, float, float, float, float, float]>(
             ([xMin, xMax, yMin, yMax, zMin, zMax], node) => {
                 return [
                     Math.min(xMin, node.position.x),
@@ -818,47 +836,51 @@ class Chunk {
         return this
     }
 
-    transform (transform) {
+    transform (transform: THREE.Matrix4) {
         this.position.applyMatrix4(transform)
         this.transformedChunkBox.premultiply(transform)
-        if (this.plane != null) {
-            this.plane.applyMatrix4(transform)
-        }
 
-        this.children.forEach((child) => {
-            if (child.isChunk) {
-                child.transform(transform)
-            } else {
-                child.position = child.position.applyMatrix4(transform)
-            }
-        })
+       if (this.isLeaf) {
+          for (const leaf of this.leaves) {
+             leaf.position = leaf.position.applyMatrix4(transform)
+          }
+       } else {
+          for (const chunk of this.chunks) {
+             chunk.transform(transform)
+          }
+       }
     }
 }
 
-function createNode (G, element, position = [0, 0, 0]) {
+function createNode (G: Group, element: groupElement, position = [0, 0, 0]): NodeType {
     return {
         position: new THREE.Vector3(...position),
         element: element,
         label: G.representation[element],
+        color: DEFAULT_NODE_COLOR
     }
 }
 
-function generateTree (G /*: Group */, strategies /*: Array<AbstractLayoutStrategy> */) /*: Tree<Chunk> */ {
-    function populateTree (remainingStrategies, elementsUsed) {
-        const currentStrategy = remainingStrategies.pop()
+function generateTree (G: Group, strategies: AbstractLayoutStrategy[]): Chunk {
+   function populateTree (remainingStrategies: AbstractLayoutStrategy[], elementsUsed: BitSet): Chunk {
+        const currentStrategy = remainingStrategies.pop() as AbstractLayoutStrategy
 
         if (remainingStrategies.length == 0) {
             elementsUsed.add(G.elementPowers[currentStrategy.generator]);
             currentStrategy.elements = elementsUsed.clone();
-            return new Chunk(G.getElementPowerArray(currentStrategy.generator).map((el) => createNode(G, el)), currentStrategy)
+            const leaves = G.getElementPowerArray(currentStrategy.generator).map((el) => createNode(G, el))
+            return new Chunk(leaves, currentStrategy)
         } else {
-            const nodeTreeMultiply = (g, chunkTree) => {
-                if (chunkTree.isChunk) {
-                    return new Chunk(chunkTree.children.map((child) => nodeTreeMultiply(g, child)), chunkTree.strategy)
-                } else {  // node
-                    const prod = G.mult(g, chunkTree.element);
-                    elementsUsed.set(prod);
-                    return createNode(G, prod)
+            const nodeTreeMultiply = (g: groupElement, chunk: Chunk): Chunk  => {
+                if (chunk.isLeaf) {
+                   const newLeaves = chunk.leaves.map((leafNode) => { 
+                      const newElement = G.mult(g, leafNode.element)
+                      elementsUsed.set(newElement)
+                      return createNode(G, newElement)
+                   })
+                   return new Chunk(newLeaves, chunk.strategy)
+                } else {
+                   return new Chunk(chunk.chunks.map((child) => nodeTreeMultiply(g, child)), chunk.strategy)
                 }
             }
 
@@ -866,7 +888,7 @@ function generateTree (G /*: Group */, strategies /*: Array<AbstractLayoutStrate
             const generators = G.getElementPowerArray(currentStrategy.generator);
             generators.push(...remainingStrategies.map( (strategy) => strategy.generator));
 
-            const chunkTree = [populateTree(remainingStrategies, elementsUsed)]
+            const chunks = [populateTree(remainingStrategies, elementsUsed)]
 
             const cosetReps = [0];
             for (const g of cosetReps) {
@@ -874,50 +896,53 @@ function generateTree (G /*: Group */, strategies /*: Array<AbstractLayoutStrate
                     const h = G.mult(generator, g);
                     if (!elementsUsed.isSet(h)) {
                         cosetReps.push(h);
-                        chunkTree.push(nodeTreeMultiply(h, chunkTree[0]));
+                        chunks.push(nodeTreeMultiply(h, chunks[0]));
                     }
                 }
             }
             currentStrategy.elements = elementsUsed.clone();
 
-            return new Chunk(chunkTree, currentStrategy)
+            return new Chunk(chunks, currentStrategy)
         }
     }
 
-    function sortTreeByNestingLevel (nodeTree) /*: boolean */ {
+    function sortTreeByNestingLevel (nodeTree: Chunk): boolean {
         let changed = false
-        if (nodeTree.children[0].isChunk) {
-            if (nodeTree.strategy.nesting_level < nodeTree.children[0].strategy.nesting_level) {
+        if (!nodeTree.isLeaf) { 
+            if ((nodeTree.strategy as AbstractLayoutStrategy).nesting_level <
+                    (nodeTree.chunks[0].strategy as AbstractLayoutStrategy).nesting_level
+            ) {
                 changed = true
 
                 // swap the top chunk of node_tree with the next, like transposing a (non-square) matrix
-                const topLength = nodeTree.children.length
-                const nextLength = nodeTree.children[0].children.length
+                const topLength = nodeTree.chunks.length
+                const nextLength = nodeTree.chunks[0].children.length
 
                 // save strategies to swap them, too
                 const topStrategy = nodeTree.strategy
-                const nextStrategy = nodeTree.children[0].strategy
+                const nextStrategy = nodeTree.chunks[0].strategy
 
                 // save next-level children as array of arrays
-                const savedChildren = []
+                const savedChildren: (Chunk[] | NodeType[])[] = []
                 for (let i = 0; i < topLength; i++) {
-                    savedChildren.push(nodeTree.children[i].children)
+                    savedChildren.push((nodeTree.children[i] as Chunk).children)
                 }
 
                 // clear top level, fill with chunks for next level, filled from savedChildren
                 nodeTree.strategy = nextStrategy
                 nodeTree.children.splice(0)
                 for (let i = 0; i < nextLength; i++) {
-                    const tmp = []
+                    const tmp: (Chunk | NodeType)[] = []
                     for (let j = 0; j < topLength; j++) {
                         tmp.push(savedChildren[j][i])
                     }
-                    nodeTree.children.push(new Chunk(tmp, topStrategy))
+                    nodeTree.chunks.push(new Chunk(tmp as Chunk[] | NodeType[], topStrategy))
                 }
             }
 
             // visit the rest of the tree and accumulate changes there
-            changed ||= nodeTree.children.reduce((anyChanged, child) => sortTreeByNestingLevel(child) || anyChanged, false)
+            changed ||=
+               nodeTree.chunks.reduce<boolean>((anyChanged, child) => sortTreeByNestingLevel(child) || anyChanged, false)
         }
 
         return changed
@@ -932,25 +957,25 @@ function generateTree (G /*: Group */, strategies /*: Array<AbstractLayoutStrate
     return chunkTree
 }
 
-function getCentroid (nodes) {
+function getCentroid (nodes: Chunk[] | NodeType[]): THREE.Vector3 {
     return nodes
-        .reduce((centroid, node) => centroid.add(node.position), new THREE.Vector3(0,0,0))
+        .reduce<THREE.Vector3>((centroid, node) => centroid.add(node.position), new THREE.Vector3(0,0,0))
         .multiplyScalar(1 / nodes.length)
 }
 
-function getRadius (center, nodes) {
+function getRadius (center: THREE.Vector3, nodes: Chunk[] | NodeType[]) {
     const squaredRadius = nodes
-        .reduce((squaredRadius, node) => Math.max(squaredRadius, node.position.distanceToSquared(center)), 0)
+        .reduce<float>((squaredRadius, node) => Math.max(squaredRadius, node.position.distanceToSquared(center)), 0)
 
     return Math.sqrt(squaredRadius)
 }
 
-function getWidth (nodes /*: Array<NodeData> */, directionIndex /*: Index */) /*: number */ {
+function getWidth (nodes: NodeType[], directionIndex: integer): number {
     if (!Array.isArray(nodes))
         return 0
 
     const [min, max] =
-        nodes.reduce(([min, max], node) =>
+        nodes.reduce<[float, float]>(([min, max], node) =>
             [Math.min(min, node.position.getComponent(directionIndex)),
                 Math.max(max, node.position.getComponent(directionIndex))],
             [Number.MAX_VALUE, Number.MIN_VALUE])
@@ -959,15 +984,17 @@ function getWidth (nodes /*: Array<NodeData> */, directionIndex /*: Index */) /*
 }
 
 // Normalize scene: translate to centroid, stretch to fill page
-function normalizeScene (chunkTree) {
+function normalizeScene (chunkTree: Chunk) {
     const allCurvedStrategies = chunkTree.leftBoundary
-        .map((chunk) => chunk.strategy)
+        .map((chunk) => chunk.strategy as AbstractLayoutStrategy)
         .filter((strategy) => strategy instanceof CurvedLayoutStrategy)
 
     // scale anisotropically unless it would distort a circular/rotated diagram
     const centroid = chunkTree.position.clone()
     const radius = getRadius(centroid, chunkTree.allChildNodes)
-    const scaleArray = new THREE.Vector3().setFromMatrixScale(chunkTree.transformedChunkBox).toArray()
+    const scaleArray = new THREE.Vector3()
+        .setFromMatrixScale(chunkTree.transformedChunkBox)
+        .toArray()
         .map((scale, inx) => {
             let adjustedScale = scale / (radius || 1)
             const originalSize = chunkTree.originalChunkSize.getComponent(inx)
@@ -982,14 +1009,14 @@ function normalizeScene (chunkTree) {
                 }
             }
             return adjustedScale
-        })
+        }) as [number, number, number]
     const centeringTransform = new THREE.Matrix4().makeTranslation(...centroid.multiplyScalar(-1).toArray())
     const transform = new THREE.Matrix4().makeScale(...scaleArray).multiply(centeringTransform)
 
     chunkTree.transform(transform)
 }
 
-function generateStrategy (G) {
+function generateStrategy (G: Group): StrategyParameters[] {
    if (G.isAbelian) {
       return generateAbelianStrategy(G)  // Abelian group
    }
@@ -1003,7 +1030,8 @@ function generateStrategy (G) {
    if (G.order % 2 == 0) {
       const N = G.nontrivialProperNormalSubgroups.find((N) => N.index == 2 && N.isomorphicGroup.isCyclic)
       if (N != null) {
-         const H = G.subgroups.find((H) => !H.isNormal && H.order == 2 && !N.members.isSet(H.generators.first()))
+         const H = G.subgroups
+            .find((H) => !H.isNormal && H.order == 2 && !N.members.isSet(H.generators.first() as groupElement))
          if (H != null) {
             return generateDihedralStrategy(N, H)
          }
@@ -1011,7 +1039,7 @@ function generateStrategy (G) {
    }
 
    // we just need one, all complements are isomorphic
-   const getComplement = (N) =>
+   const getComplement = (N: Subgroup) =>
       G.nontrivialProperSubgroups.find((H) => G.closure(BitSet.union(N.members, H.members)).popcount() == G.order)
 
    /* Placeholder for when we figure out how to draw a good Cayley diagram for a central product
@@ -1027,13 +1055,14 @@ function generateStrategy (G) {
     */
 
    // make split extension, array of [normalSubroup, complement] subgroups
-   const splitExtensions = G.nontrivialProperNormalSubgroups.reduce((extensions, N) => {
-      const H = getComplement(N)
-      if (H != null && N.order * H.order == G.order) {
-         extensions.push([N, H])
-      }
-      return extensions
-   }, [])
+   const splitExtensions = G.nontrivialProperNormalSubgroups.reduce<[Subgroup, Subgroup][]>(
+      (extensions, N: Subgroup) => {
+         const H = getComplement(N)
+         if (H != null && N.order * H.order == G.order) {
+            extensions.push([N, H])
+         }
+         return extensions
+      }, [])
 
    // Direct product: there are split extensions, some quotient is also a normal subgroup
    if (splitExtensions.length != 0 && splitExtensions.some(([_N, H]) => H.isNormal)) {
@@ -1084,8 +1113,8 @@ function generateStrategy (G) {
  *      if group has three generators map each of them to an axis in a 3D grid
  *      if group has four generators, pick the two smallest to display on same axis and map others to the remaining axes
  */
-function generateFallbackStrategy (G) {
-   let strategies = []
+function generateFallbackStrategy (G: Group): StrategyParameters[] {
+   const strategies: StrategyParameters[] = []
    if (G.order == 1) {
       // this.nodes.push(new Diagram3D.Node(0));  // just draw a single node
       return strategies
@@ -1098,7 +1127,7 @@ function generateFallbackStrategy (G) {
    const element_orders = G.elementOrders;
 
    // use only enough of the group's generators to generate the group
-   const generators /*: Array<groupElement> */ = []
+   const generators: groupElement[] = []
    for (let inx = 0; inx < G.generators.length; inx++) {
       generators.push(G.generators[inx])
       if (G.closure(generators).popcount() == G.order) {
@@ -1149,8 +1178,8 @@ function generateFallbackStrategy (G) {
 
 /* Abelian group strategy: use group generators, arrange in x-y-z grid
  */
-function generateAbelianStrategy (G) {
-   const strategies = []
+function generateAbelianStrategy (G: Group): StrategyParameters[] {
+   const strategies: StrategyParameters[] = []
    let generators = G.generators
 
    if (generators.length == 1) {
@@ -1182,11 +1211,11 @@ function generateAbelianStrategy (G) {
  *
  * Layout pair with `generateStrategyForSplitExtension`
  */
-function generateDirectProductStrategy (_G, splitExtensions) {
+function generateDirectProductStrategy (_G: Group, splitExtensions: [Subgroup, Subgroup][]): StrategyParameters[] {
    let [N, H] = splitExtensions
       .filter(([_N, H]) => H.isNormal)
-      .reduce(([N0, H0], [N, H]) => {
-         let result = [N0, H0]
+      .reduce<[Subgroup, Subgroup]>(([N0, H0], [N, H]) => {
+         let result: [Subgroup, Subgroup] = [N0, H0]
          if (  N.order + H.order < N0.order + H0.order
             || N.generators.popcount() + H.generators.popcount() < N0.generators.popcount() + H0.generators.popcount()) {
             result = [N, H]
@@ -1204,14 +1233,14 @@ function generateDirectProductStrategy (_G, splitExtensions) {
  *
  * Layout pair with `generateStrategyForSplitExtension`
  */
-function generateSemidirectProductStrategy (_G, splitExtensions) {
+function generateSemidirectProductStrategy (_G: Group, splitExtensions: [Subgroup, Subgroup][]): StrategyParameters[] {
    // find largest normal subgroup, with fewest generators
    const [N, H] = splitExtensions
-      .reduce(([N0, H0], [N, H]) => {
-         let result = [N0, H0]
-         if (H.isAbelian || !H0.isAbelian) {
+      .reduce<[Subgroup, Subgroup]>(([N0, H0], [N, H]) => {
+         let result: [Subgroup, Subgroup] = [N0, H0]
+         if (H.isomorphicGroup.isAbelian || !H0.isomorphicGroup.isAbelian) {
             if (N.generators.popcount() + H.generators.popcount() < N0.generators.popcount() + H0.generators.popcount()) {
-               result = [N,H]
+               result = [N, H]
             }
          }
          return result
@@ -1225,12 +1254,12 @@ function generateSemidirectProductStrategy (_G, splitExtensions) {
  * Generate strategy for displaying N and embed it in this graph
  * Generate strategy for displaying H, embed it in this graph, and correct for nesting levels
  */
-function generateStrategyForSplitExtension (N, H) {
+function generateStrategyForSplitExtension (N: Subgroup, H: Subgroup): StrategyParameters[] {
    const strategies = generateStrategy(N.isomorphicGroup)
    strategies.forEach((strategy) => strategy.generator = N.isomorphicGroupEmbedding[strategy.generator])
 
    if (H.order == 2) {  // Special case H.order == 2 as linear copy of N in the Z-direction
-      strategies.push({generator: H.generators.first(), layout: 'linear', direction: 'Z', nestingLevel: strategies.length})
+      strategies.push({generator: H.generators.first() as groupElement, layout: 'linear', direction: 'Z', nestingLevel: strategies.length})
    } else {
       const outerStrategies = generateStrategy(H.isomorphicGroup)
       outerStrategies.forEach((strategy) => {
@@ -1244,29 +1273,29 @@ function generateStrategyForSplitExtension (N, H) {
 }
 
 // Dihedral, semidihedral, and modular group strategy: draw two concentric rings
-function generateDihedralStrategy (N, H) {
-   const strategies = [
-      {generator: H.generators.first(), layout: 'linear', direction: 'X', nestingLevel: 0},
-      {generator: N.generators.first(), layout: 'rotated', direction: 'XY', nestingLevel: 1}
+function generateDihedralStrategy (N: Subgroup, H: Subgroup): StrategyParameters[] {
+   const strategies: StrategyParameters[] = [
+      {generator: H.generators.first() as groupElement, layout: 'linear', direction: 'X', nestingLevel: 0},
+      {generator: N.generators.first() as groupElement, layout: 'rotated', direction: 'XY', nestingLevel: 1}
    ]
 
    return strategies
 }
 
 // Dicyclic (and quaternion) strategy: draw bullseye pattern
-function generateDicyclicStrategy (N, H) {
-   const strategies = [
-      {generator: H.generators.first(), layout: 'rotated', direction: 'XY', nestingLevel: 1},
-      {generator: N.generators.first(), layout: 'linear', direction: 'X', nestingLevel: 0}
+function generateDicyclicStrategy (N: Subgroup, H: Subgroup): StrategyParameters[] {
+   const strategies: StrategyParameters[] = [
+      {generator: H.generators.first() as groupElement, layout: 'rotated', direction: 'XY', nestingLevel: 1},
+      {generator: N.generators.first() as groupElement, layout: 'linear', direction: 'X', nestingLevel: 0}
    ]
 
    return strategies
 }
 
 // Non-split strategy
-function generateNonSplitStrategy (G) {
+function generateNonSplitStrategy (G: Group): Maybe<StrategyParameters[]> {
    const normalSubgroups = G.nontrivialProperNormalSubgroups
-   const [N, H] = normalSubgroups.reduce(([N0, H0], N) => {
+   const [N, H] = normalSubgroups.reduce<[Maybe<Subgroup>, Maybe<Subgroup>]>(([N0, H0], N) => {
       if (N.order == G.order / 4) {
          const H = G.subgroups.find((H) => H.order == 8
             && BitSet.intersection(N.members, H.members).popcount() == 2
@@ -1278,7 +1307,7 @@ function generateNonSplitStrategy (G) {
       return [N0, H0]
    }, [null, null])
 
-   if (N != null) {
+   if (N != null && H != null) {
       const strategies = generateStrategy(N.isomorphicGroup)
       strategies.forEach((strategy) => strategy.generator = N.isomorphicGroupEmbedding[strategy.generator])
 

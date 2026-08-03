@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # Heading component
 
@@ -18,9 +18,8 @@ All menus include an ['About GE3' option](#aboutge3).
 
 import * as GEUtils from './GEUtils.js'
 import * as Settings from './Settings.js'
-import {makeDetachedMenu, makeDialog} from './UIComponents.js'
+import { makeDetachedMenu, makeDialog } from './UIComponents.js'
 
-export {display, setTitle}
 
 /*
 ```
@@ -30,13 +29,15 @@ It adds the HTML elements of the heading to the DOM, styles them, and sets the e
 to display the menu.
 ```javascript
  */
-function display (
-   headingElement /*: HTMLElement */,
-   label /*: html */,
-   menuGenerator /*: () => Array<{label: html, action: () => void}> */
+type headingMenu = Array<{label: html, action: () => void}>
+export type HeadingManuGenerator = () => headingMenu
+
+export function display (
+   headingElement: HTMLElement,
+   label: html,
+   menuGenerator: HeadingManuGenerator
 ) {
-   // $FlowFixMe[incompatible-type] -- how to type HTMLElement w/ non-null id, needed for CSS styling
-   const headingElementId /*: string */ = headingElement.getAttribute('id')
+   const headingElementId: string = headingElement.getAttribute('id') as string
    const headingHTML =
       `<style>
              #${headingElementId} {
@@ -69,11 +70,11 @@ function display (
    headingElement.insertAdjacentHTML('beforeend', headingHTML)
 
    // define menu event listener
-   const showHeadingMenu = (clickEvent /*: MouseEvent */) => {
+   const showHeadingMenu = (clickEvent: MouseEvent) => {
       clickEvent.preventDefault()
       clickEvent.stopPropagation()
 
-      const menuElements /*: Array<{label: html, action: () => void}> */ = menuGenerator()
+      const menuElements: headingMenu = menuGenerator()
       menuElements.push({label: 'Settings', action: () => Settings.showDialog()})
       menuElements.push({label: 'About GE3', action: () => aboutGE3()})
 
@@ -85,16 +86,19 @@ function display (
       ].join('')
 
       makeDetachedMenu(optionMenu, clickEvent)
-         .then((action) => {if (action != null && parseInt(action) != null) menuElements[parseInt(action)].action()})
+         .then((action) => {
+            if (action != null && parseInt(action) != null)
+               menuElements[parseInt(action)].action()
+         })
    }
-   (document.getElementById('heading-menu') /*:: as any as HTMLElement */)
+   (document.getElementById('heading-menu') as HTMLElement)
       .addEventListener('click', (ev) => showHeadingMenu(ev))
 
    // define resize observer
    const resizeHeading = () => {
-      const label = (document.getElementById('heading-label') /*:: as any as HTMLElement */)
-      const menu = (document.getElementById('heading-menu') /*:: as any as HTMLElement */)
-      const wrapper = (document.getElementById('heading-wrapper') /*:: as any as HTMLElement */)
+      const label = (document.getElementById('heading-label') as HTMLElement)
+      const menu = (document.getElementById('heading-menu') as HTMLElement)
+      const wrapper = (document.getElementById('heading-wrapper') as HTMLElement)
       const unstyledWidth = label.offsetWidth + 2 * menu.offsetWidth
       const spaceAvailable = headingElement.offsetWidth
       if (unstyledWidth > spaceAvailable) {
@@ -114,8 +118,8 @@ function display (
 Updates the heading title
 ```javascript
  */
-function setTitle (title /*: html */) {
-   (document.getElementById('heading-label') /*:: as any as HTMLElement */).innerHTML = title
+export function setTitle (title: html) {
+   (document.getElementById('heading-label') as HTMLElement).innerHTML = title
 }
 /*
 ```
@@ -140,8 +144,8 @@ function aboutGE3 () {
       clientX: (window.innerWidth - dialogSize.width) / 2,
       clientY: (window.innerHeight - dialogSize.height) / 2
    }
-   const clickHandler = (clickEvent /*: MouseEvent */) => {
-      const anchor = clickEvent.target.closest('a')
+   const clickHandler = (clickEvent: MouseEvent) => {
+      const anchor = (clickEvent.target as HTMLElement).closest('a') as HTMLAnchorElement
       const anchorPage = (anchor) ? anchor.innerHTML : null
       if (anchorPage != null)
          window.open(anchorPage, '_self')

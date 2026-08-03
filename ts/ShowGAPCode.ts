@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # ShowGAPCode
 
@@ -7,14 +7,9 @@ GAP code in the [GroupInfo](./GroupInfo.html.md) page.
 
 ```javascript
  */
-import {parseFormattedPresentation} from './DefiningRelations.js'
+import { parseFormattedPresentation } from './DefiningRelations.js'
 
-export {setup, resolveGAPInfo}
-
-/*::
-import {Group} from './Group.js'
-*/
-
+import type { Group } from './Group.js'
 /*
  * We give access to live GAP execution online through the Sage Cell Server
  */
@@ -22,7 +17,7 @@ import {Group} from './Group.js'
 // purpose -> code map
 // note that the code contains template string expressions which will be expanded
 // when the code is wrapped in back tics '`' and eval'd in getCode
-const codeForPurpose = new Map/*:: <string, string> */([
+const codeForPurpose = new Map<string, string>([
   ['creating this group',
    `# In GAP's Small Groups library, of all the groups
     # of order $\{ord}, this one is number $\{idx}:
@@ -98,43 +93,45 @@ const codeForPurpose = new Map/*:: <string, string> */([
 ])
 
 // executed in parent context: setup iframe in wrapper, invoke iframe routine to show code
-async function setup (purpose /*: string */, group /*: Group */) {
-   const iframeElement = ((document.getElementById('gap-iframe') /*: any */) /*: HTMLIFrameElement */)
+export async function setup (purpose: string, group: Group) {
+  const iframeElement = document.getElementById('gap-iframe') as HTMLIFrameElement
 
   // load iframe on first time through
-  if (iframeElement.contentWindow.GAPCell == null) {
+  if (!('GAPCell' in (iframeElement.contentWindow as Window))) {
     iframeElement.setAttribute('src', new URL('html/ShowGAPCode.html', window.location.href).href)
-    iframeElement.style.maxWidth = window.innerWidth
-    iframeElement.style.maxHeight = window.innerHeight
+    iframeElement.style.maxWidth = window.innerWidth.toString()
+    iframeElement.style.maxHeight = window.innerHeight.toString()
 
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, _reject) => {
       iframeElement.addEventListener('load', () => resolve(), { once: true })
     })
   }
 
   // get the GAP code to accomplish the purpose for this group and show it in iframeElement
   const code = getCode(purpose, group)
-  iframeElement.contentWindow.GAPCell.show(purpose, code)
+  ;(iframeElement.contentWindow as Window & {GAPCell: any}).GAPCell.show(purpose, code)
 }
 
-function getCode (purpose /*: string */, group /*: Group */) /*: string */ {
+function getCode (purpose: string, group: Group): string {
   // converting an arbitrary string to a JS identifier (not injective)
-  function toIdent (str /*: string */) {
+  function toIdent (str: string): string  {
     if (!/^[a-zA-Z_]/.test(str)) str = '_' + str
     return str.replace(/[^a-zA-Z0-9_]/g, '')
   }
 
-  const G = toIdent(group.shortName)
   const [ord, idx] = group.gapid?.split(',') || [-1, -1]
+
+  // following are referenced in newCode eval, below
+  const G = toIdent(group.shortName)
   const gpdef = `SmallGroup( ${ord}, ${idx} )`
 
-  const code = ((codeForPurpose.get(purpose) /*: any */) /*: string */)
+  const code = codeForPurpose.get(purpose) as string
   const newCode = eval('`' + code.split('\n').map((line) => line.trim()).join('\n') + '`')
 
   return newCode
 }
 
-function executeCommands (gapCommands /*: string */) /*: Promise<string> */ {
+function executeCommands (gapCommands: string): Promise<string> {
    return new Promise((resolve, reject) => {
       const iframeElement = document.body.appendChild(document.createElement('iframe'))
       iframeElement.style.display = 'none'
@@ -158,10 +155,10 @@ function executeCommands (gapCommands /*: string */) /*: Promise<string> */ {
 }
 
 // pending queue for microbatch GAP resolution
-const pendingResolutions /*: Array<{presentation: string, resolve: Function, reject: Function}> */ = []
+const pendingResolutions: Array<{presentation: string, resolve: Function, reject: Function}> = []
 let batchScheduled = false
 
-function resolveGAPInfo (presentation /*: string */) /*: Promise<{gapid: string, gapname: string}> */ {
+export function resolveGAPInfo (presentation: string): Promise<{gapid: string, gapname: string}> {
    return new Promise((resolve, reject) => {
       pendingResolutions.push({presentation, resolve, reject})
       if (!batchScheduled) {

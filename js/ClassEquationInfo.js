@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # ClassEquationInfo
 
@@ -9,26 +9,10 @@ class informaation.
  */
 import * as GEUtils from './GEUtils.js';
 import * as SheetModel from './SheetModel.js';
-export { display };
-/*::
-import {Group} from './Group.js'
-
-import type {
-    JSONType,
-    SheetElementJSON,
-    RectangleElementJSON,
-    TextElementJSON,
-    VisualizerType,
-    VisualizerElementJSON,
-    ConnectingElementJSON,
-    MorphismElementJSON
-} from './SheetModel.js';
- */
-function display(classEquationInfoElementId, group) {
+export function display(classEquationInfoElementId, group) {
     const classEquationInfoElement = document.getElementById(classEquationInfoElementId);
     classEquationInfoElement.innerHTML = makeClassEquationContent(group);
     GEUtils.createActionHandler(classEquationInfoElement, (action) => eval(action));
-    // rebuild content on representation change
     classEquationInfoElement.closest('.all-info')
         .addEventListener('representationChange', () => classEquationInfoElement.innerHTML = makeClassEquationContent(group));
 }
@@ -78,12 +62,11 @@ function classEquation(group) {
             ` = ${group.order}`;
     }
 }
-function addHighlights(group, i /*: number */, array /*: ?Array<null | void | color> */) {
-    if (!array)
-        array = (Array(group.order).fill('') /*: Array<null | void | string> */);
-    return array.map((e, j) => group.conjugacyClasses[i].isSet(j) ? GEUtils.fromRainbow(i / group.conjugacyClasses.length) : e);
+function addHighlights(group, i, array) {
+    array ??= Array(group.order).fill('');
+    return array.map((el, inx) => group.conjugacyClasses[i].isSet(inx) ? GEUtils.fromRainbow(i / group.conjugacyClasses.length) : el);
 }
-function showAsSheet(group, type /*: VisualizerType*/) {
+function showAsSheet(group, type) {
     const n = group.conjugacyClasses.length;
     // If the group is abelian, it may have an equation like
     // 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1=17, which we want to abbreviate
@@ -130,9 +113,9 @@ function showAsSheet(group, type /*: VisualizerType*/) {
     const lastX = L + fakeN * (W + opW);
     const numY = T;
     const vizY = T + numH;
-    let highlights = null;
+    const highlights = Array(group.order).fill('');
     for (let i = 0; i < n; i++)
-        highlights = addHighlights(group, i, highlights);
+        addHighlights(group, i, highlights);
     sheetElementsAsJSON.push({ className: 'TextElement', x: lastX, y: numY, w: W, h: numH,
         text: `${group.order}`,
         fontSize: `${fontSize}px`, alignment: 'center', opacity: 0 }, { className: type, groupURL: group.URL, diagram_name: group.cayleyDiagrams[0]?.name,

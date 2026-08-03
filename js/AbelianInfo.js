@@ -1,18 +1,7 @@
-/* @flow
-
-# AbelianInfo
-
-A [GroupInfo](./GroupInfo.html.md) component that displays information about a group's commutativity.
-
-```javascript
- */
-export { display };
-function display(abelianInfoElementId, group) {
+export function display(abelianInfoElementId, group) {
     const abelianInfoElement = document.getElementById(abelianInfoElementId);
     abelianInfoElement.innerHTML = makeAbelianInfoContent(group);
-    // rebuild content on representation change
-    abelianInfoElement.closest('.all-info')
-        .addEventListener('representationChange', () => abelianInfoElement.innerHTML = makeAbelianInfoContent(group));
+    abelianInfoElement.closest('.all-info').addEventListener('representationChange', () => abelianInfoElement.innerHTML = makeAbelianInfoContent(group));
 }
 function makeAbelianInfoContent(group) {
     const htmlFragments = [

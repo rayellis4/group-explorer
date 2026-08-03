@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # FileDataInfo
 
@@ -7,10 +7,11 @@ the group's definition.
 
 ```javascript
  */
-export {display}
 
-function display (fileDataElementId, group) {
-   const fileDataElement = document.getElementById(fileDataElementId)
+import type { Group } from './Group.ts'
+
+export function display (fileDataElementId: string, group: Group) {
+   const fileDataElement = document.getElementById(fileDataElementId) as HTMLElement
    fileDataElement.innerHTML =
       `<details>
           <summary>

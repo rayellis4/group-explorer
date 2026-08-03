@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # FileDataInfo
 
@@ -7,8 +7,7 @@ the group's definition.
 
 ```javascript
  */
-export { display };
-function display(fileDataElementId, group) {
+export function display(fileDataElementId, group) {
     const fileDataElement = document.getElementById(fileDataElementId);
     fileDataElement.innerHTML =
         `<details>

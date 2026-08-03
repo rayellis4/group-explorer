@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # CayleyDiagramViewUI component
 
@@ -23,12 +23,7 @@ This component adds the following UI gestures to a [CayleyDiagramView](,/CayleyD
 import { makeTooltip } from './UIComponents.js';
 import { recognizeSelect, recognizeContextMenu, recognizeDragAndDrop } from './Gestures.js';
 import { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js';
-import { THREE } from '../lib/externals.js';
-export { addGestures };
-/*::
-import {CayleyDiagramView} from './CayleyDiagramView.js'
-import {ArrowData, LineUserData, LineType} from './CayleyDiagramView.js'
- */
+import * as THREE from '../lib/externals.js';
 const HIGHLIGHT_COLOR = 'white';
 /*
 ```
@@ -43,7 +38,7 @@ to set up node/arc/chunk moving and reshaping.
 
 ```javascript
  */
-function addGestures(cayleyDiagramView /*: CayleyDiagramView */) {
+export function addGestures(cayleyDiagramView) {
     recognizeContextMenu(cayleyDiagramView.canvas, (event) => showTooltipOrReset(cayleyDiagramView, event));
     moveDraggedObjects(cayleyDiagramView);
     moveSelectedObjects(cayleyDiagramView);
@@ -58,7 +53,7 @@ Find  objects at right click / long tap location:
  * if not over node, reset scene translation / rotation / zoom
 ```javascript
  */
-function showTooltipOrReset(cayleyDiagramView /*: CayleyDiagramView */, event /*: NumberLocation */) {
+function showTooltipOrReset(cayleyDiagramView, event) {
     const objects = getObjectsAtEventLocation(event);
     if (objects.length == 0) {
         const { position, up } = cayleyDiagramView.viewModel.model.layout.pov;
@@ -69,7 +64,7 @@ function showTooltipOrReset(cayleyDiagramView /*: CayleyDiagramView */, event /*
         const tooltipHTML = formatTooltip(objects);
         makeTooltip(tooltipHTML, event);
     }
-    function getObjectsAtEventLocation(event /*: NumberLocation */) {
+    function getObjectsAtEventLocation(event) {
         const canvas = cayleyDiagramView.canvas;
         const { left, top, width, height } = canvas.getBoundingClientRect();
         const x = ((event.clientX - left) / width) * 2 - 1;
@@ -77,7 +72,7 @@ function showTooltipOrReset(cayleyDiagramView /*: CayleyDiagramView */, event /*
         const objects = cayleyDiagramView.getObjectsAtPoint(x, y);
         return objects;
     }
-    function formatTooltip(objects /*: Array<THREE.Object3D> */) {
+    function formatTooltip(objects) {
         const objectNames = objects.map((obj) => obj.name);
         let tooltip;
         switch (objectNames.length) {
@@ -135,20 +130,20 @@ Customizable instances are crated by the factory method `makeCustomizable`, invo
 ```javascript
  */
 class Customizable {
-    cayleyDiagramView; /*: CayleyDiagramView */
-    raycaster; /*: THREE.Raycaster */
-    pickedObject; /*: THREE.Object3D */
-    originalColor; /*: THREE.Color */
-    modalElement; /*: HTMLElement */
-    constructor(cayleyDiagramView /*: CayleyDiagramView */, raycaster /*: THREE.Raycaster */, pickedObject /*: THREE.Object3D */) {
+    cayleyDiagramView;
+    raycaster;
+    pickedObject;
+    originalColor;
+    modalElement;
+    constructor(cayleyDiagramView, raycaster, pickedObject) {
         this.cayleyDiagramView = cayleyDiagramView;
         this.raycaster = raycaster;
         this.pickedObject = pickedObject;
-        this.originalColor = this.color(new THREE.Color(HIGHLIGHT_COLOR));
+        this.originalColor = this.color(HIGHLIGHT_COLOR);
         // create modal div that stops the propagation of click and pointer events to TrackballControls
-        cayleyDiagramView.canvas.parentElement.parentElement.insertAdjacentHTML('beforeend', `<div class="modal"></div>`);
-        // $FlowExpectedError[incompatible-type] -- just added .modal element
-        this.modalElement = cayleyDiagramView.canvas.parentElement.parentElement.querySelector('.modal');
+        const displayElement = cayleyDiagramView.canvas.parentElement.parentElement;
+        displayElement.insertAdjacentHTML('beforeend', `<div class="modal"></div>`);
+        this.modalElement = displayElement.querySelector('.modal');
         ['pointerdown', 'pointerup', 'click'] // shield these from TrackballControls
             .forEach((eventType) => this.modalElement.addEventListener(eventType, (ev) => ev.stopPropagation()));
     }
@@ -156,13 +151,8 @@ class Customizable {
         this.modalElement.remove();
         this.color(this.originalColor);
     }
-    // set object color, return previous color
-    color(_newColor /*: THREE.Color */) {
-        // $FlowExpectedError[incompatible-type] -- Subclass responsibility
-        return null;
-    }
     // redraw object as dictated by drag-and-drop gesture
-    redraw(_currentLocation /*: THREE.Vector2 */, _isDragStart /*: boolean */) {
+    redraw(_currentLocation, _isDragStart) {
     }
 }
 /*
@@ -247,10 +237,10 @@ and use [`this.cayleyDiagramView`](./DisplayDiagram.js) methods to redraw the ar
 ```js
 */
 class Arrow extends Customizable {
-    redraw(currentLocation /*: THREE.Vector2 */, _isDragStart /*: boolean */) {
-        const arrow /*: ArrowData */ = this.pickedObject.userData.arrow;
+    redraw(currentLocation, _isDragStart) {
+        const arrow = this.pickedObject.userData.arrow;
         const line = this.cayleyDiagramView.arrows
-            .find((line) => ((line.userData /*: any */) /*: LineUserData */).arrow == arrow);
+            .find((line) => line.userData.arrow == arrow);
         // update raycaster with new event location
         this.raycaster.setFromCamera(currentLocation, this.cayleyDiagramView.camera);
         const pickLine = new THREE.Line3(this.raycaster.ray.origin, this.raycaster.ray.origin.clone().addScaledVector(this.raycaster.ray.direction, 100));
@@ -274,7 +264,7 @@ class Arrow extends Customizable {
         // redraw line, arrowheads
         this.cayleyDiagramView.redrawLines([line]);
     }
-    color(newColor /*: THREE.Color */) {
+    color(newColor) {
         const previousColor = this.pickedObject.userData.arrow.color;
         this.pickedObject.userData.arrow.color = newColor;
         this.cayleyDiagramView.redrawAllLines();
@@ -334,9 +324,9 @@ subclass to reposition the object and any associated objects.
 ```js
  */
 class Movable extends Customizable {
-    nodePlane; /*: THREE.Plane */
-    initialOffset; /*: THREE.Vector3 */
-    redraw(currentLocation /*: THREE.Vector2 */, isDragStart /*: boolean */) {
+    nodePlane;
+    initialOffset;
+    redraw(currentLocation, isDragStart) {
         // update raycaster with new event location
         this.raycaster.setFromCamera(currentLocation, this.cayleyDiagramView.camera);
         const pickLine = new THREE.Line3(this.raycaster.ray.origin, this.raycaster.ray.origin.clone().addScaledVector(this.raycaster.ray.direction, 100));
@@ -353,7 +343,7 @@ class Movable extends Customizable {
         // move object
         this.moveObject3DTo(newPosition);
     }
-    moveObject3DTo(_position /*: THREE.Vector3 */) {
+    moveObject3DTo(_position) {
     }
 }
 /*
@@ -366,7 +356,7 @@ with their associated labels, arrows, highlights, etc.
 ```js
  */
 class Node extends Movable {
-    color(newColor /*: THREE.Color */) {
+    color(newColor) {
         if (this.cayleyDiagramView.color_highlights == null) {
             this.cayleyDiagramView.color_highlights = Array(this.cayleyDiagramView.group.order).fill(DEFAULT_NODE_COLOR);
         }
@@ -377,7 +367,7 @@ class Node extends Movable {
         return previousColor;
     }
     // move sphere
-    moveObject3DTo(position /*: THREE.Vector3 */) {
+    moveObject3DTo(position) {
         this.cayleyDiagramView.moveSphere(this.pickedObject, position);
     }
 }
@@ -391,10 +381,10 @@ their associated nodes.
 ```js
  */
 class Chunk extends Movable {
-    color(newColor /*: THREE.Color */) {
+    color(newColor) {
         const pickedObject = this.pickedObject;
         if (pickedObject instanceof THREE.Mesh) {
-            const previousColor = pickedObject.material.color;
+            const previousColor = pickedObject.material.color.getHexString();
             const newMaterial = pickedObject.material.clone();
             newMaterial.color.set(newColor);
             pickedObject.material = newMaterial;
@@ -403,7 +393,7 @@ class Chunk extends Movable {
         return newColor;
     }
     // move chunk
-    moveObject3DTo(position /*: THREE.Vector3 */) {
+    moveObject3DTo(position) {
         this.cayleyDiagramView.moveChunkTo(this.pickedObject, position);
     }
 }
@@ -426,7 +416,7 @@ are handled by the [`moveDraggedObjects`](#movedraggedobjects) function below.
 
  ```js
  */
-function moveSelectedObjects(cayleyDiagramView /*: CayleyDiagramView */) {
+function moveSelectedObjects(cayleyDiagramView) {
     recognizeSelect(cayleyDiagramView.canvas, (event) => {
         if (event.shiftKey) {
             return;
@@ -470,7 +460,7 @@ events are handled by the [`moveSelectedObjects`](#moveselectedobjects) function
 
  ```js
  */
-function moveDraggedObjects(cayleyDiagramView /*: CayleyDiagramView */) {
+function moveDraggedObjects(cayleyDiagramView) {
     let movingObject = null;
     recognizeDragAndDrop(cayleyDiagramView.canvas, (startEvent, previousEvent, currentEvent, _isDrop) => {
         if (!startEvent.shiftKey) {
@@ -507,14 +497,13 @@ function moveDraggedObjects(cayleyDiagramView /*: CayleyDiagramView */) {
 It returns an array containing the picked object and the raycaster, for later use.
 ```js
  */
-function getPickedObject(cayleyDiagramView /*: CayleyDiagramView */, event /*: NumberLocation */) {
+function getPickedObject(cayleyDiagramView, event) {
     const eventLocation = eventToVector2(cayleyDiagramView, event);
     // update the picking ray with the camera and mouse position
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(eventLocation, cayleyDiagramView.camera);
     // collect drag candidates, spheres & lines
-    const linesAndSpheres /*: Array<THREE.Object3D> */ = [...((cayleyDiagramView.arrows /*: any */) /*: Array<LineType> */),
-        ...((cayleyDiagramView.nodes /*: any */) /*: Array<THREE.Mesh> */)];
+    const linesAndSpheres = [...cayleyDiagramView.arrows, ...cayleyDiagramView.nodes];
     // find intersection with closest line/sphere
     let intersects = raycaster.intersectObjects(linesAndSpheres, false);
     if (intersects.length == 0) {
@@ -531,7 +520,7 @@ Returns an instance of the Customizable subclass appropriate to the passed `pick
 
 ```js
  */
-function getCustomizableObject(cayleyDiagramView /*: CayleyDiagramView */, raycaster /*: THREE.Raycaster */, pickedObject /*: THREE.Object3D */) {
+function getCustomizableObject(cayleyDiagramView, raycaster, pickedObject) {
     const newObject = cayleyDiagramView.getGroup('lines').children.includes(pickedObject)
         ? new Arrow(cayleyDiagramView, raycaster, pickedObject)
         : cayleyDiagramView.getGroup('spheres').children.includes(pickedObject)
@@ -542,7 +531,7 @@ function getCustomizableObject(cayleyDiagramView /*: CayleyDiagramView */, rayca
     return newObject;
 }
 // convert screen-relative event(clientX, clientY) to canvas-relative THREE.Vector2(x, y)
-function eventToVector2(cayleyDiagramView /*: CayleyDiagramView */, event /*: NumberLocation */) {
+function eventToVector2(cayleyDiagramView, event) {
     const boundingBox = cayleyDiagramView.canvas.getBoundingClientRect();
     const eventLocation = new THREE.Vector2();
     eventLocation.x = ((event.clientX - boundingBox.left) / boundingBox.width) * 2 - 1;

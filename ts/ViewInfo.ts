@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # ViewInfo
 
@@ -15,16 +15,22 @@ import * as GEUtils from './GEUtils.js'
 import { IMAGE_SIZE } from './GroupTable.js'
 import * as SheetModel from './SheetModel.js'
 
-export {display}
+import type { Group } from './Group.ts'
 
-function display (viewElementId, group) {
-   const viewElement = document.getElementById(viewElementId)
+type imageType = {
+   link: string,
+   src: string,
+   name?: string
+}
+
+export function display (viewElementId: string, group: Group) {
+   const viewElement = document.getElementById(viewElementId) as HTMLElement
    viewElement.innerHTML = makeViews(group, viewElementId)
 
    GEUtils.createActionHandler(viewElement, (action) => eval(action))
 }
 
-function makeViews (group, viewElementId) {
+function makeViews (group: Group, viewElementId: string) {
    const images = getImages(group)
 
    const htmlFragments = [
@@ -60,9 +66,9 @@ function makeViews (group, viewElementId) {
           <summary>
              <span class="title">Views</span>
              <span class="summary">
-                <img src="${images[0][0].src}"/>
-                <img src="${images[0][1].src}"/>
-                <img src="${images[0][2].src}"/>`,
+                <img src="${images[0][0]?.src}"/>
+                <img src="${images[0][1]?.src}"/>
+                <img src="${images[0][2]?.src}"/>`,
                 (images[0][3] == null) ? '' : `<img src="${images[0][3].src}"/>`,
             `</span>
             </summary>`,
@@ -72,9 +78,11 @@ function makeViews (group, viewElementId) {
 
    return htmlFragments.join('')
 
-   function formatViewTable (images) {
-      const formatCol = ({link, src, name=''}) => `<a href="${link}"><img src="${src}"/><div>${name}</div></a>`
-      const formatRow = (row) => row.map((col) => `<td>${col ? formatCol(col) : ''}</td>`).join('')
+   function formatViewTable (images: Maybe<imageType>[][]) {
+      const formatCol = ({link, src, name=''}: {link: string, src: string, name?: string}) =>
+         `<a href="${link}"><img src="${src}"/><div>${name}</div></a>`
+      const formatRow = (row: Maybe<imageType>[]) =>
+         row.map((col: Maybe<imageType>) => `<td>${col ? formatCol(col) : ''}</td>`).join('')
       const htmlFragments = [
          `<table>
              <thead>
@@ -86,7 +94,7 @@ function makeViews (group, viewElementId) {
                 </tr>
              </thead>
              <tbody>`,
-                ...images.map((row) => `<tr>${formatRow(row)}</tr>`).join(''),
+                ...images.map((row: Maybe<imageType>[]) => `<tr>${formatRow(row)}</tr>`).join(''),
             `</tbody>
           </table>
           <div>Click any view to open a copy for exploration.<br>
@@ -99,77 +107,88 @@ function makeViews (group, viewElementId) {
 }
 
 // Display rows of visualizer thumbnails
-function getImages (group) {
+function getImages (group: Group): Maybe<imageType>[][] {
    const THUMBNAIL_SIZE = {height: IMAGE_SIZE, width: IMAGE_SIZE}
    let cayleyDiagramGenerator
    let cycleGraphView
    let multtableView
    let symmetryObjectView
 
-   const images =  Array.from(
+   const images: Maybe<imageType>[][] =  Array.from(
       {length: Math.max(1, group.cayleyDiagrams.length + 1, group.symmetryObjects.length)},
       () => Array.from({length: 4}))
 
    // Create cayley diagram thumbnails
    for (let inx = 0; inx < group.cayleyDiagrams.length + 1; inx++) {
-      const image = images[inx][0] = {}
-      image.name = group.cayleyDiagrams[inx]?.name
-      image.link = `CayleyDiagram.html?groupURL=${group.URL}`
-         + ((image.name == null) ? '' : `&diagram=${image.name}`)
       if (cayleyDiagramGenerator == null) {
          cayleyDiagramGenerator = createCayleyDiagramThumbnailView(THUMBNAIL_SIZE)
       }
-      cayleyDiagramGenerator.draw(group, image.name)
-      image.src = cayleyDiagramGenerator.getImage().src
+      const diagramName = group.cayleyDiagrams[inx]?.name
+      cayleyDiagramGenerator.draw(group, diagramName)
+      images[inx][0]= {
+         name: diagramName,
+         link: `CayleyDiagram.html?groupURL=${group.URL}` + ((diagramName == null) ? '' : `&diagram=${diagramName}`),
+         src: cayleyDiagramGenerator.getImage().src,
+      }
    }
 
    // Create cycle graph thumbnail
    {
-      const image = images[0][1] = {}
-      image.link = `CycleGraph.html?groupURL=${group.URL}`
+      let imageSource
       if (group.thumbnails?.cycleGraph != null) {
-         image.src = group.thumbnails.cycleGraph
+         imageSource = group.thumbnails.cycleGraph
       } else {
          cycleGraphView = createUnlabelledCycleGraphView(THUMBNAIL_SIZE)
          cycleGraphView.draw(group)
-         image.src = cycleGraphView.getImage().src
+         imageSource = cycleGraphView.getImage().src
+      }
+      images[0][1] = {
+         link: `CycleGraph.html?groupURL=${group.URL}`,
+         src: imageSource
       }
    }
 
    // Create multtable thumbnail
    {
-      const image = images[0][2] = {}
-      image.link = `Multtable.html?groupURL=${group.URL}`
+      let imageSource
       if (group.thumbnails?.multtable != null) {
-         image.src = group.thumbnails.multtable
+         imageSource = group.thumbnails.multtable
       } else {
          multtableView = createMinimalMulttableView(THUMBNAIL_SIZE)
          multtableView.draw(group)
-         image.src = multtableView.getImage().src
+         imageSource = multtableView.getImage().src
+      }
+      images[0][2] = {
+         link: `Multtable.html?groupURL=${group.URL}`,
+         src: imageSource
       }
    }
 
    // Maybe create symmetry object thumbnails
    for (let inx = 0; inx < group.symmetryObjects.length; inx++) {
-      const image = images[inx][3] = {}
-      const symmetryObject = group.symmetryObjects[inx]
-      image.link = `SymmetryObject.html?groupURL=${group.URL}&diagram=${symmetryObject.name}`
-      image.name = symmetryObject.name
+      const symmetryObjectName = group.symmetryObjects[inx].name
+      let imageSource
       if (inx == 0 && group.thumbnails?.symmetryObject != null) {
-         image.src = group.thumbnails.symmetryObject
+         imageSource = group.thumbnails.symmetryObject
       } else {
-         if (symmetryObjectView == null)
+         if (symmetryObjectView == null) {
             symmetryObjectView = createSymmetryObjectThumbnailView(THUMBNAIL_SIZE)
-         symmetryObjectView.draw(group, image.name)
-         image.src = symmetryObjectView.getImage().src
+         }
+         symmetryObjectView.draw(group, symmetryObjectName)
+         imageSource = symmetryObjectView.getImage().src
+      }
+      images[inx][3] = {
+         name: symmetryObjectName,
+         link: `SymmetryObject.html?groupURL=${group.URL}&diagram=${symmetryObjectName}`,
+         src: imageSource
       }
    }
 
    return images
 }
 
-function showAllVisualizersSheet (group) {
-    const iso = group.generators.map(g => [g, g])
+function showAllVisualizersSheet (group: Group) {
+    const iso: [groupElement, groupElement][] = group.generators.map(g => [g, g])
 
     const panelWidth = SheetModel.sheetPanelWidth()
     const W = Math.min(
@@ -183,47 +202,47 @@ function showAllVisualizersSheet (group) {
     const L = (window.innerWidth - panelWidth - totalW) / 2
     const vizY = 0.4 * (window.innerHeight - H)   // center visualizers just above midline
 
-    const allVisualizersSheet = [
+    const allVisualizersSheet: SheetModel.SheetJSON[] = [
         {
-            className : 'CDElement', name : 'cd',
+            className : 'CDElement', id : 'cd',
             groupURL : group.URL, diagram_name : group.cayleyDiagrams[0]?.name,
             x : L, y : vizY, w : W, h : H
         },
         {
-            className : 'MTElement', name : 'mt',
+            className : 'MTElement', id : 'mt',
             groupURL : group.URL,
             x : L + W + gap, y : vizY, w : W, h : H
         },
         {
-            className : 'CGElement', name : 'cg',
+            className : 'CGElement', id : 'cg',
             groupURL : group.URL,
             x : L + 2 * (W + gap), y : vizY, w : W, h : H
         },
         {
             className : 'TextElement',
             x : L, y : vizY + H, w : W, h : txtH,
-            text : 'Cayley Diagram', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'cd'
+            text : 'Cayley Diagram', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : 'cd'
         },
         {
             className : 'TextElement',
             x : L + W + gap, y : vizY + H, w : W, h : txtH,
-            text : 'Multiplication Table', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'mt'
+            text : 'Multiplication Table', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : 'mt'
         },
         {
             className : 'TextElement',
             x : L + 2 * (W + gap), y : vizY + H, w : W, h : txtH,
-            text : 'Cycle Graph', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_name : 'cg'
+            text : 'Cycle Graph', fontSize : '1.25em', alignment : 'center', opacity : 0, anchor_id : 'cg'
         },
         {
-            className : 'MorphismElement', labelFontSize: '1.25em',
-            source_name : 'cd', destination_name : 'mt',
-            name : '<i>id</i><sub>1</sub>',
+            className : 'MorphismElement', fontSize: '1.25em',
+            source_id : 'cd', destination_id : 'mt',
+            morphismName : '<i>id</i><sub>1</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         },
         {
-            className : 'MorphismElement', labelFontSize: '1.25em',
-            source_name : 'mt', destination_name : 'cg',
-            name : '<i>id</i><sub>2</sub>',
+            className : 'MorphismElement', fontSize: '1.25em',
+            source_id : 'mt', destination_id : 'cg',
+            morphismName : '<i>id</i><sub>2</sub>',
             showInjectionSurjection : true, showManyArrows : true, definingPairs : iso
         }
     ]

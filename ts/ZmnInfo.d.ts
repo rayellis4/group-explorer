@@ -1,2 +1,2 @@
-export { display };
-declare function display(zmnInfoElementId: any, group: any): void;
+import { Group } from './Group.js';
+export declare function display(zmnInfoElementId: string, group: Group): void;

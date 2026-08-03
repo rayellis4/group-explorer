@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # GroupTableUI component
 
@@ -10,23 +10,23 @@ These include
 ```javascript
 */
 
-import {positionElement, makeDialog} from './UIComponents.js'
-import {COLUMNS} from './GroupTable.js'
+import { positionElement, makeDialog } from './UIComponents.js'
+import { COLUMNS, sortComparator } from './GroupTable.js'
 
-export {addGestures}
-
-/*::
-type TableConfig = {
-   visible: {[string]: boolean},
+export type TableConfig = {
+   visible: {[key: string]: boolean},
    sort: {id: string, dir: string},
 }
-type ConfigChangeCallback = (patch: {[string]: any}) => void
-*/
+
+type ConfigChangeCallback = (patch: {[key: string]: any}) => void
 
 // set by addGestures, used by tableSort to persist sort state
-let onConfigChange /*: ?ConfigChangeCallback */ = null
+let onConfigChange: Maybe<ConfigChangeCallback> = null
 
-function addGestures (table /*: HTMLElement */, {config, onConfigChange: callback} /*: {config: TableConfig, onConfigChange: ConfigChangeCallback} */) {
+export function addGestures (
+   table: HTMLElement,
+   {config, onConfigChange: callback}: {config: TableConfig, onConfigChange: ConfigChangeCallback}
+) {
    onConfigChange = callback
 
    const tableId = table.getAttribute('id')
@@ -89,17 +89,17 @@ function addGestures (table /*: HTMLElement */, {config, onConfigChange: callbac
       table.classList.toggle(`hide-${col.id}`, !visible)
    })
 
-   const tableBody = table.querySelector('tbody')
+   const tableBody = table.querySelector('tbody') as HTMLElement
 
    // prevent double-tap zoom; single-finger scroll still works
    tableBody.style.touchAction = 'manipulation'
 
    // sort handlers (initial sort is applied by GroupExplorer after addGestures)
    table.querySelectorAll('th.sortable')
-      .forEach((el) => el.addEventListener('click', tableSortHandler))
+      .forEach((el) => (el as HTMLElement).addEventListener('click', tableSortHandler))
 
    // gear icon — column visibility dropdown
-   document.getElementById('column-config-btn')
+   ;(document.getElementById('column-config-btn') as HTMLElement)
       .addEventListener('click', (event) => {
          event.stopPropagation()
          showColumnDropdown(table, config)
@@ -113,14 +113,15 @@ function addGestures (table /*: HTMLElement */, {config, onConfigChange: callbac
 ### Table sort
 ```javascript
  */
-function tableSortHandler (event /*: MouseEvent */) {
-   tableSort(event.currentTarget)
+function tableSortHandler (event: MouseEvent) {
+   tableSort(event.currentTarget as HTMLElement)
 }
 
-function tableSort (column /*: HTMLElement */, direction /*: ?string */) {
+function tableSort (column: HTMLElement, direction?: string) {
    const colId = column.dataset.colId
    const colDef = COLUMNS.find((col) => col.id === colId)
-   if (colDef?.sortComparator == null) return
+   if (colDef == null || !('sortComparator' in colDef))
+      return
 
    // direction param is used for programmatic restore; user clicks toggle
    const sortAscending = direction != null
@@ -136,14 +137,14 @@ function tableSort (column /*: HTMLElement */, direction /*: ?string */) {
       })
 
    const colIndex = COLUMNS.indexOf(colDef)
-   const getCellValue = (row) => row.children[colIndex].textContent
-   const sortFunction = (a /*: HTMLTableRowElement */, b /*: HTMLTableRowElement */) =>
-      colDef.sortComparator(
+   const getCellValue = (row: HTMLTableRowElement) => row.children[colIndex].textContent
+   const sortFunction = (a: HTMLTableRowElement, b: HTMLTableRowElement) =>
+      (colDef.sortComparator as sortComparator)(
          getCellValue(sortAscending ? a : b),
          getCellValue(sortAscending ? b : a)
       )
-   const tableBody = document.querySelector('#group-table tbody')
-   Array.from(tableBody.children)
+   const tableBody = document.querySelector('#group-table tbody') as HTMLElement
+   (Array.from(tableBody.children) as HTMLTableRowElement[])
         .sort(sortFunction)
         .forEach((row) => tableBody.append(row))
 
@@ -156,7 +157,7 @@ function tableSort (column /*: HTMLElement */, direction /*: ?string */) {
 ### Column configuration
 ```javascript
 */
-function showColumnDropdown (table /*: HTMLElement */, config /*: TableConfig */) {
+function showColumnDropdown (table: HTMLElement, config: TableConfig) {
    document.getElementById('column-dropdown')?.remove()
 
    const dropdownHTML = [
@@ -174,32 +175,36 @@ function showColumnDropdown (table /*: HTMLElement */, config /*: TableConfig */
        </div>`
    ].join('')
 
-   const button = document.getElementById('column-config-btn')
+   const button = document.getElementById('column-config-btn') as HTMLButtonElement
    const buttonRectangle = button.getBoundingClientRect()
    const dropdownLocation = {clientX: buttonRectangle.left, clientY: buttonRectangle.bottom}
    const dialogModal = makeDialog(dropdownHTML, dropdownLocation, (ev) => {
-      if (!document.getElementById('column-dropdown')?.contains(ev.target)) dialogModal.remove()
+      if (!document.getElementById('column-dropdown')?.contains((ev.target as HTMLElement)))
+         dialogModal.remove()
    })
-   document.getElementById('column-dropdown').classList.remove('dialog')
-   document.getElementById('column-dropdown').addEventListener('change', (ev) => {
-      const label = ev.target.closest('label[data-id]')
+   ;(document.getElementById('column-dropdown') as HTMLElement).classList.remove('dialog')
+   ;(document.getElementById('column-dropdown') as HTMLElement).addEventListener('change', (ev) => {
+      const label = (ev.target as HTMLElement).closest('label[data-id]')
       const checkbox = label?.querySelector('input[type="checkbox"]')
-      if (checkbox == null) return
+      if (checkbox == null)
+         return
       ev.stopPropagation()
-      const colId = label.getAttribute('data-id')
-      config.visible[colId] = checkbox.checked
-      table.classList.toggle(`hide-${colId}`, !checkbox.checked)
-      if (onConfigChange != null) onConfigChange({visible: {...config.visible}})
+      const colId = (label as HTMLElement).getAttribute('data-id') as string
+      config.visible[colId] = (checkbox as HTMLInputElement).checked
+      table.classList.toggle(`hide-${colId}`, !(checkbox as HTMLInputElement).checked)
+      if (onConfigChange != null)
+         onConfigChange({visible: {...config.visible}})
    })
-   document.getElementById('column-dropdown-reset').addEventListener('click', () => {
+   ;(document.getElementById('column-dropdown-reset') as HTMLElement).addEventListener('click', () => {
       const defaults = Object.fromEntries(COLUMNS.map((col) => [col.id, col.defaultVisible]))
       Object.assign(config.visible, defaults)
       COLUMNS.forEach((col) => {
          table.classList.toggle(`hide-${col.id}`, !defaults[col.id])
       })
-      document.getElementById('column-dropdown').querySelectorAll('input[type="checkbox"]')
+      ;(document.getElementById('column-dropdown') as HTMLElement)
+         .querySelectorAll('input[type="checkbox"]')
          .forEach((cb, i) => {
-            cb.checked = COLUMNS[i].defaultVisible
+            (cb as HTMLInputElement).checked = COLUMNS[i].defaultVisible
          })
       if (onConfigChange != null) onConfigChange({visible: {...defaults}})
    })
@@ -217,24 +222,26 @@ function clearEmphasis () {
 
 // ── Mouse ──────────────────────────────────────────────────────────────────
 
-let mouseTooltipTimer /*: ?TimeoutID */ = null
-let lastMouseCell /*: ?Element */ = null
+let mouseTooltipTimer: Maybe<TimeoutID> = null
+let lastMouseCell: Maybe<HTMLElement> = null
 
-function addMouseHandlers (tableBody) {
+function addMouseHandlers (tableBody: HTMLElement) {
    // pointerover bubbles, so one listener on tbody tracks all cell transitions
    tableBody.addEventListener('pointerover', (event) => {
       if (event.pointerType !== 'mouse') return
-      const cell = event.target.closest('td')
-      if (cell === lastMouseCell) return
+      const cell = (event.target as HTMLElement).closest('td')
+      if (cell === lastMouseCell)
+         return
       clearMouseState()
-      if (cell == null) return
+      if (cell == null)
+         return
       lastMouseCell = cell
       cell.classList.add('emphasized')
       const title = cell.getAttribute('data-tooltip')
       if (title != null) {
          mouseTooltipTimer = setTimeout(() => {
             cell.insertAdjacentHTML('beforeend', `<div id="tooltip">${title}</div>`)
-            positionElement(document.getElementById('tooltip'), event)
+            positionElement((document.getElementById('tooltip') as HTMLElement), event)
             mouseTooltipTimer = null
          }, 150)
       }
@@ -257,16 +264,17 @@ function clearMouseState () {
 
 // ── Touch ──────────────────────────────────────────────────────────────────
 
-let touchCell /*: ?Element */ = null
-let touchDownInfo /*: ?{x: number, y: number, cell: ?Element} */ = null
-let secondTapPending /*: boolean */ = false
+let touchCell: Maybe<Element> = null
+let touchDownInfo: Maybe<{x: number, y: number, cell: Maybe<Element>}> = null
+let secondTapPending: boolean = false
 
-function addTouchHandlers (tableBody) {
+function addTouchHandlers (tableBody: HTMLElement) {
    tableBody.addEventListener('pointerdown', (event) => {
-      if (event.pointerType === 'mouse') return
+      if (event.pointerType === 'mouse')
+         return
       // capture cell at pointerdown — elementFromPoint is reliable here;
       // at pointerup the finger is lifting and iOS hit-testing becomes unreliable
-      const cell = event.target.closest('td')
+      const cell = (event.target as HTMLElement).closest('td')
       secondTapPending = touchCell != null && cell?.closest('tr') === touchCell.closest('tr')
       clearTouchState()
       touchDownInfo = {x: event.clientX, y: event.clientY, cell}
@@ -278,8 +286,8 @@ function addTouchHandlers (tableBody) {
    })
 
    tableBody.addEventListener('pointerup', (event) => {
-      if (event.pointerType === 'mouse') return
-      if (touchDownInfo == null) return
+      if (event.pointerType === 'mouse' || touchDownInfo == null)
+         return
       const {x, y, cell} = touchDownInfo
       touchDownInfo = null
       if (Math.hypot(event.clientX - x, event.clientY - y) > 20) { secondTapPending = false; return }
@@ -297,8 +305,8 @@ function addTouchHandlers (tableBody) {
 
       const title = cell?.getAttribute('data-tooltip')
       if (title != null) {
-         cell.insertAdjacentHTML('beforeend', `<div id="tooltip">${title}</div>`)
-         const tooltip = document.getElementById('tooltip')
+         (cell as HTMLElement).insertAdjacentHTML('beforeend', `<div id="tooltip">${title}</div>`)
+         const tooltip = document.getElementById('tooltip') as HTMLElement
          // position above the finger so it isn't obscured by the hand
          const {width, height} = tooltip.getBoundingClientRect()
          const x = Math.max(0, Math.min(event.clientX - width / 2, window.innerWidth - width))
@@ -312,8 +320,10 @@ function addTouchHandlers (tableBody) {
 
    // tapping outside the table clears touch selection
    document.addEventListener('pointerdown', (event) => {
-      if (event.pointerType === 'mouse') return
-      if (!tableBody.contains(event.target)) clearTouchState()
+      if (event.pointerType === 'mouse')
+         return
+      if (!tableBody.contains(event.target as HTMLElement))
+         clearTouchState()
    })
 }
 

@@ -1,7 +1,13 @@
-// @flow
+/*
+# StoredObjects
+
+Persists various objects in local IndexedDB database
+
+```js
+ */
 import * as Library from './Library.js';
 import * as Log from './Log.js';
-import { serializeSheet, deserializeSheet } from '../js/SheetSerialization.js';
+import { wrapSheet, deserializeSheet } from './SheetSerialization.js';
 export { 
 // Group library routines
 getGroupLibrary, saveGroupLibrary, 
@@ -15,9 +21,6 @@ getStoredSheet, saveStoredSheet, removeStoredSheet, listStoredSheets,
 getPassedSheet, setPassedSheet, 
 // Passed JSON routines
 getPassedJSON, setPassedJSON, };
-/*::
-import type {libraryType} from './Library.js'
- */
 const DB_NAME = 'GE3';
 const DB_VERSION = 2;
 const GENERAL_STORE = 'GeneralStore';
@@ -28,103 +31,105 @@ const SETTINGS_KEY = 'Settings';
 const PASSED_SHEET_KEY = 'PassedSheet';
 const PASSED_JSON_KEY = 'PassedJSON';
 const TABLE_CONFIG_KEY = 'TableConfig';
-async function getObjectStore(objectStoreName /*: string */, mode /*: 'readwrite' | 'readonly' */) {
+async function getObjectStore(objectStoreName, mode) {
     const db = await openDatabase();
     const result = db
-        .transaction(objectStoreName, mode) // if this fails then we might need to retry once
+        .transaction(objectStoreName, mode)
         .objectStore(objectStoreName);
     return result;
 }
 async function openDatabase() {
     return new Promise((resolve, reject) => {
-        const request /*: IDBOpenDBRequest */ = window.indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = async (ev) => {
+        const openRequest = window.indexedDB.open(DB_NAME, DB_VERSION);
+        openRequest.onupgradeneeded = async (ev) => {
             switch (ev.oldVersion) {
-                case 0: await migrateToV1(ev);
-                case 1: await migrateToV2(ev);
+                case 0: await migrateToV1(openRequest);
+                case 1: await migrateToV2(openRequest);
             }
         };
-        request.onsuccess = (ev) => {
-            const database /*: IDBDatabase */ = ev.target.result;
+        openRequest.onsuccess = (_ev) => {
+            const database = openRequest.result;
             resolve(database);
         };
-        request.onerror = (ev) => {
+        openRequest.onerror = (ev) => {
             Log.err(`Error opening indexedDB database GE3`);
             reject(ev);
         };
-        request.onblocked = (ev) => {
+        openRequest.onblocked = (ev) => {
             Log.err('indexedDB upgrade blocked -- close all GE3 tabs to continue');
             reject(ev);
         };
     });
 }
-function completeRequest(request /*: IDBRequest */) {
+function completeRequest(request) {
     const result = new Promise((resolve, reject) => {
-        request.transaction.oncomplete = () => resolve(request.result);
-        request.transaction.onerror = () => reject(request.error);
+        const transaction = request.transaction;
+        if (transaction != null) {
+            transaction.oncomplete = () => resolve(request.result);
+            transaction.onerror = () => reject(request.error);
+        }
+        else {
+            reject(new Error('failed to get IndexeddDB transaction'));
+        }
     });
     return result;
 }
 //////////
 // Generic access routines
 //////////
-async function get(objectStoreName /*: string */, key /*: string */) {
+async function get(objectStoreName, key) {
     const request = (await getObjectStore(objectStoreName, 'readonly')).get(key);
     return completeRequest(request);
 }
-async function put(objectStoreName /*: string */, key /*: string */, value /*: mixed */) {
+async function put(objectStoreName, key, value) {
     const request = (await getObjectStore(objectStoreName, 'readwrite')).put(value, key);
     return completeRequest(request);
 }
-async function remove(objectStoreName /*: string */, key /*: string */) {
+async function remove(objectStoreName, key) {
     const request = (await getObjectStore(objectStoreName, 'readwrite')).delete(key);
     return completeRequest(request);
 }
-async function getAllKeys(objectStoreName /*: string */) {
+async function getAllKeys(objectStoreName) {
     const request = (await getObjectStore(objectStoreName, 'readonly')).getAllKeys();
-    return ((completeRequest(request) /*: any */) /*: Promise<Array<string>> */);
+    return completeRequest(request);
 }
 //////////
 // Group library routines
 //////////
 async function getGroupLibrary() {
-    return ((get(GENERAL_STORE, GROUP_LIBRARY_KEY) /*: any */) /*: Promise<libraryType> */);
+    return get(GENERAL_STORE, GROUP_LIBRARY_KEY);
 }
-async function saveGroupLibrary(groupLibrary /*: libraryType */) {
+async function saveGroupLibrary(groupLibrary) {
     return put(GENERAL_STORE, GROUP_LIBRARY_KEY, groupLibrary);
 }
 //////////
 // Settings routines
 //////////
 function getSettings() {
-    return ((get(GENERAL_STORE, SETTINGS_KEY) /*: any */) /*: Promise<{[key: string]: mixed}> */)
-        .then((result) => result || {});
+    return get(GENERAL_STORE, SETTINGS_KEY);
 }
-function saveSettings(settings /*: {[key: string]: mixed} */) {
+function saveSettings(settings) {
     return put(GENERAL_STORE, SETTINGS_KEY, settings);
 }
 //////////
 // Table config routines
 //////////
 function getTableConfig() {
-    return ((get(GENERAL_STORE, TABLE_CONFIG_KEY) /*: any */) /*: Promise<{[key: string]: mixed}> */)
-        .then((result) => result || {});
+    return get(GENERAL_STORE, TABLE_CONFIG_KEY);
 }
-function saveTableConfig(config /*: {[key: string]: mixed} */) {
+function saveTableConfig(config) {
     return put(GENERAL_STORE, TABLE_CONFIG_KEY, config);
 }
 //////////
 // Stored Sheet routines
 //////////
-async function getStoredSheet(sheetName /*: string */) {
-    const wrappedSheet = await get(SHEET_STORE, sheetName);
-    return deserializeSheet(wrappedSheet);
+async function getStoredSheet(sheetName) {
+    return get(SHEET_STORE, sheetName);
 }
-async function saveStoredSheet(sheetName /*: string */, sheet /*: mixed */) {
-    const wrappedSheet = serializeSheet(sheet);
-    return put(SHEET_STORE, sheetName, wrappedSheet);
+async function saveStoredSheet(sheetName, sheet) {
+    return put(SHEET_STORE, sheetName, sheet);
 }
-async function removeStoredSheet(sheetName /*: string */) {
+async function removeStoredSheet(sheetName) {
     return remove(SHEET_STORE, sheetName);
 }
 async function listStoredSheets() {
@@ -136,7 +141,7 @@ async function listStoredSheets() {
 async function getPassedSheet() {
     return get(GENERAL_STORE, PASSED_SHEET_KEY);
 }
-async function setPassedSheet(passedSheet /*: mixed */) {
+async function setPassedSheet(passedSheet) {
     return put(GENERAL_STORE, PASSED_SHEET_KEY, passedSheet);
 }
 //////////
@@ -145,7 +150,7 @@ async function setPassedSheet(passedSheet /*: mixed */) {
 async function getPassedJSON() {
     return get(GENERAL_STORE, PASSED_JSON_KEY);
 }
-async function setPassedJSON(passedJSON /*: mixed */) {
+async function setPassedJSON(passedJSON) {
     return put(GENERAL_STORE, PASSED_JSON_KEY, passedJSON);
 }
 //////////
@@ -153,23 +158,23 @@ async function setPassedJSON(passedJSON /*: mixed */) {
 //////////
 // initializes indexedDB database ('migrate from revision 0')
 // sets up IDBObjectStore and migrates data from localstore 'sheets' value
-async function migrateToV1(versionChangeEvent /*: any */) {
+async function migrateToV1(openRequest) {
     // Create IDBObjectStore where Key is sheet name, Value is sheet JSON ($rev$ 2)
-    versionChangeEvent.target.result.createObjectStore(SHEET_STORE);
+    openRequest.result.createObjectStore(SHEET_STORE);
     // get old stored sheets from localStorage
     // convert each stored sheet and save it to IndexedDB
     const oldSheetStore = localStorage.getItem('sheets');
     if (oldSheetStore != null) {
-        const transaction = versionChangeEvent.target.transaction;
-        const storedSheets = transaction.objectStore(SHEET_STORE);
         const oldSheets = JSON.parse(oldSheetStore);
         if (Object.keys(oldSheets).length === 0) {
             localStorage.removeItem('sheets');
         }
         else {
+            const transaction = openRequest.transaction; // not sure what to do if it fails
+            const newSheetStore = transaction.objectStore(SHEET_STORE);
             for (const [sheetName, oldSheet] of Object.entries(oldSheets)) {
-                const newSheet = convertV0ToV1(oldSheet); /* convertV0ToV1 == convertFromOldJSON */
-                const putRequest = storedSheets.put(JSON.stringify(newSheet), sheetName);
+                const newSheet = deserializeSheet(oldSheet); // CHECKME against type of v0 stored sheet
+                const putRequest = newSheetStore.put(JSON.stringify(newSheet), sheetName);
                 await new Promise((resolve, reject) => {
                     putRequest.onsuccess = () => resolve(putRequest.result);
                     putRequest.onerror = () => reject(putRequest.error);
@@ -180,51 +185,54 @@ async function migrateToV1(versionChangeEvent /*: any */) {
 }
 // Create version 2 IndexedDB with SHEET_STORE
 // Migrate 'groups' object from localStorage to GROUP_LIBRARY_KEY in GENERAL_STORE
-async function migrateToV2(ev /*: any */) {
+async function migrateToV2(openRequest) {
     // clean up local storage from previous versions
     //   ;['mathjax_stylesheet', 'sheets', 'passedSheet'].forEach((key) => localStorage.removeItem(key))
-    await migrateGroupsToV2(ev);
-    await migrateSheetsToV2(ev);
+    await migrateGroupsToV2(openRequest);
+    await migrateSheetsToV2(openRequest);
 }
-async function migrateGroupsToV2(ev /*: any */) {
+async function migrateGroupsToV2(openRequest) {
     // create GENERAL_STORE objectStore
-    const objectStore = ev.target.result.createObjectStore(GENERAL_STORE);
+    const objectStore = openRequest.result.createObjectStore(GENERAL_STORE);
     // copy Groups from localStorage to indexedDB
     const groupString = localStorage.getItem('groups');
     const groups = (groupString == null) ? Object.create(null) : JSON.parse(groupString);
     Object.values(groups).forEach((G) => {
         // move name, other_names into names
+        const names = G.names ?? [];
         if ('name' in G) {
-            G.names = [G.name];
+            names.push(G.name);
             delete G.name;
         }
         if ('other_names' in G) {
-            G.names.push(...G.other_names);
+            names.push(...G.other_names);
             delete G.other_names;
         }
+        G.names = names;
         // add custom field
-        G.custom = {};
+        const custom = {};
         // user representations
         if ('userRepresentations' in G) {
             if (Array.isArray(G.userRepresentations) && G.userRepresentations.length > 0) {
-                G.custom.representations = G.userRepresentations;
+                custom.representations = G.userRepresentations;
             }
             delete G.userRepresentations;
         }
         // representationIndex
         if ('representationIndex' in G) {
             if (G.representationIndex !== 0) {
-                G.custom.representationIndex = G.representationIndex;
+                custom.representationIndex = G.representationIndex;
             }
             delete G.representationIndex;
         }
         // notes
         if ('userNotes' in G) {
-            if (G.userNotes != null && G.userNotes.length != 0) {
-                G.custom.notes = G.userNotes;
+            if (typeof G.userNotes === 'string' && G.userNotes.length != 0) {
+                custom.notes = G.userNotes;
             }
             delete G.userNotes;
         }
+        G.custom = custom;
         // should have either _XML_generators (from XML) or generators (from JSON), but not both
         if (G._XML_generators != null) { // convert _XML_generators to declaredGenerators
             G.declaredGenerators = G._XML_generators;
@@ -260,34 +268,34 @@ async function migrateGroupsToV2(ev /*: any */) {
     // convert format to that used in IndexedDB
     await new Promise((resolve, reject) => {
         const putRequest = objectStore.put(groups, GROUP_LIBRARY_KEY);
-        putRequest.onsuccess = (ev) => resolve(ev.target.result);
+        putRequest.onsuccess = (_ev) => resolve(openRequest.result);
         putRequest.onerror = (ev) => reject(ev);
     });
     // delete groups from localStorage
     // localStorage.removeItem('groups')
 }
 // use upgrade transaction's object store directly — cannot open a new connection during onupgradeneeded
-async function migrateSheetsToV2(ev /*: any */) {
-    const transaction = ev.target.transaction;
+async function migrateSheetsToV2(openRequest) {
+    const transaction = openRequest.transaction;
     const sheetStore = transaction.objectStore(SHEET_STORE);
-    const backupStore = ev.target.result.createObjectStore(SHEET_BACKUP_STORE);
+    const backupStore = openRequest.result.createObjectStore(SHEET_BACKUP_STORE);
     // Library.getGroupByURL is needed by migrateSheetToV2 (for layoutCayleyDiagram).
     // The normal loadLibrary() path can't be used here (it would open a new DB connection).
     // Groups were just moved to GENERAL_STORE by migrateGroupsToV2 — read them directly
     // from the upgrade transaction and populate the in-memory library.
-    const idbRequest = (request /*: IDBRequest */) => new Promise((resolve, reject) => {
+    const idbRequest = (request) => new Promise((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
     });
     const storedGroups = (await idbRequest(transaction.objectStore(GENERAL_STORE).get(GROUP_LIBRARY_KEY))) ?? {};
     Library.loadFromStoredGroups(storedGroups);
-    const sheetNames = ((await idbRequest(sheetStore.getAllKeys()) /*: any */) /*: Array<string> */);
+    const sheetNames = await idbRequest(sheetStore.getAllKeys());
     for (const sheetName of sheetNames) {
         const v1SheetJSONString = await idbRequest(sheetStore.get(sheetName));
         await idbRequest(backupStore.put(v1SheetJSONString, sheetName)); // back up V1 before converting
         try {
-            const v2SheetJSON = deserializeSheet(v1SheetJSONString);
-            await idbRequest(sheetStore.put(serializeSheet(v2SheetJSON), sheetName));
+            const v2SheetJSON = deserializeSheet(v1SheetJSONString); // CHECKME
+            await idbRequest(sheetStore.put(wrapSheet(v2SheetJSON), sheetName));
         }
         catch (err) {
             Log.err(`migrateSheetsToV2: failed to migrate '${sheetName}', left unchanged: ${err}`);

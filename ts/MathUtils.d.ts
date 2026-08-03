@@ -1,3 +1,3 @@
-export declare function isPrime(n: any): boolean;
-export declare function isPrimePower(n: any): any;
-export declare function getFactors(n: any): any;
+export declare function isPrime(n: integer): boolean;
+export declare function isPrimePower(n: integer): boolean;
+export declare function getFactors(n: integer): integer[];

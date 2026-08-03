@@ -1,37 +1,56 @@
-// @flow
-import * as Library from './Library.js'
-/*::
-import {Group} from './Group.js'
-export type MulttableJSON = {
-    groupURL: string,
-    highlights?: Array<Array<?color>>,
-    highlightControl?: any,
-    subgroupOrganization: number,
-    separation: number,
-    coloration: 'rainbow' | 'grayscale' | 'none',
-    colorReordering: 'topRowFixed' | 'elementColorsFixed'
-    ...
-}
+/*
+# MulttableModel
+
+Model for the multtable visualizer. Holds all serializable state:
+
+* **View parameters** — fog, zoom, sphere size, line width, etc.
+* **Opaque plugin slots**
+    * `highlightControl` (owned by `HighlightControl`)
+
+```javascript
  */
+
+import * as Library from './Library.js'
+
+import {Group} from './Group.js'
+
+export type MulttableColoration = 'rainbow' | 'grayscale' | 'none'
+export type MulttableColorReordering = 'topRowFixed' | 'elementColorsFixed'
+export type MulttableJSON = {
+   group_url: string,
+   highlight_colors?: Maybe<color>[][],
+   highlight_control?: any,
+   organizing_subgroup?: number,
+   separation?: number,
+   coloration?: MulttableColoration,
+   color_reordering?: MulttableColorReordering,
+   elements?: groupElement[]
+}
+
 export class MulttableModel {
-   group /*: Group */
-   highlightColors /*: Array<Array<?css_color>> */
-   highlightConfiguration = {  // visualizer-specific highlight parameters
-      highlightTypes /*: Array<string> */: ['background', 'border', 'corner'],
-      saturation /*: Array<number> */: [1, 1, 1],
-      lightness /*: Array<number> */: [0.8, 0.8, 0.8],
-      hueOffset /*: Array<number> */: [0, 1/3, 2/3]
+   group: Group
+   highlightColors!: Maybe<color>[][]
+   highlightConfiguration: {  // visualizer-specific highlight parameters
+      highlightTypes: string[],
+      saturation: number[],
+      lightness: number[],
+      hueOffset: number[]
+   } = {  // visualizer-specific highlight parameters
+      highlightTypes: ['background', 'border', 'top'],
+      saturation: [1, 1, 1],
+      lightness: [0.8, 0.8, 0.8],
+      hueOffset: [0, 1/3, 2/3]
    }
-   organizingSubgroup /*: number */
-   separation /*: number */
-   coloration /*: 'rainbow' | 'grayscale' | 'none' */
-   colorReordering /*: 'topRowFixed' | 'elementColorsFixed' */
-   elements /*: Array<groupElement> */
+   organizingSubgroup!: number
+   separation!: number
+   coloration!: 'rainbow' | 'grayscale' | 'none'
+   colorReordering!: 'topRowFixed' | 'elementColorsFixed'
+   elements!: groupElement[]
 
    // Opaque plugin slots (carried opaquely through serialization)
-   highlightControl /*: any */
+   highlightControl: any = null
 
-   constructor (group /*: Group */) {
+   constructor (group: Group) {
       this.group = group
       this.reset()
    }
@@ -45,26 +64,26 @@ export class MulttableModel {
       this.elements = [...this.group.elements]
    }
 
-   toJSON () /*: MulttableJSON */ {
+   toJSON (): MulttableJSON {
       const json = {
          group_url: this.group.URL,
          highlight_colors: this.highlightColors,
+         highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
          organizing_subgroup: this.organizingSubgroup,
          separation: this.separation,
          coloration: this.coloration,
          color_reordering: this.colorReordering,
          elements: this.elements,
-         highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
       }
 
       return json
    }
 
-   fromJSON (json /*: MulttableJSON */) {
+   fromJSON (json: MulttableJSON) {
       this.reset()
 
       if (json.group_url != null && this.group.URL != json.group_url) {
-         this.group = Library.getGroupByURL(json.group_url)
+         this.group = Library.getGroupByURL(json.group_url) as Group
       }
 
       this.highlightColors = json.highlight_colors ?? this.highlightColors

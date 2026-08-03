@@ -1,5 +1,20 @@
-export { DIRECTION_INDEX, AXIS_NAME, layoutCayleyDiagram, nextArrowColor, getDefaultStrategies };
-declare const DIRECTION_INDEX: {
+import type { LayoutType } from "./CayleyDiagramModel.js";
+import type { Group } from './Group.ts';
+type LineDirection = 'X' | 'Y' | 'Z';
+type PlaneDirection = 'YZ' | 'XZ' | 'XY';
+export type Layout = 'linear' | 'circular' | 'rotated';
+export type Direction = LineDirection | PlaneDirection;
+export type StrategyParameters = {
+    generator: groupElement;
+    layout: Layout;
+    direction: Direction;
+    nestingLevel: number;
+};
+export type ArrowGenerator = {
+    generator: groupElement;
+    color: color;
+};
+export declare const DIRECTION_INDEX: {
     X: number;
     Y: number;
     Z: number;
@@ -7,31 +22,8 @@ declare const DIRECTION_INDEX: {
     XZ: number;
     XY: number;
 };
-declare const AXIS_NAME: string[];
-declare function layoutCayleyDiagram(group: any, nameOrStrategies: any, arrowGenerators: any, rightMultiply: any, chunkSubgroupIndex: any): {
-    pov: {
-        position: any;
-        up: any;
-    };
-    nodes: any;
-    arrows: any;
-    chunks: never[];
-} | {
-    pov: {
-        position: any;
-        up: any;
-    };
-    nodes: any;
-    arrows: {
-        start_node: any;
-        end_node: any;
-        generator: any;
-        bidirectional: boolean;
-        thirdPoint: any;
-        keepCurved: boolean;
-        offset: number | null;
-    }[];
-    chunks: any;
-};
-declare function getDefaultStrategies(group: any): any;
-declare function nextArrowColor(colorsUsed?: never[]): string | undefined;
+export declare const AXIS_NAME: LineDirection[];
+export declare function layoutCayleyDiagram(group: Group, nameOrStrategies?: string | StrategyParameters[] | undefined, arrowGenerators?: Maybe<ArrowGenerator[]>, rightMultiply?: boolean, chunkSubgroupIndex?: Maybe<integer>): LayoutType;
+export declare function getDefaultStrategies(group: Group): StrategyParameters[];
+export declare function nextArrowColor(colorsUsed?: color[]): color;
+export {};

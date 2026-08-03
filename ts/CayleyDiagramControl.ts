@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # CayleyDiagramControl
 
@@ -13,7 +13,7 @@ This module implements the Cayley diagram control panel. It consists of:
 
 ```javascript
  */
-import {BitSet} from './BitSet.js';
+import { BitSet } from './BitSet.js';
 import {
    DIRECTION_INDEX,
    AXIS_NAME,
@@ -22,25 +22,23 @@ import {
    getDefaultStrategies
 } from './CayleyDiagramGenerator.js'
 import * as Log from './Log.js'
-import {makeDetachedMenu, makeMockSelect} from './UIComponents.js'
+import { makeDetachedMenu, makeMockSelect } from './UIComponents.js'
 
-export {addControl}
-
-/*::
-import type {Layout, Direction, StrategyParameters} from './CayleyDiagramGenerator.js';
-import type {NodeData, ArrowData, ChunkData} from './CayleyDiagramView.js';
-import type {Tree} from './GEUtils.js';
-import type {Group} from './Group.js'
-import type {CayleyDiagramModel} from './CayleyDiagramModel.js'
-import XMLGroup from './XMLGroup.js';
-import type {XMLCayleyDiagram} from './XMLGroup.js';
-interface NumberLocation {clientX: number, clientY: number}
+import type { Layout, Direction } from './CayleyDiagramGenerator.js';
+import type { CayleyDiagramModel } from './CayleyDiagramModel.js'
 
 import type {StrategyParameters, ArrowGenerator} from './CayleyDiagramGenerator.js'
- */
+
+export type CayleyDiagramControlJSON = {
+   diagram_name?: string,
+   strategy_parameters?: StrategyParameters[],
+   arrow_generators?: ArrowGenerator[],
+   right_multiply?: boolean,
+   chunk_subgroup_index?: integer
+}
 
 // layout choices (linear/circular/rotated), direction (X/Y/Z)
-const AXIS_LABELS /*: {[layout: string]: {[direction: string]: html}} */ = {
+const AXIS_LABELS: {[layout: string]: {[direction: string]: html}} = {
    linear:   { X: 'Linear in <i>x</i>',
                Y: 'Linear in <i>y</i>',
                Z: 'Linear in <i>z</i>' },
@@ -52,14 +50,14 @@ const AXIS_LABELS /*: {[layout: string]: {[direction: string]: html}} */ = {
                XY: 'Rotated in <i>x</i>, <i>y</i>' },
 }
 
-const AXIS_IMAGES /*: {[layout: string]: {[direction: string]: string}} */ = {
+const AXIS_IMAGES: {[layout: string]: {[direction: string]: string}} = {
    linear:   { X: 'axis-x.png', Y: 'axis-y.png', Z: 'axis-z.png' },
    circular: { YZ: 'axis-yz.png', XZ: 'axis-xz.png', XY: 'axis-xy.png'},
    rotated:  { YZ: 'axis-ryz.png', XZ: 'axis-rxz.png', XY: 'axis-rxy.png'},
 }
 
 // nesting order labels
-const ORDER_LABELS /*: Array<Array<string>> */ = [
+const ORDER_LABELS: string[][] = [
    [],
    ['N/A'],
    ['inside', 'outside'],
@@ -75,7 +73,7 @@ const ORDER_LABELS /*: Array<Array<string>> */ = [
       'third outermost', 'second outermost', 'outermost'],
 ]
 
-function addControl (cayleyDiagramControlElement /*: HTMLElement */, model /*: CayleyDiagramModel */) {
+export function addControl (cayleyDiagramControlElement: HTMLElement, model: CayleyDiagramModel) {
    const viewModel = new ViewModel(cayleyDiagramControlElement, model)
 
    new DiagramChoice(viewModel)
@@ -87,26 +85,26 @@ function addControl (cayleyDiagramControlElement /*: HTMLElement */, model /*: C
    model.diagramControl = viewModel
 }
 
-function clickHandler (event /*: MouseEvent */) {
+function clickHandler (event: MouseEvent) {
    event.preventDefault()
-   const action = event.target.closest('[data-action]')
+   const action = (event.target as HTMLElement).closest('[data-action]')
    if (action != null) {
       event.stopPropagation()
-      eval(action.getAttribute('data-action'))
+      eval(action.getAttribute('data-action') as string)
    }
 }
 
 class ViewModel {
    #model
-   rootElement /*: HTMLElement */
-   handlers /*: Updatable */ = []
-   diagramName /*: string */ = null  // null => generate diagram
-   strategyParameters /*: Array<StrategyParameters> */ = []
-   arrowGenerators /*: ?Array<ArrowGenerator> */ = null  // null => use default arrows
-   rightMultiply /*: boolean */ = true
-   chunkSubgroupIndex /*: numeber */ = null  // null => no chunking
+   rootElement: HTMLElement
+   handlers: View[] = []
+   diagramName: Maybe<string> = null  // null => generate diagram
+   strategyParameters: StrategyParameters[] = []
+   arrowGenerators: Maybe<ArrowGenerator[]> = null  // null => use default arrows; [] => no arrows
+   rightMultiply: boolean = true
+   chunkSubgroupIndex: Maybe<number> = null  // null => no chunking
 
-   constructor (rootElement /*: HTMLElement */, model /*: CayleyDiagramModel */) {
+   constructor (rootElement: HTMLElement, model: CayleyDiagramModel) {
       this.#model = model
       this.rootElement = rootElement
 
@@ -132,7 +130,7 @@ class ViewModel {
       }
    }
 
-   registerForUpdates (handler /*: Updatable */) {
+   registerForUpdates (handler: View) {
       this.handlers.push(handler)
    }
 
@@ -175,24 +173,23 @@ class ViewModel {
       this.handlers.forEach((handler) => handler.update())
    }
 
-   toJSON () /*: CayleyDiagramControlJSON */ {
-      const json = {
-         diagram_name: this.diagramName,
-         strategy_parameters: this.strategyParameters,
-         arrow_generators: this.arrowGenerators,
-         right_multiply: this.rightMultiply,
-         chunk_subgroup_index: this.chunkSubgroupIndex
-      }
+   toJSON (): CayleyDiagramControlJSON {
+      const json: CayleyDiagramControlJSON = {}
+      if (this.diagramName != null)             json.diagram_name = this.diagramName
+      if (this.strategyParameters.length != 0)  json.strategy_parameters = this.strategyParameters
+      if (this.arrowGenerators?.length != 0)    json.arrow_generators = this.arrowGenerators as ArrowGenerator[]
+                                                json.right_multiply = this.rightMultiply
+      if (this.chunkSubgroupIndex != null)      json.chunk_subgroup_index = this.chunkSubgroupIndex as integer
 
       return json
    }
 
-   fromJSON (jsonObject /*: CayleyDiagramControlJSON */) {
-      this.diagramName = jsonObject.diagram_name
-      this.strategyParameters = jsonObject.strategy_parameters
-      this.arrowGenerators = jsonObject.arrow_generators
-      this.rightMultiply = jsonObject.right_multiply
-      this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index
+   fromJSON (jsonObject: CayleyDiagramControlJSON) {
+      this.diagramName = jsonObject.diagram_name ?? null
+      this.strategyParameters = jsonObject.strategy_parameters ?? []
+      this.arrowGenerators = jsonObject.arrow_generators ?? null
+      this.rightMultiply = jsonObject.right_multiply ?? true
+      this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index ?? null
 
       this.updateLayout()
 
@@ -217,7 +214,7 @@ class ViewModel {
          && this.strategyParameters.every((strategy, level) => strategy.nestingLevel == level)
    }
 
-   getChunkingChoices () {
+   getChunkingChoices (): { subgroupIndex: number, allGenerators: groupElement[] }[] {
       const strategyParameters = this.strategyParameters
       let choices = []
       if (  strategyParameters[0].nestingLevel == 0
@@ -245,16 +242,16 @@ class ViewModel {
          }
       }
 
-      const allGenerators = []
+      const allGenerators: groupElement[] = []
       const newChoices = choices.map((strategy) => {
          allGenerators.push(strategy.generator)
-         return {subgroupIndex: this.#findSubgroupIndex(allGenerators), allGenerators: [...allGenerators]}
+         return {subgroupIndex: this.#findSubgroupIndex(allGenerators) as number, allGenerators: [...allGenerators]}
       })
 
-      return newChoices // Array<{subgroupIndex: number, allGenerators: Array<groupElement>}>
+      return newChoices
    }
 
-   #findSubgroupIndex (elementArray /*: Array<groupElements> */) /*: Array<groupElements> */ {
+   #findSubgroupIndex (elementArray: groupElement[]): Maybe<integer> {
       const elements = new BitSet(this.group.order, elementArray)
       for (const [index, subgroup] of this.group.subgroups.entries()) {
          if (BitSet.intersection(subgroup.members, elements).equals(elements)) {
@@ -264,26 +261,28 @@ class ViewModel {
    }
 
    // Actions called by View
-   chooseDiagram (choice /*: string */) {
+   chooseDiagram (choice: string) {
       this.diagramName = (choice === 'Generate diagram') ? null : choice
       this.strategyParameters.length = 0
       this.arrowGenerators = null
       this.updateLayout()
    }
 
-   updateStrategies (strategies /*: Array<StrategyParameters> */) {
+   updateStrategies (strategies: StrategyParameters[]) {
       this.strategyParameters = this.#refineStrategies(strategies)
       this.updateLayout()
    }
 
-   updateGenerator (strategyIndex /*: number */, generator /*: number */) {
+   updateGenerator (strategyIndex: number, generator: number) {
       const strategyParameters = this.strategyParameters
       strategyParameters[strategyIndex].generator = generator
       this.strategyParameters = this.#refineStrategies(strategyParameters)
 
       // this.arrowGenerators with this.strategyParameters
-      const arrowGenerators = new Set(this.arrowGenerators.map((arrowGenerator) => arrowGenerator.generator))
-      const strategyGenerators = new Set(this.strategyParameters.map((strategyParameter) => strategyParameter.generator))
+      const arrowGenerators =
+         new Set((this.arrowGenerators as ArrowGenerator[]).map((arrowGenerator) => arrowGenerator.generator))
+      const strategyGenerators =
+         new Set(this.strategyParameters.map((strategyParameter) => strategyParameter.generator))
       arrowGenerators.forEach((arrowGenerator) => {
          if (!strategyGenerators.has(arrowGenerator)) {
             this.removeArrow(arrowGenerator)
@@ -298,7 +297,7 @@ class ViewModel {
       this.updateLayout()
    }
 
-   organizeBy (subgroupIndex /*: number */) {
+   organizeBy (subgroupIndex: number) {
       this.group.subgroups[subgroupIndex].generators.toArray()
          .forEach((generator, inx) => {
             this.updateGenerator(inx, generator)
@@ -306,14 +305,14 @@ class ViewModel {
          })
    }
 
-   updateAxes (strategyIndex /*: number */, layout /*: Layout */, direction /*: Direction */) {
+   updateAxes (strategyIndex: number, layout: Layout, direction: Direction) {
       const strategyParameters = this.strategyParameters
       strategyParameters[strategyIndex].layout = layout;
       strategyParameters[strategyIndex].direction = direction;
       this.updateStrategies(strategyParameters);
    }
 
-   updateOrder (strategyIndex /*: number */, order /*: number */) {
+   updateOrder (strategyIndex: number, order: number) {
       const strategyParameters = this.strategyParameters
       const otherStrategy = strategyParameters.findIndex( (strategy) => strategy.nestingLevel == order );
       strategyParameters[otherStrategy].nestingLevel = strategyParameters[strategyIndex].nestingLevel;
@@ -321,7 +320,7 @@ class ViewModel {
       this.updateStrategies(strategyParameters);
    }
 
-   addArrow (element /*: groupElement */) {
+   addArrow (element: groupElement) {
       this.arrowGenerators = this.arrowGenerators ?? []
       const usedColors = this.arrowGenerators.map((arrowGenerator) => arrowGenerator.color)
 
@@ -331,29 +330,31 @@ class ViewModel {
       }
    }
 
-   removeArrow (element /*: groupElement */) {
-      const arrowIndex = this.arrowGenerators.findIndex((arrowGenerator) => arrowGenerator.generator == element)
-      if (arrowIndex >= 0) {
-         this.arrowGenerators.splice(arrowIndex, 1)
+   removeArrow (element: groupElement) {
+      if (this.arrowGenerators != null) {
+         const arrowIndex =this.arrowGenerators.findIndex((arrowGenerator) => arrowGenerator.generator == element)
+         if (arrowIndex >= 0) {
+            this.arrowGenerators.splice(arrowIndex, 1)
+         }
+         this.updateLayout()
       }
-      this.updateLayout()
    }
 
-   setRightMultiply (rightMultiply /*: boolean */) {
+   setRightMultiply (rightMultiply: boolean) {
       this.rightMultiply = rightMultiply
       this.updateLayout()
    }
 
-   setChunk (index /*: integer */) {
+   setChunk (index: Maybe<integer>) {
       this.chunkSubgroupIndex = index
       this.updateLayout()
    }
 
    // Moved from Generator View class: validates and completes strategy params before feeding to generator
-   #refineStrategies (newStrategies /*: Array<StrategyParameters> */) /*: Array<StrategyParameters> */ {
+   #refineStrategies (newStrategies: StrategyParameters[]): StrategyParameters[] {
       const generatorsUsed = new BitSet(this.group.order)
       const elementsGenerated = new BitSet(this.group.order, [0])
-      const strategies /*: Array<StrategyParameters> */ = []
+      const strategies: StrategyParameters[] = []
 
       newStrategies.forEach((strategy) => {
          if (!elementsGenerated.isSet(strategy.generator)) {
@@ -377,7 +378,7 @@ class ViewModel {
 
       if (elementsGenerated.popcount() != this.group.order) {
          const newGenerator = elementsGenerated.complement().toArray()
-            .find((el) => this.group.closure(generatorsUsed.clone().set(el)).popcount() == this.group.order)
+            .find((el) => this.group.closure(generatorsUsed.clone().set(el)).popcount() == this.group.order) as groupElement
 
          const unusedDirections = new BitSet(3).setAll()
          strategies.forEach(({layout, direction}) => {
@@ -398,9 +399,9 @@ class ViewModel {
 }
 
 class View {
-   viewModel
+   viewModel: ViewModel
 
-   constructor (viewModel) {
+   constructor (viewModel: ViewModel) {
       this.viewModel = viewModel
       viewModel.registerForUpdates(this)
    }
@@ -422,7 +423,7 @@ Displays the available Cayley Diagrams as well as the option to generate one.
 ```javascript
  */
 class DiagramChoice extends View {
-   constructor (viewModel) {
+   constructor (viewModel: ViewModel) {
       super(viewModel)
 
       this.viewModel.rootElement.insertAdjacentHTML('beforeend',
@@ -435,21 +436,21 @@ class DiagramChoice extends View {
       this.update()
    }
 
-   get choices () /*: Array<{value: string, label?: html}> */ {
+   get choices (): {value: string, label?: html}[] {
       return [
          {value: 'Generate diagram'},
          ...this.viewModel.group.cayleyDiagrams.map((diagram) => { return {value: diagram.name} })
       ]
    }
 
-   get currentChoice () /*: integer */{
+   get currentChoice (): integer{
       return (this.viewModel.generatesFromStrategy)
             ? 0
             : this.viewModel.group.cayleyDiagrams.findIndex(({name}) => name === this.viewModel.diagramName) + 1
    }
 
-   get diagramSelect () /*: HTMLElement */ {
-      return document.getElementById('diagram-select')
+   get diagramSelect (): HTMLElement {
+      return document.getElementById('diagram-select') as HTMLElement
    }
 
    showDiagramChoices () {
@@ -461,7 +462,7 @@ class DiagramChoice extends View {
    }
 
    update () {
-      this.diagramSelect.setAttribute('data-index', this.viewModel.diagramName)
+      this.diagramSelect.setAttribute('data-index', this.viewModel.diagramName ?? 'null')
 
       const currentLabel = this.choices[this.currentChoice].label || this.choices[this.currentChoice].value
       this.diagramSelect.innerHTML = currentLabel
@@ -473,7 +474,7 @@ class DiagramChoice extends View {
 ```javascript
  */
 class Generator extends View {
-   constructor (viewModel) {
+   constructor (viewModel: ViewModel) {
       super(viewModel)
 
       this.viewModel.rootElement.insertAdjacentHTML('beforeend',
@@ -534,12 +535,12 @@ class Generator extends View {
       this.update()
    }
 
-   get generationControlElement () /*: HTMLElement */ {
-      return document.getElementById('generation-control')
+   get generationControlElement (): HTMLElement {
+      return document.getElementById('generation-control') as HTMLElement
    }
 
-   get generationTableElement () /*: HTMLElement */ {
-      return document.getElementById('generation-table')
+   get generationTableElement (): HTMLElement {
+      return document.getElementById('generation-table') as HTMLElement
    }
 
    /*
@@ -578,15 +579,15 @@ class Generator extends View {
    /*
     * Show option menus for the columns of the Generator table
     */
-   showGeneratorMenu (clickLocation /*: NumberLocation */, strategyIndex /*: number */) {
+   showGeneratorMenu (clickLocation: NumberLocation, strategyIndex: number) {
 
       // find complement of closure of generators in previous strategyParameters
       // search through subgroups to find first subgroup such that members & generators == generators
       //
       // show only elements not generated by previously applied strategies
-      let eligibleGenerators
+      const eligibleGenerators: groupElement[] = []
       if (strategyIndex == 0) {
-         eligibleGenerators = this.group.elements.slice(1)
+         eligibleGenerators.push(...this.group.elements.slice(1))
       } else {
          const currentGenerators = this.viewModel.strategyParameters
             .slice(0, strategyIndex)  // start through strategyIndex
@@ -595,7 +596,7 @@ class Generator extends View {
          for (let inx = 0; inx < this.group.subgroups.length; inx++) {
             const subgroupMembers = this.group.subgroups[inx].members
             if (BitSet.intersection(subgroupMembers, currentGeneratorBitSet).equals(currentGeneratorBitSet)) {
-               eligibleGenerators = subgroupMembers.clone().complement().toArray()
+               eligibleGenerators.push(...subgroupMembers.clone().complement().toArray())
                break
             }
          }
@@ -621,10 +622,10 @@ class Generator extends View {
           </ul>`
 
       makeDetachedMenu(generatorMenu, clickLocation)
-         .then( (action) => eval(action) )
+         .then( (action) => eval(action as string) )
    }
 
-   showAxisMenu (clickLocation /*: NumberLocation */, strategyIndex /*: number */) {
+   showAxisMenu (clickLocation: NumberLocation, strategyIndex: number) {
       // previously generated subgroup must have > 2 cosets in this subgroup
       //   in order to show it in a curved (circular or rotated) layout
       const strategies = this.viewModel.strategyParameters
@@ -657,10 +658,10 @@ class Generator extends View {
 
 
       makeDetachedMenu(axisMenu, clickLocation)
-         .then( (action) => eval(action) )
+         .then( (action) => eval(action as string) )
    }
 
-   showOrderMenu (clickLocation /*: NumberLocation */, strategyIndex /*: number */) {
+   showOrderMenu (clickLocation: NumberLocation, strategyIndex: number) {
       const numStrategies = this.viewModel.strategyParameters.length
 
       const orderList = this.viewModel.strategyParameters.map((_strategy, order) =>
@@ -677,10 +678,10 @@ class Generator extends View {
       ].join('')
 
       makeDetachedMenu(orderMenuHTML, clickLocation)
-         .then( (action) => eval(action) )
+         .then( (action) => eval(action as string) )
    }
 
-   makeOrganizeByMenu () /*: html */ {
+   makeOrganizeByMenu (): html {
       const organizeByMenu =
          this.group.subgroups.slice(1, -1)  // only append non-trivial subgroups
             .map((subgroup, inx) =>
@@ -694,16 +695,16 @@ class Generator extends View {
    /*
     * Drag-and-drop generation-table rows to re-order generators
     */
-   dragStart (dragstartEvent /*: DragEvent */) {
-      const target = dragstartEvent.target
-      const dataTransfer = dragstartEvent.dataTransfer
+   dragStart (dragstartEvent: DragEvent) {
+      const target = dragstartEvent.target as HTMLElement
+      const dataTransfer = dragstartEvent.dataTransfer as DataTransfer
       dataTransfer.setData('text/plain', target.textContent)
    }
 
-   drop (dropEvent /*: DragEvent */) {
+   drop (dropEvent: DragEvent) {
       dropEvent.preventDefault();
-      const target = dropEvent.target
-      const dataTransfer = dropEvent.dataTransfer
+      const target = dropEvent.target as HTMLElement
+      const dataTransfer = dropEvent.dataTransfer as DataTransfer
       const dest = parseInt(target.textContent);
       const src = parseInt(dataTransfer.getData('text/plain'));
       const strategyParameters = this.viewModel.strategyParameters
@@ -711,7 +712,7 @@ class Generator extends View {
       this.viewModel.updateStrategies(strategyParameters);
    }
 
-   dragOver (dragoverEvent /*: DragEvent */) {
+   dragOver (dragoverEvent: DragEvent) {
          dragoverEvent.preventDefault();
    }
 }
@@ -724,7 +725,7 @@ class Arrow extends View {
 // actions:  show menu; select from menu; select from list; remove
 // utility function add_arrow_list_item(element) to add arrow to list (called from initialization, select from menu)
 // utility function clearArrowList() to remove all arrows from list (called during reset)
-   constructor (viewModel) {
+   constructor (viewModel: ViewModel) {
       super(viewModel)
 
       this.viewModel.rootElement.insertAdjacentHTML('beforeend',
@@ -764,27 +765,27 @@ class Arrow extends View {
       this.update()
    }
 
-   get arrowControlElement () /*: HTMLElement */ {
-      return document.getElementById('arrow-control')
+   get arrowControlElement (): HTMLElement {
+      return document.getElementById('arrow-control') as HTMLElement
    }
 
-   get arrowListElement () /*: HTMLElement */ {
-      return  document.getElementById('arrow-list')
+   get arrowListElement (): HTMLElement {
+      return  document.getElementById('arrow-list') as HTMLElement
    }
 
-   get arrowAddButton () /*: HTMLButtonElement */ {
-      return (document.getElementById('arrow-add-button') /*:: as any as HTMLButtonElement */)
+   get arrowAddButton (): HTMLButtonElement {
+      return document.getElementById('arrow-add-button') as HTMLButtonElement
    }
 
-   get arrowRemoveButton () /*: HTMLButtonElement */ {
-      return (document.getElementById('arrow-remove-button') /*:: as any as HTMLButtonElement */)
+   get arrowRemoveButton (): HTMLButtonElement {
+      return document.getElementById('arrow-remove-button') as HTMLButtonElement
    }
 
    clearHighlights () {
       this.arrowListElement.querySelectorAll('li').forEach((el) => el.classList.remove('highlighted'))
    }
 
-   selectArrow (element /*: number */) {
+   selectArrow (element: number) {
       this.clearHighlights()
       this.arrowListElement.querySelector(`li[data-arrow="${element}"]`)?.classList.add('highlighted')
       this.arrowRemoveButton.setAttribute('data-action', `this.removeArrow(${element})`)
@@ -792,13 +793,13 @@ class Arrow extends View {
    }
 
    // returns all arrows displayed in arrow-list as an array
-   getAllArrows () /*: Array<groupElement> */ {
+   getAllArrows (): groupElement[] {
       return Array
          .from(this.arrowListElement.querySelectorAll('li'))
-         .map((listItem /*: HTMLLIElement */) => parseInt(listItem.getAttribute('arrow')))
+         .map((listItem: HTMLLIElement) => parseInt(listItem.getAttribute('arrow') as string))
    }
 
-   showAddArrowMenu (event /*: MouseEvent */) {
+   showAddArrowMenu (event: MouseEvent) {
       // make an array of HTML strings with a list element for each arrow that can be added to the arrow-list
       const group = this.viewModel.group
       const arrowList = group.elements
@@ -810,14 +811,14 @@ class Arrow extends View {
       const arrowMenu = `<ul id="arrow-menu" style="min-width: 10ch">${arrowList}</ul>`
 
       makeDetachedMenu(arrowMenu, event)
-         .then((action) => eval(action))
+         .then((action) => eval(action as string))
    }
 
-   addArrow (element /*: number */) {
+   addArrow (element: number) {
       this.viewModel.addArrow(element)
    }
 
-   removeArrow (element /*: number */) {
+   removeArrow (element: number) {
       this.arrowRemoveButton.disabled = true
       this.viewModel.removeArrow(element)
    }
@@ -844,7 +845,7 @@ class Arrow extends View {
 ```javascript
  */
 class Multiplication extends View {
-   constructor (viewModel) {
+   constructor (viewModel: ViewModel) {
       super(viewModel)
 
       this.viewModel.rootElement.insertAdjacentHTML('beforeend',
@@ -866,15 +867,15 @@ class Multiplication extends View {
       this.update()
    }
 
-   get leftMultiplicationElement () /*: HTMLInputElement */ {
-      return (document.getElementById('left-multiplication') /*:: as any as HTMLInputElement */)
+   get leftMultiplicationElement (): HTMLInputElement {
+      return document.getElementById('left-multiplication') as HTMLInputElement
    }
 
-   get rightMultiplicationElement () /*: HTMLInputElement */{
-      return (document.getElementById('right-multiplication') /*:: as any as HTMLInputElement */)
+   get rightMultiplicationElement (): HTMLInputElement{
+      return document.getElementById('right-multiplication') as HTMLInputElement
    }
 
-   setMult (rightOrLeft /*: string */) {
+   setMult (rightOrLeft: string) {
       this.viewModel.setRightMultiply(rightOrLeft == 'right')
    }
 
@@ -889,7 +890,7 @@ class Multiplication extends View {
 ```javascript
  */
 class Chunking extends View {
-   constructor (viewModel) {
+   constructor (viewModel: ViewModel) {
       super(viewModel)
 
       this.viewModel.rootElement.insertAdjacentHTML('beforeend',
@@ -915,22 +916,22 @@ class Chunking extends View {
       this.update()
    }
 
-   get chunkSelect () /*: HTMLElement */ {
-      return document.getElementById('chunk-select')
+   get chunkSelect (): HTMLElement {
+      return document.getElementById('chunk-select') as HTMLElement
    }
 
-   get chunkingFog () /*: HTMLElement */ {
-      return document.getElementById('chunking-fog')
+   get chunkingFog (): HTMLElement {
+      return document.getElementById('chunking-fog') as HTMLElement
    }
 
    displayChunkingOptions () {
-      const choices /*: Array<{value: string, label?: html}> */ = [
+      const choices: {value: string, label?: html}[] = [
          {value: '0', label: '(no chunking)'}
       ]
 
       if (this.viewModel.chunkingIsPossible) {
          this.viewModel.getChunkingChoices()
-            .forEach(({subgroupIndex /*: number */, allGenerators /*: Array<groupElement> */}) => {
+            .forEach(({subgroupIndex, allGenerators}) => {
                const allGeneratorsRepresentation = allGenerators.map((element) => this.group.representation[element])
                const label = (subgroupIndex === this.group.subgroups.length - 1)
                   ? 'The whole group'

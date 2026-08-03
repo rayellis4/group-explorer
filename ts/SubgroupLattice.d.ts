@@ -1,15 +1,16 @@
 import { BitSet } from './BitSet.js';
 import { Subgroup } from './Subgroup.js';
+import type { Group } from './Group.js';
 export declare class SubgroupLattice {
     #private;
-    group: any;
+    group: Group;
     z_generators: BitSet;
-    constructor(group: any);
-    static getSubgroups(group: any): (boolean | Subgroup[])[];
+    constructor(group: Group);
+    static getSubgroups(group: Group): [Subgroup[], boolean];
     findAllSubgroups(): Subgroup[];
-    findNextLayer(currLayer: any): any[];
-    findNormalizer(subgroup: any): any;
-    normalizes(subgroup: any, g: any): boolean;
-    extendSubgroup(subgroup: any, normalizer: any): void;
-    minimizeGenerators(subgroup: any, extension: any): void;
+    findNextLayer(currLayer: Subgroup[]): Subgroup[];
+    findNormalizer(subgroup: Subgroup): Subgroup;
+    normalizes(subgroup: Subgroup, g: groupElement): boolean;
+    extendSubgroup(subgroup: Subgroup, normalizer: number): void;
+    minimizeGenerators(subgroup: Subgroup, extension: number): void;
 }

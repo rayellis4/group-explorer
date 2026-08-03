@@ -1,2 +1,2 @@
-export { addGestures };
-declare function addGestures(cayleyDiagramView: any): void;
+import type { CayleyDiagramView } from './CayleyDiagramView.ts';
+export declare function addGestures(cayleyDiagramView: CayleyDiagramView): void;

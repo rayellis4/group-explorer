@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # AutoUpgrade
 
@@ -15,7 +15,8 @@ In either case it leaves the group library loaded and ready for synchronous acce
 
 ```js
  */
-export { version, EXTENDED_GROUP_PREFIX };
+// Extended groups — generated from presentation, no .group files needed
+export const EXTENDED_GROUP_PREFIX = 'data:,//GE3/extended';
 const codeFiles = [
     './GroupExplorer.html',
     './GroupInfo.html',
@@ -163,10 +164,7 @@ const groupFiles = [
     'groups/168.group',
     'groups/Tesseract.group',
 ];
-// Extended groups — generated from presentation, no .group files needed
-const EXTENDED_GROUP_PREFIX = 'data:,//GE3/extended';
-/*:: type ExtendedManifestEntry = {presentation: string, gapid: string, gapname: string, names: Array<string>, link?: string, phrase?: string} */
-const EXTENDED_MANIFEST /*: Array<ExtendedManifestEntry> */ = [
+const EXTENDED_MANIFEST = [
     { "presentation": "a,b:a11=b2=baba=1", "gapid": "22,1", "gapname": "D22", "names": ["<i>D</i><sub>11</sub>", "ℤ<sub>8</sub> ⋊ ℤ<sub>2</sub>"], "link": "http://groupnames.org/1/D11.html", "phrase": "Dihedral group on 11 vertices" },
     { "presentation": "a,b:a3=b8=bab-1a=1", "gapid": "24,1", "gapname": "C3 : C8", "names": ["ℤ<sub>3</sub> ⋊ ℤ<sub>8</sub>"], "link": "http://groupnames.org/1/C3sC8.html" },
     { "presentation": "a,b,c:a3=b4=c2=aba-1b-1=aca-1c-1=cbcb=1", "gapid": "24,10", "gapname": "C3 x D8", "names": ["ℤ<sub>3</sub> × <i>D</i><sub>4</sub>", "ℤ<sub>12</sub> ⋊ ℤ<sub>2</sub>"], "link": "http://groupnames.org/1/C3xD4.html" },
@@ -255,10 +253,10 @@ const EXTENDED_MANIFEST /*: Array<ExtendedManifestEntry> */ = [
     { "presentation": "a,b,c:a2=b10=c2b-5=aba-1b-1=aca-1c-1=cbc-1b=1", "gapid": "40,7", "gapname": "C2 x (C5 : C4)", "names": ["ℤ<sub>2</sub> × <i>Dic</i><sub>5</sub>"], "link": "http://groupnames.org/1/C2xDic5.html" },
     { "presentation": "a,b,c:a5=b4=c2=bab-1a=caca=cbcb=1", "gapid": "40,8", "gapname": "(C10 x C2) : C2", "names": ["ℤ<sub>5</sub> ⋊<sub>2</sub> <i>D</i><sub>4</sub>"], "link": "http://groupnames.org/1/C5sD4.html" }
 ];
-function manifestEntryToURL(entry /*: ExtendedManifestEntry */) {
+function manifestEntryToURL(entry) {
     return `${EXTENDED_GROUP_PREFIX}?${entry.presentation}`;
 }
-function loadExtendedGroups(Library /*: any */) {
+function loadExtendedGroups(Library) {
     for (const entry of EXTENDED_MANIFEST) {
         const group = Library.getGroupByURL(manifestEntryToURL(entry));
         if (group != null) {
@@ -280,7 +278,7 @@ function loadExtendedGroups(Library /*: any */) {
 Get GE3 version number from <meta> tag in top-level web page
 ```javascript
  */
-function version() {
+export function version() {
     const metaElement = document.querySelector('meta[name="GE3-GITVersion"]');
     if (metaElement == null) {
         // something is very wrong, don't import Log.js and make it worse

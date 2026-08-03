@@ -1,2 +1,3 @@
-export { addControl };
-declare function addControl(multtableControlElement: any, modelProxy: any): void;
+import { SubscriptionProxy } from './GEUtils.js';
+import { MulttableModel } from './MulttableModel.js';
+export declare function addControl(multtableControlElement: HTMLElement, modelProxy: SubscriptionProxy<MulttableModel>): void;

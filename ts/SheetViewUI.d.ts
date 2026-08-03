@@ -1,2 +1,2 @@
-export { init };
-declare function init(viewModel: any, displayElement: any): void;
+import * as SheetViewModel from './SheetViewModel.js';
+export declare function init(viewModel: SheetViewModel.SheetViewModel, displayElement: HTMLElement): void;

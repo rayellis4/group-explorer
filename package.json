@@ -14,11 +14,8 @@
   ],
   "author": "Ray Ellis and Nathan Carter",
   "license": "LGPL-3.0",
-  "dependencies": {
-    "three": "^0.170.0"
-  },
   "devDependencies": {
-    "typescript": "^6.0.3",
+    "@types/three": "^0.170.0",
     "chai": "^4.3.8",
     "mocha": "^10.2.0"
   }

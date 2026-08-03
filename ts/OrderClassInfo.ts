@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # OrderClassInfo
 
@@ -6,18 +6,19 @@ A [GroupInfo](./GroupInfo.html.md) component that displays group order classes.
 
 ```javascript
  */
-export {display}
 
-function display (orderClassElementId, group) {
-   const orderClassElement = document.getElementById(orderClassElementId)
+import type { Group } from './Group.ts'
+
+export function display (orderClassElementId: string, group: Group) {
+   const orderClassElement = document.getElementById(orderClassElementId) as HTMLElement
    orderClassElement.innerHTML = makeOrderClassInfoContent(group)
 
    // rebuild content on representation change
-   orderClassElement.closest('.all-info')
+   ;(orderClassElement.closest('.all-info') as HTMLElement)
       .addEventListener('representationChange', () => orderClassElement.innerHTML = makeOrderClassInfoContent(group))
 }
 
-function makeOrderClassInfoContent (group) {
+function makeOrderClassInfoContent (group: Group): html {
    const htmlFragments = [
       `<details>
           <summary>

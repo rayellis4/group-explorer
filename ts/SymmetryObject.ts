@@ -1,18 +1,23 @@
-// @flow
+/*
+# SymmetryObject
 
-import {CayleyDiagramModel} from './CayleyDiagramModel.js'
-import {ControlPanel} from './ControlPanel.js'
-import {createModelProxy} from './GEUtils.js'
+Assembles large symmetry object visualizer html page
+
+```js
+ */
+
+import { CayleyDiagramModel } from './CayleyDiagramModel.js'
+import { ControlPanel } from './ControlPanel.js'
+import { createModelProxy } from './GEUtils.js'
 import * as Heading from './Heading.js'
 import * as Library from './Library.js'
 import * as Log from './Log.js'
 import * as SymmetryObjectControl from './SymmetryObjectControl.js'
-import {createSymmetryObjectView} from './SymmetryObjectView.js'
+import { createSymmetryObjectView } from './SymmetryObjectView.js'
 
-export {load}
 
 // Load group from invocation URL, then get diagram name and complete setup
-async function load () {
+export async function load () {
    insertHTML()
 
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
@@ -25,7 +30,7 @@ async function load () {
 
    // Create Header
    Heading.display(
-      document.getElementById('heading'),
+      document.getElementById('heading') as HTMLElement,
       `Object of Symmetry for ${group.name}`,
       () => [
          {label: 'Group Info', action: () => window.open(`GroupInfo.html?groupURL=${group.URL}`)},
@@ -39,15 +44,15 @@ async function load () {
    const symmetryObjectModel = createModelProxy(new CayleyDiagramModel(group))
 
    const symmetryObjectViewModel = createSymmetryObjectView(symmetryObjectModel, {
-      container: document.getElementById('graphic')
+      container: document.getElementById('graphic') as HTMLElement
    })
 
    // Create Control Panel
-   const controlPanelElement = document.getElementById('control-panel')
+   const controlPanelElement = document.getElementById('control-panel') as HTMLElement
    ControlPanel.addPanel(controlPanelElement)
 
    // Create SymmetryObjectControl
-   const symmetryObjectControlElement = document.getElementById('symmetry-object-control')
+   const symmetryObjectControlElement = document.getElementById('symmetry-object-control') as HTMLElement
    SymmetryObjectControl.addControl(symmetryObjectControlElement, symmetryObjectModel)
 
    // Resize the body, including the graphic

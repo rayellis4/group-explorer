@@ -1,8 +1,3 @@
-/*
- * Re-exports from three.js and local overrides.
- * Runtime paths are resolved via the import map in html/PageTemplate.html.
- */
-
 export * from 'three';
 export { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js';
 export { Line2 } from 'three/examples/jsm/lines/Line2.js';

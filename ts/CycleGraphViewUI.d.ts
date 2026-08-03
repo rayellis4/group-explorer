@@ -1,2 +1,2 @@
-export { addGestures };
-declare function addGestures(cycleGraphView: any): void;
+export declare function addGestures(cycleGraphView: CycleGraphView): void;
+import type { CycleGraphView } from './CycleGraphView.js';

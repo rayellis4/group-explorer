@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # GeneratorInfo
 
@@ -6,19 +6,19 @@ A [GroupInfo](./GroupInfo.html.md) component that displays the group's generator
 
 ```javascript
  */
-export {display}
+import type { Group } from './Group.ts'
 
-function display (generatorElementId, group) {
-   const generatorElement = document.getElementById(generatorElementId)
+export function display (generatorElementId: string, group: Group) {
+   const generatorElement = document.getElementById(generatorElementId) as HTMLElement
    generatorElement.innerHTML = makeGeneratorContent(group)
 
    // rebuild content on representation change
-   generatorElement.closest('.all-info')
+   ;(generatorElement.closest('.all-info') as HTMLElement)
       .addEventListener('representationChange', () => generatorElement.innerHTML = makeGeneratorContent(group))
 }
 
-function makeGeneratorContent (group) {
-   const generatorLine = (gen) => gen.reduce(
+function makeGeneratorContent (group: Group) {
+   const generatorLine = (gen: groupElement[]): string => gen.reduce<string>(
       (acc, el, inx) => {
          const rep = group.representation[el]
          if (gen.length == 1) {
@@ -33,8 +33,8 @@ function makeGeneratorContent (group) {
       }, '')
 
    const generatorLines =
-      (group.declaredGenerators?.length > 0)
-         ? group.declaredGenerators.map((gen) => `<li>${generatorLine(gen)}</li>`).join('')
+      (group.declaredGenerators != null && group.declaredGenerators.length > 0)
+         ? group.declaredGenerators.map((gen: groupElement[]) => `<li>${generatorLine(gen)}</li>`).join('')
          : `<li>${generatorLine(group.generators)}</li>`
 
    const generatorDisplay =

@@ -1,4 +1,10 @@
-// @flow
+/*
+# SymmetryObject
+
+Assembles large symmetry object visualizer html page
+
+```js
+ */
 import { CayleyDiagramModel } from './CayleyDiagramModel.js';
 import { ControlPanel } from './ControlPanel.js';
 import { createModelProxy } from './GEUtils.js';
@@ -7,9 +13,8 @@ import * as Library from './Library.js';
 import * as Log from './Log.js';
 import * as SymmetryObjectControl from './SymmetryObjectControl.js';
 import { createSymmetryObjectView } from './SymmetryObjectView.js';
-export { load };
 // Load group from invocation URL, then get diagram name and complete setup
-async function load() {
+export async function load() {
     insertHTML();
     document.body.addEventListener('contextmenu', (ev) => ev.preventDefault());
     const group = await Library.loadFromPageURL();

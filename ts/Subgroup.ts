@@ -1,7 +1,11 @@
-// @flow
 /*
- *   subgroup structure -- containing group, and generator, member, bitsets
+# Subgroup
+
+Subgroup structure -- containing group, and generator, member, bitsets
+
+```js
  */
+
 import {BitSet} from './BitSet.js';
 import * as DefiningRelations from './DefiningRelations.js'
 import {Group} from './Group.js'
@@ -9,113 +13,104 @@ import * as IsomorphicGroups from './IsomorphicGroups.js'
 import * as Library from './Library.js'
 import * as MathUtils from './MathUtils.js'
 
-/*::
-import type {Group} from './Group.js'
 import type {BitSetJSON} from './BitSet.js';
 
 export type SubgroupJSON = {
    group: string,
    generators: BitSetJSON,
-   members: BitSetJSON,
-};
-*/
-export class Subgroup {
-   group /*: Group */
-   generators /*: BitSet */
-   members /*: BitSet */
+   members: BitSetJSON
+}
 
-   constructor(group /*: ?Group */,
-               generators /*: Array<number> */ = [],
-               members /*: Array<number> */ = []) {
-      // just make an empty Subgroup if called with undefined arguments
-      if (group != undefined) {
-         this.group = group;
-         this.generators = new BitSet(group.order, generators);
-         this.members = new BitSet(group.order, members);
-      }
+export class Subgroup {
+   group: Group
+   generators: BitSet
+   members: BitSet
+
+   constructor(group: Group,
+               generators: number[] = [],
+               members: number[] = []) {
+      this.group = group;
+      this.generators = new BitSet(group.order, generators);
+      this.members = new BitSet(group.order, members);
    }
 
    // clone/copy all fields
-   clone () /*: Subgroup */ {
-      const clone = new Subgroup()
-      clone.group = this.group
-      clone.generators = this.generators.clone()
-      clone.members = this.members.clone()
-
+   clone (): Subgroup {
+      const clone = new Subgroup(this.group, this.generators.toArray(), this.members.toArray())
       return clone
    }
 
-   setAllMembers() /*: Subgroup */ {
+   setAllMembers(): Subgroup {
       this.members.setAll();
       return this;
    }
 
-   toString() /*: string */ {
+   toString(): string {
       return `generators: ${this.generators.toString()}; ` +
              `members: ${this.members.toString()}`;
    }
 
-   get order() /*: number */ {
+   get order(): number {
       this.#setProperty('order', this.members.popcount())
       return this.order
    }
 
-   get index() /*: number */ {
+   get index(): number {
       this.#setProperty('index', this.group.order/this.order)
       return this.index
    }
 
-   get isCyclic () /*: boolean */ {
+   get isCyclic (): boolean {
       this.#setProperty('isCyclic', this.generators.popcount() == 1)
       return this.isCyclic
    }
 
-   get isNormal() /*: boolean */ {
+   get isNormal(): boolean {
       this.#setProperty('isNormal', this.#subgroupIsNormal())
       return this.isNormal;
    }
 
-   get isomorphicGroup () /*: Group */ {
+   get isomorphicGroup (): Group {
       this.#setIsomorphicGroupAndEmbedding()
       return this.isomorphicGroup
    }
 
-   get isomorphicGroupEmbedding () /*: Array<groupElement> */ {
+   get isomorphicGroupEmbedding (): groupElement[] {
       this.#setIsomorphicGroupAndEmbedding()
       return this.isomorphicGroupEmbedding
    }
 
-   get isomorphicQuotientGroup () /*: ?Group */ {
+   get isomorphicQuotientGroup (): Maybe<Group> {
       this.#setQuotientGroupAndMap()
       return this.isomorphicQuotientGroup
    }
 
-   get isomorphicQuotientMap () /*: ?Array<groupElement> */ {
+   get isomorphicQuotientMap (): Maybe<groupElement[]> {
       this.#setQuotientGroupAndMap()
       return this.isomorphicQuotientMap
    }
 
-   get leftCosets () {
+   get leftCosets (): BitSet[] {
       this.#setProperty('leftCosets', this.#getCosets('left'))
       return this.leftCosets
    }
 
-   get rightCosets () {
+   get rightCosets (): BitSet[] {
       this.#setProperty('rightCosets', this.#getCosets('right'))
       return this.rightCosets
    }
 
-   get subgroupIndex () /*: number */ {
+   get subgroupIndex (): number {
       this.#setProperty('subgroupIndex', this.group.subgroups.findIndex((H) => H.members.equals(this.members)))
       return this.subgroupIndex
    }
 
    ////////////////////////// Private helper functions
 
-   #getCosets (side)  /*: Array<BitSet> */ {
+  #getCosets (side: 'left' | 'right'): BitSet[] {
       const mult = (side == 'left')
-         ? (a /*: groupElement */, b /*: groupElement */) => this.group.multtable[a][b]
-         : (a /*: groupElement */, b /*: groupElement */) => this.group.multtable[b][a]
+         ? (a: groupElement, b: groupElement) => this.group.multtable[a][b]
+         : (a: groupElement, b: groupElement) => this.group.multtable[b][a]
       const cosets = [this.members.clone()];
       const todo = new BitSet(this.group.order).setAll().subtract(this.members);
       const subgroupArray = this.members.toArray()
@@ -132,14 +127,14 @@ export class Subgroup {
       return cosets;
    }
 
-   #getLibraryGroup (G) /*: Group */ {
+   #getLibraryGroup (G: Group): Group {
       let libraryGroup = IsomorphicGroups.find(G)
       if (libraryGroup == null) {
          const presentation = DefiningRelations.makePresentation(G)
          const presentationURL = DefiningRelations.GENERATED_GROUP_PREFIX + '?' + presentation
          libraryGroup = Library.getGroupByURL(presentationURL)
       }
-      return libraryGroup
+      return libraryGroup as Group
    }
 
    // call N = this a normal subgroup and G = this.group,
@@ -147,14 +142,14 @@ export class Subgroup {
    // such that Q is in the groups library and q is an onto map from G to Q
    // with kernel K.  q is stored as an array such that q[i] means q(i),
    // for all i in G.
-   #getQuotientGroup () /*: [Group, Array<groupElement>] */ {
+   #getQuotientGroup (): [Group, groupElement[]] {
       const cosets = this.leftCosets
       const quotientOrder = cosets.length;
-      const cosetReps = cosets.map((coset /*: BitSet */) => coset.first())
-      const elementToCoset = []
+      const cosetReps = cosets.map((coset: BitSet) => coset.first() as number)
+      const elementToCoset: groupElement[] = []
       cosets.forEach((coset, inx) => coset.toArray().forEach((elt) => elementToCoset[elt] = inx))
 
-      const multtable /*: Array<Array<groupElement>> */ =
+      const multtable: groupElement[][] =
          Array.from({length: quotientOrder}, (_, inx) => {
             return Array.from({length: quotientOrder}, (_, jnx) => {
                return elementToCoset[this.group.multtable[cosetReps[inx]][cosetReps[jnx]]]
@@ -176,13 +171,13 @@ export class Subgroup {
    // such that H' is in the groups library and f is an embedding of H'
    // into G and onto H.  f is stored as an array such that f[i] means f(i),
    // for all i in H'.
-   #getSubgroupAsGroup () /*: [Group, Array<groupElement>] */ {
+   #getSubgroupAsGroup (): [Group, groupElement[]] {
       const subgroupToParent = this.members.toArray();
-      const parentToSubgroup /*: Array<groupElement> */ = subgroupToParent.reduce(
+      const parentToSubgroup = subgroupToParent.reduce<groupElement[]>(
          (acc, el, inx) => { acc[el] = inx; return acc; }, new Array(this.group.order)
       );
 
-      const multtable /*: Array<Array<groupElement>> */ =
+      const multtable: groupElement[][] =
          Array.from({length: this.order}, (_, inx) => {
             return Array.from({length: this.order}, (_, jnx) => {
                return parentToSubgroup[this.group.multtable[subgroupToParent[inx]][subgroupToParent[jnx]]]
@@ -200,7 +195,7 @@ export class Subgroup {
       return [libraryGroup, isomorphism.map((elt) => subgroupToParent[elt])]
    }
 
-   #setProperty (propertyName, value) {
+  #setProperty (propertyName: string, value: any) {
       Object.defineProperty(this, propertyName, {
          value: value,
          enumerable: false
@@ -208,20 +203,20 @@ export class Subgroup {
    }
 
    #setIsomorphicGroupAndEmbedding () {
-      const [isomorphicGroup, isomorphicGroupEmbedding] = this.#getSubgroupAsGroup(this.group, this)
+      const [isomorphicGroup, isomorphicGroupEmbedding] = this.#getSubgroupAsGroup()
       this.#setProperty('isomorphicGroup', isomorphicGroup)
       this.#setProperty('isomorphicGroupEmbedding', isomorphicGroupEmbedding)
    }
 
    #setQuotientGroupAndMap () {
       const [isomorphicQuotientGroup, isomorphicQuotientMap] = this.isNormal
-         ? this.#getQuotientGroup(this.group, this)
+         ? this.#getQuotientGroup()
          : [null, null]
       this.#setProperty('isomorphicQuotientGroup', isomorphicQuotientGroup)
       this.#setProperty('isomorphicQuotientMap', isomorphicQuotientMap)
    }
 
-   #subgroupIsNormal () /*: boolean */ {
+   #subgroupIsNormal (): boolean {
       const isNormal = (this.group.isAbelian)
          ? true
          : this.group.generators.every((g) =>
@@ -233,11 +228,11 @@ export class Subgroup {
 
    ////////////////////////// Public methods
 
-   getPSubgroupInfo () /*: ?{p: number, isSylow?: boolean} */ {
+   getPSubgroupInfo (): Maybe<{p: number, isSylow?: boolean}> {
       const subgroupElements = this.members.toArray()
-      const subgroupElementOrders /*: Array<number> */ = subgroupElements.map( el => this.group.elementOrders[el] )
+      const subgroupElementOrders: number[] = subgroupElements.map( el => this.group.elementOrders[el] )
       const prime = MathUtils.getFactors(subgroupElementOrders[1])[0]
-      let result
+      let result: Maybe<{p: number, isSylow?: boolean}>
       if (subgroupElementOrders.every(el => el == 1 || el % prime == 0)) {
          result = {p: prime}
          if (this.group.order / subgroupElements.length % prime != 0) {

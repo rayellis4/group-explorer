@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # NamingSchemeInfo
 
@@ -13,8 +13,7 @@ pages, and persist across GE3 invocations.
  */
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js';
-export { displayDefaultNames, displayLoadedNames, displayUserNames };
-function displayDefaultNames(defaultNamesElementId, group) {
+export function displayDefaultNames(defaultNamesElementId, group) {
     const defaultNamesElement = document.getElementById(defaultNamesElementId);
     defaultNamesElement.innerHTML = makeDefaultNamesContent(group);
     document.getElementById('content')
@@ -36,7 +35,7 @@ function makeDefaultNamesContent(group) {
     ];
     return htmlFragments.join('');
 }
-function displayLoadedNames(loadedNamesElementId, group) {
+export function displayLoadedNames(loadedNamesElementId, group) {
     const loadedNamesElement = document.getElementById(loadedNamesElementId);
     loadedNamesElement.innerHTML = makeLoadedNamesContent(group, loadedNamesElementId);
     GEUtils.createActionHandler(loadedNamesElement, (action) => eval(action));
@@ -77,7 +76,7 @@ function setRepresentationByIndex(contentElementId, group, index) {
     Library.saveGroup(group);
     updateDisplay(contentElementId, group);
 }
-function displayUserNames(userNamesElementId, group) {
+export function displayUserNames(userNamesElementId, group) {
     updateUserNames(userNamesElementId, group);
     const userNamesElement = document.getElementById(userNamesElementId);
     GEUtils.createActionHandler(userNamesElement, (action) => eval(action));
@@ -164,8 +163,10 @@ function editUserRepresentation(contentElementId, group, index) {
               and close editor.`,
         '</div>',
     ].join('');
-    const contentElement = document.getElementById(contentElementId);
-    contentElement.querySelector(`[data-user-representation-index="${index}"]`).innerHTML = userRepresentationHTML(index);
+    const userRepresentationElement = document
+        .getElementById(contentElementId)
+        ?.querySelector(`[data-user-representation-index="${index}"]`);
+    userRepresentationElement.innerHTML = userRepresentationHTML(index);
 }
 function removeUserRepresentation(contentElementId, group, index) {
     group.deleteUserRepresentation(index);
@@ -174,19 +175,25 @@ function removeUserRepresentation(contentElementId, group, index) {
 }
 function previewEdit(contentElementId, index) {
     const contentElement = document.getElementById(contentElementId);
-    contentElement.querySelectorAll(`[data-user-representation-index="${index}"] tr`)
+    const userRepresentationElements = Array.from(contentElement.querySelectorAll(`[data-user-representation-index="${index}"] tr`))
+        .filter((node) => node instanceof HTMLElement);
+    userRepresentationElements
         .forEach((el) => el.children[2].innerHTML = el.children[3].children[0].value);
 }
 function saveEdit(contentElementId, group, index) {
+    const contentElement = document.getElementById(contentElementId);
     group.userRepresentations[index] = Array
-        .from(document.getElementById(contentElementId).querySelectorAll(`[data-user-representation-index="${index}"] tr`))
+        .from(contentElement.querySelectorAll(`[data-user-representation-index="${index}"] tr`))
         .map((row) => row.children[3].children[0].value);
     Library.saveGroup(group);
-    document.getElementById(contentElementId).innerHTML = makeUserNamesContent(group, contentElementId);
+    contentElement.innerHTML = makeUserNamesContent(group, contentElementId);
 }
 // Notify dependent display elements when changing the default representation
 function updateDisplay(contentElementId, group) {
     const representationChangeEvent = new CustomEvent('representationChange', {});
-    document.getElementById(contentElementId).closest('.all-info').dispatchEvent(representationChangeEvent);
+    const allInfoElement = document
+        .getElementById(contentElementId)
+        ?.closest('.all-info');
+    allInfoElement.dispatchEvent(representationChangeEvent);
 }
 //# sourceMappingURL=NamingSchemeInfo.js.map

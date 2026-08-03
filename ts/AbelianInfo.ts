@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # AbelianInfo
 
@@ -6,18 +6,18 @@ A [GroupInfo](./GroupInfo.html.md) component that displays information about a g
 
 ```javascript
  */
-export {display}
+import type { Group } from './Group.ts'
 
-function display (abelianInfoElementId, group) {
-   const abelianInfoElement = document.getElementById(abelianInfoElementId)
+export function display (abelianInfoElementId: string, group: Group) {
+   const abelianInfoElement = document.getElementById(abelianInfoElementId) as HTMLElement
    abelianInfoElement.innerHTML = makeAbelianInfoContent(group)
 
    // rebuild content on representation change
-   abelianInfoElement.closest('.all-info')
-      .addEventListener('representationChange', () => abelianInfoElement.innerHTML = makeAbelianInfoContent(group))
+   ;(abelianInfoElement.closest('.all-info') as HTMLElement).addEventListener('representationChange',
+      () => abelianInfoElement.innerHTML = makeAbelianInfoContent(group))
 }
 
-function makeAbelianInfoContent (group) {
+function makeAbelianInfoContent (group: Group): html {
    const htmlFragments = [
       `<details>
           <summary>
@@ -32,7 +32,7 @@ function makeAbelianInfoContent (group) {
             every pair of elements commutes.</div>`
       )
    } else {
-      const [i, j] = group.nonAbelianExample
+     const [i, j] = group.nonAbelianExample as [groupElement, groupElement]
       htmlFragments.push(
         `<div>${group.name} is not <a href="./help/rf-groupterms/index.html#abelian-group">abelian</a>.
             We can find two elements that do not commute:

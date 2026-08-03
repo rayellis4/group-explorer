@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SymmetryObjectView
 
@@ -16,29 +16,14 @@ It is used to draw the main object of symmetry diagrams in the
 
 ```javascript
  */
-import { AbstractDiagramDisplay } from './AbstractDiagramDisplay.js';
-import { DEFAULT_SPHERE_COLOR, DEFAULT_LINE_COLOR as DEFAULT_PATH_COLOR } from './AbstractDiagramDisplay.js';
-import { THREE } from '../lib/externals.js';
-export { layoutSymmetryObject, createSymmetryObjectThumbnailView, createSymmetryObjectView };
-/*::
-import type {XMLSymmetryObject} from './XMLGroup.js';
-import type {AbstractDiagramDisplayOptions} from './AbstractDiagramDisplay.js';
-
-type LineData = {
-   vertices: Array<THREE.Vector3>,
-   color: css_color,
-} & Obj;
-
-export type SymmetryObjectViewOptions = {
-    group?: Group,
-    diagramName?: string,
-} & AbstractDiagramDisplayOptions;
-*/
+import { AbstractDiagramDisplay, DEFAULT_SPHERE_COLOR, DEFAULT_LINE_COLOR as DEFAULT_PATH_COLOR } from './AbstractDiagramDisplay.js';
+import * as Log from './Log.js';
+import * as THREE from '../lib/externals.js';
 const SYMMETRY_OBJECT_BACKGROUND_COLOR = '#C8E8C8';
-class SymmetryObjectViewModel /*:: implements Updatable */ {
-    #model; /*: CycleGraphModel */
-    #view; /*: CycleGraphView */
-    #modelFields /*: Array<string> */ = [
+export class SymmetryObjectViewModel {
+    #model;
+    #view;
+    #modelFields = [
         'group',
         'layout',
         'background',
@@ -58,25 +43,23 @@ class SymmetryObjectViewModel /*:: implements Updatable */ {
     get model() {
         return this.#model;
     }
-    setModel(model /*: SubscriptionProxy<CayleyDiagramModel> */) {
+    setModel(model) {
         this.#model = model;
         this.#modelFields.forEach((field) => model.$subscribe(this, field));
         if (this.view != null) {
             this.#modelFields.forEach((field) => this.update(field, this.#model[field]));
         }
     }
-    setView(view /*: CayleyDiagramView */) {
+    setView(view) {
         this.#view = view;
-        view.viewModel = this;
         if (this.model != null) {
             this.#modelFields.forEach((field) => this.update(field, this.#model[field]));
         }
     }
-    updateModel(field /*: string */, value /*: any */) {
-        // $FlowExpectedError[prop-missing] --
+    updateModel(field, value) {
         this.model[field] = value;
     }
-    update(field /*: string */, value /*: any */) {
+    update(field, value) {
         if (this.view == null) {
             return;
         }
@@ -138,13 +121,13 @@ class SymmetryObjectViewModel /*:: implements Updatable */ {
 // Factory for thumbnail generators (GroupTable, SubgroupInfo, ViewInfo).
 // Returns a SymmetryObjectViewModel with no model
 // call .draw(group, ?diagramName), and .getImage() to get the rendered result.
-function createSymmetryObjectThumbnailView(options /*: SymmetryObjectOptions */ = {}) {
+export function createSymmetryObjectThumbnailView(options = {}) {
     const viewModel = new SymmetryObjectViewModel();
     const view = new AbstractDiagramDisplay(options);
     viewModel.setView(view);
     return viewModel;
 }
-function createSymmetryObjectView(model /*: SubscriptionProxy<CayleyDiagramModel> */, options /*: SymmetryObjectOptions */ = {}) {
+export function createSymmetryObjectView(model, options = {}) {
     const viewModel = new SymmetryObjectViewModel();
     const view = new AbstractDiagramDisplay(options);
     model.background = SYMMETRY_OBJECT_BACKGROUND_COLOR;
@@ -154,7 +137,7 @@ function createSymmetryObjectView(model /*: SubscriptionProxy<CayleyDiagramModel
     viewModel.view.enableTrackballControl();
     return viewModel;
 }
-function layoutSymmetryObject(group /*: Group */, symmetryObjectName /*: string */) {
+export function layoutSymmetryObject(group, symmetryObjectName) {
     const symmetryObject = group.symmetryObjects.find((symmetryObject) => symmetryObject.name == symmetryObjectName);
     const spheres = symmetryObject.spheres.map((sphere) => {
         return {
@@ -187,7 +170,7 @@ function layoutSymmetryObject(group /*: Group */, symmetryObjectName /*: string 
  *     and make cubes look flat; look at origin, and adjust camera
  *     distance so that diagram fills field of view
  */
-function getPov(spherePositions /*: Array<THREE.Vector3> */) {
+function getPov(spherePositions) {
     let position, up;
     if (spherePositions.every((position) => position.x == 0.0)) {
         position = new THREE.Vector3(3, 0, 0);

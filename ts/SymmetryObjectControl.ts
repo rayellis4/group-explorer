@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SymmetryObjectControl
 
@@ -11,16 +11,17 @@ Display input elements that configure the SymmetryObjectView:
 
 ```javascript
  */
-import * as GEUtils from './GEUtils.js'
 import * as Log from './Log.js'
-import {makeMockSelect} from './UIComponents.js'
-import {layoutSymmetryObject} from './SymmetryObjectView.js'
+import { makeMockSelect } from './UIComponents.js'
+import { layoutSymmetryObject } from './SymmetryObjectView.js'
 
-export {addControl}
+import type { CayleyDiagramModel, LayoutType }  from  './CayleyDiagramModel.ts'
+import type { Group } from './Group.ts'
+import type { Updatable, SubscriptionProxy } from './GEUtils.ts'
 
-function addControl (
-   symmetryObjectControlElement /*: HTMLElement */,
-   symmetryObjectModel /*: SubscriptionProxy<CayleyDiagramModel> */
+export function addControl (
+   symmetryObjectControlElement: HTMLElement,
+   symmetryObjectModel: SubscriptionProxy<CayleyDiagramModel>
 ) {
    const viewModel = new ViewModel()
    viewModel.setModel(symmetryObjectModel)
@@ -28,37 +29,37 @@ function addControl (
    view.setViewModel(viewModel)
 }
 
-class ViewModel /*:: implements Updatable */ {
-   #model /*: SubscriptionProxy<CayleyDiagramModel> */
-   #view /*: View */
-   #modelFields /*: Array<string> */ = [
+class ViewModel implements Updatable {
+   #model!: SubscriptionProxy<CayleyDiagramModel>
+   #view!: View
+   #modelFields: (keyof CayleyDiagramModel)[] = [
       'zoom_level',
       'line_width',
       'sphere_scale_factor',
       'fog_level',
    ]
 
-   get group () {
+   get group (): Group {
       return this.#model.group
    }
 
-   get model () {
+   get model (): CayleyDiagramModel {
       return this.#model
    }
 
-   get view () {
+   get view (): View {
       return this.#view
    }
 
-   setModel (model /*: SubscriptionProxy<CayleyDiagramModel> */) {
+   setModel (model: SubscriptionProxy<CayleyDiagramModel>) {
       this.#model = model
-      this.#modelFields.forEach((field) => this.model.$subscribe(this, field))
+      this.#modelFields.forEach((field) => model.$subscribe(this, field))
       if (this.view != null) {
          this.initializeView()
       }
    }
 
-   setView (view /*: View */) {
+   setView (view: View) {
       this.#view = view
       if (this.model != null) {
          this.initializeView()
@@ -92,15 +93,16 @@ class ViewModel /*:: implements Updatable */ {
       return diagramName
    }
 
-   getFromView (field /*: string */) /*: any */ {
+   getFromView (field: string): any {
       return this.view.getFieldValue(field)
    }
 
    // handles input events from View, updates Model
-   updateModel (field /*: string */, value /*: any */) {
+   updateModel (field: string, value: any) {
       switch (field) {
       case 'diagram_select':
-         this.model.layout = layoutSymmetryObject(this.model.group, this.getFromView('diagram_select'))
+         this.model.layout =  // override CayleyDiagramModel type to avoid having to create a SymmetryObjectModel
+            (layoutSymmetryObject(this.model.group, this.getFromView('diagram_select')) as unknown) as LayoutType
          break
       case 'zoom_level':
          this.model.zoom_level = Math.exp(value / 10)
@@ -119,7 +121,7 @@ class ViewModel /*:: implements Updatable */ {
    }
 
    // field update callbacks from Model — convert to slider values and push to View directly
-   update (field /*: string */, value /*: any */) {
+   update (field: string, value: any) {
       switch (field) {
       case 'diagram_select':
          this.view.update('diagram_select', value)
@@ -144,16 +146,16 @@ class ViewModel /*:: implements Updatable */ {
 
    // Button data-action strings are eval'd here so `this` resolves to the ViewModel,
    // giving them access to `this.model` for writing request fields directly.
-   executeCommand (command /*: string */) {
+   executeCommand (command: string) {
       eval(command)
    }
 }
 
 class View {
-   rootElement /*: HTMLElement */
-   viewModel /*: ViewModel */
+   rootElement: HTMLElement
+   viewModel!: ViewModel
 
-   constructor (rootElement /*: HTMLElement */) {
+   constructor (rootElement: HTMLElement) {
       this.rootElement = rootElement
       this.addHTML()
       this.rootElement.addEventListener('input', (ev) => this.handleInputEvent(ev))
@@ -198,13 +200,13 @@ class View {
           </div>`
    }
 
-   setViewModel (viewModel) {
+   setViewModel (viewModel: ViewModel) {
       this.viewModel = viewModel
       this.viewModel.setView(this)
    }
 
-   getDisplayElement (field /*: string */) /*: ?HTMLElement */ {
-      const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`)
+   getDisplayElement (field: string): Maybe<HTMLElement> {
+      const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`) as Maybe<HTMLElement>
       if (displayElement == null) {
          Log.warn(`SymmetryObjectControl.View.getDisplayElement: search for unknown data binding ${field}`)
       }
@@ -212,9 +214,9 @@ class View {
       return displayElement
    }
 
-   getFieldValue (field /*: string */) /*: any */ {
+   getFieldValue (field: string): any {
       let result
-      const displayElement = this.getDisplayElement(field)
+      const displayElement = this.getDisplayElement(field) as HTMLElement
       if (displayElement instanceof HTMLInputElement) {
          if (displayElement.type.toLowerCase() == 'range') {
             result = displayElement.value
@@ -227,8 +229,8 @@ class View {
       return result
    }
 
-   update (field /*: string */, value /*: any */) {
-      const displayElement = this.getDisplayElement(field)
+   update (field: string, value: any) {
+      const displayElement = this.getDisplayElement(field) as HTMLElement
       if (displayElement instanceof HTMLInputElement) {
          if (displayElement.type.toLowerCase() == 'range') {
             displayElement.value = value
@@ -238,24 +240,24 @@ class View {
       } else if (field == 'diagram_select') {
          const symmetryObjectIndex = this.viewModel.group.symmetryObjects
             .findIndex((symmetryObject) => symmetryObject.name == value)
-         displayElement.setAttribute('data-index', symmetryObjectIndex)
+         displayElement.setAttribute('data-index', symmetryObjectIndex.toString())
          displayElement.innerHTML = value
       }
    }
 
    // generic input event handler, forwards to ViewModel
-   handleInputEvent (inputEvent /*: InputEvent */) {
-      const field = inputEvent.target.getAttribute('data-bind')
+   handleInputEvent (inputEvent: InputEvent) {
+      const field = (inputEvent.target as HTMLElement).getAttribute('data-bind')
       if (field != null) {
          inputEvent.stopPropagation()
          this.viewModel.updateModel(field, this.getFieldValue(field))
       }
    }
 
-   handleClickEvent (clickEvent /*: MouseEvent */) {
-      const action = clickEvent.target.closest('[data-action]')?.getAttribute('data-action')
+   handleClickEvent (clickEvent: MouseEvent) {
+      const action = (clickEvent.target as HTMLElement).closest('[data-action]')?.getAttribute('data-action')
       if (action == null) {
-         const maybeMockSelect = clickEvent.target.closest('.mock-select')
+         const maybeMockSelect = (clickEvent.target as HTMLElement).closest('.mock-select') as Maybe<HTMLElement>
          if (maybeMockSelect != null) {
             const diagramChoices = [
                ...this.viewModel.group.symmetryObjects.map((symmetryObject) => { return {value: symmetryObject.name} })

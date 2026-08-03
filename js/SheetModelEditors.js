@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SheetModelEditors
 
@@ -15,11 +15,10 @@ import { DEFAULT_SPHERE_COLOR } from './AbstractDiagramDisplay.js';
 import * as Log from './Log.js';
 import * as GEUtils from './GEUtils.js';
 import * as StoredObjects from './StoredObjects.js';
-import { THREE } from '../lib/externals.js';
-import { makeDialog, makeMockSelect } from './UIComponents.js';
+import * as THREE from '../lib/externals.js';
+import { makeDialog, makeMockSelect, } from './UIComponents.js';
 import { redrawLinksFor } from './SheetView.js';
 import { addControl as addHighlightControl } from './HighlightControl.js';
-export { TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor };
 /*
 ```
 ### SheetElementEditor
@@ -35,7 +34,9 @@ class SheetElementEditor {
         this.initialJSON = JSON.parse(JSON.stringify(modelElement.toJSON()));
         this.location = location;
         this.editor = makeDialog(dialogHTML, location);
-        const dialog = this.editor.classList.contains('dialog') ? this.editor : this.editor.querySelector('.dialog');
+        const dialog = this.editor.classList.contains('dialog')
+            ? this.editor
+            : this.editor.querySelector('.dialog');
         GEUtils.createActionHandler(dialog, (action) => eval(action));
         dialog.addEventListener('input', (ev) => this.onInput(ev));
     }
@@ -65,9 +66,6 @@ class SheetElementEditor {
         this.modelElement.viewElement?.redraw();
         this.exit();
     }
-    updateModelElement() {
-        /* Subclass responsibility */
-    }
     exit() {
         this.editor.remove();
     }
@@ -77,7 +75,7 @@ class SheetElementEditor {
 ### TextEditor
 ```javascript
  */
-class TextEditor extends SheetElementEditor {
+export class TextEditor extends SheetElementEditor {
     constructor(textElement, location) {
         const textEditorHTML = `
          <div id="text-editor" class="box stack-15.em flex-v">
@@ -167,9 +165,10 @@ class TextEditor extends SheetElementEditor {
         textBox.isPlainText = !document.getElementById('text-editor-html').checked;
         textBox.fontColor = document.getElementById('text-editor-text-color').value;
         textBox.fontSize = document.getElementById('text-editor-font-size').value.trim() + 'px';
-        textBox.alignment = this.editor.querySelector('[type="radio"]:checked').value;
+        textBox.alignment =
+            this.editor.querySelector('[type="radio"]:checked').value;
         textBox.color = document.getElementById('text-editor-color').value;
-        textBox.opacity = document.getElementById('text-editor-opacity').value;
+        textBox.opacity = parseInt(document.getElementById('text-editor-opacity').value);
     }
 }
 /*
@@ -177,7 +176,7 @@ class TextEditor extends SheetElementEditor {
 ### ConnectionEditor
 ```javascript
  */
-class ConnectionEditor extends SheetElementEditor {
+export class ConnectionEditor extends SheetElementEditor {
     constructor(connectingElement, location) {
         const connectionEditorHTML = `
          <div id="connection-editor" class="box stack-08em" style="resize: none">
@@ -239,12 +238,14 @@ class ConnectionEditor extends SheetElementEditor {
 ### MorphismEditor
 ```javascript
  */
-class MorphismEditor extends SheetElementEditor {
+export class MorphismEditor extends SheetElementEditor {
+    sourceHighlightSnapshot;
+    destHighlightSnapshot;
     constructor(morphismElement, location) {
         const morphismEditorHTML = `
          <div id="morphism-editor" class="sheet-editor box stack-03em" style="resize: none">
              <div>Morphism name:
-                 <input id="morphism-editor-name" type="text" value="${morphismElement.name}">
+                 <input id="morphism-editor-name" type="text" value="${morphismElement.morphismName}">
              </div>
                  <details open><summary>Options:</summary>
              <div><input id="morphism-editor-show-domain-codomain" type="checkbox"
@@ -309,7 +310,7 @@ class MorphismEditor extends SheetElementEditor {
              </div>
              <div id="morphism-add-defining-pair">
                  <button data-action="this.addDefiningPair()">Add</button>
-                 <span id="morphism-name">${morphismElement.name}</span>
+                 <span id="morphism-name">${morphismElement.morphismName}</span>
                  (<div id="domain-select" class="mock-select" data-action="this.showDomainChoices()"></div>)
                  =
                  <div id="codomain-select" class="mock-select" data-action="this.showCodomainChoices()"></div>
@@ -499,17 +500,24 @@ class MorphismEditor extends SheetElementEditor {
     }
     updateModelElement() {
         const morphism = this.modelElement;
-        morphism.name = document.getElementById('morphism-editor-name').value.trim();
-        morphism.showDomainAndCodomain = document.getElementById('morphism-editor-show-domain-codomain').checked;
-        morphism.showDefiningPairs = document.getElementById('morphism-editor-show-defining-pairs').checked;
-        morphism.showInjectionSurjection = document.getElementById('morphism-editor-show-injection-surjection').checked;
-        morphism.showManyArrows = document.getElementById('morphism-editor-show-many-arrows').checked;
-        morphism.arrowColor = document.getElementById('morphism-arrow-color-source').checked
-            ? 'source'
-            : document.getElementById('morphism-arrow-color-destination').checked
-                ? 'destination'
-                : 'none';
-        morphism.arrowMargin = parseFloat(document.getElementById('morphism-editor-arrow-margin').value) / 100;
+        morphism.morphismName =
+            document.getElementById('morphism-editor-name').value.trim();
+        morphism.showDomainAndCodomain =
+            document.getElementById('morphism-editor-show-domain-codomain').checked;
+        morphism.showDefiningPairs =
+            document.getElementById('morphism-editor-show-defining-pairs').checked;
+        morphism.showInjectionSurjection =
+            document.getElementById('morphism-editor-show-injection-surjection').checked;
+        morphism.showManyArrows =
+            document.getElementById('morphism-editor-show-many-arrows').checked;
+        morphism.arrowColor =
+            document.getElementById('morphism-arrow-color-source').checked
+                ? 'source'
+                : document.getElementById('morphism-arrow-color-destination').checked
+                    ? 'destination'
+                    : 'none';
+        morphism.arrowMargin =
+            parseFloat(document.getElementById('morphism-editor-arrow-margin').value) / 100;
         if (morphism.source.className === 'MTElement') {
             morphism.useMulttableSourceTopRow =
                 document.getElementById('morphism-editor-multtable-source-top-row').checked;
@@ -550,8 +558,9 @@ class MorphismEditor extends SheetElementEditor {
     }
     onInput(event) {
         // sync name
-        if (event.target.getAttribute('id') == 'morphism-editor-name') {
-            document.getElementById('morphism-name').innerHTML = event.target.value;
+        if (event.target.getAttribute('id') == ('morphism-editor-name')) {
+            document.getElementById('morphism-name').innerHTML =
+                event.target.value;
         }
         // clear warning message
         document.getElementById('morphism-subgroup-transform-warning').innerHTML = '';
@@ -560,14 +569,15 @@ class MorphismEditor extends SheetElementEditor {
     setupMorphismAdd() {
         if (this.modelElement.mapping.image.includes(undefined)) {
             // domain selection is first unmapped source
-            const domainSelection = this.modelElement.mapping.image.findIndex((el) => el === undefined);
-            document.getElementById('domain-select').setAttribute('data-value', domainSelection);
+            const domainSelection = this.modelElement.mapping.image.findIndex((el) => el == null);
+            document.getElementById('domain-select').setAttribute('data-value', domainSelection.toString());
             document.getElementById('domain-select').innerHTML =
                 this.modelElement.source.group.representation[domainSelection];
             this.setupCodomainChoice(domainSelection);
             document.getElementById('morphism-add-defining-pair').classList.remove('hidden');
         }
         else {
+            ;
             document.getElementById('morphism-add-defining-pair').classList.add('hidden');
         }
     }
@@ -575,19 +585,19 @@ class MorphismEditor extends SheetElementEditor {
         const codomainChoice = parseInt(document.getElementById('codomain-select').getAttribute('data-value'));
         const validSources = this.modelElement.mapping.validSources(codomainChoice);
         const choices = validSources.map((source) => {
-            return { value: source, label: this.modelElement.source.group.representation[source] };
+            return { value: source.toString(), label: this.modelElement.source.group.representation[source] };
         }).sort((a, b) => a.label.localeCompare(b.label));
         makeMockSelect(document.getElementById('domain-select'), choices)
-            .then((domainChoice) => this.setupCodomainChoice(domainChoice), () => { });
+            .then((domainChoice) => this.setupCodomainChoice(parseInt(domainChoice)), () => { });
     }
     showCodomainChoices() {
         const domainChoice = parseInt(document.getElementById('domain-select').getAttribute('data-value'));
         const validTargets = this.modelElement.mapping.validTargets(domainChoice);
         const choices = validTargets.map((target) => {
-            return { value: target, label: this.modelElement.destination.group.representation[target] };
+            return { value: target.toString(), label: this.modelElement.destination.group.representation[target] };
         }).sort((a, b) => a.label.localeCompare(b.label));
         makeMockSelect(document.getElementById('codomain-select'), choices)
-            .then((codomainChoice) => this.setupDomainChoice(codomainChoice), () => { });
+            .then((codomainChoice) => this.setupDomainChoice(parseInt(codomainChoice)), () => { });
     }
     // save old choice if it still works...
     // domain choice is first valid source  of codomain selection
@@ -596,7 +606,7 @@ class MorphismEditor extends SheetElementEditor {
         const validSources = this.modelElement.mapping.validSources(codomainSelection);
         if (!validSources.includes(currentDomainSelection)) {
             const validDomainSelection = validSources[0];
-            document.getElementById('domain-select').setAttribute('data-value', validDomainSelection);
+            document.getElementById('domain-select').setAttribute('data-value', validDomainSelection.toString());
             document.getElementById('domain-select').innerHTML =
                 this.modelElement.source.group.representation[validDomainSelection];
         }
@@ -607,7 +617,7 @@ class MorphismEditor extends SheetElementEditor {
         const validTargets = this.modelElement.mapping.validTargets(domainSelection);
         if (!validTargets.includes(currentCodomainSelection)) {
             const validCodomainSelection = validTargets[0];
-            document.getElementById('codomain-select').setAttribute('data-value', validCodomainSelection);
+            document.getElementById('codomain-select').setAttribute('data-value', validCodomainSelection.toString());
             document.getElementById('codomain-select').innerHTML =
                 this.modelElement.destination.group.representation[validCodomainSelection];
         }
@@ -637,7 +647,7 @@ class MorphismEditor extends SheetElementEditor {
         this.updateModelElement();
         this.modelElement.viewElement?.redraw();
     }
-    removeDefiningPair(domainElement /*: groupElement */) {
+    removeDefiningPair(domainElement) {
         this.modelElement.mapping.removeDefiningPair(domainElement);
         this.fillDefiningPairs();
         // propagate changes to rest of display
@@ -650,7 +660,8 @@ class MorphismEditor extends SheetElementEditor {
         const fullMapping = this.modelElement.mapping.fullMapping;
         const colorMap = new Map();
         // generate color map of destination elements that are the image of highlighted elements in source
-        this.modelElement.source.viewElement.visualizer.model.highlightColors[0].forEach((color, inx) => {
+        this.modelElement.source.viewElement.visualizer.model.highlightColors[0]
+            .forEach((color, inx) => {
             if (color != null && color != DEFAULT_SPHERE_COLOR) {
                 colorMap.set(fullMapping[inx], new THREE.Color(color));
             }
@@ -662,7 +673,8 @@ class MorphismEditor extends SheetElementEditor {
         colorMap.forEach((color) => color.set(GEUtils.fromRainbow(color.getHSL({}).h, destinationSaturation, destinationLightness)));
         // highlight image in destination
         const destinationHighlights = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0];
-        this.modelElement.destination.viewElement.visualizer.model.group.elements.forEach((inx) => {
+        this.modelElement.destination.viewElement.visualizer.model.group.elements
+            .forEach((inx) => {
             const c = colorMap.get(inx);
             destinationHighlights[inx] = c != null ? ('#' + c.getHexString()) : null;
         });
@@ -681,7 +693,8 @@ class MorphismEditor extends SheetElementEditor {
         const colorMap = new Map();
         // generate color map of source elements whose images are highlighted elements in destination
         let incompletePreImage = false;
-        this.modelElement.destination.viewElement.visualizer.model.highlightColors[0].forEach((color, dest) => {
+        this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]
+            .forEach((color, dest) => {
             if (color != null && color != DEFAULT_SPHERE_COLOR) {
                 if (inverseMapping.has(dest)) {
                     inverseMapping.get(dest).forEach((src) => colorMap.set(src, new THREE.Color(color)));
@@ -716,7 +729,7 @@ class MorphismEditor extends SheetElementEditor {
 ### RemoteEditor
 ```javascript
  */
-class RemoteEditor {
+export class RemoteEditor {
     static #messageHandler; // singleton message handler to update visualizers
     static #editorWindows = new Map(); // elementId → editor window reference
     static #editPageURLs = {
@@ -758,7 +771,7 @@ class RemoteEditor {
             RemoteEditor.#editorWindows.delete(elementId);
             return;
         }
-        editorWindow.postMessage({ source: 'sheet', elementId, json }, '*');
+        editorWindow.postMessage({ source: 'sheet', elementId: elementId, json: json }, '*');
     }
 }
 //# sourceMappingURL=SheetModelEditors.js.map

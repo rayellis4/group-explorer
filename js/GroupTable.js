@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # GroupTable component
 
@@ -17,21 +17,8 @@ import { createUnlabelledCycleGraphView } from './CycleGraphView.js';
 import { createMinimalMulttableView } from './MulttableView.js';
 import { createSymmetryObjectThumbnailView } from './SymmetryObjectView.js';
 import * as Library from './Library.js';
-export { IMAGE_SIZE, COLUMNS, display };
-const IMAGE_SIZE = 96;
-/*::
-type Aux = {cayleyTitle: ?string}
-type ColumnDef = {
-   id: string,
-   label: string,
-   headerHTML: string,
-   headerClass?: string,
-   defaultVisible: boolean,
-   sortComparator: ?((v1: string, v2: string) => number),
-   cellHTML: (group: any, aux: Aux) => string,
-}
-*/
-const COLUMNS /*: Array<ColumnDef> */ = [
+export const IMAGE_SIZE = 96;
+export const COLUMNS = [
     {
         id: 'gap-id',
         label: 'GAP ID',
@@ -39,7 +26,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
         defaultVisible: true,
         sortComparator: (v1, v2) => {
             const [[v11, v12], [v21, v22]] = [v1.split(','), v2.split(',')];
-            return v11 - v21 || v12 - v22;
+            return parseInt(v11) - parseInt(v21) || parseInt(v12) - parseInt(v22);
         },
         cellHTML: (group) => `<td class="no-diagram center" data-tooltip="Open Group Info page">
              <a href="GroupInfo.html?groupURL=${group.URL}" target="_blank">
@@ -64,7 +51,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
         label: 'Order',
         headerHTML: '<a href="help/rf-groupterms/index.html#order-of-a-group">Order</a>',
         defaultVisible: true,
-        sortComparator: (v1, v2) => v1 - v2,
+        sortComparator: (v1, v2) => parseInt(v1) - parseInt(v2),
         cellHTML: (group) => `<td class="no-diagram center">${group.order}</td>`,
     },
     {
@@ -72,7 +59,6 @@ const COLUMNS /*: Array<ColumnDef> */ = [
         label: 'Definition',
         headerHTML: '<a href="help/rf-groupterms/index.html#definition-of-a-group-via-generators-and-relations">Definition</a>',
         defaultVisible: true,
-        sortComparator: null,
         cellHTML: (group) => `<td class="no-diagram" data-tooltip="Open Group Info page">
              <a href="GroupInfo.html?groupURL=${group.URL}" target="_blank">
                 <div>${group.definition}</div>
@@ -84,7 +70,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
         label: 'Subgroups',
         headerHTML: 'Subgroups',
         defaultVisible: false,
-        sortComparator: (v1, v2) => v1 - v2,
+        sortComparator: (v1, v2) => parseInt(v1) - parseInt(v2),
         cellHTML: (group) => `<td class="no-diagram center">${group.subgroups.length}</td>`,
     },
     {
@@ -125,7 +111,6 @@ const COLUMNS /*: Array<ColumnDef> */ = [
         headerHTML: '<a href="help/rf-groupterms/index.html#cayley-diagrams">Cayley diagram</a>',
         headerClass: 'diagram-header',
         defaultVisible: true,
-        sortComparator: null,
         cellHTML: (group, { cayleyTitle }) => {
             const selector = cayleyTitle != null ? `&diagram=${encodeURIComponent(cayleyTitle)}` : '';
             return `<td class="cayley-diagram center" data-tooltip="Open Cayley Diagram visualizer">
@@ -141,7 +126,6 @@ const COLUMNS /*: Array<ColumnDef> */ = [
         headerHTML: '<a href="help/rf-groupterms/index.html#multiplication-table">Multiplication table</a>',
         headerClass: 'diagram-header',
         defaultVisible: true,
-        sortComparator: null,
         cellHTML: (group) => `<td class="multiplication-table center" data-tooltip="Open Multiplication Table visualizer">
              <a href="Multtable.html?groupURL=${group.URL}" target="_blank">
                 <img src="${group.thumbnails.multtable}" width="100px" height="100px">
@@ -154,7 +138,6 @@ const COLUMNS /*: Array<ColumnDef> */ = [
         headerHTML: '<a href="help/rf-groupterms/index.html#objects-of-symmetry">Object of symmetry</a>',
         headerClass: 'diagram-header',
         defaultVisible: true,
-        sortComparator: null,
         cellHTML: (group) => group.thumbnails.symmetryObject == null
             ? `<td class="no-diagram center"><div>none</div></td>`
             : `<td class="symmetry-object center" data-tooltip="Open Symmetry Object visualizer">
@@ -169,7 +152,6 @@ const COLUMNS /*: Array<ColumnDef> */ = [
         headerHTML: '<a href="help/rf-groupterms/index.html#cycle-graph">Cycle graph</a>',
         headerClass: 'diagram-header',
         defaultVisible: true,
-        sortComparator: null,
         cellHTML: (group) => `<td class="cycle-graph center" data-tooltip="Open Cycle Graph visualizer">
              <a href="CycleGraph.html?groupURL=${group.URL}" target="_blank">
                 <img src="${group.thumbnails.cycleGraph}" width="100px" height="100px">
@@ -177,35 +159,26 @@ const COLUMNS /*: Array<ColumnDef> */ = [
           </td>`,
     },
 ];
-/*
-```
-### display
-
-Displays a table of the `groupsToDisplay` in `tableElement`.  All columns are always
-rendered; `GroupTableUI.addGestures` applies initial visibility via CSS classes.
-
-```javascript
-*/
-function display(tableElement, groupsToDisplay) {
+export function display(tableElement, groupsToDisplay) {
     tableElement.innerHTML = tableHTML(tableElement);
     document.getElementById('loadingMessage').classList.toggle('hidden');
-    const generators = {};
+    const imageGenerators = {};
     let updateLibrary = false;
     for (const [inx, group] of groupsToDisplay.entries()) {
         const cayleyTitle = group.cayleyDiagrams[0]?.name ?? null;
         const symmetryTitle = group.symmetryObjects[0]?.name ?? null;
         if (group.thumbnails?.multtable == null) {
-            if (generators.cayleyDiagramView == null) {
-                generators.cayleyDiagramView = createCayleyDiagramThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE });
-                generators.cycleGraphView = createUnlabelledCycleGraphView({ height: IMAGE_SIZE, width: IMAGE_SIZE });
-                generators.multtableView = createMinimalMulttableView({ height: IMAGE_SIZE, width: IMAGE_SIZE });
-                generators.symmetryObjectView = createSymmetryObjectThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE });
+            if (imageGenerators.cayleyDiagramView == null) {
+                imageGenerators.cayleyDiagramView = createCayleyDiagramThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE });
+                imageGenerators.cycleGraphView = createUnlabelledCycleGraphView({ height: IMAGE_SIZE, width: IMAGE_SIZE });
+                imageGenerators.multtableView = createMinimalMulttableView({ height: IMAGE_SIZE, width: IMAGE_SIZE });
+                imageGenerators.symmetryObjectView = createSymmetryObjectThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE });
             }
             updateLibrary = true;
             setTimeout(() => {
                 const loadingMessage = `Loading groups (${((inx + 1) * 100 / groupsToDisplay.length) | 0}%)...`;
                 document.querySelector('#loadingMessage i').textContent = loadingMessage;
-                generateThumbnails(generators, group, cayleyTitle, symmetryTitle);
+                generateThumbnails(imageGenerators, group, cayleyTitle, symmetryTitle);
                 addToTable(tableElement, group, cayleyTitle);
             });
         }

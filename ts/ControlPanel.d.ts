@@ -1,10 +1,10 @@
 export declare class ControlPanel {
-    controlPanelElement: any;
-    grabHandle: HTMLElement | null;
-    controlContainer: HTMLElement | null;
-    lastEvent: any;
-    constructor(controlPanel: any);
-    static addPanel(controlPanel: any): void;
-    addControllers(controls: any): void;
-    move(_startEvent: any, previousEvent: any, currentEvent: any): void;
+    controlPanelElement: HTMLElement;
+    grabHandle: HTMLElement;
+    controlContainer: HTMLElement;
+    lastEvent: Event;
+    constructor(controlPanel: HTMLElement);
+    static addPanel(controlPanel: HTMLElement): void;
+    addControllers(controls: HTMLElement[]): void;
+    move(_startEvent: PointerEvent, previousEvent: PointerEvent, currentEvent: PointerEvent): void;
 }

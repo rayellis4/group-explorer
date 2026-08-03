@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # UIComponents
 
@@ -24,20 +24,13 @@ showSubmenu
  */
 import * as GEUtils from './GEUtils.js';
 import { recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizeMoveResize, } from './Gestures.js';
-export { positionElement, // only used in GroupTableUI
-makeFixedMenu, makeDetachedMenu, makeTooltip, makeMockSelect, makeDialog };
-/*::
-interface NumberLocation {clientX: number, clientY: number}
-interface StringLocation {clientX: string, clientY: string}
-type ClientLocation = NumberLocation | StringLocation
- */
 /*
 ```
 ### makeFixedMenu
 
 ```javascript
  */
-function makeFixedMenu(element /*: HTMLElement */, callback /*: (string, Event) => void */) {
+export function makeFixedMenu(element, callback) {
     createMenu(element);
     element.style.position = 'unset';
     element.style.maxHeight = 'unset';
@@ -62,11 +55,11 @@ function makeFixedMenu(element /*: HTMLElement */, callback /*: (string, Event) 
 
 ```javascript
  */
-function makeDetachedMenu(html /*: html */, location /*: ClientLocation */) {
-    const promise = new Promise /*:: <?string> */((resolve, reject) => {
+export function makeDetachedMenu(html, location) {
+    const promise = new Promise((resolve, reject) => {
         const contentElement = GEUtils.generateElements(html)[0];
         createMenu(contentElement);
-        const rootElement /*: HTMLElement */ = makeModal(contentElement, (clickEvent) => {
+        const rootElement = makeModal(contentElement, (clickEvent) => {
             if (!contentElement.contains(clickEvent.target)) {
                 const displayedSubmenus = [...rootElement.querySelectorAll('.menu:not(.hidden)')];
                 if (displayedSubmenus.length > 1) {
@@ -83,7 +76,7 @@ function makeDetachedMenu(html /*: html */, location /*: ClientLocation */) {
             event.stopPropagation();
             const actionElement = event.target.closest('[data-action]');
             const action = actionElement?.getAttribute('data-action');
-            if (actionElement?.classList.contains('detached-submenu')) {
+            if (actionElement?.classList.contains('detached-submenu') && action != null) {
                 eval(action);
             }
             else if (action != null) {
@@ -102,21 +95,15 @@ function makeDetachedMenu(html /*: html */, location /*: ClientLocation */) {
 
 ```javascript
  */
-function makeTooltip(html /*: html */, location /*: ClientLocation */) {
+export function makeTooltip(html, location) {
     const tooltipElement = GEUtils.generateElements(html)[0];
     tooltipElement.classList.add('tooltip');
-    const modalElement /*: HTMLElement */ = makeModal(tooltipElement, (_ev) => modalElement.remove());
+    const modalElement = makeModal(tooltipElement, (_ev) => modalElement.remove());
     document.body.append(modalElement);
     makeMoveResizable(tooltipElement);
     positionElement(tooltipElement, location);
 }
-/*
-```
-### makeMockSelect
-
-```javascript
- */
-function makeMockSelect(rootElement /*: HTMLElement */, choices /*: Array<{value: string, label?: html, selectedLabel?: html} | {header: html, choices: Array<{value: string, label?: html, selectedLabel?: html}>}> */) {
+export function makeMockSelect(rootElement, choices) {
     function flatChoices(items) {
         return items.flatMap((item) => 'header' in item ? flatChoices(item.choices) : [item]);
     }
@@ -130,7 +117,7 @@ function makeMockSelect(rootElement /*: HTMLElement */, choices /*: Array<{value
         renderItems(choices),
         '</ul>'
     ].join('');
-    function makeSelection(value /*: string */) {
+    function makeSelection(value) {
         const choice = flatChoices(choices).find((c) => c.value == value);
         if (choice != null) {
             rootElement.setAttribute('data-value', value);
@@ -138,10 +125,10 @@ function makeMockSelect(rootElement /*: HTMLElement */, choices /*: Array<{value
             return choice.value;
         }
     }
-    const promise = new Promise /*:: <string> */((resolve, reject) => {
+    const promise = new Promise((resolve, reject) => {
         const choiceElement = GEUtils.generateElements(formattedChoices)[0];
         createMenu(choiceElement);
-        const modalElement /*: HTMLElement */ = makeModal(choiceElement, (_ev) => {
+        const modalElement = makeModal(choiceElement, (_ev) => {
             modalElement.remove(),
                 reject();
         });
@@ -171,7 +158,7 @@ function makeMockSelect(rootElement /*: HTMLElement */, choices /*: Array<{value
 
 ```javascript
  */
-function makeDialog(html /*: html */, location /*: ClientLocation */, modalCallback /*: (Event) => void  */ = (ev) => ev.stopPropagation()) {
+export function makeDialog(html, location, modalCallback = (ev) => ev.stopPropagation()) {
     const dialogElement = GEUtils.generateElements(html)[0];
     dialogElement.classList.add('dialog');
     const modalElement = makeModal(dialogElement, modalCallback);
@@ -186,7 +173,7 @@ function makeDialog(html /*: html */, location /*: ClientLocation */, modalCallb
 
 ```javascript
  */
-function makeModal(contentElement /*: HTMLElement */, clickListener /*: (Event) => void */ = () => { }) {
+function makeModal(contentElement, clickListener = () => { }) {
     const modalHTML = `<div class="modal"></div>`;
     const modalElement = GEUtils.generateElements(modalHTML)[0];
     modalElement.appendChild(contentElement);
@@ -195,8 +182,7 @@ function makeModal(contentElement /*: HTMLElement */, clickListener /*: (Event) 
         .forEach((eventType) => modalElement.addEventListener(eventType, (ev) => ev.stopPropagation()));
     // Prevent Safari from rescaling browser window on pinch
     modalElement.addEventListener('touchmove', (ev) => {
-        // $FlowExpectedError[prop-missing] -- mobile safari non-standard touch event property
-        if (ev.scale !== 1 && ev.touches.length > 1) {
+        if ('scale' in ev && ev.scale !== 1 && 'touches' in ev && Array.isArray(ev.touches) && ev.touches.length > 1) {
             ev.preventDefault();
         }
     }, { passive: false });
@@ -210,20 +196,18 @@ Specialized routine to drag-and-drop pieces of a multi-level detached menu
 
 ```javascript
  */
-function makeMovable(element /*: HTMLElement */) {
+function makeMovable(element) {
     let scrollInProgress = false;
     let displayedSubmenu = null;
     let displayedSubmenuParent = null;
-    const scrollKiller = (ev /*: Event */) => ev.preventDefault();
-    // $FlowExpectedError[incompatible-type]
-    const modalElement /*: HTMLElement */ = element.closest('.modal');
+    const scrollKiller = (ev) => ev.preventDefault();
+    const modalElement = element.closest('.modal');
     if (modalElement == null) {
         return;
     }
     recognizeDragAndDrop(modalElement, (startEvent, previousEvent, endEvent, isDrop) => {
         endEvent.stopPropagation();
-        // $FlowExpectedError[incompatible-type]
-        const movingMenu /*: HTMLElement */ = startEvent.target.closest('.menu');
+        const movingMenu = startEvent.target.closest('.menu');
         if (movingMenu == null) { // pointerdown outside of displayed menu
             return;
         }
@@ -284,13 +268,13 @@ Generic routine to move and resize elements on mouse or touch devices.
 
 ```javascript
  */
-function makeMoveResizable(element /*: HTMLElement */) {
+function makeMoveResizable(element) {
     const disableResize = (element.style.resize == 'none');
     if (!disableResize && !GEUtils.isTouchDevice()) {
         element.insertAdjacentHTML('beforeend', '<div class="resize-handle"></div>');
     }
     recognizeMoveResize(element, moveResizeComponent);
-    function moveResizeComponent(dx /*: number */, dy /*: number */, dw /*: number */, dh /*: number */, _isDrop /*: ?boolean */) {
+    function moveResizeComponent(dx, dy, dw, dh, _isDrop) {
         const { left, top, width, height } = element.getBoundingClientRect();
         element.style.left = `${left + dx}px`;
         element.style.top = `${top + dy}px`;
@@ -304,7 +288,7 @@ function makeMoveResizable(element /*: HTMLElement */) {
 
 ```javascript
  */
-function positionElement(element /*: HTMLElement */, { clientX, clientY } /*: ClientLocation */) {
+export function positionElement(element, { clientX, clientY }) {
     // set horizontal position to remain within body
     const elementWidth = element.getBoundingClientRect().width;
     element.style.left = (typeof clientX == 'string')
@@ -325,10 +309,8 @@ Position submenu at right end of parent menu if there's room, else on left end
 
 ```javascript
  */
-function positionDetachedSubmenu(menu /*: HTMLElement */, location /*: ClientLocation */) {
-    // $FlowExpectedError[incompatible-type] -- from createMenu logic
-    // $FlowExpectedError[incompatible-use] -- from createMenu logic
-    const containingSubmenu /*: HTMLElement */ = menu.parentElement?.closest('.menu');
+function positionDetachedSubmenu(menu, location) {
+    const containingSubmenu = menu.parentElement?.closest('.menu');
     const containingBox = containingSubmenu.getBoundingClientRect();
     menu.style.left = (containingBox.right + menu.offsetWidth < window.innerWidth)
         ? `${containingBox.right}px`
@@ -341,7 +323,7 @@ function positionDetachedSubmenu(menu /*: HTMLElement */, location /*: ClientLoc
 
 ```javascript
  */
-function createMenu(menuElement /*: HTMLElement */) {
+function createMenu(menuElement) {
     menuElement.classList.add('root-menu');
     menuElement.classList.add('menu');
     menuElement.querySelectorAll('.detached-submenu').forEach((el) => {
@@ -360,12 +342,12 @@ function createMenu(menuElement /*: HTMLElement */) {
 
 ```javascript
  */
-function setActionHandler(contentElement /*: HTMLElement */, clickHandler /*: (string, MouseEvent) => void */) {
+function setActionHandler(contentElement, clickHandler) {
     contentElement.addEventListener('click', (event) => {
         event.stopPropagation();
         const actionElement = event.target.closest('[data-action]');
-        if (contentElement.contains(actionElement) && actionElement != null) {
-            clickHandler((actionElement.getAttribute('data-action') /*:: as any as string */), event);
+        if (actionElement != null && contentElement.contains(actionElement)) {
+            clickHandler(actionElement.getAttribute('data-action'), event);
         }
     });
 }
@@ -375,20 +357,19 @@ function setActionHandler(contentElement /*: HTMLElement */, clickHandler /*: (s
 
 ```javascript
  */
-function showSubmenu(event /*: MouseEvent */) {
-    // $FlowExpectedError[incompatible-type] -- from createMenu logic
-    // $FlowExpectedError[incompatible-use] -- from createMenu logic
-    const submenu /*: HTMLElement */ = event.target.closest('.detached-submenu').querySelector(':scope > ul');
-    submenu.classList.toggle('hidden');
-    // $FlowExpectedError[incompatible-use] -- from createMenu logic
-    event.target.closest('.root-menu').querySelectorAll('.menu:not(.hidden)')
-        .forEach((el /*: HTMLElement */) => {
-        if (!el.contains(submenu)) {
+function showSubmenu(event) {
+    const detachedSubmenu = event.target.closest('.detached-submenu');
+    const submenuList = detachedSubmenu.querySelector(':scope > ul');
+    submenuList.classList.toggle('hidden');
+    const rootMenu = event.target.closest('.root-menu');
+    rootMenu.querySelectorAll('.menu:not(.hidden)')
+        .forEach((el) => {
+        if (!el.contains(submenuList)) {
             el.classList.toggle('hidden');
         }
     });
-    if (!submenu.classList.contains('hidden')) {
-        positionDetachedSubmenu(submenu, event);
+    if (!submenuList.classList.contains('hidden')) {
+        positionDetachedSubmenu(submenuList, event);
     }
 }
 //# sourceMappingURL=UIComponents.js.map

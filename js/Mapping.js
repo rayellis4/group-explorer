@@ -1,19 +1,16 @@
-/* @flow
+/*
 
 # Mapping
 
 ```javascript
  */
-export { Mapping };
-class Mapping {
-    /*::
-        domain: Group;
-        codomain: Group;
-        definingPairs: Array<[groupElement, groupElement]>;
-        image: Array<groupElement | void>;  // image[domainElement] = codomainElement
-        fullMapping_: ?Array<groupElement | void>;
-     */
-    constructor(domain /*: Group */, codomain /*: Group */, definingPairs /*: Array<[groupElement, groupElement]> */ = []) {
+export class Mapping {
+    domain;
+    codomain;
+    definingPairs;
+    image; // image[domainElement] = codomainElement
+    fullMapping_;
+    constructor(domain, codomain, definingPairs = []) {
         this.domain = domain;
         this.codomain = codomain;
         this.definingPairs = definingPairs;
@@ -27,11 +24,11 @@ class Mapping {
         savedPairs.forEach(([domainElement, codomainElement]) => this.extend(domainElement, codomainElement));
         this.fullMapping_ = null;
     }
-    removeDefiningPair(domainElement /*: groupElement */) {
-        this.definingPairs.splice(this.definingPairs.findIndex(([g, h]) => g === domainElement), 1);
+    removeDefiningPair(domainElement) {
+        this.definingPairs.splice(this.definingPairs.findIndex(([g, _h]) => g === domainElement), 1);
         this.update();
     }
-    addDefiningPair(domainElement /*: groupElement */, codomainElement /*: groupElement */) {
+    addDefiningPair(domainElement, codomainElement) {
         this.extend(domainElement, codomainElement);
     }
     // no element in the codomain is the image of two different domain elements
@@ -53,18 +50,18 @@ class Mapping {
         const inverse = fullMapping.reduce((inverse, codomainElement, domainElement) => {
             inverse[codomainElement] = domainElement;
             return inverse;
-        }, Array.from /*:: <?groupElement> */({ length: this.codomain.order }, () => undefined));
+        }, Array.from({ length: this.codomain.order }, () => undefined));
         return !inverse.includes(undefined);
     }
     // check whether relations in G map to relations in H
     get isHomomorphism() {
         const G = this.domain;
         const H = this.codomain;
-        const evaluateRelation = (relation) => relation.reduce(([g, gs], el) => {
+        const evaluateRelation = (relation) => relation.reduce(([gs, g], el) => {
             const next = G.mult(el, g);
             gs.push([g, el, next]);
-            return [next, gs];
-        }, [0, []])[1];
+            return [gs, next];
+        }, [[], 0])[0];
         const mappingPreservesRelation = (mapping, relation) => evaluateRelation(relation).every(([prev, step, next]) => mapping[next] === H.mult(mapping[step], mapping[prev]));
         return G.relations.every((relation) => mappingPreservesRelation(this.fullMapping, relation));
     }
@@ -74,13 +71,13 @@ class Mapping {
         mapping.image = [...this.image];
         return mapping;
     }
-    extend(domainElement /*: groupElement */, codomainElement /*: groupElement */) {
+    extend(domainElement, codomainElement) {
         const G = this.domain;
         const H = this.codomain;
         const previousImage = [...this.image];
         this.definingPairs.push([domainElement, codomainElement]);
         previousImage.forEach((h, g) => {
-            if (h !== undefined) {
+            if (h != null) {
                 this.image[G.mult(g, domainElement)] = H.mult(h, codomainElement);
             }
         });
@@ -90,12 +87,10 @@ class Mapping {
                 const rXs = G.mult(r, s);
                 if (this.image[rXs] === undefined) {
                     cosetRepresentatives.push(rXs);
-                    // $FlowFixMe -- logic is too math-y for Flow
                     this.image[rXs] = H.mult(this.image[r], this.image[s]);
                     previousImage.forEach((h, g) => {
-                        // $FlowFixMe -- logic is too math-y for Flow
-                        if (h !== undefined) {
-                            this.image[G.mult(g, rXs)] = H.mult(h, ((this.image[rXs] /*: any */) /*: groupElement */));
+                        if (h != null) {
+                            this.image[G.mult(g, rXs)] = H.mult(h, this.image[rXs]);
                         }
                     });
                 }
@@ -104,7 +99,7 @@ class Mapping {
         this.fullMapping_ = null;
         return this;
     }
-    validSources(codomainElement /*: groupElement */) {
+    validSources(codomainElement) {
         let validSources;
         const unmappedSources = this.domain.elements.filter((g) => this.image[g] === undefined);
         if (codomainElement === undefined) {
@@ -124,7 +119,7 @@ class Mapping {
         }
         return validSources;
     }
-    validTargets(domainElement /*: groupElement */) {
+    validTargets(domainElement) {
         const validTargets = this.codomain.elements
             .filter((target) => this.domain.elementOrders[domainElement] % this.codomain.elementOrders[target] === 0)
             .reduce((validTargets, maybeTarget) => {
@@ -140,15 +135,15 @@ class Mapping {
     get fullMapping() {
         if (this.fullMapping_ == null) {
             if (this.image.includes(undefined)) {
-                this.fullMapping_ = ((this.extendedMap(this) /*: any */) /*: Mapping */).image;
+                this.fullMapping_ = this.extendedMap(this).image;
             }
             else {
                 this.fullMapping_ = this.image;
             }
         }
-        return ((this.fullMapping_ /*: any */) /*: Array<groupElement> */);
+        return this.fullMapping_;
     }
-    extendedMap(mapping /*: Mapping */) {
+    extendedMap(mapping) {
         const G = this.domain;
         const H = this.codomain;
         const map = mapping.image;

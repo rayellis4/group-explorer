@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SheetControl component
 
@@ -16,16 +16,16 @@ import * as Library from './Library.js';
 import * as Settings from './Settings.js';
 import * as GEUtils from './GEUtils.js';
 import * as Heading from './Heading.js';
-import { serializeSheet, deserializeSheet } from './SheetSerialization.js';
-import * as StoredObjects from './StoredObjects.js';
+import { deserializeSheet, wrapSheet, unwrapSheet } from './SheetSerialization.js';
+import { getStoredSheet, saveStoredSheet, removeStoredSheet, listStoredSheets } from './StoredObjects.js';
 import { makeFixedMenu, makeDetachedMenu, makeMockSelect, makeDialog } from './UIComponents.js';
-export { addControl };
+import * as SheetView from './SheetView.js';
 /*
 ```
 ### addControl
 ```javascript
  */
-function addControl(sheetControlElement, sheetModelProxy, sheetViewModel) {
+export function addControl(sheetControlElement, sheetModelProxy, sheetViewModel) {
     const viewModel = new ViewModel(sheetModelProxy, sheetViewModel);
     new View(viewModel, sheetControlElement);
 }
@@ -46,46 +46,55 @@ class ViewModel {
     set view(view) { this.#view = view; }
     viewportOrigin() { return this.#sheetViewModel.viewportOrigin(); }
     viewportScale() { return this.#sheetViewModel.viewportScale(); }
-    addElement(className /*: string */, groupURL /*: string */) {
+    addElement(className, groupURL) {
         const { x, y } = this.viewportOrigin();
         const scale = this.viewportScale();
-        const element /*: {[key: string]: any} */ = { x, y, w: 0.1 * scale, h: 0.1 * scale, groupURL };
-        if (className === 'RectangleElement') {
-            className = 'TextElement';
-            element.text = '';
-            element.color = '#DDDDDD';
-        }
-        else if (className === 'TextElement') {
-            element.text = 'Enter text';
-            element.color = '#DDDDDD';
-            element.opacity = '0.5';
-            element.fontSize = '1.25rem';
-            delete element.w;
-            delete element.h;
-        }
-        else if (className === 'CDElement') {
-            element.highlightColors = {};
+        const element = { x, y };
+        switch (className) {
+            case 'RectangleElement':
+                className = 'TextElement';
+                element.text = '';
+                element.color = '#DDDDDD';
+                element.w = 0.1 * scale;
+                element.h = 0.1 * scale;
+                break;
+            case 'TextElement':
+                element.text = 'Enter text';
+                element.color = '#DDDDDD';
+                element.opacity = '0.5';
+                element.fontSize = '1.25rem';
+                delete element.w;
+                delete element.h;
+                break;
+            case 'CDElement':
+                element.highlightColors = {};
+            case 'CGElement':
+            case 'MTElement':
+                element.w = 0.1 * scale;
+                element.h = 0.1 * scale;
+                element.groupURL = groupURL;
+                break;
         }
         this.#model.addObjectAsElement(element, className);
     }
     toJSON() {
         return this.#model.toJSON();
     }
-    fromJSON(json /*: string */) {
+    fromJSON(json) {
         this.#model.fromJSON(json);
     }
     clearSheet() {
         this.#model.sheetElements.clear();
     }
-    async loadSheet(sheetName /*: string */) {
-        const jsonObject = await StoredObjects.getStoredSheet(sheetName);
+    async loadSheet(sheetName) {
+        const jsonObject = unwrapSheet((await getStoredSheet(sheetName)));
         this.#model.fromJSON(jsonObject);
     }
-    saveSheet(sheetName /*: string */) {
-        StoredObjects.saveStoredSheet(sheetName, this.#model.toJSON());
+    saveSheet(sheetName) {
+        saveStoredSheet(sheetName, wrapSheet(this.#model.toJSON()));
     }
-    async deleteSheet(sheetName /*: string */) {
-        await StoredObjects.removeStoredSheet(sheetName);
+    async deleteSheet(sheetName) {
+        await removeStoredSheet(sheetName);
     }
 }
 /*
@@ -94,9 +103,9 @@ class ViewModel {
 ```javascript
  */
 class View {
-    viewModel; /*: ViewModel */
-    rootElement; /*: HTMLElement */
-    constructor(viewModel /*: ViewModel */, rootElement /*: HTMLElement */) {
+    viewModel;
+    rootElement;
+    constructor(viewModel, rootElement) {
         this.viewModel = viewModel;
         this.viewModel.view = this;
         this.rootElement = rootElement;
@@ -110,18 +119,15 @@ class View {
         const addElement = (className) => this.addElement(className);
         const showGroupSelect = () => this.showGroupSelect();
         const showStoredSheetMenu = (event, name) => this.showStoredSheetMenu(event, name);
-        const redrawAll = () => { }; // TODO: wire to SheetViewModel.redrawAll()
+        const redrawAll = () => SheetView.redrawAll(); // same as right-click in graphic
         const clearCurrentSheet = () => this.clearCurrentSheet();
         makeFixedMenu(rootElement, (action) => eval(action));
         rootElement.querySelector('#stored-sheet-list').addEventListener('contextmenu', (ev) => {
             const action = ev.target.closest('[data-action]')?.getAttribute('data-action');
-            if (action != null) {
-                const showStoredSheetMenu = (event, name) => this.showStoredSheetMenu(event, name);
-                eval(action);
-            }
+            (action != null) && eval(action);
         });
     }
-    displaySheetName(sheetName /*: ?string */ = null) {
+    displaySheetName(sheetName = null) {
         Heading.setTitle(sheetName || 'Group Explorer Sheet');
     }
     showGroupSelect() {
@@ -147,13 +153,14 @@ class View {
         const mockSelectGroup = this.rootElement.querySelector('#visualizer-select-group');
         makeMockSelect(mockSelectGroup, groupChoices).then(() => { }, () => { });
     }
-    addElement(className /*: string */) {
-        const groupURL = this.rootElement.querySelector('#visualizer-select-group').getAttribute('data-value');
+    addElement(className) {
+        const groupURL = this.rootElement.querySelector('#visualizer-select-group')
+            .getAttribute('data-value');
         this.viewModel.addElement(className, groupURL);
     }
     async showStoredSheets() {
         const sheetList = this.rootElement.querySelector('#stored-sheet-list');
-        const sheetChoices = (await StoredObjects.listStoredSheets()).sort();
+        const sheetChoices = (await listStoredSheets()).sort();
         sheetList.innerHTML = '';
         if (sheetChoices.length === 0) {
             sheetList.insertAdjacentHTML('beforeend', '<li><i>(None)</i></li>');
@@ -164,7 +171,7 @@ class View {
             });
         }
     }
-    showStoredSheetMenu(event, storedSheet /*: string */) {
+    showStoredSheetMenu(event, storedSheet) {
         const escapedString = GEUtils.escapeHTML(storedSheet);
         const storedSheetMenu = [
             '<ul>',
@@ -192,19 +199,19 @@ class View {
         const showBackupSheetsDialog = (ev) => this.showBackupSheetsDialog(ev);
         const showRestoreSheetsDialog = (ev) => this.showRestoreSheetsDialog(ev);
         const showStoredSheets = () => this.showStoredSheets();
-        makeDetachedMenu(storedSheetMenu, event).then((action) => eval(action));
+        makeDetachedMenu(storedSheetMenu, event).then((action) => (action != null) && eval(action));
     }
-    async loadSheet(sheetName /*: string */) {
+    async loadSheet(sheetName) {
         await this.viewModel.loadSheet(sheetName);
         this.displaySheetName(sheetName);
     }
-    saveSheet(sheetName /*: string */) {
+    saveSheet(sheetName) {
         this.viewModel.saveSheet(sheetName);
         this.displaySheetName(sheetName);
         this.showStoredSheets();
     }
-    async renameSheet(sheetName /*: string */, location) {
-        const sheetContent = await StoredObjects.getStoredSheet(sheetName);
+    async renameSheet(sheetName, location) {
+        const sheetContent = unwrapSheet((await getStoredSheet(sheetName)));
         const newName = await this.showNameSheetDialog(location, sheetName, sheetContent);
         if (newName != null) {
             await this.viewModel.deleteSheet(sheetName);
@@ -212,7 +219,7 @@ class View {
             this.showStoredSheets();
         }
     }
-    deleteSheet(sheetName /*: string */) {
+    deleteSheet(sheetName) {
         if (window.confirm(`Are you sure you want to delete stored sheet ${sheetName}?\nThis cannot be undone.`)) {
             this.viewModel.deleteSheet(sheetName).then(() => this.showStoredSheets());
         }
@@ -239,7 +246,7 @@ class View {
             </div>
          </div>`;
         const dialog = makeDialog(createSheetDialogHTML, location);
-        const allNames = await StoredObjects.listStoredSheets();
+        const allNames = await listStoredSheets();
         const newName = new Promise((resolve, _reject) => {
             GEUtils.createActionHandler(dialog, (action) => eval(action));
             document.getElementById('new-sheet-value')
@@ -260,7 +267,7 @@ class View {
                     alert(`A stored sheet named "${newSheetName}" already exists`);
                 }
                 else {
-                    StoredObjects.saveStoredSheet(newSheetName, sheetContent)
+                    saveStoredSheet(newSheetName, wrapSheet(sheetContent))
                         .then(() => {
                         this.showStoredSheets();
                         this.displaySheetName(newSheetName);
@@ -272,7 +279,7 @@ class View {
         return await newName;
     }
     showExportSheetDialog(location) {
-        const modelJSON = JSON.stringify(serializeSheet(this.viewModel.toJSON()));
+        const modelJSON = JSON.stringify(wrapSheet(this.viewModel.toJSON()));
         const exportSheetDialogHTML = `<div id="export-sheet-dialog" class="flex-v" style="min-height: 15em; min-width: 60ch; overflow: hidden">
             <style>
                #export-sheet-dialog button {
@@ -312,7 +319,7 @@ class View {
         };
     }
     async showBackupSheetsDialog(location) {
-        const allSheets = (await StoredObjects.listStoredSheets()).sort();
+        const allSheets = (await listStoredSheets()).sort();
         const backupSheetsDialogHTML = [
             `<div id="backup-sheets-dialog" class="flex-v" style="min-height: 13em; min-width: 50ch; width: 60ch; overflow: hidden">
             <style>
@@ -361,10 +368,12 @@ class View {
         const dialog = makeDialog(backupSheetsDialogHTML.join(''), location);
         GEUtils.createActionHandler(dialog, (action) => eval(action));
         const markAllSheets = () => {
-            document.querySelectorAll('#backup-sheets-choices input').forEach((cb) => cb.checked = true);
+            Array.from(document.querySelectorAll('#backup-sheets-choices input'))
+                .forEach((cb) => cb.checked = true);
         };
         const clearAllSheets = () => {
-            document.querySelectorAll('#backup-sheets-choices input').forEach((cb) => cb.checked = false);
+            Array.from(document.querySelectorAll('#backup-sheets-choices input'))
+                .forEach((cb) => cb.checked = false);
         };
         const backupToClipboard = async () => {
             const checkedSheetsJSONString = await getCheckedSheetsJSONString();
@@ -393,11 +402,13 @@ class View {
                 .from(document.querySelectorAll('#backup-sheets-choices input:checked'))
                 .map((checkbox) => checkbox.name);
             const checkedSheetsJSON = await Promise
-                .allSettled(checkedSheetNames.map((name) => StoredObjects.getStoredSheet(name)));
+                .allSettled(checkedSheetNames.map((name) => getStoredSheet(name)));
             const result = [];
             for (const inx in checkedSheetNames) {
-                const namedSheet = { sheetName: checkedSheetNames[inx], sheetJSON: serializeSheet(checkedSheetsJSON[inx].value) };
-                result.push(namedSheet);
+                if (checkedSheetsJSON[inx].status === 'fulfilled') {
+                    const namedSheet = { sheetName: checkedSheetNames[inx], sheetJSON: checkedSheetsJSON[inx].value };
+                    result.push(namedSheet);
+                }
             }
             return JSON.stringify(result);
         };
@@ -442,10 +453,12 @@ class View {
         const dialog = makeDialog(restoreSheetsDialogHTML, location);
         GEUtils.createActionHandler(dialog, (action) => eval(action));
         const markAllSheets = () => {
-            document.querySelectorAll('#restore-sheets-choices input').forEach((cb) => cb.checked = true);
+            Array.from(document.querySelectorAll('#restore-sheets-choices input'))
+                .forEach((cb) => cb.checked = true);
         };
         const clearAllSheets = () => {
-            document.querySelectorAll('#restore-sheets-choices input').forEach((cb) => cb.checked = false);
+            Array.from(document.querySelectorAll('#restore-sheets-choices input'))
+                .forEach((cb) => cb.checked = false);
         };
         const restoreFromClipboard = () => {
             navigator.clipboard.readText().then((jsonString) => storeJSON(jsonString));
@@ -457,7 +470,7 @@ class View {
             filePicker.addEventListener('change', () => {
                 const pickedFile = filePicker.files?.[0];
                 const fileReader = new FileReader();
-                fileReader.addEventListener('loadend', (ev) => storeJSON(ev.target.result));
+                fileReader.addEventListener('loadend', (ev) => storeJSON(ev.target?.result));
                 fileReader.readAsText(pickedFile);
             });
         };
@@ -471,14 +484,14 @@ class View {
                 if (!Array.isArray(restoredJSONObject)
                     && restoredJSONObject.version != null
                     && restoredJSONObject.sheet.sheetName == null) {
-                    StoredObjects.saveStoredSheet('unnamed sheet', deserializeSheet(restoredJSONObject));
+                    saveStoredSheet('unnamed sheet', restoredJSONObject);
                     closeDialog();
                 }
                 else if (restoredJSONObject.length > 0 && restoredJSONObject[0].sheetName == null) {
-                    StoredObjects.saveStoredSheet('unnamed sheet', deserializeSheet(JSON.stringify(restoredJSONObject)));
+                    saveStoredSheet('unnamed sheet', wrapSheet(deserializeSheet(restoredJSONString)));
                     closeDialog();
                 }
-                else {
+                else if (Array.isArray(restoredJSONObject) && 'sheetName' in restoredJSONObject[0]) {
                     const restoreSheetsChoices = restoredJSONObject
                         .map(({ sheetName }) => `<input type="checkbox" name="${GEUtils.escapeHTML(sheetName)}" checked>
                          <label for="${GEUtils.escapeHTML(sheetName)}">${sheetName}</label><br>`)
@@ -495,7 +508,7 @@ class View {
                         Promise
                             .allSettled(sheetNamesToRestore.map((name) => {
                             const sheetJSON = restoredJSONObject.find(({ sheetName }) => sheetName == name).sheetJSON;
-                            return StoredObjects.saveStoredSheet(name, deserializeSheet(sheetJSON));
+                            return saveStoredSheet(name, sheetJSON);
                         }))
                             .then(() => closeDialog());
                     });

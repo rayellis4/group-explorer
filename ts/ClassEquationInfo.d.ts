@@ -1,2 +1,2 @@
-export { display };
-declare function display(classEquationInfoElementId: any, group: any): void;
+import type { Group } from './Group.ts';
+export declare function display(classEquationInfoElementId: string, group: Group): void;

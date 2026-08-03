@@ -1,21 +1,21 @@
-// @flow
+/*
+# IsomorphicGroups
 
-import {BitSet} from './BitSet.js';
-import * as DefiningRelations from './DefiningRelations.js'
+Finds isomorphic group from group library
+
+```js
+ */
+
+import { BitSet } from './BitSet.js';
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js';
 
-export {find, isomorphism}
+import type { Group } from './Group.js'
 
-/*::
-import {Group} from './Group.js'
-import {Subgroup} from './Subgroup.js'
- */
-
-   function find (G /*: Group */) /*: ?Group */ {
+export function find (G: Group): Maybe<Group> {
       // we have all groups of order <= 20 in group library, and all non-abelian group <= 40
       // if we're down to one candidate group then it's guaranteed to be the one
-      function testCandidates (candidates) {
+      function testCandidates (candidates: Group[]) {
          return (candidates.length == 1 && (G.order <= 20 || (!G.isAbelian && G.order <= 40)))
       }
 
@@ -40,7 +40,7 @@ import {Subgroup} from './Subgroup.js'
    }
 
    // returns isomorphism from G to H, or undefined if none can be found
-   function isomorphism (G /*: Group */, H /*: Group */) /*: ?Array<groupElement> */ {
+export function isomorphism (G: Group, H: Group): Maybe<groupElement[]> {
       if (G.order != H.order || G == H) {
          return null;
       }
@@ -53,23 +53,21 @@ import {Subgroup} from './Subgroup.js'
       //   or maybe lower gen*orderClassSize product?
       const G_gens = G.generators;
       const requiredOrders = G_gens.map(el => G.elementOrders[el]);
-      const availableElements = H.elementOrders.reduce(
-         (acc /*: Array<BitSet> */, order, el) => {
+      const availableElements = H.elementOrders.reduce<BitSet[]>(
+         (acc: BitSet[], order, el) => {
             if (acc[order] === undefined) {
                acc[order] = new BitSet(G.order);
             }
             acc[order].set(el);
             return acc;
-         },
-         []
-      );
+         }, [])
 
       bigLoop:
       for (const h_gens of matchingGenerators(requiredOrders, availableElements)) {
          const g_gens = G_gens.slice();
 
          // create map, add identity
-         const g2h /*: Array<groupElement> */ = new Array(G.order);
+         const g2h: groupElement[] = new Array(G.order);
          g2h[0] = 0;
 
          // map generators
@@ -77,14 +75,14 @@ import {Subgroup} from './Subgroup.js'
 
          const rslt = new BitSet(G.order).set(0);
 
-         const gensUsed = [g_gens.pop() /*:: as any as groupElement */]
+         const gensUsed = [g_gens.pop() as groupElement]
          for (let g = gensUsed[0], s = g; g != 0; g = G.mult(g, s)) {
             rslt.set(g);
             g2h[G.mult(g, s)] = H.mult(g2h[g], g2h[s]);
          }
 
          while (g_gens.length != 0) {
-            gensUsed.push(g_gens.pop() /*:: as any as groupElement */)
+            gensUsed.push(g_gens.pop() as groupElement)
             const prevRslt = rslt.toArray();  // H_{i-1}
             const coset_reps = [0];
             for (const g of coset_reps) {
@@ -129,10 +127,10 @@ import {Subgroup} from './Subgroup.js'
 
    // returns arrays of generators for H that match orders in req
    function* matchingGenerators (
-      req /*: Array<groupElement> */,
-      avail /*: Array<BitSet> */,
-      sel /*: Array<groupElement> */ = []
-   ) /*: Generator<Array<groupElement>, ?Array<groupElement>, Array<groupElement>> */ {
+      req: integer[],
+      avail: BitSet[],
+      sel: groupElement[] = []
+   ): Generator<groupElement[]> {
       if (req.length == 0) {
          yield sel;
       } else if (!avail[req[0]].isEmpty()) {

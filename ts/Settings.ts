@@ -1,16 +1,23 @@
-// @flow
+/*
+# Settings
+
+Manages user settings
+
+```js
+ */
 
 import * as Library from './Library.js'
-import {makeDialog} from './UIComponents.js'
+import { makeDialog } from './UIComponents.js'
 import * as StoredObjects from './StoredObjects.js'
 
-export {getFilterConfig, loadSettings, showDialog}
+export type SettingsType = {
+   showExtendedLt32?: boolean,
+   showExtendedGe32?: boolean,
+   showNotable?:      boolean,
+   showGenerated?:    boolean,
+}
 
-/*::
-type SettingsKey = 'showExtendedLt32' | 'showExtendedGe32' | 'showNotable' | 'showGenerated'
-*/
-
-const DEFAULTS /*: {[SettingsKey]: boolean} */ = {
+const DEFAULTS: SettingsType = {
    showExtendedLt32: false,
    showExtendedGe32: false,
    showNotable:      false,
@@ -18,11 +25,11 @@ const DEFAULTS /*: {[SettingsKey]: boolean} */ = {
 }
 
 // in-memory cache — authoritative source for this tab
-const cache /*: {[SettingsKey]: boolean} */ = Object.assign({}, DEFAULTS)
+const cache: SettingsType = Object.assign({}, DEFAULTS)
 
 // populate cache from IndexedDB.Settings; called from AutoUpgrade.initialize
-async function loadSettings () {
-   const storedSettings = await StoredObjects.getSettings()
+export async function loadSettings () {
+   const storedSettings = (await StoredObjects.getSettings()) ?? {}
    Object.assign(cache, storedSettings)
 }
 
@@ -33,24 +40,27 @@ new BroadcastChannel('GE3-channel').addEventListener('message', (ev) => {
    if (values != null) Object.assign(cache, values)
 })
 
-function getFilterConfig () /*: {[string]: any} */ {
+export function getFilterConfig (): SettingsType {
    return {...cache}
 }
 
-async function set (newSettings /*: {[SettingsKey]: boolean} */) {
+async function set (newSettings: SettingsType) {
    Object.assign(cache, newSettings)
    await StoredObjects.saveSettings(cache)
    new BroadcastChannel('GE3-channel').postMessage({source: 'settings', values: {...cache}})
 }
 
-function showDialog () {
+export function showDialog () {
    const center = {clientX: window.innerWidth / 2, clientY: window.innerHeight / 2}
    const modal = makeDialog(dialogHTML(), center)
 
    // initialize checkboxes from current cache — changes held in DOM until Save
-   Object.entries(cache).forEach(([key, value]) => modal.querySelector(`#settings-${key}`).checked = value)
+   Object.entries(cache).forEach(([key, value]) => {
+      const inputElement = modal.querySelector(`#settings-${key}`) as HTMLInputElement
+      inputElement.checked = value
+   })
 
-   const deleteButton = modal.querySelector('#settings-delete-generated')
+   const deleteButton = modal.querySelector('#settings-delete-generated') as HTMLButtonElement
    const updateDeleteButton = () => {
       deleteButton.disabled = !Library.getAllGroups().some((G) => G.library === 'generated')
    }
@@ -62,20 +72,22 @@ function showDialog () {
       }
    })
 
-   modal.querySelector('#settings-cancel').addEventListener('click', () => modal.remove())
+   const cancelSettingsButton = modal.querySelector('#settings-cancel') as HTMLButtonElement
+   cancelSettingsButton.addEventListener('click', () => modal.remove())
 
-   modal.querySelector('#settings-save').addEventListener('click', () => {
-      const newSettings /*: {[SettingsKey]: boolean} */ = {}
+   const saveSettinggsButton = modal.querySelector('#settings-save') as HTMLButtonElement
+   saveSettinggsButton.addEventListener('click', () => {
+      const newSettings: SettingsType = {}
       modal.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
          const key = checkbox.id.replace('settings-', '')
-         if (key in DEFAULTS) newSettings[(key /*: SettingsKey */)] = checkbox.checked
+         if (key in DEFAULTS) newSettings[key as keyof SettingsType] = (checkbox as HTMLInputElement).checked
       })
       set(newSettings)
       modal.remove()
    })
 }
 
-function dialogHTML () /*: string */ {
+function dialogHTML (): html {
    return `
       <div id="settings-dialog" class="sheet-editor box stack-03em" style="resize: none">
          <div><b>Settings</b></div>

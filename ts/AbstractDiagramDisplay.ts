@@ -1,27 +1,26 @@
-// @flow
-
 /*
- * Routines to draw 3D ball-and-stick diagrams using three.js
+# AbstractDiagramDisplay
+
+Draws 3D ball-and-stick diagrams using three.js
+
+```js
  */
 
-// $FlowFixMe -- external module imports described in flow-typed directory
-import {THREE, TrackballControls, Line2, LineMaterial, LineGeometry} from '../lib/externals.js';
+import * as THREE from '../lib/externals.js'
 
-/*::
-export type LineType = THREE.Line | Line2;
+export type LineType = THREE.Line | THREE.Line2;
 
 type SphereData = {
    position: THREE.Vector3,
-   color?: css_color,
-} & Obj;
+   color?: color,
+} & Object
 
 export type AbstractDiagramDisplayOptions = {
-   container?: JQuery,
+   container?: HTMLElement,
    width?: number,
    height?: number,
    line_width?: number,
 };
-*/
 
 const DEFAULT_SPHERE_COLOR = '#8c8c8c';  // gray
 const DEFAULT_LINE_COLOR = 'black';
@@ -39,20 +38,16 @@ const ABSTRACT_DIAGRAM_DISPLAY_GROUP_NAMES = ['lights', 'spheres', 'lines', 'deb
 export {DEFAULT_SPHERE_COLOR, DEFAULT_LINE_COLOR};
 
 export class AbstractDiagramDisplay {
-/*::
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
-    renderer: THREE.WebGLRenderer;
-    control: ?TrackballControls;
+    scene: THREE.Scene
+    camera: THREE.PerspectiveCamera
+    renderer: THREE.WebGLRenderer
+    control!: Maybe<THREE.TrackballControls>
+    _fog_level!: float;  // in [0,1]
+    sphere_base_radius!: float
+    _sphere_scale_factor!: float
 
-    _fog_level: float;  // in [0,1]
+    _line_width: number
 
-    sphere_facet_count: integer;
-    sphere_base_radius: float;
-    _sphere_scale_factor: float;
-
-    _line_width: number;
-*/
     /*
      * Create three.js objects to display data in container
      *
@@ -61,7 +56,7 @@ export class AbstractDiagramDisplay {
      * create a renderer, sets the size
      * add the output of the renderer to the container element
      */
-    constructor (options /*: AbstractDiagramDisplayOptions */ = {}) {
+    constructor (options: AbstractDiagramDisplayOptions = {}) {
         // Default constants
 
         // Camera
@@ -86,7 +81,7 @@ export class AbstractDiagramDisplay {
         } );
 
         // Scene objects
-        this.scene.fog = new THREE.Fog();
+        this.scene.fog = new THREE.Fog('white');
         this.light_positions = DEFAULT_LIGHT_POSITIONS;
 
         this._line_width = options.line_width || DEFAULT_LINE_WIDTH
@@ -95,36 +90,36 @@ export class AbstractDiagramDisplay {
     /* 
      * Attributes
      */
-    get background () /*: css_color */ {
-      return '#' + this.scene.background.getHexString()
+    get background (): color {
+       return '#' + (this.scene.background as THREE.Color).getHexString()
     }
 
-    set background (background_color /*: THREE.Color | number | string */) {
+    set background (background_color: THREE.Color | number | string) {
         const color = new THREE.Color(background_color)
         this.scene.background = color
-        this.scene.fog.color.set(color);  // set Fog color to background
+        ;(this.scene.fog as THREE.Fog).color.set(color);  // set Fog color to background
     }
 
-    get canvas () /*: HTMLCanvasElement */ {
+    get canvas (): HTMLCanvasElement {
         return this.renderer.domElement;
     }
 
-    get container () /*: HTMLElement */ {
-        return ((this.renderer.domElement.parentElement /*: any */) /*: HTMLElement */);
+    get container (): HTMLElement {
+        return this.renderer.domElement.parentElement as HTMLElement
     }
 
-    set container (container /*: HTMLElement */) {
+    set container (container: HTMLElement) {
         container.append(this.renderer.domElement);
         this.resize();
     }
 
-    enableTrackballControl (container /*: ?HTMLElement */) {
+    enableTrackballControl (container?: Maybe<HTMLElement>) {
         if (container != undefined) {
             this.container = container;
         }
 
         if (this.container != undefined) {
-            this.control = new TrackballControls(this.camera, this.container);
+            this.control = new THREE.TrackballControls(this.camera, this.container);
             this.control.dynamicDampingFactor = 1.0;
             this.render()
         }
@@ -139,13 +134,13 @@ export class AbstractDiagramDisplay {
 
     // reduce fog level by increasing 'far' parameter (experimentally determined coefficients :-)
     //   (fogLevel is in [0,1])
-    set fog_level (fog_level /*: float */) {
+    set fog_level (fog_level: float) {
         this._fog_level = fog_level;
 
-        const sceneRadius = Math.sqrt(Math.max(1, ...this.spheres.map( (sphere) => sphere.position.lengthSq() )));
-        const cameraDistance = this.camera.position.length();
-        this.scene.fog.near = cameraDistance - sceneRadius - 1;
-        this.scene.fog.far = (fog_level == 0) ? 100 : (cameraDistance + sceneRadius*(5 - 4 * fog_level));
+        const sceneRadius = Math.sqrt(Math.max(1, ...this.spheres.map( (sphere) => sphere.position.lengthSq() )))
+        const cameraDistance = this.camera.position.length()
+        ;(this.scene.fog as THREE.Fog).near = cameraDistance - sceneRadius - 1;
+        ;(this.scene.fog as THREE.Fog).far = (fog_level == 0) ? 100 : (cameraDistance + sceneRadius*(5 - 4 * fog_level));
     }
 
     get lights () {
@@ -153,11 +148,11 @@ export class AbstractDiagramDisplay {
     }
 
     get light_positions () {
-        const positions = this.lights.map/*:: <THREE.Vector3> */( (light) => light.position );
+        const positions = this.lights.map( (light) => light.position );
         return positions;
     }
 
-    set light_positions (locations /*: Array<THREE.Vector3> */) {
+    set light_positions (locations: THREE.Vector3[]) {
         const lights = this.getGroup('lights');
         lights.remove(...lights.children);
         locations.forEach( (location) => {
@@ -168,23 +163,23 @@ export class AbstractDiagramDisplay {
         lights.add(new THREE.AmbientLight(0xffffff, 3.5))
     }
 
-    get size () /*: {w: number, h: number} */ {
+    get size (): {w: number, h: number} {
         const size = this.renderer.getSize(new THREE.Vector2());
         return {w: size.x, h: size.y};
     }
 
-    set size ({w, h} /*: {w: number, h: number} */) {
+    set size ({w, h}: {w: number, h: number}) {
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(w, h);
     }
 
     // legacy interface, for compatibility with Sheets
-    getSize() /*: {w: number, h: number} */ {
+    getSize(): {w: number, h: number} {
         return this.size;
     }
 
-    setSize(width /*: number */, height /*: number */) {
+    setSize(width: number, height: number) {
         this.size = {w: width, h: height};
     }
 
@@ -202,8 +197,8 @@ export class AbstractDiagramDisplay {
         this.deleteAllObjects();
     }
 
-    getGroup (name /*: string */) /*: THREE.Group */ {
-        return ((this.scene.children.find( (el) => el.name == name ) /*: any */) /*: THREE.Group */);
+    getGroup (name: string): THREE.Group {
+        return this.scene.children.find( (el) => el.name == name ) as THREE.Group
     }
 
     deleteAllObjects () {
@@ -211,7 +206,7 @@ export class AbstractDiagramDisplay {
         this.deleteAllLines();
     }
 
-    getImage () /*: Image */ {
+    getImage (): HTMLImageElement {
         this.renderer.render(this.scene, this.camera);
         const image = new Image();
         image.src = this.renderer.domElement.toDataURL();
@@ -242,7 +237,7 @@ export class AbstractDiagramDisplay {
     
     ////////////////////////////   Camera   /////////////////////////////////////////
 
-    setCameraPosition (position /*: THREE.Vector3 */, up /*: THREE.Vector3 */) {
+    setCameraPosition (position: THREE.Vector3, up: THREE.Vector3) {
         this.camera.position.copy(position)
         this.camera.up.copy(up)
         this.camera.lookAt(new THREE.Vector3())
@@ -252,7 +247,7 @@ export class AbstractDiagramDisplay {
         return this.camera.zoom;
     }
 
-    set zoom_level (zoom_level /*: float */) {
+    set zoom_level (zoom_level: float) {
         this.camera.zoom = zoom_level;
         this.camera.updateProjectionMatrix();
     }
@@ -260,8 +255,8 @@ export class AbstractDiagramDisplay {
     // snap camera position to nearest display axis
     snapToAxis () {
         // find index of array element with max absolute value
-        function indexOfMax (arr) {
-           const [_maxValue, indexOfMax] = arr.reduce(([val, inx], currVal, currInx) => {
+        function indexOfMax (arr: number[]) {
+           const [_maxValue, indexOfMax] = arr.reduce<[float, integer]>(([val, inx], currVal, currInx) => {
               return (Math.abs(currVal) > Math.abs(val)) ? [currVal, currInx] : [val, inx]
            }, [0, -1])
            return indexOfMax
@@ -313,21 +308,21 @@ export class AbstractDiagramDisplay {
     }
 
     removeCoordinateAxes () {
-        const coordinateLines = this.getGroup('debug').children
+        const coordinateLines = this.getGroup('debug').children as LineType[]
         coordinateLines.forEach((line) => {
             line.geometry.dispose()
-            line.material.dispose()
+            ;(line.material as THREE.LineMaterial).dispose()
         })
         this.getGroup('debug').remove(...coordinateLines)
     }
 
     ////////////////////////////   Sphere routines   ////////////////////////////////
 
-    get spheres () {
-        return this.getGroup('spheres').children
+    get spheres (): THREE.Mesh[] {
+        return this.getGroup('spheres').children as THREE.Mesh[]
     }
 
-    get sphere_scale_factor () /*: float */ {
+    get sphere_scale_factor (): float {
         if (this._sphere_scale_factor == undefined) {
             this._sphere_scale_factor = 1;
         }
@@ -335,7 +330,7 @@ export class AbstractDiagramDisplay {
         return this._sphere_scale_factor;
     }
 
-    set sphere_scale_factor (new_scale_factor /*: float */) {
+    set sphere_scale_factor (new_scale_factor: float) {
         if (this.sphere_scale_factor != new_scale_factor) {
             this._sphere_scale_factor = new_scale_factor;
             const sphere_radius = this.sphere_radius;
@@ -343,12 +338,12 @@ export class AbstractDiagramDisplay {
         }
     }
 
-    get sphere_radius () /*: float */ {
+    get sphere_radius (): float {
         return this.sphere_base_radius * this.sphere_scale_factor;
     }
     
     // Create a sphere for each node, add to scene in THREE.Group named "spheres"
-    createSpheres (sphere_data /*: Array<SphereData> */) {
+    createSpheres (sphere_data: SphereData[]) {
         const geometry = new THREE.SphereGeometry(1.0, this.sphere_facet_count, this.sphere_facet_count);
         sphere_data.forEach( (sphere_datum) => {
             sphere_datum.color = (sphere_datum.color == undefined) ? DEFAULT_SPHERE_COLOR : sphere_datum.color;
@@ -367,7 +362,7 @@ export class AbstractDiagramDisplay {
     
     deleteAllSpheres () {
         const sphere_group = this.getGroup('spheres');
-        const spheres = ((sphere_group.children /*: any */) /*: Array<THREE.Mesh> */);
+        const spheres = sphere_group.children as THREE.Mesh[]
         spheres.forEach( (sphere) => sphere.geometry.dispose() );
         sphere_group.remove(...spheres);
     }
@@ -375,20 +370,20 @@ export class AbstractDiagramDisplay {
     ////////////////////////////   Line routines   ////////////////////////////////
 
     get lines () {
-        return this.getGroup('lines').children
+        return this.getGroup('lines').children as LineType[]
     }
 
     // line_width is pixels wide on 1000 pixel screen
-    get line_width () /*: float */ {
+    get line_width (): float {
         return this._line_width
     }
     
-    set line_width (line_width /*: float */) {
+    set line_width (line_width: float) {
         if (this.line_width != line_width) {
             this._line_width = line_width || DEFAULT_LINE_WIDTH
             this.lines.forEach((line) => {
-                line.material.linewidth = this.scaledLinewidth,
-                line.material.resolution.set(this.size.w, this.size.h)
+                ;(line.material as THREE.LineMaterial).linewidth = this.scaledLinewidth
+                ;(line.material as THREE.LineMaterial).resolution.set(this.size.w, this.size.h)
             })
         }
     }
@@ -401,19 +396,19 @@ export class AbstractDiagramDisplay {
     }
 
     // Create a line from an array of vertices
-    createLine (vertices /*: Array<THREE.Vector3> */) /*: LineType */ {
-        const geometry = new LineGeometry();
-        geometry.setPositions( vertices.reduce(
+    createLine (vertices: THREE.Vector3[]): LineType {
+        const geometry = new THREE.LineGeometry();
+        geometry.setPositions( vertices.reduce<float[]>(
             (positions, vertex) => (positions.push(vertex.x, vertex.y, vertex.z), positions),
-            [] ) );
+            [] as float[] ) );
 
-        const material = new LineMaterial( {
+        const material = new THREE.LineMaterial( {
             linewidth: this.scaledLinewidth,
             resolution: new THREE.Vector2(this.size.w, this.size.h),
             fog: true
         } );
             
-        const new_line = new Line2( geometry, material );
+        const new_line = new THREE.Line2( geometry, material );
         return new_line;
     }
 
@@ -421,19 +416,19 @@ export class AbstractDiagramDisplay {
         this.deleteLines(this.lines)
     }
 
-    deleteLines (lines /*: Array<LineType> */) {
+    deleteLines (lines: LineType[]) {
         // dispose of all geometries, materials;
         lines.forEach( (line) => {
             line.geometry.dispose();
-            line.material.dispose();  // FIXME: should we do this for fat lines?
+            ;(line.material as THREE.LineMaterial).dispose();  // FIXME: should we do this for fat lines?
         } );
         this.getGroup('lines').remove(...lines);
     }
 
     rescaleLines () {
         this.lines.forEach((line) => {
-            line.material.linewidth = this.scaledLinewidth
-            line.material.resolution.set(this.size.w, this.size.h)  // redraw thick lines to scale
+            ;(line.material as THREE.LineMaterial).linewidth = this.scaledLinewidth
+            ;(line.material as THREE.LineMaterial).resolution.set(this.size.w, this.size.h)  // redraw thick lines to scale
         })
     }
 }

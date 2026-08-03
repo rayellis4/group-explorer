@@ -1,17 +1,29 @@
+/*
+
+# SymmetryObjectControl
+
+Display input elements that configure the SymmetryObjectView:
+ * choose symmetry object
+ * set zoom level
+ * set line thickness
+ * set node radius
+ * set whether and how much fog to use
+
+```javascript
+ */
 import * as Log from './Log.js';
 import { makeMockSelect } from './UIComponents.js';
 import { layoutSymmetryObject } from './SymmetryObjectView.js';
-export { addControl };
-function addControl(symmetryObjectControlElement /*: HTMLElement */, symmetryObjectModel /*: SubscriptionProxy<CayleyDiagramModel> */) {
+export function addControl(symmetryObjectControlElement, symmetryObjectModel) {
     const viewModel = new ViewModel();
     viewModel.setModel(symmetryObjectModel);
     const view = new View(symmetryObjectControlElement);
     view.setViewModel(viewModel);
 }
-class ViewModel /*:: implements Updatable */ {
-    #model; /*: SubscriptionProxy<CayleyDiagramModel> */
-    #view; /*: View */
-    #modelFields /*: Array<string> */ = [
+class ViewModel {
+    #model;
+    #view;
+    #modelFields = [
         'zoom_level',
         'line_width',
         'sphere_scale_factor',
@@ -26,14 +38,14 @@ class ViewModel /*:: implements Updatable */ {
     get view() {
         return this.#view;
     }
-    setModel(model /*: SubscriptionProxy<CayleyDiagramModel> */) {
+    setModel(model) {
         this.#model = model;
-        this.#modelFields.forEach((field) => this.model.$subscribe(this, field));
+        this.#modelFields.forEach((field) => model.$subscribe(this, field));
         if (this.view != null) {
             this.initializeView();
         }
     }
-    setView(view /*: View */) {
+    setView(view) {
         this.#view = view;
         if (this.model != null) {
             this.initializeView();
@@ -66,14 +78,15 @@ class ViewModel /*:: implements Updatable */ {
         }
         return diagramName;
     }
-    getFromView(field /*: string */) {
+    getFromView(field) {
         return this.view.getFieldValue(field);
     }
     // handles input events from View, updates Model
-    updateModel(field /*: string */, value /*: any */) {
+    updateModel(field, value) {
         switch (field) {
             case 'diagram_select':
-                this.model.layout = layoutSymmetryObject(this.model.group, this.getFromView('diagram_select'));
+                this.model.layout = // override CayleyDiagramModel type to avoid having to create a SymmetryObjectModel
+                    layoutSymmetryObject(this.model.group, this.getFromView('diagram_select'));
                 break;
             case 'zoom_level':
                 this.model.zoom_level = Math.exp(value / 10);
@@ -91,7 +104,7 @@ class ViewModel /*:: implements Updatable */ {
         }
     }
     // field update callbacks from Model — convert to slider values and push to View directly
-    update(field /*: string */, value /*: any */) {
+    update(field, value) {
         switch (field) {
             case 'diagram_select':
                 this.view.update('diagram_select', value);
@@ -115,14 +128,14 @@ class ViewModel /*:: implements Updatable */ {
     }
     // Button data-action strings are eval'd here so `this` resolves to the ViewModel,
     // giving them access to `this.model` for writing request fields directly.
-    executeCommand(command /*: string */) {
+    executeCommand(command) {
         eval(command);
     }
 }
 class View {
-    rootElement; /*: HTMLElement */
-    viewModel; /*: ViewModel */
-    constructor(rootElement /*: HTMLElement */) {
+    rootElement;
+    viewModel;
+    constructor(rootElement) {
         this.rootElement = rootElement;
         this.addHTML();
         this.rootElement.addEventListener('input', (ev) => this.handleInputEvent(ev));
@@ -169,14 +182,14 @@ class View {
         this.viewModel = viewModel;
         this.viewModel.setView(this);
     }
-    getDisplayElement(field /*: string */) {
+    getDisplayElement(field) {
         const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`);
         if (displayElement == null) {
             Log.warn(`SymmetryObjectControl.View.getDisplayElement: search for unknown data binding ${field}`);
         }
         return displayElement;
     }
-    getFieldValue(field /*: string */) {
+    getFieldValue(field) {
         let result;
         const displayElement = this.getDisplayElement(field);
         if (displayElement instanceof HTMLInputElement) {
@@ -192,7 +205,7 @@ class View {
         }
         return result;
     }
-    update(field /*: string */, value /*: any */) {
+    update(field, value) {
         const displayElement = this.getDisplayElement(field);
         if (displayElement instanceof HTMLInputElement) {
             if (displayElement.type.toLowerCase() == 'range') {
@@ -205,19 +218,19 @@ class View {
         else if (field == 'diagram_select') {
             const symmetryObjectIndex = this.viewModel.group.symmetryObjects
                 .findIndex((symmetryObject) => symmetryObject.name == value);
-            displayElement.setAttribute('data-index', symmetryObjectIndex);
+            displayElement.setAttribute('data-index', symmetryObjectIndex.toString());
             displayElement.innerHTML = value;
         }
     }
     // generic input event handler, forwards to ViewModel
-    handleInputEvent(inputEvent /*: InputEvent */) {
+    handleInputEvent(inputEvent) {
         const field = inputEvent.target.getAttribute('data-bind');
         if (field != null) {
             inputEvent.stopPropagation();
             this.viewModel.updateModel(field, this.getFieldValue(field));
         }
     }
-    handleClickEvent(clickEvent /*: MouseEvent */) {
+    handleClickEvent(clickEvent) {
         const action = clickEvent.target.closest('[data-action]')?.getAttribute('data-action');
         if (action == null) {
             const maybeMockSelect = clickEvent.target.closest('.mock-select');

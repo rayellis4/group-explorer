@@ -1,35 +1,24 @@
+/*
+
+# CycleGraphView
+
+This component draws a 2D cycle graph group visualization using HTML canvas 2D graphics.
+
+It is the 'view' part of the general model ([Group](./Group.js.md)) - view - controller
+([CycleGraphDisplay](./CycleGraphDisplay.js.md), [HighlightControl](./HighlightControl.js.md))
+structure of the [CycleGraph](./CycleGraph.html.md) page.
+
+It is used to draw the main cycle graph in the [CycleGraph](./CycleGraph.html.md) page, as
+well as thumbnails in the main [GroupExplorer](./GroupExplorer.html.md) and
+[GroupInfo](./GroupInfo.html.md) pages.
+
+```javascript
+ */
 import * as CycleGraphViewUI from './CycleGraphViewUI.js';
 import * as GEUtils from './GEUtils.js';
 import * as Log from './Log.js';
-import { THREE } from '../lib/externals.js';
-export { CycleGraphViewModel, CycleGraphView, createUnlabelledCycleGraphView, createLargeCycleGraphView /* CycleGraphView */, createInteractiveCycleGraphView /* CycleGraphView */ };
-/*::
-import {Group} from './Group.js'
-import type {VizDisplay} from './SheetModel.js';
-import type {Updatable, SubscriptionProxy} from './GEUtils.js'
-import {CycleGraphModel} from './CycleGraphModel.js'
-
-export type CycleGraphJSON = {
-    groupURL: string,
-    highlightColors: Array<Array<?color>>,
-    highlightControl: any,
-};
-
-type CycleGraphOptions = {
-    container?: HTMLElement,
-    group?: Group,
-};
-
-type Coordinate = {x: float, y: float};
-type Path = {
-    pts: Array<Coordinate>,
-    partIndex?: number,
-    part?: Array<Array<groupElement>>,
-    cycleIndex?: number,
-    cycle?: Array<groupElement>,
-    pathIndex?: number,
-};
-*/
+import * as THREE from '../lib/externals.js';
+export { CycleGraphViewModel, CycleGraphView, createUnlabelledCycleGraphView, createLargeCycleGraphView /* CycleGraphViewModel */, createInteractiveCycleGraphView /* CycleGraphViewModel */ };
 const DEFAULT_MIN_CANVAS_HEIGHT = 200;
 const DEFAULT_MIN_CANVAS_WIDTH = 200;
 const DEFAULT_MIN_RADIUS = 30;
@@ -43,18 +32,18 @@ const HIGHLIGHT_TOP = 2;
 ViewModel
 View
  */
-class CycleGraphViewModel /*:: implements Updatable */ {
-    #model; /*: CycleGraphModel */
-    #view; /*: CycleGraphView */
-    #modelFields /*: Array<string> */ = [
+class CycleGraphViewModel {
+    #model;
+    #view;
+    #group;
+    #modelFields = [
         'group',
         'highlightColors'
     ];
-    #group;
     get view() {
         return this.#view;
     }
-    set view(view /*: CycleGraphView */) {
+    set view(view) {
         this.#view = view;
         if (this.model != null) {
             this.#modelFields.forEach((field) => this.update(field, this.model[field]));
@@ -63,10 +52,10 @@ class CycleGraphViewModel /*:: implements Updatable */ {
     get model() {
         return this.#model;
     }
-    set model(cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */) {
+    set model(cycleGraphModel) {
         this.#model = cycleGraphModel;
         this.#modelFields.forEach((field) => {
-            this.model.$subscribe(this, field);
+            this.#model.$subscribe(this, field);
             this.update(field, this.model[field]);
         });
     }
@@ -76,7 +65,7 @@ class CycleGraphViewModel /*:: implements Updatable */ {
     get highlightColors() {
         return this.model?.highlightColors ?? [[], [], []];
     }
-    update(field /*: string */, value /*: any */) {
+    update(field, value) {
         if (this.view == null) {
             return;
         }
@@ -90,7 +79,7 @@ class CycleGraphViewModel /*:: implements Updatable */ {
         }
     }
     // Functions used by Sheet
-    setSize(x /*: number */, y /*: number */) { this.view.setSize(x, y); }
+    setSize(x, y) { this.view.setSize(x, y); }
     resize() { this.view.resize(); }
     showGraphic() { this.view.queueShowGraphic(); }
     unitSquarePositions() { return this.view.unitSquarePositions(); }
@@ -101,24 +90,24 @@ class CycleGraphViewModel /*:: implements Updatable */ {
     draw(group) { this.#group = group; }
 }
 class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
-    viewModel; /*: CycleGraphViewModel */
-    bbox; /*: {left: number, right: number, top: number, bottom: number} */
-    canvas; /*: HTMLCanvasElement */
-    closestTwoPositions; /*: number */
-    context; /*: CanvasRenderingContext2D */
-    cyclePaths; /*: Array<Path> */
-    cycles; /*: Array<Array<groupElement>> */
-    displays_labels; /*: boolean */
-    options; /*: CycleGraphOptions */
-    partIndices; /*: Array<number> */
-    positions; /*: Array<Coordinate> */
-    radius; /*: number */
-    rings; /*: Array<number> */
-    show_request /*: boolean */ = false;
-    transform /*: THREE.Matrix3 */ = new THREE.Matrix3(); // current cycleGraph -> screen transformation
-    translate /*: {dx: number, dy: number} */ = { dx: 0, dy: 0 }; // user-supplied translation, in screen coordinates
-    zoomFactor /*: number */ = 1; // user-supplied scale factor multiplier
-    constructor(options /*: CycleGraphOptions */ = {}) {
+    viewModel;
+    bbox;
+    canvas;
+    closestTwoPositions;
+    context;
+    cyclePaths;
+    cycles;
+    displays_labels;
+    options;
+    partIndices;
+    positions;
+    radius;
+    rings;
+    show_request = false;
+    transform = new THREE.Matrix3(); // current cycleGraph -> screen transformation
+    translate = { dx: 0, dy: 0 }; // user-supplied translation, in screen coordinates
+    zoomFactor = 1; // user-supplied scale factor multiplier
+    constructor(options = {}) {
         this.canvas = (document.createElement(`canvas`) /*:: as any as HTMLCanvasElement */);
         const container = options.container || document.createElement('div');
         container.appendChild(this.canvas);
@@ -135,7 +124,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     get size() {
         return { w: this.canvas.width, h: this.canvas.height };
     }
-    set size(newSize /*: {w: number, h: number} */) {
+    set size(newSize) {
         const { w, h } = newSize;
         if (this.canvas.width != w || this.canvas.height != h) {
             this.canvas.width = Math.round(w);
@@ -145,7 +134,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     getSize() {
         return this.size;
     }
-    setSize(w /*: number */, h /*: number */) {
+    setSize(w, h) {
         this.size = { w, h };
     }
     resize() {
@@ -192,8 +181,8 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
         // calculate node radius in cycleGraph units
         const max_cg_dimension = Math.max(bbox.right - bbox.left, bbox.top - bbox.bottom);
-        const pixels2cg = (val /*: number */) => val * Math.min((bbox.right - bbox.left) / this.canvas.width, (bbox.top - bbox.bottom) / this.canvas.height);
-        const bestSize = (r /*: number */) => r * Math.max(10, 8 + 2.5 * max_cg_dimension / this.closestTwoPositions, 200 / r); // min size = 200
+        const pixels2cg = (val) => val * Math.min((bbox.right - bbox.left) / this.canvas.width, (bbox.top - bbox.bottom) / this.canvas.height);
+        const bestSize = (r) => r * Math.max(10, 8 + 2.5 * max_cg_dimension / this.closestTwoPositions, 200 / r); // min size = 200
         if (this.displays_labels) {
             this.radius = Math.min(this.closestTwoPositions / 2.5, max_cg_dimension / 10);
         }
@@ -336,21 +325,21 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         this.zoomFactor = 1;
         this.translate = { dx: 0, dy: 0 };
     }
-    zoom(factor /*: number */) {
+    zoom(factor) {
         this.queueShowGraphic();
         this.zoomFactor = this.zoomFactor * factor;
         this.move(this.translate.dx * (factor - 1), this.translate.dy * (factor - 1)); // keep model centered in canvas
         return this;
     }
     // deltaX, deltaY are in screen coordinates
-    move(deltaX /*: float */, deltaY /*: float */) {
+    move(deltaX, deltaY) {
         this.translate.dx += deltaX;
         this.translate.dy += deltaY;
         return this;
     }
     // given screen coordinates, returns element associated with node,
     //   or 'undefined' if not within one radius
-    select(screenX /*: number */, screenY /*: number */) {
+    select(screenX, screenY) {
         // compute cycleGraph coordinates from screen coordinates by inverting this.transform
         const cg_coords = new THREE.Vector2(screenX, screenY).applyMatrix3(this.transform.clone().invert());
         const index = this.positions.findIndex((pos) => {
@@ -360,7 +349,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     }
     // Be able to answer the question of where in the diagram any given element is drawn.
     // We answer in normalized coordinates, [0,1]x[0,1].
-    unitSquarePosition(element /*: groupElement */) {
+    unitSquarePosition(element) {
         const virtualCoords = new THREE.Vector3(this.positions[element].x, this.positions[element].y, 0), 
         // multiplying a transform by a vector does not translate it, unfortunately:
         untranslatedCanvasCoords = virtualCoords.applyMatrix3(this.transform), 
@@ -394,7 +383,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         return this.viewModel.highlightColors;
     }
     // orbit of an element in the group, but skipping the identity
-    orbitOf(g /*: groupElement */) {
+    orbitOf(g) {
         let result = [0];
         let next;
         while (next = this.group.mult(result[result.length - 1], g))
@@ -403,7 +392,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         return result;
     }
     // element to a power
-    raiseToThe(h /*: groupElement */, n /*: number */) {
+    raiseToThe(h, n) {
         let result = 0;
         for (let i = 0; i < n; i++)
             result = this.group.mult(result, h);
@@ -412,7 +401,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     // how soon does the orbit of g intersect the given list of elements?
     // that is, consider the smallest power of g that appears in the array;
     // at what index does it appear?
-    howSoonDoesOrbitIntersect(g /*: groupElement */, array /*: Array<groupElement> */) {
+    howSoonDoesOrbitIntersect(g, array) {
         let orbit = this.orbitOf(g);
         let power = 0;
         for (let walk = g; walk != 0; walk = this.group.mult(walk, g)) {
@@ -427,7 +416,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     // to g," meaning the power t such that the orbit [e,h^t,h^2t,...]
     // intersects the orbit [e,g,g^2,...] as early as possible (in the orbit
     // of g).
-    bestPowerRelativeTo(h /*: groupElement */, g /*: groupElement */) {
+    bestPowerRelativeTo(h, g) {
         let orbit_g = this.orbitOf(g);
         let bestPower = 0;
         let bestIndex = orbit_g.length;
@@ -457,8 +446,8 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         }
         // for ( let i = 0 ; i < this.group.order ; i++ ) Log.debug( i, this.group.representations[this.group.representationIndex][i] );
         // compute a list of cycles
-        let cycles /*: Array<Array<groupElement>> */ = [];
-        let notYetPlaced /*: Array<groupElement> */ = eltsByName.slice();
+        let cycles = [];
+        let notYetPlaced = eltsByName.slice();
         notYetPlaced.splice(notYetPlaced.indexOf(0), 1);
         while (notYetPlaced.length > 0) {
             // find the element with the maximum order
@@ -485,9 +474,9 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         // partition the cycles, forming a list of lists.
         // begin with all cycles in their own part of the partition,
         // and we will unite parts until we can no longer do so.
-        let partition /*: Array<Array<Array<groupElement>>> */ = cycles.map(cycle => [cycle]);
+        let partition = cycles.map(cycle => [cycle]);
         let that = this;
-        function uniteParts(partIndex1 /*: number */, partIndex2 /*: number */) {
+        function uniteParts(partIndex1, partIndex2) {
             partition[partIndex2].forEach(cycle => {
                 let cycleGen = cycle[0];
                 let partGen = partition[partIndex1][0][0];
@@ -496,10 +485,10 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
             });
             partition.splice(partIndex2, 1);
         }
-        function flattenPart(part /*: Array<Array<groupElement>> */) {
-            return part.reduce((acc, cur) => acc.concat(cur));
+        function flattenPart(part) {
+            return part.reduce((acc, cur) => acc.concat(cur), []);
         }
-        function arraysIntersect(a1 /*: Array<groupElement> */, a2 /*: Array<groupElement> */) {
+        function arraysIntersect(a1, a2) {
             return a1.findIndex(elt => a2.indexOf(elt) > -1) > -1;
         }
         let keepChecking = true;
@@ -534,10 +523,10 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
         // } );
         // assign arc sizes to parts of the partition
         // (unless there is only one part, the degenerate case)
-        let cumsums /*: Array<number> */ = [];
+        let cumsums = [];
         if (partition.length > 1) {
             // find the total sizes of all cycles in each part
-            let partSizes /*: Array<number> */ = [];
+            let partSizes = [];
             for (let i = 0; i < partition.length; i++) {
                 let size = 0;
                 for (let j = 0; j < partition[i].length; j++)
@@ -546,7 +535,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
             }
             // assign angles proportional to those sizes,
             // but renormalize to cap the max at 180 degrees if needed
-            let total /*: number */ = 0;
+            let total = 0;
             partSizes.forEach(x => total += x);
             let max = Math.max.apply(null, partSizes);
             if (max > total / 2) {
@@ -589,7 +578,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
             let r = part.length / maxPartLength;
             let R = Math.sqrt(Math.max(r, 0.25));
             part.forEach((cycle, cycleIndex) => {
-                let f = (ringNum /*: integer */, idx /*: integer */, t /*: integer */) => {
+                let f = (ringNum, idx, t) => {
                     let theta = 2 * Math.PI
                         * ((idx + t) / (cycle.length + 1) - 0.25);
                     return mutate(-R * Math.cos(theta), R * (1 + Math.sin(theta)), cumsums[partIndex], cumsums[partIndex + 1], ringNum / part.length);
@@ -603,7 +592,7 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
                         // Log.debug( `rings[${curr}] := ${cycleIndex}` );
                         this.positions[curr] = f(this.rings[curr], i, 1);
                     }
-                    let path /*: Path */ = { pts: [] };
+                    let path = { pts: [] };
                     const step = 0.02;
                     // Log.debug( `connecting ${this.rings[prev]} to ${this.rings[curr]}` );
                     // if ( prev && curr && this.partIndices[prev] != this.partIndices[curr] )
@@ -652,19 +641,19 @@ class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
     }
 }
 // gcd of two natural numbers
-function gcd(n /*: number */, m /*: number */) { return m ? gcd(m, n % m) : n; }
+function gcd(n, m) { return m ? gcd(m, n % m) : n; }
 // ease-in-out curves, one going uphill from (0,0) to (1,1)
-function easeUp(t /*: float */) {
+function easeUp(t) {
     return (Math.cos((1 - t) * Math.PI) + 1) / 2;
 }
 // and another going downhill, from (0,1) to (1,0)
-function easeDown(t /*: float */) { return 1 - easeUp(1 - t); }
+function easeDown(t) { return 1 - easeUp(1 - t); }
 // generic linear interpolation function
-function interp(A /*: float */, B /*: float */, t /*: float */) { return (1 - t) * A + t * B; }
+function interp(A, B, t) { return (1 - t) * A + t * B; }
 // mutating a point in the upper half plane to sit within the arc
 // defined by two given angles alpha and beta, pulled toward the
 // center of that arc with a specific level of gravity, 0<=g<=1.
-function mutate(x /*: float */, y /*: float */, alpha /*: float */, beta /*: float */, g /*: float */) {
+function mutate(x, y, alpha, beta, g) {
     const r = Math.sqrt(x * x + y * y);
     const theta = Math.atan2(y, x);
     const theta2 = interp(alpha, beta, theta / Math.PI);
@@ -678,7 +667,7 @@ function mutate(x /*: float */, y /*: float */, alpha /*: float */, beta /*: flo
     };
 }
 //////////////////////////////   Factory methods   //////////////////////////////
-function createUnlabelledCycleGraphView(options /*: CycleGraphOptions */ = {}) {
+function createUnlabelledCycleGraphView(options = {}) {
     const viewModel = new CycleGraphViewModel();
     const view = new CycleGraphView(options);
     view.displays_labels = false;
@@ -687,7 +676,7 @@ function createUnlabelledCycleGraphView(options /*: CycleGraphOptions */ = {}) {
     viewModel.view = view;
     return viewModel;
 }
-function createLargeCycleGraphView(model /*: SubscriptionProxy<CycleGraphModel> */, options /*: CycleGraphOptions */ = {}) {
+function createLargeCycleGraphView(model, options = {}) {
     const viewModel = new CycleGraphViewModel();
     const view = new CycleGraphView(options);
     view.displays_labels = true;
@@ -697,7 +686,7 @@ function createLargeCycleGraphView(model /*: SubscriptionProxy<CycleGraphModel> 
     viewModel.view = view;
     return viewModel;
 }
-function createInteractiveCycleGraphView(model /*: SubscriptionProxy<CycleGraphModel> */, options /*: CycleGraphOptions */ = {}) {
+function createInteractiveCycleGraphView(model, options = {}) {
     const viewModel = createLargeCycleGraphView(model, options);
     CycleGraphViewUI.addGestures(viewModel.view);
     return viewModel;

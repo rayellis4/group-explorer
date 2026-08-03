@@ -33,7 +33,19 @@ describe('createModelProxy tests', function () {
             done()
          }, 10)
       })
-
+      
+      it('does not notify subscriber after unsubscribing', function (done) {
+         const proxy = createModelProxy({x: 0})
+         const timeoutId = setTimeout(() => { expect(timeoutId).to.exist; done() }, 0)
+         const subscriber = { update (field, value) {
+            expect(timeoutId).to.be.undefined
+            cancelTimeout(timeoutId)
+            done()
+         } }
+         proxy.$subscribe( subscriber, 'x')
+         proxy.$unsubscribe( subscriber, 'x')
+         proxy.x = 42
+      })
    })
 
    describe('Map-valued field proxying', function () {

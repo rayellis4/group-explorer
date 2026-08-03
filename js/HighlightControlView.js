@@ -1,5 +1,5 @@
 var _a;
-/* @flow
+/*
 # HighlightControlView - View for Subset and Highlighting
 
 HighlightControlView implements the View layer of HighlightControl's MVVM pattern.
@@ -12,20 +12,16 @@ import { BitSet } from './BitSet.js';
 import * as GEUtils from './GEUtils.js';
 import * as Log from './Log.js';
 import { makeFixedMenu, makeDetachedMenu, makeDialog } from './UIComponents.js';
-/*::
-import type {HighlightControlViewModel} from './HighlightControlViewModel.js'
- */
-export { HighlightControlView };
 /*
 ```
 ## View
 ```js
  */
-class HighlightControlView {
-    viewModel; /*: HighlightControlViewModel */
-    rootElement; /*: HTMLElement */
-    itemMap /*: Array<?DisplayItemView> */ = [];
-    constructor(viewModel /*: HighlightControlViewModel */, rootElement /*: HTMLElement */) {
+export class HighlightControlView {
+    viewModel;
+    rootElement;
+    itemMap = [];
+    constructor(viewModel, rootElement) {
         this.viewModel = viewModel;
         this.rootElement = rootElement;
         // Create document fragment to lay out HighlightControl UI and
@@ -38,7 +34,7 @@ class HighlightControlView {
         // setup finished, let viewModel add its items
         viewModel.view = this;
     }
-    addElement(displayItem /*: DisplayItem */) {
+    addElement(displayItem) {
         new DisplayItemView(displayItem, this);
         this.updateHighlightMark();
     }
@@ -54,9 +50,10 @@ class HighlightControlView {
          </li>`;
         return html;
     }
-    makeLongList(subsetView /*: AbstractSubsetView */, htmlGenerator /*: (AbstractSubsetView, AbstractSubsetView) => string */) {
-        const result = Array.from(this.viewModel.displayMap.values()).reduce((list /*: Array<html> */, item) => {
-            if (['Subgroop', 'Subset', 'ConjugacyClass', 'OrderClass', 'Coset'].includes(item?.className) && subsetView.id != item.id) {
+    makeLongList(subsetView, htmlGenerator) {
+        const result = Array.from(this.viewModel.displayMap.values()).reduce((list, item) => {
+            if (['Subgroop', 'Subset', 'ConjugacyClass', 'OrderClass', 'Coset'].includes(item?.className)
+                && subsetView.id != item.id) {
                 const itemView = this.itemMap[item.id];
                 list.push(htmlGenerator(subsetView, itemView));
             }
@@ -65,7 +62,7 @@ class HighlightControlView {
             .join('');
         return result;
     }
-    removeElement(displayItem /*: DisplayItem */) {
+    removeElement(displayItem) {
         const displayItemView = this.itemMap[displayItem.id];
         if (displayItemView != null) {
             displayItemView.destroy();
@@ -73,7 +70,7 @@ class HighlightControlView {
             this.updateHighlightMark();
         }
     }
-    #showHeaderMenu(event /*: MouseEvent */) {
+    #showHeaderMenu(event) {
         const headerMenu = `<ul id="header-menu">
             <li data-action="this.makeSubsetEditor()">Create ${this.nextSubsetName()}</li>
             <hr>
@@ -88,11 +85,11 @@ class HighlightControlView {
             <li data-action="this.viewModel.clearAllHighlightColors()">Clear all highlighting</li>
           </ul>`;
         makeDetachedMenu(headerMenu, event)
-            .then((action, _event) => eval(action));
+            .then((action) => action ? eval(action) : {});
     }
-    showItemMenu(event /*: MouseEvent */, subsetId /*: number */) {
+    showItemMenu(event, subsetId) {
         const menu = this.itemMap[subsetId].menu;
-        const actionElement = (event.target.closest('[data-action]') /*:: as any as HTMLElement */);
+        const actionElement = event.target.closest('[data-action]');
         actionElement.style.backgroundColor = 'var(--list-highlight)';
         makeDetachedMenu(menu, event)
             .then((action) => {
@@ -103,22 +100,22 @@ class HighlightControlView {
             }
         });
     }
-    intersectionItemHTML(subsetView /*: AbstractSubsetView */, otherSubsetView /*: AbstractSubsetView */) {
+    intersectionItemHTML(subsetView, otherSubsetView) {
         return `
          <li data-action="this.viewModel.createDerivedSubset('intersection',${subsetView.id},${otherSubsetView.id})"
             >the intersection of ${subsetView.name} with ${otherSubsetView.name}</li>`;
     }
-    unionItemHTML(subsetView /*: AbstractSubsetView */, otherSubsetView /*: AbstractSubsetView */) {
+    unionItemHTML(subsetView, otherSubsetView) {
         return `
          <li data-action="this.viewModel.createDerivedSubset('union',${subsetView.id},${otherSubsetView.id})"
             >the union of ${subsetView.name} with ${otherSubsetView.name}</li>`;
     }
-    elementwiseProductItemHTML(subsetView /*: AbstractSubsetView */, otherSubsetView /*: AbstractSubsetView */) {
+    elementwiseProductItemHTML(subsetView, otherSubsetView) {
         return `
          <li data-action="this.viewModel.createDerivedSubset('elementwiseProduct',${subsetView.id},${otherSubsetView.id})"
             >the elementwise product of ${subsetView.name} with ${otherSubsetView.name}</li>`;
     }
-    highlightItemHTML(itemView /*: DisplayItemView */) {
+    highlightItemHTML(itemView) {
         const html = [
             '<ul>'
         ];
@@ -136,10 +133,10 @@ class HighlightControlView {
             }
         }, 0);
     }
-    async confirmSubsetSave(matchingSubsets /*: Array<Subgroop | Subset> */, explanation /*: ?html */, type /*: 'closure' | 'normalizer' | 'union' | 'intersection' | 'elementwiseProduct' | void */, subset /*: ?AbstractSubset */, subset2 /*: ?AbstractSubset */) {
+    async confirmSubsetSave(matchingSubsets, explanation, type = null, subset = null, subset2 = null) {
         if (explanation == null) {
             const subsetView = this.itemMap[subset.id];
-            const subset2View = this.itemMap[subset2?.id];
+            const subset2View = (subset2 == null) ? null : this.itemMap[subset2.id];
             explanation = (subset2View == null)
                 ? subsetView[`${type}Explanation`]
                 : subsetView[`${type}Explanation`](subset2View);
@@ -175,7 +172,7 @@ class HighlightControlView {
           </div>`;
         const location = { clientX: 'calc(3ch + (100% - 70ch) / 2)', clientY: 'calc(3em + (100% - 15em) / 4)' };
         const confirmationDialog = makeDialog(confirmationHTML, location);
-        const confirmation = await new Promise /*:: <boolean> */((resolve, _reject) => {
+        const confirmation = await new Promise((resolve, _reject) => {
             confirmationDialog.addEventListener('click', (event) => {
                 const dataValue = event.target.closest('button[data-value]')?.getAttribute('data-value');
                 if (dataValue != null) {
@@ -189,7 +186,7 @@ class HighlightControlView {
     nextSubsetName() {
         return `<i>S</i><sub>${this.viewModel.nextSubsetIndex}</sub>`;
     }
-    makeSubsetEditor(subsetId /*: ?integer */) {
+    makeSubsetEditor(subsetId) {
         const subset = (subsetId == null) ? null : this.viewModel.displayMap.get(subsetId);
         if (subset?.className === 'Subset') {
             new SubsetEditor(this.viewModel, this.itemMap[subsetId].name, subset.elements);
@@ -202,7 +199,7 @@ class HighlightControlView {
         this.itemMap.forEach((itemView) => itemView?.htmlElement?.remove());
         this.itemMap.length = 0;
     }
-    static highlightControlHTML /*: html */ = `<style>
+    static highlightControlHTML = `<style>
           #subset-page {
               -webkit-user-select: none;
               -webkit-tap-highlight-color: transparent;
@@ -285,13 +282,13 @@ class HighlightControlView {
 ```js
  */
 class DisplayItemView {
-    item; /*: DisplayItem */
-    view; /*: HighlightControlView */
-    viewModel; /*: HighlightControlViewModel */
-    htmlElement; /*: ?HTMLElement */ // Subgroop, Subset, Partition items
-    partitionViews; /*: Array<DisplayItemView> */ // PartitioningScheme items
-    schemeView; /*: ?DisplayItemView */ // Partition items: back-reference to parent scheme view
-    constructor(item /*: DisplayItem */, view /*: HighlightControlView */, schemeView /*: ?DisplayItemView */ = null) {
+    item;
+    view;
+    viewModel;
+    htmlElement; // Subgroop, Subset, Partition items
+    partitionViews; // PartitioningScheme items
+    schemeView; // Partition items: back-reference to parent scheme view
+    constructor(item, view, schemeView = null) {
         this.item = item;
         this.view = view;
         this.viewModel = view.viewModel;
@@ -308,7 +305,7 @@ class DisplayItemView {
     }
     get id() { return this.item.id; }
     get rootElement() { return this.view.rootElement; }
-    get elements() { return this.item.elements; }
+    get elements() { return 'elements' in this.item ? this.item.elements : null; }
     // ---- name ----------------------------------------------------------------
     get name() {
         const item = this.item;
@@ -327,9 +324,11 @@ class DisplayItemView {
                 name = `<i>OC</i><sub>${item.subIndex}</sub>`;
                 break;
             case 'Coset': {
-                const rep = this.viewModel.group.representation[item.elements.first()];
-                const subgroopName = this.view.itemMap[item.partitioningScheme.subgroop.id].name;
-                name = item.partitioningScheme.isLeft ? rep + subgroopName : subgroopName + rep;
+                const coset = item;
+                const cosetPartitioningScheme = coset.partitioningScheme;
+                const rep = this.viewModel.group.representation[coset.elements.first()];
+                const subgroopName = this.view.itemMap[cosetPartitioningScheme.subgroop.id].name;
+                name = cosetPartitioningScheme.side == 'left' ? rep + subgroopName : subgroopName + rep;
                 break;
             }
             case 'ConjugacyClasses':
@@ -394,15 +393,18 @@ class DisplayItemView {
         if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(this.item.className)) {
             this.partitionViews.forEach((pv) => pv.destroy());
             if (this.rootElement.querySelectorAll('#partitions li').length == 1) {
-                this.rootElement.querySelectorAll('#partitions .placeholder').forEach((el) => el.style.display = '');
+                const placeholder = this.rootElement.querySelector('#partitions .placeholder');
+                placeholder.style.display = '';
             }
         }
         else if (this.item.className === 'Subset') {
-            if (this.htmlElement.parentElement.querySelectorAll('li').length == 2) {
-                this.htmlElement.parentElement.querySelectorAll('li.placeholder')
-                    .forEach((el) => el.style.display = '');
+            const subsetElement = this.htmlElement;
+            const subsetList = subsetElement.parentElement;
+            if (subsetList.querySelectorAll('li').length == 2) {
+                const placeholder = subsetList.querySelector('li.placeholder');
+                placeholder.style.display = '';
             }
-            this.htmlElement.remove();
+            subsetElement.remove();
         }
         else {
             this.htmlElement?.remove();
@@ -419,7 +421,9 @@ class DisplayItemView {
     // ---- helpers shared by displayLine / menu --------------------------------
     // toggle over partition element toggles highlighting the entire partition
     get clickAction() {
-        const itemId = this.item.partitioningScheme?.id ?? this.id;
+        const itemId = ('partitioningScheme' in this.item)
+            ? this.item.partitioningScheme.id
+            : this.id;
         return `data-action="event.preventDefault(); this.viewModel.toggleColorHighlight(${itemId})"`;
     }
     get contextAction() {
@@ -482,7 +486,8 @@ class DisplayItemView {
         if (this.item.className === 'Subset') {
             const subgroop = Array.from(this.viewModel.displayMap.values())
                 .filter((el) => el?.className === 'Subgroop')
-                .find((subgroop) => this.viewModel.group.subgroups[subgroop.subgroupIndex].members.equals(this.elements));
+                .find((subgroop) => this.viewModel.group.subgroups[subgroop.subgroupIndex].members
+                .equals(this.elements));
             if (subgroop == null) {
                 return baseInfo;
             }
@@ -501,13 +506,13 @@ class DisplayItemView {
         return `It is the normalizer of ${this.name}, Norm(${this.name}). This means that it
          is the largest subgroup of ${this.viewModel.group.name} in which ${this.name} is normal.`;
     }
-    unionExplanation(otherView /*: DisplayItemView */) {
+    unionExplanation(otherView) {
         return `It is the union of ${this.name} with ${otherView.name}.`;
     }
-    intersectionExplanation(otherView /*: DisplayItemView */) {
+    intersectionExplanation(otherView) {
         return `It is the intersection of ${this.name} with ${otherView.name}.`;
     }
-    elementwiseProductExplanation(otherView /*: DisplayItemView */) {
+    elementwiseProductExplanation(otherView) {
         return `It is the elementwise product of ${this.name} with ${otherView.name}. This means that it
          is the set of all elements <i>ab</i> in ${this.viewModel.group.name}, with <i>a</i> from ${this.name}
          and b from ${otherView.name}. Note that the elementwise product operation is not
@@ -515,12 +520,13 @@ class DisplayItemView {
     }
     get elementRepresentations() {
         const result = [];
-        for (let i = 0; i < this.elements.len && result.length < 3; i++) {
-            if (this.elements.isSet(i)) {
+        const elements = this.elements;
+        for (let i = 0; i < elements.len && result.length < 3; i++) {
+            if (elements.isSet(i)) {
                 result.push(this.viewModel.group.representation[i]);
             }
         }
-        if (this.elements.popcount() > 3) {
+        if (elements.popcount() > 3) {
             result.push('...');
         }
         return result;
@@ -529,20 +535,23 @@ class DisplayItemView {
     // ---- private: constructor helpers ----------------------------------------
     #buildScheme() {
         // All PartitioningScheme subclasses build partition views the same way
-        this.partitionViews = this.item.partitions.map((partition) => new _a(partition, this.view, this));
-        this.rootElement.querySelectorAll('#partitions .placeholder').forEach((el) => el.style.display = 'none');
+        this.partitionViews = this.item.partitions
+            .map((partition) => new _a(partition, this.view, this));
+        this.rootElement.querySelector('#partitions .placeholder').style.display = 'none';
         this.partitionViews.forEach((pv) => pv.#mountPartition());
     }
     #appendToSection() {
+        const thisElement = this.htmlElement;
         if (this.item.className === 'Subgroop') {
-            this.rootElement.querySelector('#subgroups ul').append(this.htmlElement);
-            this.htmlElement.querySelector('details').addEventListener('toggle', (event) => {
+            ;
+            this.rootElement.querySelector('#subgroups ul').append(thisElement);
+            thisElement.querySelector('details').addEventListener('toggle', (event) => {
                 event.target.insertAdjacentHTML('beforeend', this.info);
             }, { once: true });
         }
         else if (this.item.className === 'Subset') {
-            this.rootElement.querySelector('#subsets ul')?.append(this.htmlElement);
-            this.rootElement.querySelectorAll('#subsets li.placeholder').forEach((el) => el.style.display = 'none');
+            this.rootElement.querySelector('#subsets ul')?.append(thisElement);
+            this.rootElement.querySelector('#subsets li.placeholder').style.display = 'none';
         }
     }
     #mountPartition() {
@@ -582,7 +591,8 @@ class DisplayItemView {
     }
     #subsetDisplayLine() {
         const numElements = this.elements.popcount();
-        const elements = this.elements.toArray().slice(0, 3).map((el) => this.viewModel.group.representation[el]);
+        const elements = this.elements.toArray().slice(0, 3)
+            .map((el) => this.viewModel.group.representation[el]);
         if (numElements > 3)
             elements.push('...');
         return `<li id="${this.id}">
@@ -595,14 +605,16 @@ class DisplayItemView {
     #conjugacyClassDisplayLine() {
         return `<li id="${this.id}" class="conjugacyClass">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
-               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} } is a conjugacy class of size ${this.elements.popcount()}.
+               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} }
+                  is a conjugacy class of size ${this.elements.popcount()}.
             </span></summary>${this.info}</details>
          </li>`;
     }
     #orderClassDisplayLine() {
         return `<li id="${this.id}" class="orderClass">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
-               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} } is an order class of size ${this.elements.popcount()}.
+               ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} }
+                  is an order class of size ${this.elements.popcount()}.
             </span></summary>${this.info}</details>
          </li>`;
     }
@@ -611,7 +623,7 @@ class DisplayItemView {
         return `<li id="${this.id}" class="${cosets.side}coset${cosets.subgroop.id}">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
                ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} } is the
-               ${cosets.isLeft ? 'left' : 'right'} coset of ${this.view.itemMap[cosets.subgroop.id].name} by
+               ${cosets.side} coset of ${this.view.itemMap[cosets.subgroop.id].name} by
                ${this.viewModel.group.representation[this.elements.toArray()[0]]}.
             </span></summary>${this.info}</details>
          </li>`;
@@ -743,9 +755,9 @@ _a = DisplayItemView;
 ```js
  */
 class SubsetEditor {
-    editorDialog; /*: HTMLElement */
-    viewModel; /*: HighlightControlViewModel */
-    constructor(viewModel /*: HighlightControlViewModel */, setName /*: html */, setElements /*: BitSet */) {
+    editorDialog;
+    viewModel;
+    constructor(viewModel, setName, setElements) {
         this.viewModel = viewModel;
         const subset = [];
         const complement = [];
@@ -818,7 +830,7 @@ class SubsetEditor {
                 }
                 #subset-editor .subset {
                    width: 50%;
-                   margin: 0 0.2ch;
+                      margin: 0 0.2ch;
                 }
                 #subset-editor button {
                    width: 8ch;
@@ -853,7 +865,7 @@ class SubsetEditor {
             this.close();
         }
     }
-    swapElement(elementNumber /*: number */) {
+    swapElement(elementNumber) {
         // find list containing this element, either elements in list or elements not in list
         const selectedListElement = this.editorDialog.querySelector(`[data-element="${elementNumber}"]`);
         const containingList = selectedListElement?.closest('ul[id]');

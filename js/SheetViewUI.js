@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SheetViewUI
 
@@ -31,7 +31,7 @@
  */
 /* global TouchEvent */
 import * as GEUtils from './GEUtils.js';
-import * as View from './SheetView.js';
+import * as SheetView from './SheetView.js';
 import { TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor } from './SheetModelEditors.js';
 import { makeDetachedMenu, makeDialog } from './UIComponents.js';
 import { recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizeZoom, recognizeMoveResize } from './Gestures.js';
@@ -42,20 +42,19 @@ import type {MulttableJSON} from './MulttableView.js'
 
 type VizDispJSON = CayleyDiagramJSON | CycleGraphJSON | MulttableJSON
  */
-export { init };
 /*
 ## init
 
 Top level sheet controller, recognizes top-level user inputs
 ````javascript
  */
-function init(viewModel, displayElement) {
+export function init(viewModel, displayElement) {
     new SheetEventUI(viewModel, displayElement);
 }
 class SheetEventUI {
-    viewModel; /*: SheetViewModel */
-    rootElement; /*: HTMLElement */
-    #redrawTimer /*: ?TimeoutID */ = null;
+    viewModel;
+    rootElement;
+    #redrawTimer = null;
     constructor(viewModel, rootElement) {
         this.viewModel = viewModel;
         this.rootElement = rootElement;
@@ -67,20 +66,26 @@ class SheetEventUI {
     }
     // Click / tap, then drag to move; or drag resize handle / pinch-spread to resize
     setupSelect() {
-        // Select element for resize
-        recognizeSelect(this.rootElement, (event) => {
-            const selectedElement = document
-                .elementFromPoint(event.clientX, event.clientY) // element under mouse click
-                .closest('.NodeElement, .LinkElement'); // closest containing Node/Link
-            const modelElement = this.viewModel.modelElements.get(selectedElement?.getAttribute('id'));
-            if (modelElement?.isNode) {
+        recognizeSelect(this.rootElement, // Select element for resize
+        (event) => {
+            const clickedElement = document.elementFromPoint(event.clientX, event.clientY);
+            const selectedNodeOrLink = clickedElement?.closest('.NodeElement, .LinkElement');
+            const modelElement = this.viewModel.modelElements.get(selectedNodeOrLink?.getAttribute('id') ?? '');
+            if (modelElement == null)
+                return;
+            if ('isNode' in modelElement) {
                 this.resizeElement(modelElement);
             }
-            else if (modelElement?.isLink) {
-                const clickedElement = document.elementFromPoint(event.clientX, event.clientY);
+            else if ('isLink' in modelElement) {
                 const viewElement = modelElement.viewElement;
-                const arrow = viewElement?.arrows?.find((arrow) => arrow.line == clickedElement || arrow.head == clickedElement)
-                    ?? viewElement?.arrow;
+                let arrow;
+                if ('arrows' in viewElement) {
+                    arrow = viewElement.arrows
+                        .find((arrow) => arrow.line == clickedElement || arrow.head == clickedElement);
+                }
+                if (arrow == null) {
+                    arrow = viewElement.arrow;
+                }
                 if (arrow != null) {
                     arrow.highlightColor = (arrow.highlightColor == null) ? '#00ff00' : null;
                     viewElement.redraw();
@@ -92,7 +97,7 @@ class SheetEventUI {
         // raise domElement z-index to show above other elements
         const domElement = document.querySelector(`[id="${modelElement.id}"]`);
         const originalZIndex = domElement.style.zIndex;
-        domElement.style.zIndex = 1000;
+        domElement.style.zIndex = '1000';
         // create modal shield above entire #graphic or #display or body
         const { left: ghostLeft, top: ghostTop, width: ghostWidth, height: ghostHeight } = domElement.getBoundingClientRect();
         const resizeHTML = `<div id="sheet-resize-ghost" style="width: ${ghostWidth}px; height: ${ghostHeight}px;">
@@ -150,16 +155,16 @@ class SheetEventUI {
     setupContextMenu() {
         recognizeContextMenu(this.rootElement, (event) => {
             const selectedElement = document.elementFromPoint(event.clientX, event.clientY);
-            const domElement = selectedElement.closest('.NodeElement, .LinkElement');
+            const domElement = selectedElement?.closest('.NodeElement, .LinkElement');
             const elementId = domElement?.getAttribute('id');
-            const modelElement = this.viewModel.modelElements.get(elementId);
+            const modelElement = this.viewModel.modelElements.get(elementId ?? '');
             if (modelElement == null) {
-                View.redrawAll();
+                SheetView.redrawAll();
             }
-            else if (modelElement.isLink) {
+            else if ('isLink' in modelElement) {
                 this.getEditor(modelElement, event);
             }
-            else if (modelElement.isNode) {
+            else if ('isNode' in modelElement) {
                 this.makeContextMenu(modelElement, event);
             }
         });
@@ -170,13 +175,13 @@ class SheetEventUI {
             `<ul id="element-context-menu" data-action="() => void 0">
          <li data-action="this.resizeElement(modelElement)">Resize</li>
          <li data-action="this.getEditor(modelElement, event)">Edit</li>`,
-            (modelElement.isVisualizer)
+            ('isVisualizer' in modelElement)
                 ? '<li data-action="openInfo()">Group Info</li>'
                 : '',
             `<li data-action="modelElement.copy()">Copy</li>
          <hr>
          <li data-action="this.createConnection(modelElement)">Create Connection</li>`,
-            (modelElement.isVisualizer)
+            ('isVisualizer' in modelElement)
                 ? `<li data-action="this.createMorphism(modelElement)">Create Map</li>`
                 : '',
             `<li data-action="this.setAnchor(modelElement)">Set Anchor</li>`,
@@ -194,9 +199,7 @@ class SheetEventUI {
         ].join('');
         const openInfo = () => window.open('./GroupInfo.html?groupURL=' + modelElement.group.URL);
         makeDetachedMenu(contextMenuHTML, event)
-            .then((action) => {
-            eval(action);
-        });
+            .then((action) => (action != null) && eval(action));
     }
     // Left click drag to move element
     setupMove() {
@@ -205,26 +208,28 @@ class SheetEventUI {
             if (domElement != null && redrawTimerId == null) {
                 const element = this.viewModel.modelElements.get(domElement.getAttribute('id'));
                 const id = element?.anchor_id ?? element?.id;
-                redrawTimerId = window.setTimeout(() => {
-                    if (dx != 0 || dy != 0) {
-                        this.viewModel.move(id, dx, dy);
-                    }
-                    redrawTimerId = null;
-                }, 0);
+                if (id != null) {
+                    redrawTimerId = window.setTimeout(() => {
+                        if (dx != 0 || dy != 0) {
+                            this.viewModel.move(id, dx, dy);
+                        }
+                        redrawTimerId = null;
+                    }, 0);
+                }
             }
         });
     }
     // Right click drag to pan sheet
     setupDragAndDrop() {
         recognizeDragAndDrop(this.rootElement, (_startEvent, previousEvent, endEvent, _isDrop) => {
-            View.pan(endEvent.clientX - previousEvent.clientX, endEvent.clientY - previousEvent.clientY);
+            SheetView.pan(endEvent.clientX - previousEvent.clientX, endEvent.clientY - previousEvent.clientY);
             this.scheduleRedraw();
         }, { rightClick: true });
     }
     // Resize sheet with mouse wheel if no element is selected
     setupZoom() {
         recognizeZoom(this.rootElement, (zoomFactor) => {
-            View.zoom(1 + zoomFactor);
+            SheetView.zoom(1 + zoomFactor);
             this.scheduleRedraw();
         });
     }
@@ -236,22 +241,25 @@ class SheetEventUI {
         }
         const allVisualizerElements = Array
             .from(this.viewModel.modelElements.values())
-            .filter((el) => el.isVisualizer)
-            .sort((a, b) => (a?.group?.URL == b?.group?.URL) ? 0 : (a?.group?.URL < b?.group?.URL) ? -1 : 1);
+            .filter((el) => 'isVisualizer' in el)
+            .sort((a, b) => (a.group.URL == b.group.URL) ? 0 : (a.group.URL < b.group.URL) ? -1 : 1);
         this.#redrawTimer = window.setTimeout((els) => {
             els.forEach((el) => el.viewElement?.redraw());
             this.#redrawTimer = null;
         }, 250, allVisualizerElements);
     }
     getEditor(modelElement, event) {
-        if (modelElement.isVisualizer) {
+        if ('isVisualizer' in modelElement) {
             RemoteEditor.editElement(modelElement);
         }
-        else if (modelElement.className === 'ConnectingElement' || modelElement.className === 'MorphismElement') {
-            new (modelElement.className === 'MorphismElement' ? MorphismEditor : ConnectionEditor)(modelElement, event);
+        else if (modelElement.className === 'ConnectingElement') {
+            new ConnectionEditor(modelElement, event);
+        }
+        else if (modelElement.className === 'MorphismElement') {
+            new MorphismEditor(modelElement, event);
         }
         else {
-            new TextEditor(modelElement, event); // TextElement and RectangleElement
+            new TextEditor(modelElement, event);
         }
     }
     moveForward(modelElement) {
@@ -290,16 +298,16 @@ class SheetEventUI {
     }
     #nodesSortedByZ() {
         return Array.from(this.viewModel.modelElements.values())
-            .filter((el) => el.isNode)
+            .filter((el) => 'isNode' in el)
             .sort((a, b) => a.z - b.z);
     }
     createConnection(source) {
-        const test = (target, source) => this.validLinkTarget(target, source, () => true);
+        const test = (target, source) => this.validLinkTarget('ConnectingElement', source, target);
         const action = (destination) => this.makeLink('ConnectingElement', source, destination);
         this.createLink(source, 'Target', test, action);
     }
     createMorphism(source) {
-        const test = (target, source) => this.validLinkTarget(target, source, (dest) => dest.isNode);
+        const test = (target, source) => this.validLinkTarget('MorphismElement', source, target);
         const action = (destination) => this.makeLink('MorphismElement', source, destination);
         this.createLink(source, 'Target', test, action);
     }
@@ -337,7 +345,7 @@ class SheetEventUI {
         });
         const onclick = (event) => {
             document.querySelectorAll('.outlined').forEach((el) => el.classList.remove('outlined'));
-            const actionElement = event.target.closest('[data-action]');
+            const actionElement = event.target?.closest('[data-action]');
             const action = actionElement?.getAttribute('data-action');
             if (linkingDialog.contains(actionElement) && action != null) {
                 linkingDialog.remove();
@@ -357,31 +365,26 @@ class SheetEventUI {
             }
         };
     }
-    validLinkTarget(maybeTarget, source, targetTest) {
-        const maybeDestination = this.viewModel.modelElements.get(maybeTarget.getAttribute('id'));
-        if (maybeDestination == null)
-            return null;
-        const isSource = maybeDestination === source;
-        const isLinkedToSource = Array.from(this.viewModel.modelElements.values())
-            .some((el) => el.isLink &&
-            ((el.source === source && el.destination === maybeDestination) ||
-                (el.source === maybeDestination && el.destination === source)));
-        return (targetTest(maybeDestination) && !isSource && !isLinkedToSource) ? maybeDestination : null;
+    validLinkTarget(linkType, source, maybeTarget) {
+        const maybeDestination = this.viewModel.modelElements.get(maybeTarget.getAttribute('id') ?? '');
+        return this.viewModel.model.canConnect(linkType, source, maybeDestination) ? maybeDestination : null;
     }
     makeLink(type, source, destination) {
-        const linkJson = { source_name: source.name, destination_name: destination.name };
+        const linkJson = { className: type, source_id: source.id, destination_id: destination.id };
         const link = this.viewModel.addObjectAsElement(linkJson, type);
         const midpoint = source.viewElement.center.add(destination.viewElement.center).multiplyScalar(0.5);
-        const displayPos = View.modelToDisplay(midpoint);
-        this.getEditor(link, { clientX: displayPos.x + View.graphicRect.x, clientY: displayPos.y + View.graphicRect.y });
+        const displayPos = SheetView.modelToDisplay(midpoint);
+        this.getEditor(link, { clientX: displayPos.x + SheetView.graphicRect.x, clientY: displayPos.y + SheetView.graphicRect.y });
     }
     validAnchor(maybeTarget, source) {
-        const maybeDestination = this.viewModel.modelElements.get(maybeTarget.getAttribute('id'));
-        return (maybeDestination == null || maybeDestination == source) ? null : maybeDestination;
+        const maybeDestination = this.viewModel.modelElements.get(maybeTarget.getAttribute('id') ?? '');
+        return (maybeDestination != null && 'isNode' in maybeDestination && maybeDestination != source)
+            ? maybeDestination
+            : null;
     }
     makeAnchor(source, destination) {
         if (this.validAnchor(destination.viewElement.domElement, source)) {
-            const zoom = View.zoomFactor;
+            const zoom = SheetView.zoomFactor;
             this.viewModel.move(source.id, (destination.x - source.x) * zoom, (destination.y + destination.h - source.y) * zoom);
             this.viewModel.resize(source.id, destination.w - source.w, 0);
             source.anchor_id = destination.id;

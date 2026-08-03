@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # NamingSchemeInfo
 
@@ -14,17 +14,17 @@ pages, and persist across GE3 invocations.
 import * as GEUtils from './GEUtils.js'
 import * as Library from './Library.js'
 
-export {displayDefaultNames, displayLoadedNames, displayUserNames}
+import type { Group } from './Group.ts'
 
-function displayDefaultNames (defaultNamesElementId, group) {
-   const defaultNamesElement = document.getElementById(defaultNamesElementId)
+export function displayDefaultNames (defaultNamesElementId: string, group: Group) {
+   const defaultNamesElement = document.getElementById(defaultNamesElementId) as HTMLElement
    defaultNamesElement.innerHTML = makeDefaultNamesContent(group)
 
-   document.getElementById('content')
+   ;(document.getElementById('content') as HTMLElement)
       .addEventListener('representationChange', () => defaultNamesElement.innerHTML = makeDefaultNamesContent(group))
 }
 
-function makeDefaultNamesContent (group) {
+function makeDefaultNamesContent (group: Group) {
    const htmlFragments = [
       `<details open>
           <summary>
@@ -42,19 +42,19 @@ function makeDefaultNamesContent (group) {
    return htmlFragments.join('')
 }
 
-function displayLoadedNames (loadedNamesElementId, group) {
-   const loadedNamesElement = document.getElementById(loadedNamesElementId)
+export function displayLoadedNames (loadedNamesElementId: string, group: Group) {
+   const loadedNamesElement = document.getElementById(loadedNamesElementId) as HTMLElement
    loadedNamesElement.innerHTML = makeLoadedNamesContent(group, loadedNamesElementId)
 
    GEUtils.createActionHandler(loadedNamesElement, (action) => eval(action))
 
-   document.getElementById('content')
+   ;(document.getElementById('content') as HTMLElement)
       .addEventListener('representationChange',
          () => loadedNamesElement.innerHTML = makeLoadedNamesContent(group, loadedNamesElementId))
 }
 
-function makeLoadedNamesContent (group, loadedNamesElementId) {
-   const loadedSchemeHTML = (index) => {
+function makeLoadedNamesContent (group: Group, loadedNamesElementId: string) {
+   const loadedSchemeHTML = (index: integer) => {
       return [
          '<div class="stack-03em">',
            '<table style="line-height: 1">',
@@ -86,29 +86,29 @@ function makeLoadedNamesContent (group, loadedNamesElementId) {
    return htmlFragments.join('')
 }
 
-function setRepresentationByIndex (contentElementId, group, index) {
+function setRepresentationByIndex (contentElementId: string, group: Group, index: integer) {
    group.representation = group.representations[index]
    Library.saveGroup(group)
    updateDisplay(contentElementId, group)
 }
 
-function displayUserNames (userNamesElementId, group) {
+export function displayUserNames (userNamesElementId: string, group: Group) {
    updateUserNames(userNamesElementId, group)
 
-   const userNamesElement = document.getElementById(userNamesElementId)
+   const userNamesElement = document.getElementById(userNamesElementId) as HTMLElement
    GEUtils.createActionHandler(userNamesElement, (action) => eval(action))
 
-   document.getElementById('content')
+   ;(document.getElementById('content') as HTMLElement)
       .addEventListener('representationChange',
          () => userNamesElement.innerHTML = makeUserNamesContent(group, userNamesElementId))
 }
 
-function updateUserNames (userNamesElementId, group) {
-   const userNamesElement = document.getElementById(userNamesElementId)
+function updateUserNames (userNamesElementId: string, group: Group) {
+   const userNamesElement = document.getElementById(userNamesElementId) as HTMLElement
    userNamesElement.innerHTML = makeUserNamesContent(group, userNamesElementId)
 }
 
-function makeUserNamesContent (group, userNamesElementId) {
+function makeUserNamesContent (group: Group, userNamesElementId: string) {
    const htmlFragments = [
       `<details open>
           <summary>
@@ -119,7 +119,7 @@ function makeUserNamesContent (group, userNamesElementId) {
    if (group.userRepresentations.length == 0) {
       htmlFragments.push('<i>none</i><br>')
    } else {
-      const userRepresentationHTML = (index) => {
+     const userRepresentationHTML = (index: integer) => {
          const options = (group.representation == group.userRepresentations[index])
             ? `The default naming scheme is shown above<br>
                If you wish to edit or remove this representation,
@@ -162,21 +162,21 @@ function makeUserNamesContent (group, userNamesElementId) {
    return htmlFragments.join('')
 }
 
-function createUserRepresentation (contentElementId, group) {
+function createUserRepresentation (contentElementId: string, group: Group) {
    group.userRepresentations.push(group.elements.map((el) => el.toString()))
    Library.saveGroup(group)
-   document.getElementById(contentElementId).innerHTML = makeUserNamesContent(group, contentElementId)
+   ;(document.getElementById(contentElementId) as HTMLElement).innerHTML = makeUserNamesContent(group, contentElementId)
 }
 
-function setUserRepresentationByIndex (contentElementId, group, index) {
+function setUserRepresentationByIndex (contentElementId: string, group: Group, index: integer) {
    group.representation = group.userRepresentations[index]
    Library.saveGroup(group)
    updateDisplay(contentElementId, group)
 }
 
-function editUserRepresentation (contentElementId, group, index) {
+function editUserRepresentation (contentElementId: string, group: Group, index: integer) {
    // replace innerHTML of data-user-representation-index == index div
-   const userRepresentationHTML = (index) =>
+   const userRepresentationHTML = (index: integer) =>
       [
        '<table>',
           ...group.elements.map((el) =>
@@ -198,32 +198,42 @@ function editUserRepresentation (contentElementId, group, index) {
        '</div>',
       ].join('')
 
-   const contentElement = document.getElementById(contentElementId)
-   contentElement.querySelector(`[data-user-representation-index="${index}"]`).innerHTML = userRepresentationHTML(index)
+   const userRepresentationElement = document
+      .getElementById(contentElementId)
+      ?.querySelector(`[data-user-representation-index="${index}"]`) as HTMLElement
+   userRepresentationElement.innerHTML = userRepresentationHTML(index)
 }
 
-function removeUserRepresentation (contentElementId, group, index) {
+function removeUserRepresentation (contentElementId: string, group: Group, index: integer) {
    group.deleteUserRepresentation(index)
    Library.saveGroup(group)
-   document.getElementById(contentElementId).innerHTML = makeUserNamesContent(group, contentElementId)
+   ;(document.getElementById(contentElementId) as HTMLElement).innerHTML = makeUserNamesContent(group, contentElementId)
 }
 
-function previewEdit (contentElementId, index) {
-   const contentElement = document.getElementById(contentElementId)
-   contentElement.querySelectorAll(`[data-user-representation-index="${index}"] tr`)
-      .forEach((el) => el.children[2].innerHTML = el.children[3].children[0].value)
+function previewEdit (contentElementId: string, index: integer) {
+   const contentElement = document.getElementById(contentElementId) as HTMLElement
+   const userRepresentationElements =
+      Array.from(contentElement.querySelectorAll(`[data-user-representation-index="${index}"] tr`))
+         .filter((node: Node) => node instanceof HTMLElement)
+
+   userRepresentationElements
+      .forEach((el) => el.children[2].innerHTML = (el.children[3].children[0] as HTMLTextAreaElement).value)
 }
 
-function saveEdit (contentElementId, group, index) {
+function saveEdit (contentElementId: string, group: Group, index: integer) {
+   const contentElement = document.getElementById(contentElementId) as HTMLElement
    group.userRepresentations[index] = Array
-      .from(document.getElementById(contentElementId).querySelectorAll(`[data-user-representation-index="${index}"] tr`))
-      .map((row) => row.children[3].children[0].value)
+      .from(contentElement.querySelectorAll(`[data-user-representation-index="${index}"] tr`))
+      .map((row) => (row.children[3].children[0] as HTMLTextAreaElement).value)
    Library.saveGroup(group)
-   document.getElementById(contentElementId).innerHTML = makeUserNamesContent(group, contentElementId)
+   contentElement.innerHTML = makeUserNamesContent(group, contentElementId)
 } 
 
 // Notify dependent display elements when changing the default representation
-function updateDisplay (contentElementId, group) {
+function updateDisplay (contentElementId: string, group: Group) {
    const representationChangeEvent = new CustomEvent('representationChange', {})
-   document.getElementById(contentElementId).closest('.all-info').dispatchEvent(representationChangeEvent)
+   const allInfoElement = document
+      .getElementById(contentElementId)
+      ?.closest('.all-info') as HTMLElement
+   allInfoElement.dispatchEvent(representationChangeEvent)
 }

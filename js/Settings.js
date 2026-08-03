@@ -1,22 +1,24 @@
-// @flow
+/*
+# Settings
+
+Manages user settings
+
+```js
+ */
 import * as Library from './Library.js';
 import { makeDialog } from './UIComponents.js';
 import * as StoredObjects from './StoredObjects.js';
-export { getFilterConfig, loadSettings, showDialog };
-/*::
-type SettingsKey = 'showExtendedLt32' | 'showExtendedGe32' | 'showNotable' | 'showGenerated'
-*/
-const DEFAULTS /*: {[SettingsKey]: boolean} */ = {
+const DEFAULTS = {
     showExtendedLt32: false,
     showExtendedGe32: false,
     showNotable: false,
     showGenerated: false,
 };
 // in-memory cache — authoritative source for this tab
-const cache /*: {[SettingsKey]: boolean} */ = Object.assign({}, DEFAULTS);
+const cache = Object.assign({}, DEFAULTS);
 // populate cache from IndexedDB.Settings; called from AutoUpgrade.initialize
-async function loadSettings() {
-    const storedSettings = await StoredObjects.getSettings();
+export async function loadSettings() {
+    const storedSettings = (await StoredObjects.getSettings()) ?? {};
     Object.assign(cache, storedSettings);
 }
 // listen for settings changes from other tabs and update cache from message
@@ -27,19 +29,22 @@ new BroadcastChannel('GE3-channel').addEventListener('message', (ev) => {
     if (values != null)
         Object.assign(cache, values);
 });
-function getFilterConfig() {
+export function getFilterConfig() {
     return { ...cache };
 }
-async function set(newSettings /*: {[SettingsKey]: boolean} */) {
+async function set(newSettings) {
     Object.assign(cache, newSettings);
     await StoredObjects.saveSettings(cache);
     new BroadcastChannel('GE3-channel').postMessage({ source: 'settings', values: { ...cache } });
 }
-function showDialog() {
+export function showDialog() {
     const center = { clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 };
     const modal = makeDialog(dialogHTML(), center);
     // initialize checkboxes from current cache — changes held in DOM until Save
-    Object.entries(cache).forEach(([key, value]) => modal.querySelector(`#settings-${key}`).checked = value);
+    Object.entries(cache).forEach(([key, value]) => {
+        const inputElement = modal.querySelector(`#settings-${key}`);
+        inputElement.checked = value;
+    });
     const deleteButton = modal.querySelector('#settings-delete-generated');
     const updateDeleteButton = () => {
         deleteButton.disabled = !Library.getAllGroups().some((G) => G.library === 'generated');
@@ -51,13 +56,15 @@ function showDialog() {
             updateDeleteButton();
         }
     });
-    modal.querySelector('#settings-cancel').addEventListener('click', () => modal.remove());
-    modal.querySelector('#settings-save').addEventListener('click', () => {
-        const newSettings /*: {[SettingsKey]: boolean} */ = {};
+    const cancelSettingsButton = modal.querySelector('#settings-cancel');
+    cancelSettingsButton.addEventListener('click', () => modal.remove());
+    const saveSettinggsButton = modal.querySelector('#settings-save');
+    saveSettinggsButton.addEventListener('click', () => {
+        const newSettings = {};
         modal.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
             const key = checkbox.id.replace('settings-', '');
             if (key in DEFAULTS)
-                newSettings[(key /*: SettingsKey */)] = checkbox.checked;
+                newSettings[key] = checkbox.checked;
         });
         set(newSettings);
         modal.remove();

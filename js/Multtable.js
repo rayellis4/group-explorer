@@ -1,4 +1,10 @@
-// @flow
+/*
+# Multtable
+
+Assembles large multtable visualizer html page
+
+```js
+ */
 import { ControlPanel } from './ControlPanel.js';
 import { createModelProxy } from './GEUtils.js';
 import * as Heading from './Heading.js';
@@ -9,24 +15,20 @@ import { MulttableModel } from './MulttableModel.js';
 import { createInteractiveMulttableView } from './MulttableView.js';
 import * as SheetEditor from './SheetEditor.js';
 import * as Log from './Log.js';
-export { load };
-/*::
-import type {Group} from './Group.js'
- */
 // Load group from invocation URL and complete setup
-async function load() {
+export async function load() {
     insertHTML();
     document.body.addEventListener('contextmenu', (ev) => ev.preventDefault());
     // If this page is editing a sheet...
-    const { elementId, json: initialJSON } /*: unknown */ = await (window.location.href.includes('SheetEditor')
+    const { elementId, json: initialJSON } = (await (window.location.href.includes('SheetEditor')
         ? SheetEditor.getInitialData()
-        : { elementId: null, json: null });
+        : { elementId: null, json: null }));
     // Get group, either from page URL or data from Sheet
-    const group /*: Group */ = await ((initialJSON?.group_url == null)
+    const group = await ((initialJSON?.group_url == null)
         ? Library.loadFromPageURL()
         : Library.getGroupByURL(initialJSON.group_url));
     // Create Header
-    Heading.display((document.getElementById('heading') /*:: as any as HTMLElement */), `Multiplication Table for ${group.name}`, () => [
+    Heading.display(document.getElementById('heading'), `Multiplication Table for ${group.name}`, () => [
         { label: 'Group Info', action: () => window.open(`GroupInfo.html?groupURL=${group.URL}`) },
         { label: 'Group Library', action: () => window.open('GroupExplorer.html') },
         { label: 'New Sheet', action: () => window.open('Sheet.html') },
@@ -34,7 +36,7 @@ async function load() {
         { label: 'Multiplication Table Help', action: () => window.open('help/rf-um-mt-options/index.html') }
     ]);
     // Create Multtable model
-    const multtableModel /*: SubscriptionProxy<MulttableModel> */ = createModelProxy(new MulttableModel(group));
+    const multtableModel = createModelProxy(new MulttableModel(group));
     // Create multtableView in graphic div and attach to multtableModel
     const multtableViewModel = createInteractiveMulttableView(multtableModel, {
         container: document.getElementById('graphic')

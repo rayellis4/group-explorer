@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # CayleyViewControl
 
@@ -23,22 +23,23 @@ before any values are pushed to it.
  */
 import * as Log from './Log.js'
 
-export {addControl}
-/*::
-import type {CayleyDiagramModel} from './CayleyDiagramModel.js'
-import type {Updatable, SubscriptionProxy} from './GEUtils.js'
- */
+import type { CayleyDiagramModel } from './CayleyDiagramModel.js'
+import type { Updatable, SubscriptionProxy } from './GEUtils.js'
+
 // create ViewModel and View, wire to the CayleyDiagramModel proxy
-function addControl (cayleyViewControlElement /*: HTMLElement */, cayleyDiagramModel /*: SubscriptionProxy<CayleyDiagramModel> */) {
+export function addControl (
+   cayleyViewControlElement: HTMLElement,
+   cayleyDiagramModel: SubscriptionProxy<CayleyDiagramModel>
+) {
    const viewModel = new ViewModel()
    viewModel.setModel(cayleyDiagramModel)
    viewModel.setView(new View(cayleyViewControlElement))
 }
 
 // ViewModel converts CayleyDiagramModel properties <=> View slider values
-class ViewModel /*:: implements Updatable */ {
-   model /*: SubscriptionProxy<CayleyDiagramModel> */
-   modelFields /*: Array<string> */ = [
+class ViewModel implements Updatable {
+   model!: CayleyDiagramModel
+   modelFields: (keyof CayleyDiagramModel)[] = [
       'zoom_level',
       'line_width',
       'sphere_scale_factor',
@@ -46,25 +47,25 @@ class ViewModel /*:: implements Updatable */ {
       'label_scale_factor',
       'arrowhead_placement',
    ]
-   view /*: View */
+   view!: View
 
-   setModel (model /*: SubscriptionProxy<CayleyDiagramModel> */) {
+   setModel (model: SubscriptionProxy<CayleyDiagramModel>) {
       this.model = model
-      this.modelFields.forEach((field) => this.model.$subscribe(this, field))
+      this.modelFields.forEach((field) => model.$subscribe(this, field))
    }
 
-   setView (view /*: View */) {
+   setView (view: View) {
       this.view = view
       view.viewModel = this
       this.modelFields.forEach((field) => this.update(field, this.model[field]))
    }
 
-   getFromView (field /*: string */) /*: any */ {
+   getFromView (field: string): any {
       return this.view.getFieldValue(field)
    }
 
    // handles input events from View, updates Model
-   updateModel (field /*: string */, value /*: any */) {
+   updateModel (field: string, value: any) {
       switch (field) {
       case 'zoom_level':
          this.model.zoom_level = Math.exp(value / 10)
@@ -91,7 +92,7 @@ class ViewModel /*:: implements Updatable */ {
    }
 
    // field update callbacks from Model — convert to slider values and push to View directly
-   update (field /*: string */, value /*: any */) {
+   update (field: string, value: any) {
       switch (field) {
       case 'zoom_level':
          this.view.update('zoom_level', 10 * Math.log(value))
@@ -122,17 +123,17 @@ class ViewModel /*:: implements Updatable */ {
 
    // Button data-action strings are eval'd here so `this` resolves to the ViewModel,
    // giving them access to `this.model` for writing request fields directly.
-   executeCommand (command /*: string */) {
+   executeCommand (command: string) {
       eval(command)
    }
 }
 
 // View has html to display values on sliders, field events from input elements
 class View {
-   rootElement /*: HTMLElement */
-   viewModel /*: ViewModel */  // set by ViewModel.setView
+   rootElement: HTMLElement
+   viewModel!: ViewModel  // set by ViewModel.setView
 
-   constructor (rootElement /*: HTMLElement */) {
+   constructor (rootElement: HTMLElement) {
       this.rootElement = rootElement
       this.addHTML()
       this.rootElement.addEventListener('input', (ev) => this.handleInputEvent(ev))
@@ -182,16 +183,17 @@ class View {
           </div>`
    }
 
-   getDisplayElement (field /*: string */) /*: ?HTMLElement */{
+   getDisplayElement (field: string): Maybe<HTMLElement> {
       const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`)
       if (displayElement == null) {
-         Log.err('')
+         Log.warn(`unable to find element with data binding = ${field}`)
+         return null
       }
 
-      return displayElement
+      return displayElement as HTMLElement
    }
 
-   getFieldValue (field /*: string */) /*: any */ {
+   getFieldValue (field: string): any {
       let result
       const displayElement = this.getDisplayElement(field)
       if (displayElement instanceof HTMLInputElement) {
@@ -204,7 +206,7 @@ class View {
       return result
    }
 
-   update (field /*: string */, value /*: any */) {
+   update (field: string, value: any) {
       const displayElement = this.getDisplayElement(field)
       if (displayElement instanceof HTMLInputElement) {
          if (displayElement.type.toLowerCase() == 'range') {
@@ -216,16 +218,16 @@ class View {
    }
 
    // generic input event handler, forwards to ViewModel
-   handleInputEvent (inputEvent /*: InputEvent */) {
-      const field = inputEvent.target.getAttribute('data-bind')
+   handleInputEvent (inputEvent: InputEvent) {
+      const field = (inputEvent.target as HTMLElement)?.getAttribute('data-bind')
       if (field != null) {
          inputEvent.stopPropagation()
          this.viewModel.updateModel(field, this.getFieldValue(field))
       }
    }
 
-   handleButtonEvent (clickEvent /*: MouseEvent */) {
-      const action = clickEvent.target.closest('[data-action]')?.getAttribute('data-action')
+   handleButtonEvent (clickEvent: MouseEvent) {
+      const action = (clickEvent.target as HTMLElement)?.closest('[data-action]')?.getAttribute('data-action')
       if (action != null) {
          clickEvent.stopPropagation()
          this.viewModel.executeCommand(action)

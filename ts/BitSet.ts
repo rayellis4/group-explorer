@@ -1,4 +1,4 @@
-/* @flow
+/*
 # BitSet
 
 BitSet is a JavaScript representation of a small, fixed-size set, implemented using a typed array of unsigned 32-bit integers.
@@ -15,19 +15,18 @@ BitSets are used throughout GE3, and some implementation decisions were made wit
     * avoids sign extension issues in bit-wise operations
     * default JSON is different from previous Array implementation, requiring `parseJSON` and `toJSON` shims
 ```js
-*/
+ */
 
-/*::
 export type BitSetJSON = {
    len: number,
-   arr: Array<number>
-};
-*/
-export class BitSet {
-   len /*: number */
-   arr /*: Uint32Array */
+   arr: number[]
+}
 
-   constructor (length /*: number */ = 0, init /*:: ?: Array<groupElement> */ = []) {
+export class BitSet {
+   len: number
+   arr: Uint32Array
+
+   constructor (length: number = 0, init: groupElement[] = []) {
       this.len = length;
       this.arr = new Uint32Array(length === 0 ? 0 : (((length - 1) >>> 5) + 1));
       this.arr.fill(0);
@@ -36,11 +35,11 @@ export class BitSet {
       }
    }
 
-   toJSON () /*: BitSetJSON */ {
+   toJSON (): BitSetJSON {
       return { len: this.len, arr: Array.from(this.arr) }
    }
 
-   fromJSON (json /*: string | BitSetJSON */) /*: this */ {
+    fromJSON (json: string | BitSetJSON): this {
       const jsonObject = (typeof json == 'string') ? JSON.parse(json) : json
       this.len = jsonObject.len
       this.arr = Uint32Array.from(jsonObject.arr)
@@ -48,40 +47,40 @@ export class BitSet {
       return this
    }
 
-   static intersection (a /*: BitSet */, b /*: BitSet */) /*: BitSet */ {
+   static intersection (a: BitSet, b: BitSet): BitSet {
       return (a.clone()).intersection(b);
    }
 
-   intersection (other /*: BitSet */) /*: this */ {
+   intersection (other: BitSet): this {
       for (let i = 0; i < this.arr.length; i++) {
          this.arr[i] &= other.arr[i];
       }
       return this;
    }
 
-   static union (a /*: BitSet */, b /*: BitSet */) /*: BitSet */ {
+   static union (a: BitSet, b: BitSet): BitSet {
       return (a.clone()).union(b);
    }
 
-   union (other /*: BitSet */) /*: this */ {
+   union (other: BitSet): this {
       for (let i = 0; i < this.arr.length; i++) {
          this.arr[i] |= other.arr[i];
       }
       return this;
    }
 
-   static difference (a /*: BitSet */, b /*: BitSet */) /*: BitSet */ {
+   static difference (a: BitSet, b: BitSet): BitSet {
       return (a.clone()).difference(b);
    }
 
-   difference (other /*: BitSet */) /*: this */ {
+   difference (other: BitSet): this {
       for (let i = 0; i < this.arr.length; i++) {
          this.arr[i] &= ~ other.arr[i];
       }
       return this;
    }
 
-   complement () /*: this */ {
+   complement (): this {
       for (let i = 0, len = this.len; i < this.arr.length; i++, len -= 32) {
          const mask = 0xFFFFFFFF >>> (32 - Math.min(32,len));
          this.arr[i] = (~ this.arr[i]) & mask;
@@ -89,7 +88,7 @@ export class BitSet {
       return this;
    }
 
-   clone () /*: BitSet */ {
+   clone (): BitSet {
       let other = new BitSet(this.len);
       for (let i = 0; i < this.arr.length; i++) {
          other.arr[i] = this.arr[i];
@@ -97,39 +96,39 @@ export class BitSet {
       return other;
    }
 
-   setFrom (other /*: BitSet */) /*: this */ {
+   setFrom (other: BitSet): this {
       this.len = other.len
       this.arr = Uint32Array.from(other.arr)
       return this;
    }
 
-   clearAll () /*: this */ {
+   clearAll (): this {
       this.arr.fill(0);
       return this;
    }
 
-   setAll () /*: this */ {
+   setAll (): this {
       this.arr.fill(0xFFFFFFFF);
       this.arr[this.arr.length - 1] = 0xFFFFFFFF >>> (0x20 - (this.len & 0x1F));
       return this;
    }
 
-   get (pos /*: number */) /*: number */ {
+   get (pos: number): number {
       return (this.arr[pos >>> 5] & (1 << (pos & 0x1F))) >>> (pos & 0x1F);
    }
 
    // accept an array too?
-   set (pos /*: number */) /*: this */ {
+   set (pos: number): this {
       this.arr[pos >>> 5] |= (1 << (pos & 0x1F));
       return this;
    }
 
-   clear (pos /*: number */) /*: this */ {
+   clear (pos: number): this {
       this.arr[pos >>> 5] &= ~(1 << (pos & 0x1F));
       return this;
    }
 
-   isEmpty () /*: boolean */ {
+   isEmpty (): boolean {
       for (let i = 0; i < this.arr.length - 1; i++) {
          if (this.arr[i] != 0) {
             return false;
@@ -138,11 +137,11 @@ export class BitSet {
       return (this.arr[this.arr.length - 1] & (0xFFFFFFFF >>> (0x20 - (this.len & 0x1F)))) == 0;
    }
 
-   isSet (pos /*: number */) /*: boolean */ {
+   isSet (pos: number): boolean {
       return (this.arr[pos >>> 5] & (1 << (pos & 0x1F))) !== 0;
    }
 
-   pop () /*: ?number */ {
+   pop (): Maybe<number> {
       const first = this.first();
       if (first != undefined) {
          this.clear(first);
@@ -150,7 +149,7 @@ export class BitSet {
       return first;
    }
 
-   first () /*: ?number */ {
+   first (): Maybe<number> {
       for (let i = 0; i < this.arr.length; i++) {
          if (this.arr[i] != 0) {
             for (let j = i << 5; j < (i+1) << 5; j++) {
@@ -164,7 +163,7 @@ export class BitSet {
       return undefined;
    }
 
-   equals (other /*: BitSet */) /*: boolean */ {
+   equals (other: BitSet): boolean {
       if (this.len != other.len) {
          return false;
       }
@@ -177,7 +176,7 @@ export class BitSet {
    }
 
    // number of elements in set
-   popcount () /*: number */ {
+   popcount (): number {
       let count = 0;
       for (let i = 0; i < this.arr.length; i++) {
          let v = this.arr[i];
@@ -189,16 +188,16 @@ export class BitSet {
    }
 
    // contains = (this ∩ other) == other
-   contains (otherElements /*: BitSet | Array<groupElement> */) /*: boolean */ {
+   contains (otherElements: BitSet | groupElement[]): boolean {
       const other = (Array.isArray(otherElements)) ? new BitSet(this.len, otherElements) : otherElements;
       return BitSet.intersection(this, other).equals(other)
    }
 
-   add (other /*: BitSet */) /*: this */ {
+   add (other: BitSet): this {
       return this.union(other);
    }
 
-   subtract (other /*: BitSet */) /*: this */ {
+   subtract (other: BitSet): this {
       for (let i = 0; i < this.arr.length; i++) {
          this.arr[i] &= ~other.arr[i];
       };
@@ -206,7 +205,7 @@ export class BitSet {
       return this;
    }
 
-   toArray () /*: Array<number> */ {
+   toArray (): number[] {
       let arr = [];
       for (let i = 0; i < this.len; i++) {
          if (this.isSet(i)) {
@@ -216,11 +215,11 @@ export class BitSet {
       return arr;
    }
 
-   toString () /*: string */ {
+   toString (): string {
       return this.toArray().toString();
    }
 
-   toBitString () /*: string */ {
+   toBitString (): string {
       let str = '';
       for (let i = 0; i < this.len; i++) {
          if (i % 5 == 0)

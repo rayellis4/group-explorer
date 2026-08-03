@@ -1,7 +1,7 @@
 // Unit tests for SheetView coordinate conversion functions:
 // modelToDisplay, displayToModel, fromEvent
 
-import { THREE } from '../lib/externals.js'
+import * as THREE from '../lib/externals.js'
 import * as SheetView from '../js/SheetView.js'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────

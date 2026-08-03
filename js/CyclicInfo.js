@@ -1,16 +1,6 @@
-/* @flow
-
-# CyclicInfo
-
-A [GroupInfo](./GroupInfo.html.md) component that displays whether a group is cyclic.
-
-```javascript
- */
-export { display };
-function display(cyclicInfoElementId, group) {
+export function display(cyclicInfoElementId, group) {
     const cyclicInfoElement = document.getElementById(cyclicInfoElementId);
     cyclicInfoElement.innerHTML = makeCyclicInfoContent(group);
-    // rebuild content on representation change
     cyclicInfoElement.closest('.all-info')
         .addEventListener('representationChange', () => cyclicInfoElement.innerHTML = makeCyclicInfoContent(group));
 }

@@ -1,12 +1,27 @@
 export { equals, fromRainbow, isTouchDevice, measureHTML, htmlToContext, escapeHTML, generateElements, createActionHandler, createModelProxy, countBy, };
 export { version } from './AutoUpgrade.js';
-declare function equals(a: any, b: any): boolean;
-declare function fromRainbow(hue: any, saturation?: number, lightness?: number, offset?: number): string;
+declare function equals(a: any[], b: any[]): boolean;
+declare function fromRainbow(hue: float, saturation?: float, lightness?: float, offset?: float): color;
 declare function isTouchDevice(): boolean;
-declare function measureHTML(html: any, style?: {}): any;
-declare function htmlToContext(html: any, style: any, context: any, center: any): void;
-declare function escapeHTML(string: any): string | null;
-declare function generateElements(html: any): HTMLCollection;
-declare function createActionHandler(element: any, actionCallback: any): void;
-declare function createModelProxy(model: any): any;
-declare function countBy(valueArray: any, indexMap: any): any[];
+declare function measureHTML(html: html, style?: {
+    [key: string]: string;
+}): DOMRect;
+declare function htmlToContext(html: html, style: {
+    [key: string]: string;
+}, context: CanvasRenderingContext2D, center: {
+    x: number;
+    y: number;
+}): void;
+declare function escapeHTML(string: string): string | null;
+declare function generateElements(html: html): HTMLCollection;
+declare function createActionHandler(element: Element, actionCallback: (arg: string) => void): void;
+export interface Updatable {
+    update(field: string, value: any): void;
+}
+export type SubscriptionProxy<T> = T & {
+    $subscribe: (subscriber: Updatable, field: string) => void;
+    $unsubscribe: (subscriber: Updatable, field: string) => void;
+    $touch: (field: string) => void;
+};
+declare function createModelProxy<T extends object>(model: T): SubscriptionProxy<T>;
+declare function countBy(valueArray: any[], indexMap: (el: any) => number): number[];

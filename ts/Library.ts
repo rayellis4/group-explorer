@@ -1,33 +1,37 @@
-// @flow
-
 /*
- * Class manages group definitions stored in localStorage
- *
- * Group definitions are stored as JSON strings, keyed by the URL from which the
- * group was fetched, or the URN from which the group was generated.
- * The group objects created from these JSON strings are cached as key-value pairs
- * in library.
- *
- * Method overview:
- *   absoluteURL -- get absolute URL from relative
- *   dataToGroup -- make group object from JSON string, XML string
- *   deleteGroups -- remove groups from Library
- *   getAllGroups -- return array of groups from Library
- *   getGroupByURL -- return group from Library
- *   getStoredGroups -- get group library from local store
- *   isEmpty -- true if Library contains no groups
- *   loadFromPageURL -- get groupURL from window.location.href and return Promise to load it
- *   saveGroup -- store group in Library
- *   saveLibrary -- save library to local store
- *   updateAllGroups -- refresh remote groups from server
- */
+# Library
+
+Class manages group definitions stored in localStorage
+
+Group definitions are stored as JSON strings, keyed by the URL from which the
+group was fetched, or the URN from which the group was generated.
+The group objects created from these JSON strings are cached as key-value pairs
+in library.
+
+Method overview:
+ * absoluteURL -- get absolute URL from relative
+ * dataToGroup -- make group object from JSON string, XML string
+ * deleteGroups -- remove groups from Library
+ * getAllGroups -- return array of groups from Library
+ * getGroupByURL -- return group from Library
+ * getStoredGroups -- get group library from local store
+ * isEmpty -- true if Library contains no groups
+ * loadFromPageURL -- get groupURL from window.location.href and return Promise to load it
+ * saveGroup -- store group in Library
+ * saveLibrary -- save library to local store
+ * updateAllGroups -- refresh remote groups from server
+
+```js
+*/
 
 import * as DefiningRelations from './DefiningRelations.js'
-import {Group} from './Group.js'
+import { Group } from './Group.js'
 import * as IsomorphicGroups from './IsomorphicGroups.js'
 import * as Log from './Log.js'
 import * as StoredObjects from './StoredObjects.js'
 import * as XMLGroup from './XMLGroup.js'
+
+import type { GroupFileJSON } from './Group.js'
 
 export {
    allVisibleGroups,
@@ -43,12 +47,9 @@ export {
    updateAllGroups
 }
 
-/*::
-import type { MSG_loadGroup } from './SheetModel.js'
-export type libraryType = {[key: string]: Group}
-*/
+type libraryType = {[key: string]: Group}
 
-const library /*: libraryType */ = {}
+const library: libraryType = {}
 
 async function loadLibrary () {
    const storedGroups = await getStoredGroups()
@@ -58,19 +59,19 @@ async function loadLibrary () {
 
 // Populate the in-memory library from a raw stored-groups object (used during DB migration,
 // when the DB connection isn't available for a normal loadLibrary() call)
-function loadFromStoredGroups (storedGroups /*: {[key: string]: any} */) {
+function loadFromStoredGroups (storedGroups: {[key: string]: GroupFileJSON}) {
    Object.entries(storedGroups).forEach(([key, value]) => {
       library[key] = Group.fromLocalCopyJSON(value)
    })
 }
 
 // get absolute URL from relative
-function absoluteURL (url /*: string */) /*: string */ {
+function absoluteURL (url: string): string {
    return new URL(url, window.location.href).href
 }
 
-function dataToGroup (data /*: any */, contentType /*: string */ = '') /*: Group */ {
-  let group /*: Group */
+function dataToGroup (data: any, contentType: string = ''): Group {
+  let group: Group
   if (typeof data === 'string' && data.startsWith('{')) {
      group = Group.fromGroupFileJSON(JSON.parse(data))
   } else if (typeof data === 'string' && data.startsWith('<!DOCTYPE groupexplorerml>')) {
@@ -87,7 +88,7 @@ function dataToGroup (data /*: any */, contentType /*: string */ = '') /*: Group
 }
 
 // delete array of groups from library and update local store
-function deleteGroups (groups /*: Array<Group> */) {
+function deleteGroups (groups: Group[]) {
    for (const group of groups) {
       delete library[group.URL]
       deletedGroupURLs.push(group.URL)
@@ -96,12 +97,12 @@ function deleteGroups (groups /*: Array<Group> */) {
 }
 
 // return array of groups from library
-function getAllGroups () /*: Array<Group> */ {
-   return ((Object.values(library) /*: any */) /*: Array<Group> */)
+function getAllGroups (): Group[] {
+   return Object.values(library)
 }
 
 // return groups visible under the given filter config (from Settings.getFilterConfig())
-function allVisibleGroups (filterConfig /*: {[string]: any} */) /*: Array<Group> */ {
+function allVisibleGroups (filterConfig: {[key: string]: any}): Group[] {
    const groupVisibility = filterConfig.groupVisibility ?? {}
    return getAllGroups().filter((group) => {
       const override = groupVisibility[group.URL]
@@ -115,24 +116,28 @@ function allVisibleGroups (filterConfig /*: {[string]: any} */) /*: Array<Group>
    })
 }
 
-function getGroupsByOrder (order /*: integer */) /*: Array<Group> */ {
+function getGroupsByOrder (order: integer): Group[] {
    return Object.values(library).filter((group) => group.order == order)
 }
 
 // returns group from library by URL, generating it if needed
-function getGroupByURL (url /*: string */) /*: ?Group */ {
-   let group /*: ?Group */ = library[absoluteURL(url)]
+function getGroupByURL (url: string): Maybe<Group> {
+   let group: Maybe<Group> = library[absoluteURL(url)]
    if (group == null) {
       const presentation = new URL(url).search.slice(1)
       if (url.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
          group = DefiningRelations.generateGroupFromPresentation(presentation)
-         group.URL = url
-         saveGroup(group)
+         if (group != null) {
+            group.URL = url
+            saveGroup(group)
+         }
       } else if (url.startsWith(DefiningRelations.EXTENDED_GROUP_PREFIX)) {
          group = DefiningRelations.generateGroupFromPresentation(presentation)
-         group.library = 'extended'
-         group.URL = url
-         saveGroup(group)
+         if (group != null) {
+            group.library = 'extended'
+            group.URL = url
+            saveGroup(group)
+         }
       }
    }
 
@@ -140,20 +145,20 @@ function getGroupByURL (url /*: string */) /*: ?Group */ {
 }
 
 // Read group library from local store
-async function getStoredGroups () /*: Promise<libraryType> */ {
-   const storedGroups = (await StoredObjects.getGroupLibrary()) || {}
+async function getStoredGroups (): Promise<libraryType> {
+   const storedGroups = ((await StoredObjects.getGroupLibrary()) || {}) as libraryType
    Object.entries(storedGroups).forEach(([key, value]) => storedGroups[key] = Group.fromLocalCopyJSON(value))
 
    return storedGroups
 }
 
 // return 'true' if library is empty
-function isEmpty () /*: boolean */ {
+function isEmpty (): boolean {
    return Object.keys(library).length === 0
 }
 
 // get groupURL from page invocation and return promise for resolution from cache or download
-async function loadFromPageURL () /*: Promise<Group> */ {
+async function loadFromPageURL (): Promise<Group> {
    const hrefURL = new URL(window.location.href)
    const groupURL = hrefURL.searchParams.get('groupURL')
    let result
@@ -182,15 +187,15 @@ async function loadFromPageURL () /*: Promise<Group> */ {
 
    return result
 
-   async function downloadGroup (url /*: string */) /*: Promise<Group> */ {
+   async function downloadGroup (url: string): Promise<Group> {
       const groupURL = absoluteURL(url)
-      const result /*: Promise<Group> */ = new Promise((resolve, reject) => {
+      const result: Promise<Group> = new Promise((resolve, reject) => {
          window.fetch(groupURL)
             .then(async (response) => {
                try {
                   if (response.ok) {
                      const data = await response.text()
-                     const contentType = response.headers.get('content-type')
+                     const contentType = response.headers.get('content-type') ?? ''
                      const remoteGroup = dataToGroup(data, contentType)
                      if (remoteGroup == null) {
                         reject(new Error(
@@ -220,7 +225,7 @@ async function loadFromPageURL () /*: Promise<Group> */ {
       return result
    }
 
-   function waitForGroupInMessage () /*: Promise<Group> */ {
+   function waitForGroupInMessage (): Promise<Group> {
       return new Promise((resolve, reject) => {
          /*
           * When this page is loaded in an iframe, the parent window can
@@ -229,16 +234,16 @@ async function loadFromPageURL () /*: Promise<Group> */ {
           * window, with the format { type: 'load group', group: G },
           * where G is the JSON data in question.
           */
-         window.addEventListener('message', function (event /*: MessageEvent */) {
-            const eventData = (event.data /*: any */)
-            if (typeof eventData === 'undefined') {
+         window.addEventListener('message', function (event: MessageEvent) {
+            const eventData: unknown = event.data
+            if (eventData == null) {
                Log.err('empty message received in Library.js:')
                Log.err(eventData)
                reject(new Error('empty message received in Library.js'))
-            } else if (eventData.type === 'load group') {
-               const loadGroupMessage /*: MSG_loadGroup */ = eventData
+            } else if (typeof eventData === 'object' && 'type' in eventData && eventData.type === 'load group') {
+               const loadGroupMessage = eventData
                try {
-                  if (typeof loadGroupMessage.group === 'object') {
+                  if ('group' in loadGroupMessage && typeof loadGroupMessage.group === 'object') {
                      const group = dataToGroup(loadGroupMessage.group, 'json')
                      if (group != null) {
                         library[group.shortName] = group
@@ -260,7 +265,7 @@ async function loadFromPageURL () /*: Promise<Group> */ {
 }
 
 // updates library group definitions and schedules local store update
-function saveGroup (group /*: ?Group */) {
+function saveGroup (group: Maybe<Group>) {
    if (group != null) {
       if (library[group.URL] == null) {
          createdGroupURLs.push(group.URL)
@@ -273,10 +278,10 @@ function saveGroup (group /*: ?Group */) {
 }
 
 // schedule local store group library update
-let savedTimeoutID /*: ?TimeoutID */ = null
-const createdGroupURLs /*: Array<string> */ = []
-const updatedGroupURLs /*: Array<string> */ = []
-const deletedGroupURLs /*: Array<string> */ = []
+let savedTimeoutID: Maybe<number> = null
+const createdGroupURLs: string[] = []
+const updatedGroupURLs: string[] = []
+const deletedGroupURLs: string[] = []
 function scheduleLocalStoreUpdate () {
    if (savedTimeoutID != null) {
       window.clearTimeout(savedTimeoutID)
@@ -305,18 +310,18 @@ function scheduleLocalStoreUpdate () {
 }
 
 // Update all groups in library and from the provided manifest URL list
-async function updateAllGroups (manifestURLs /*: Array<string> */) {
+async function updateAllGroups (manifestURLs: string[]) {
    // replace latest group definitions from server in library
    await loadLibrary()
-   const updateGroup = async (groupURL /*: string */) /*: Promise<void> */ => {
+   const updateGroup = async (groupURL: string): Promise<void> => {
       const localGroup = getGroupByURL(groupURL)
 
-      const options /*: RequestOptions */ = { cache: 'no-cache', mode: 'no-cors' }
+      const options: RequestInit = { cache: 'no-cache', mode: 'no-cors' }
       if (localGroup?.lastModifiedOnServer != null) {
          options.headers = { 'If-Modified-Since': localGroup.lastModifiedOnServer }
       }
 
-      const response /*: Response */ = await window.fetch(groupURL, options)
+      const response: Response = await window.fetch(groupURL, options)
 
       if (response.status == 200) {  // response status == 304 if not modified
          const text = await response.text()
@@ -336,7 +341,7 @@ async function updateAllGroups (manifestURLs /*: Array<string> */) {
    // Collect URLs from the current library and the provided manifest URLs and update them
    await loadLibrary()
 
-   const allURLs /*: Set<string> */ = new Set()
+   const allURLs: Set<string> = new Set()
    Object.values(library || {}).filter((group) => !group.URL.startsWith('data:')).forEach((group) => allURLs.add(group.URL))
    manifestURLs.forEach((url) => allURLs.add(url))
 

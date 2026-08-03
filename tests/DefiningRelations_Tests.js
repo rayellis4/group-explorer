@@ -18,17 +18,21 @@ describe('DefiningRelations -- check Library setup', () => {
 
 describe('DefiningRelations -- test group generation from presentation', () => {
    testGroups.forEach((G) => {
-      it(`testMultiplicationTable(${G.shortName}) should be true`, () => {
-         chai.assert.equal(testMultiplicationTable(G), true)
-      })
+      if (G.shortName != 'Tesseract') {  // don't test Tesseract, it requires user approval when loading
+         it(`testMultiplicationTable(${G.shortName}) should be true`, () => {
+            chai.assert.equal(testMultiplicationTable(G), true)
+         })
+      }
    })
 })
 
 describe('DefiningRelations -- check definitions in groups', () => {
    testGroups.forEach((G) => {
-      it(`testGroupDefinition(${G.shortName}) should be true`, () => {
-         chai.assert.equal(testGroupDefinition(G), true)
-      })
+      if (G.shortName != 'Tesseract') {  // don't test Tesseract, it requires user approval when loading
+         it(`testGroupDefinition(${G.shortName}) should be true`, () => {
+            chai.assert.equal(testGroupDefinition(G), true)
+         })
+      }
    })
 })
 

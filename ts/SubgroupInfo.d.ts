@@ -1,2 +1,2 @@
-export { display };
-declare function display(subgroupInfoElementId: any, group: any): void;
+import type { Group } from './Group.js';
+export declare function display(subgroupInfoElementId: string, group: Group): void;

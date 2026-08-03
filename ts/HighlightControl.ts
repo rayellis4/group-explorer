@@ -1,4 +1,4 @@
-/* @flow
+/*
 # HighlightControl - Subset and Highlighting Management
 
 HighlightControl is the entry point for the subset/highlighting control panel.
@@ -10,20 +10,31 @@ the visualizer model in the model's `highlightControl` slot.
  */
 import {HighlightControlViewModel} from './HighlightControlViewModel.js'
 import {HighlightControlView} from './HighlightControlView.js'
-/*::
-import type {SubscriptionProxy} from './GEUtils.js'
-import {CycleGraphModel} from './CycleGraphModel.js'
- */
-export {addControl}
+
+import type { SubscriptionProxy } from './GEUtils.js'
+import type { Group } from './Group.js'
+
+export interface HighlightControlModelInterface {
+   group: Group,
+   highlightColors: Maybe<color>[][],
+   highlightConfiguration: {  // visualizer-specific highlight parameters
+      highlightTypes: string[],
+      saturation: number[],
+      lightness: number[],
+      hueOffset: number[]
+   },
+   highlightControl: any
+}
+
 /*
 ```
 ## AddControl
 
 ```js
  */
-function addControl (
-   highlightControlElement /*: HTMLElement */,
-   modelProxy /*: SubscriptionProxy<CycleGraphModel> */
+export function addControl (
+   highlightControlElement: HTMLElement,
+   modelProxy: SubscriptionProxy<HighlightControlModelInterface>
 ) {
    const viewModel = new HighlightControlViewModel(modelProxy)  // create ViewModel and connect to Model
    new HighlightControlView(viewModel, highlightControlElement) // create View and connect to ViewModel

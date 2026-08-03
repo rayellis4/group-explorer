@@ -1,8 +1,8 @@
-// @flow
 /*
- * Class holds group definition
- */
-/*
+# Group
+
+Class holds group definition
+
 ```js
  */
 import { BitSet } from './BitSet.js';
@@ -12,35 +12,9 @@ import * as Library from './Library.js';
 import * as MathUtils from './MathUtils.js';
 import * as ShowGAPCode from './ShowGAPCode.js';
 import { SubgroupLattice } from './SubgroupLattice.js';
-/*::
-import type {Tree} from './GEUtils.js';
-import type {SubgroupJSON} from './Subgroup.js';
-
-export type GroupJSON = {
-   multtable: Array<Array<groupElement>>;
-   ...
-};
-
-// patches until these parts are annotated
-type XMLCayleyDiagram = any;
-type XMLSymmetryObject = any;
-
-type BriefXMLGroupJSON = {
-   name: html,
-   shortName: string,
-   author: string,
-   notes: string,
-   phrase: html,
-   representations: Array<Array<html>>,
-   representationIndex: number,
-   cayleyDiagrams: Array<XMLCayleyDiagram>,
-   symmetryObjects: Array<XMLSymmetryObject>,
-   multtable: Array<Array<number>>
-};
- */
 export class Group {
     // Calculated group properties
-    multtable; /*: Array<Array<groupElement>> */
+    multtable;
     /*
      * How representations work:
      *   representationIndex >= 0 => representation = representations[index]
@@ -48,41 +22,42 @@ export class Group {
      *
      * (representationIndex is an integer, not an object reference, so Group can be easily serialized)
      */
-    representations; /*: Array<Array<html>> */
+    representations = [];
     // Properties from .group file
-    names /*: Array<html> */ = ['Unnamed Group'];
-    gapname; /*: ?string */
-    // gapid /*: ?string */
-    shortName /*: string */ = 'Unnamed Group';
-    links; /*: ?Array<string> */
-    declaredGenerators; /*: ?Array<Array<groupElement>> */
-    definition; /*: ?html */
-    phrase /*: html */ = '';
-    notes /*: string */ = '';
-    author /*: string */ = '';
-    cayleyDiagrams /*: Array<XMLCayleyDiagram> */ = [];
-    symmetryObjects /*: Array<XMLSymmetryObject> */ = [];
-    custom /*: {[key: string]: any} */ = {};
+    names = ['Unnamed Group'];
+    gapname;
+    shortName = 'Unnamed Group';
+    links = null;
+    declaredGenerators = null;
+    definition = null;
+    phrase = '';
+    notes = '';
+    author = '';
+    cayleyDiagrams = [];
+    symmetryObjects = [];
+    custom = {};
     // Group properties set elsewhere
-    library; /*: void | 'extended' | 'notable' | 'generated' */
-    lastModifiedOnServer; /*: ?string */
-    URL; /*: string */
-    constructor() {
+    library;
+    lastModifiedOnServer;
+    thumbnails;
+    URL = '';
+    _gapid_lock;
+    constructor(multtable) {
+        this.multtable = multtable;
     }
-    static fromMulttable(multtable /*: Array<Array<groupElement>> */) {
-        const G = new Group();
-        G.multtable = multtable;
+    static fromMulttable(multtable) {
+        const G = new Group(multtable);
         G.names = [`An unknown group of order ${G.order}`];
         G.representations = [Array.from({ length: G.order }, (_, inx) => '' + inx)];
         return G;
     }
     // reads .group file from distribution
-    static fromGroupFileJSON(json /*: GroupJSON */) {
-        const G = Object.assign(new Group(), json);
+    static fromGroupFileJSON(json) {
+        const G = Object.assign(new Group(json.multtable), json);
         return G;
     }
     // reads group from IndexedDB GeneralStore.GroupLibrary
-    static fromLocalCopyJSON(json /*: any */) {
+    static fromLocalCopyJSON(json) {
         return Group.fromGroupFileJSON(json);
     }
     /////////////////////// Assigned values
@@ -92,7 +67,7 @@ export class Group {
     get customName() {
         return this.custom.name;
     }
-    set customName(customName /*: html */) {
+    set customName(customName) {
         if (customName != null && customName.length != 0) {
             this.custom.name = customName;
         }
@@ -125,7 +100,7 @@ export class Group {
         }
         return `${this.order},??`;
     }
-    set gapid(gapid /*: string */) {
+    set gapid(gapid) {
         if (gapid != null && !gapid.endsWith('??')) {
             Object.defineProperty(this, 'gapid', {
                 value: gapid,
@@ -141,7 +116,7 @@ export class Group {
         const inx = this.representationIndex;
         return (inx < 0) ? this.userRepresentations[-(inx + 1)] : this.representations[inx];
     }
-    set representation(representation /*: Array<html> */) {
+    set representation(representation) {
         const inx = this.representations.findIndex((el) => el == representation);
         if (inx >= 0) {
             this.representationIndex = inx;
@@ -171,7 +146,10 @@ export class Group {
         }
         return this.custom.representations;
     }
-    deleteUserRepresentation(userIndex /*: number */) {
+    set userRepresentations(userRepresentations) {
+        this.custom.representations = userRepresentations;
+    }
+    deleteUserRepresentation(userIndex) {
         this.userRepresentations.splice(userIndex, 1);
         if (-(userIndex + 1) > this.representationIndex) {
             this.representationIndex += 1;
@@ -194,7 +172,7 @@ export class Group {
     get userNotes() {
         return this.custom.notes ?? '';
     }
-    set userNotes(userNotes /*: string */) {
+    set userNotes(userNotes) {
         this.custom.notes = userNotes;
     }
     ////////////////////////// Calculated values
@@ -205,7 +183,7 @@ export class Group {
     get commutatorSubgroup() {
         // subgroup generated by the commutators i^-1 * j^-1 * i * j for all element pairs
         // also: the smallest normal subgroup which has an abelian quotient
-        this.#setProperty('commutatorSubgroup', this.subgroups.find((H) => H.isNormal && H.isomorphicQuotientGroup.isAbelian));
+        this.#setProperty('commutatorSubgroup', this.subgroups.find((H) => H.isNormal && H.isomorphicQuotientGroup?.isAbelian));
         return this.commutatorSubgroup;
     }
     get conjugacyClasses() {
@@ -340,17 +318,17 @@ export class Group {
         return center;
     }
     // creates conjugacy classes for element array, which may be the elements of a subgroup
-    #getConjugacyClasses(elements /*: Array<groupElement> */) {
-        const conjugacyClasses /*: Array<BitSet> */ = [];
-        const todo /*: BitSet */ = new BitSet(this.order, elements);
+    #getConjugacyClasses(elements) {
+        const conjugacyClasses = [];
+        const todo = new BitSet(this.order, elements);
         while (todo.popcount() > 0) {
-            const currentElement /*: groupElement */ = todo.pop();
-            const conjugacyClass /*: BitSet */ = this.elements
+            const currentElement = todo.pop();
+            const conjugacyClass = this.elements
                 .reduce((conjugacyClass, el) => conjugacyClass.set(this.conjugate(currentElement, el)), new BitSet(this.order));
             todo.subtract(conjugacyClass);
             conjugacyClasses.push(conjugacyClass);
         }
-        conjugacyClasses.sort((a /*: BitSet */, b /*: BitSet */) => a.popcount() - b.popcount());
+        conjugacyClasses.sort((a, b) => a.popcount() - b.popcount());
         return conjugacyClasses;
     }
     #getConjugateSubgroupClasses() {
@@ -372,7 +350,7 @@ export class Group {
         return conjugateSubgroupClasses;
     }
     // needs fixing to work for general set of elements (not just entire group)?
-    #getElementPowers(group /*: Group */) {
+    #getElementPowers(group) {
         const powers = [], primePowers = [];
         for (let g = 0; g < group.order; g++) {
             const elementPowers = new BitSet(group.order, [0]), elementPrimePowers = new BitSet(group.order);
@@ -386,7 +364,7 @@ export class Group {
         }
         return [powers, primePowers];
     }
-    #getOrderClasses(elementOrders /*: Array<number> */) {
+    #getOrderClasses(elementOrders) {
         const orderClasses = elementOrders.reduce((orderClasses, elementOrder, element) => {
             if (orderClasses[elementOrder] == null) {
                 orderClasses[elementOrder] = new BitSet(this.order);
@@ -397,28 +375,28 @@ export class Group {
         return orderClasses;
     }
     ////////////////////////// Public functions
-    mult(a /*: groupElement */, b /*: groupElement */) {
+    mult(a, b) {
         return this.multtable[a % this.order][b % this.order];
     }
     // g h g⁻¹
-    conjugate(h /*: groupElement */, g /*: groupElement */) {
+    conjugate(h, g) {
         return this.multtable[g][this.multtable[h][this.inverses[g]]];
     }
     // takes bitset or array of generators; return bitset
     // note: depends on knowing this.subgroups, can only be run after SubgroupLattice
-    closure(generators /*: BitSet | Array<groupElement> */) {
+    closure(generators) {
         const gens = Array.isArray(generators) ? new BitSet(this.order, generators) : generators;
-        const rslt = this.subgroups.find((H) => H.members.contains(gens)).members;
+        const rslt = this.subgroups.find((H) => H.members.contains(gens))?.members;
         return rslt;
     }
-    getElementPowerArray(element /*: groupElement */) {
+    getElementPowerArray(element) {
         const result = [0];
         for (let g = element; g != 0; g = this.mult(element, g)) {
             result.push(g);
         }
         return result;
     }
-    getSubgroupByElements(elements /*: BitSet | Array<groupElement> */) {
+    getSubgroupByElements(elements) {
         const elts = Array.isArray(elements) ? new BitSet(this.order, elements) : elements;
         const subgroup = this.subgroups.find((H) => H.members.equals(elts));
         return subgroup;

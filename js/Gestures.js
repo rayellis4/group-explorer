@@ -1,6 +1,6 @@
-/* @flow
+/*
 
-# GestureInterpreter
+# Gesture interpreter
 
 Effort to treat event sequences in a device-independent manner.  Interpretations include:
  * click / tap -- [Select](#select)
@@ -11,8 +11,7 @@ Effort to treat event sequences in a device-independent manner.  Interpretations
 ```javascript
  */
 import * as GEUtils from './GEUtils.js';
-import { THREE } from '../lib/externals.js';
-export { recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizeZoom, recognizeMoveResize, isLongTap };
+import * as THREE from '../lib/externals.js';
 const CLICK_TIME = 500; // max time for a short click (ms)
 const CLICK_MOVE = 10; // max move for a click (px)
 const registeredResets = [];
@@ -29,31 +28,14 @@ function claim(myReset) {
 function resetAll() {
     registeredResets.forEach((reset) => reset());
 }
-/*
-```
-### Select
-
-Executes callback on click:
- * pointerdown followed by pointerup
- * primary pointer only (no two-finger gestures)
- * left click (button == 0) on mouse device
- * satisfies [isClick](#utility-routines) for time, motion
- * resulting click event not blocked
-
-callback(event) called with last pointer event
-```javascript
- */
-/*::
-export type SelectCallback = (event: PointerEvent | MouseEvent) => void;
-*/
-function recognizeSelect(element /*: HTMLElement */, callback /*: SelectCallback */) {
-    let startEvent /*: ?PointerEvent */ = null;
+export function recognizeSelect(element, callback) {
+    let startEvent = null;
     const reset = () => { startEvent = null; };
     register(reset);
-    element.addEventListener('pointerdown', (event /*: PointerEvent */) => {
+    element.addEventListener('pointerdown', (event) => {
         startEvent = (event.isPrimary && event.button === 0) ? event : null;
     });
-    element.addEventListener('click', (event /*: MouseEvent */) => {
+    element.addEventListener('click', (event) => {
         if (startEvent != null && isClick(startEvent, event)) {
             claim(reset);
             callback(event);
@@ -61,32 +43,10 @@ function recognizeSelect(element /*: HTMLElement */, callback /*: SelectCallback
         startEvent = null;
     });
 }
-/*
-```
-### Context menu
-
-Executes callback following right click or long tap:
- * pointerdown followed by a period of time with no (non-trivial) movement
- * primary pointer only (no two-finger gestures)
- * right click (button == 2) on mouse device
- * can be triggered by pointerup event
- * can be triggered by timer on `options.returnOnLongTapTimeout` (options default)
- * satisfies [isLongTap](#utility-routines) for time, motion
- * resulting click event not blocked
-
-callback(event) called with last pointer event
-```javascript
- */
-/*::
-export type ContextMenuCallback = (event: PointerEvent) => void;
-export type ContextMenuOptions = {
-   returnOnLongTapTimeout?: boolean
-};
-*/
-function recognizeContextMenu(element /*: HTMLElement */, callback /*: ContextMenuCallback */, options /*: ContextMenuOptions */ = { returnOnLongTapTimeout: true }) {
-    let startEvent /*: ?PointerEvent */ = null;
-    let lastEvent /*: ?PointerEvent */ = null;
-    let longTapTimerId /*: ?TimeoutID */ = null;
+export function recognizeContextMenu(element, callback, options = { returnOnLongTapTimeout: true }) {
+    let startEvent = null;
+    let lastEvent = null;
+    let longTapTimerId = null;
     function reset() {
         startEvent = null;
         lastEvent = null;
@@ -97,7 +57,7 @@ function recognizeContextMenu(element /*: HTMLElement */, callback /*: ContextMe
         element.removeEventListener('pointermove', moveHandler);
     }
     register(reset);
-    function moveHandler(event /*: PointerEvent */) {
+    function moveHandler(event) {
         lastEvent = event;
     }
     function longTapTimer() {
@@ -110,7 +70,7 @@ function recognizeContextMenu(element /*: HTMLElement */, callback /*: ContextMe
         }
         reset();
     }
-    element.addEventListener('pointerdown', (event /*: PointerEvent */) => {
+    element.addEventListener('pointerdown', (event) => {
         if (event.isPrimary && (event.pointerType != 'mouse' || event.button === 2)) {
             startEvent = event;
             lastEvent = event;
@@ -120,7 +80,7 @@ function recognizeContextMenu(element /*: HTMLElement */, callback /*: ContextMe
             }
         }
     });
-    element.addEventListener('pointerup', (event /*: PointerEvent */) => {
+    element.addEventListener('pointerup', (event) => {
         if (startEvent != null
             && event.isPrimary
             && ((event.pointerType === 'mouse' && event.button === 2)
@@ -131,40 +91,16 @@ function recognizeContextMenu(element /*: HTMLElement */, callback /*: ContextMe
         reset();
     });
 }
-/*
-```
-### Drag and Drop
-
-Execute callback following (single-finger) drag-and-drop sequence:
- * ponterdown followed by any number of pointermove events and a possible terminating pointerup event
- * triggered by most recent pointermove or pointerup event
- * click generated by pointerup is received during capture phase and prevented from reaching other handlers
-
-callback(startEvent, previousEvent, currentEvent, isDrop):
- * startEvent -- the initial pointerdown event
- * previousEvent -- the pointerdown or pointermove event immediately preceeding the current event
- * currentEvent -- the pointermove or pointerup event that triggered this callback
- * isDrop -- true if final event is pointerup
-```javascript
- */
-/*::
-export type DragAndDropCallback =
-   (startEvent: PointerEvent, previousEvent: PointerEvent, currentEvent: PointerEvent, isDrop: boolean) => void;
-export type DragAndDropOptions = {
-   returnOnLongTapTimeout?: boolean,
-   rightClick?: boolean
-};
-*/
-const DEFAULT_RECOGNIZE_DRAG_AND_DROP_OPTIONS /*: DragAndDropOptions */ = {
+const DEFAULT_RECOGNIZE_DRAG_AND_DROP_OPTIONS = {
     returnOnLongTapTimeout: false,
     rightClick: false
 };
-function recognizeDragAndDrop(element /*: HTMLElement */, callback /*: DragAndDropCallback */, passedOptions /*: DragAndDropOptions */ = {}) {
+export function recognizeDragAndDrop(element, callback, passedOptions = {}) {
     const options = { ...DEFAULT_RECOGNIZE_DRAG_AND_DROP_OPTIONS, ...passedOptions };
-    let startEvent /*: ?PointerEvent */ = null; // pointerdown event that initiates possible drag-and-drop sequence
-    let previousEvent /*: ?PointerEvent */ = null; // pointerdown or last pointermove event
-    let moveContext /*: ?Element */ = null; // immediate containing .modal element, or document body
-    let longTapTimerId /*: ?TimeoutID */ = null; // id to cancel longTapTimer
+    let startEvent = null; // pointerdown event that initiates possible drag-and-drop sequence
+    let previousEvent = null; // pointerdown or last pointermove event
+    let moveContext = null; // immediate containing .modal element, or document body
+    let longTapTimerId = null; // id to cancel longTapTimer
     function reset() {
         startEvent = null;
         previousEvent = null;
@@ -178,7 +114,7 @@ function recognizeDragAndDrop(element /*: HTMLElement */, callback /*: DragAndDr
         }
     }
     register(reset);
-    function moveHandler(event /*: PointerEvent */) {
+    function moveHandler(event) {
         if (startEvent != null
             && event.isPrimary
             && event.buttons === (options.rightClick ? 2 : 1) // default left mouse button
@@ -206,10 +142,10 @@ function recognizeDragAndDrop(element /*: HTMLElement */, callback /*: DragAndDr
         }
         longTapTimerId = null;
     }
-    function clickStopper(event /*: MouseEvent */) {
+    function clickStopper(event) {
         event.stopPropagation();
     }
-    element.addEventListener('pointerdown', (event /*: PointerEvent */) => {
+    element.addEventListener('pointerdown', (event) => {
         if (startEvent == null
             && event.isPrimary
             && event.button == (options.rightClick ? 2 : 0) // default left mouse button
@@ -227,7 +163,7 @@ function recognizeDragAndDrop(element /*: HTMLElement */, callback /*: DragAndDr
             reset();
         }
     });
-    element.addEventListener('pointerup', (event /*: PointerEvent */) => {
+    element.addEventListener('pointerup', (event) => {
         if (startEvent != null && startEvent != previousEvent) { // a move is being processed
             // the pointerup event that ends the drag also causes a click
             // below is a workaround to prevent the click from propagating:
@@ -236,7 +172,7 @@ function recognizeDragAndDrop(element /*: HTMLElement */, callback /*: DragAndDr
             //    2) launch a timeout function to remove the capture phase listener after a second,
             //       in case the click is not generated for some reason
             element.addEventListener('click', clickStopper, { capture: true, once: true });
-            window.setTimeout(() => element.removeEventListener('click', clickStopper, { capture: true, once: true }), 1000);
+            window.setTimeout(() => element.removeEventListener('click', clickStopper, { capture: true }), 1000);
             if (event.isPrimary && event.button === 0) {
                 claim(reset);
                 callback(startEvent, previousEvent, event, true);
@@ -245,28 +181,16 @@ function recognizeDragAndDrop(element /*: HTMLElement */, callback /*: DragAndDr
         reset();
     });
 }
-/*
-```
-#### PinchHandler
-
-Execute callback(start, previous, current, isFinal) on pinch / spread touch gesture
-
-```javascript
- */
-/*::
-export type PinchCallback =
-   (startEvent: TouchEvent, previousEvent: TouchEvent, currentEvent: TouchEvent, isFinal: boolean) => void;
-*/
-function recognizePinch(element /*: HTMLElement */, callback /*: PinchCallback */) {
-    let startEvent /*: ?TouchEvent */ = null;
-    let previousEvent /*: ?TouchEvent */ = null;
+function recognizePinch(element, callback) {
+    let startEvent = null;
+    let previousEvent = null;
     function reset() {
         startEvent = null;
         previousEvent = null;
         element.removeEventListener('touchmove', touchMoveHandler);
     }
     register(reset);
-    function touchMoveHandler(event /*: TouchEvent */) {
+    function touchMoveHandler(event) {
         if (event.touches.length == 2) {
             claim(reset);
             callback(startEvent, previousEvent, event, false);
@@ -276,7 +200,7 @@ function recognizePinch(element /*: HTMLElement */, callback /*: PinchCallback *
             reset();
         }
     }
-    element.addEventListener('touchstart', (event /*: TouchEvent */) => {
+    element.addEventListener('touchstart', (event) => {
         if (event.touches.length == 2) {
             startEvent = event;
             previousEvent = event;
@@ -286,7 +210,7 @@ function recognizePinch(element /*: HTMLElement */, callback /*: PinchCallback *
             reset();
         }
     });
-    element.addEventListener('touchend', (event /*: TouchEvent */) => {
+    element.addEventListener('touchend', (event) => {
         if (startEvent != null) {
             claim(reset);
             callback(startEvent, previousEvent, event, true);
@@ -294,39 +218,15 @@ function recognizePinch(element /*: HTMLElement */, callback /*: PinchCallback *
         reset();
     });
 }
-/*
-```
-#### WheelHandler
-
-Execute callback(event) on wheel event
-
-```javascript
- */
-/*::
-export type WheelCallback = (event: WheelEvent) => void;
- */
-function recognizeWheel(element /*: HTMLElement */, callback /*: WheelCallback */) {
-    element.addEventListener('wheel', (event /*: WheelEvent */) => {
+function recognizeWheel(element, callback) {
+    element.addEventListener('wheel', (event) => {
         resetAll();
         callback(event);
     });
 }
-/*
-```
-### Zoom
-
-Merged Zoom gesture, with Pinch and Wheel implementations
-
-callback(scaleFactor, isFinal)
-
-```javascript
- */
-/*::
-export type ZoomCallback = (scaleFactor: number, isFinal: boolean) => void;
-*/
-function recognizeZoom(element /*: HTMLElement */, zoomCallback /*: ZoomCallback */) {
+export function recognizeZoom(element, zoomCallback) {
     // context in which we detect drag, scroll, etc. -- generally a .modal containing the element
-    const contextElement /*: HTMLElement */ = element.closest('.modal') || document.body;
+    const contextElement = element.closest('.modal') || document.body;
     if (GEUtils.isTouchDevice()) {
         recognizePinch(contextElement, (_startEvent, previousEvent, currentEvent, isFinal) => pinchZoomCallback(zoomCallback, previousEvent, currentEvent, isFinal));
     }
@@ -334,7 +234,7 @@ function recognizeZoom(element /*: HTMLElement */, zoomCallback /*: ZoomCallback
         recognizeWheel(contextElement, (wheelEvent) => wheelZoomCallback(zoomCallback, wheelEvent));
     }
 }
-function pinchZoomCallback(zoomCallback /*: ZoomCallback */, previousEvent /*: TouchEvent */, currentEvent /*: TouchEvent */, isFinal /*: boolean */) {
+function pinchZoomCallback(zoomCallback, previousEvent, currentEvent, isFinal) {
     const previousTouches = Array.from(previousEvent.touches);
     const currentTouches = (currentEvent.touches.length === 2)
         ? [currentEvent.touches[0], currentEvent.touches[1]]
@@ -342,15 +242,15 @@ function pinchZoomCallback(zoomCallback /*: ZoomCallback */, previousEvent /*: T
             ? [currentEvent.touches[0], currentEvent.changedTouches[0]]
             : [currentEvent.changedTouches[0], currentEvent.changedTouches[1]];
     // ensure consistent ordering in touch vectors
-    previousTouches.sort((a /*: Touch */, b /*: Touch */) => a.identifier - b.identifier);
-    currentTouches.sort((a /*: Touch */, b /*: Touch */) => a.identifier - b.identifier);
-    function spread(touchArray /*: Array<Touch> */) {
+    previousTouches.sort((a, b) => a.identifier - b.identifier);
+    currentTouches.sort((a, b) => a.identifier - b.identifier);
+    function spread(touchArray) {
         return Math.hypot(touchArray[0].clientX - touchArray[1].clientX, touchArray[0].clientY - touchArray[1].clientY);
     }
     const rawScaling = spread(currentTouches) / spread(previousTouches) - 1;
     zoomCallback(rawScaling, isFinal);
 }
-function wheelZoomCallback(zoomCallback, wheelEvent /*: WheelEvent */) {
+function wheelZoomCallback(zoomCallback, wheelEvent) {
     if (wheelEvent.target.closest('.scrollable') != null) {
         return;
     }
@@ -358,49 +258,7 @@ function wheelZoomCallback(zoomCallback, wheelEvent /*: WheelEvent */) {
     const rawScaling = Math.sign(wheelEvent.deltaY) * ZOOM_FACTOR;
     zoomCallback(rawScaling, true);
 }
-/*
-```
-### Move and Resize
-
-Swiss army knife routine to combine move and resize gestures on mouse, touchpad, and touch platforms.
-
-Invokes callback(deltaX, deltaY, deltaWidth, deltaHeight, isDrop) on recognizing:
- * A drag initiated over an element with class [resize-handle](./ge3.css.md) causes a call to
-     `callback(0, 0, dx, dy)` to resize the element keeping the top right corner in place.
- * A drag initiated over any other part of the element causes a call to
-     `callback(dx, dy, 0, 0)` to move the element.
- * On a touch platform, a drag initiated outside the element causes a call to
-     `callback(l*dx, t*dy, w*dx, h*dy)` to resize the element keeping the opposite side (corner)
-     from the initial touch in place.
-     The weights are chosen from {-1, 0, 1} according to the initial touch location.
- * A wheel or pinch event anywhere on the screen causes a call to
-     `callback(-dw/2, -dh/2, dw, dh)` to resize the element keeping the center in place.
- * To give precedence to the browser's default scrolling action,
-     * No action is taken on a wheel event over a `.scrollable` element.
-     * No action is taken on a touch platform for a drag event initiated over a `.scrollable` element.
- * No resizing action is taken if the element is styled `resize=none`.
-
-```javascript
- */
-/*::
-export type MoveResizeCallback =
-   (
-      deltaX: number,
-      deltaY: number,
-      deltaWidth: number,
-      deltaHeight: number,
-      isDrop?: boolean,
-      movingElement?: ?Element
-   ) => void;
-
-export type ResizeCoefficient = {
-   l: number,
-   t: number,
-   w: number,
-   h: number
-};
-*/
-const resizeCoefficients /*: Array<ResizeCoefficient> */ = [
+const resizeCoefficients = [
     { l: 1, t: 1, w: -1, h: -1 }, // quadrant 0
     { l: 0, t: 1, w: 0, h: -1 }, // 1
     { l: 0, t: 1, w: 1, h: -1 }, // 2
@@ -411,15 +269,14 @@ const resizeCoefficients /*: Array<ResizeCoefficient> */ = [
     { l: 0, t: 0, w: 0, h: 1 }, // 7
     { l: 0, t: 0, w: 1, h: 1 } // 8
 ];
-function recognizeMoveResize(element /*: HTMLElement */, callback /*: MoveResizeCallback */) {
+export function recognizeMoveResize(element, callback) {
     // context in which to register drag -- generally a .modal containing the element
-    // $FlowExpectedError[incompatible-type]
-    const contextElement /*: HTMLElement */ = element.closest('.modal') || document.body;
+    const contextElement = element.closest('.modal') || document.body;
     // save min width/height styling
     const elementStyle = getComputedStyle(element);
     const minElement = new THREE.Vector2(elementStyle.minWidth?.endsWith('px') ? parseFloat(elementStyle.minWidth) : 0, elementStyle.minHeight?.endsWith('px') ? parseFloat(elementStyle.minHeight) : 0);
     if (element.style.resize != 'none') {
-        recognizeZoom(contextElement, (scale /*: number */) => {
+        recognizeZoom(contextElement, (scale) => {
             const clientRect = element.getBoundingClientRect();
             const minimumDimension = Math.min(clientRect.width, clientRect.height);
             const minElementSize = Math.min(minElement.width, minElement.height);
@@ -431,12 +288,12 @@ function recognizeMoveResize(element /*: HTMLElement */, callback /*: MoveResize
         });
     }
     if (GEUtils.isTouchDevice()) {
-        recognizeDragAndDrop(contextElement, (startEvent /*: PointerEvent */, previousEvent /*: PointerEvent */, currentEvent /*: PointerEvent */, isDrop /*: boolean */) => {
+        recognizeDragAndDrop(contextElement, (startEvent, previousEvent, currentEvent, isDrop) => {
             touchMove(startEvent, previousEvent, currentEvent, isDrop);
         });
         // Coefficients for startTouch, determined on first callback
-        let startCoefficient; /*: ResizeCoefficient */
-        function touchMove(startEvent /*: PointerEvent */, previousEvent /*: PointerEvent */, currentEvent /*: PointerEvent */, isDrop /*: boolean */) {
+        let startCoefficient;
+        function touchMove(startEvent, previousEvent, currentEvent, isDrop) {
             // Determine screen quadrant startEvent occured in (element is [4]):
             //   0  1  2
             //   3 [4] 5
@@ -465,10 +322,10 @@ function recognizeMoveResize(element /*: HTMLElement */, callback /*: MoveResize
         }
     }
     else {
-        recognizeDragAndDrop(element, (startEvent /*: PointerEvent */, previousEvent /*: PointerEvent */, currentEvent /*: PointerEvent */, isDrop /*: boolean */) => {
+        recognizeDragAndDrop(element, (startEvent, previousEvent, currentEvent, isDrop) => {
             mouseMove(startEvent, previousEvent, currentEvent, isDrop);
         });
-        function mouseMove(startEvent /*: PointerEvent */, previousEvent /*: PointerEvent */, currentEvent /*: PointerEvent */, isDrop /*: boolean */) {
+        function mouseMove(startEvent, previousEvent, currentEvent, isDrop) {
             // Drag-and-drop over resizeHandle resizes model element; otherwise drag-and-drop moves model element
             const drag = new THREE.Vector2(currentEvent.clientX - previousEvent.clientX, currentEvent.clientY - previousEvent.clientY);
             const resizing = element.querySelector('.resize-handle')?.contains(startEvent.target);
@@ -482,7 +339,7 @@ function recognizeMoveResize(element /*: HTMLElement */, callback /*: MoveResize
         }
     }
     // adjust sizeChange so that running into min-width/min-height styling limits doesn't move element
-    function limitSizeChange(sizeChange /*: THREE.Vector2 */) {
+    function limitSizeChange(sizeChange) {
         let limitedSizeChange = sizeChange;
         if (sizeChange.x < 0 || sizeChange.y < 0) {
             const { width, height } = element.getBoundingClientRect();
@@ -496,16 +353,16 @@ function recognizeMoveResize(element /*: HTMLElement */, callback /*: MoveResize
 ### Utility routines
 ```javascript
  */
-function isLongTap(startEvent /*: PointerEvent */, endEvent /*: PointerEvent */) {
+export function isLongTap(startEvent, endEvent) {
     return startEvent.pointerType !== 'mouse' // long tap only used on touch device
         && (endEvent.timeStamp - startEvent.timeStamp) > CLICK_TIME
         && isTrivialMove(startEvent, endEvent);
 }
-function isClick(startEvent /*: PointerEvent | MouseEvent */, endEvent /*: PointerEvent | MouseEvent */) {
+function isClick(startEvent, endEvent) {
     return (endEvent.timeStamp - startEvent.timeStamp) < CLICK_TIME
         && isTrivialMove(startEvent, endEvent);
 }
-function isTrivialMove(startEvent /*: PointerEvent | MouseEvent */, endEvent /*: PointerEvent | MouseEvent */) {
+function isTrivialMove(startEvent, endEvent) {
     const dx = endEvent.clientX - startEvent.clientX;
     const dy = endEvent.clientY - startEvent.clientY;
     return Math.hypot(dx, dy) < CLICK_MOVE;

@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # MulttableViewUI component
 
@@ -11,15 +11,10 @@ This component adds the following UI gestures to a MulttableView:
 
 ```javascript
  */
-import { THREE } from '../lib/externals.js';
+import * as THREE from '../lib/externals.js';
 import { recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizeZoom, isLongTap } from './Gestures.js';
 import { makeTooltip } from './UIComponents.js';
-export { addGestures };
-/*::
-import {MulttableView} from './MulttableView.js'
-interface ClientLocation {clientX: number, clientY: number}
- */
-function addGestures(multtableViewModel /*: MulttableViewModel */) {
+export function addGestures(multtableViewModel) {
     multtableViewModel.view.resetZoom();
     addSelect(multtableViewModel);
     addContextMenu(multtableViewModel);
@@ -31,7 +26,7 @@ function addGestures(multtableViewModel /*: MulttableViewModel */) {
 ### select
 ```javascript
  */
-function addSelect(multtableViewModel /*: MulttableViewModel */) {
+function addSelect(multtableViewModel) {
     recognizeSelect(multtableViewModel.canvas, (event) => {
         const rowXcol = loc2rowXcol(multtableViewModel, event);
         const hasLabel = rowXcol &&
@@ -55,7 +50,7 @@ long-tap drag and drop used in [addMove](#addMove) below to swap rows/columns
 
 ```javascript
  */
-function addContextMenu(multtableViewModel /*: MulttableViewModel */) {
+function addContextMenu(multtableViewModel) {
     recognizeContextMenu(multtableViewModel.canvas, (_event) => {
         multtableViewModel.view.resetZoom();
     }, { returnOnLongTapTimeout: true });
@@ -65,7 +60,7 @@ function addContextMenu(multtableViewModel /*: MulttableViewModel */) {
 ### zoom
 ```javascript
  */
-function addZoom(multtableViewModel /*: MulttableViewModel */) {
+function addZoom(multtableViewModel) {
     let totalZoom = 1;
     recognizeZoom(multtableViewModel.canvas, (scaleFactor, isLastEvent) => {
         totalZoom *= (1 + scaleFactor);
@@ -85,8 +80,8 @@ function addZoom(multtableViewModel /*: MulttableViewModel */) {
 ### move
 ```javascript
  */
-function addMove(multtableViewModel /*: MulttableViewModel */) {
-    let dragImage /*: ?HTMLImageElement */ = null;
+function addMove(multtableViewModel) {
+    let dragImage = null;
     recognizeDragAndDrop(multtableViewModel.canvas, (startEvent, _previousEvent, currentEvent, isDrop) => {
         if (currentEvent.shiftKey
             || dragImage != null
@@ -97,7 +92,8 @@ function addMove(multtableViewModel /*: MulttableViewModel */) {
                 dragImage = dragStart(currentEvent, multtableViewModel, dragImage);
             }
             else if (isDrop) {
-                dragImage = dragEnd(currentEvent, multtableViewModel, dragImage);
+                dragEnd(currentEvent, multtableViewModel, dragImage);
+                dragImage = null;
             }
             else {
                 dragImage = dragOver(currentEvent, multtableViewModel, dragImage);
@@ -125,8 +121,8 @@ function addMove(multtableViewModel /*: MulttableViewModel */) {
 Determine row and column from location
 ```javascript
  */
-function loc2rowXcol(multtableViewModel /*: MulttableViewModel */, event /*: ClientLocation */) {
-    const bounding_rectangle = (document.getElementById('graphic') /*:: as any as HTMLElement */).getBoundingClientRect();
+function loc2rowXcol(multtableViewModel, event) {
+    const bounding_rectangle = document.getElementById('graphic').getBoundingClientRect();
     const canvasX = event.clientX - bounding_rectangle.left;
     const canvasY = event.clientY - bounding_rectangle.top;
     return multtableViewModel.view.xy2rowXcol(canvasX, canvasY);
@@ -138,7 +134,7 @@ function loc2rowXcol(multtableViewModel /*: MulttableViewModel */, event /*: Cli
 Creates a drag image of the row/column under the pointer and appends it to the canvas' parent.
 ```javascript
  */
-function dragStart(event /*: ClientLocation */, multtableViewModel /*: MulttableViewModel */, dragImage /*: ?HTMLImageElement */) {
+function dragStart(event, multtableViewModel, dragImage) {
     const rowXcol = loc2rowXcol(multtableViewModel, event); // row, column of event location
     if (rowXcol == undefined)
         return null;
@@ -168,7 +164,7 @@ function dragStart(event /*: ClientLocation */, multtableViewModel /*: Multtable
              start="${start}" style="${style}">`;
     const template = document.createElement('template');
     template.innerHTML = dragImageTemplate.trim();
-    dragImage = (template.content.children[0] /*:: as any as HTMLImageElement */);
+    dragImage = template.content.children[0];
     multtableViewModel.canvas.parentElement?.append(dragImage);
     return dragOver(event, multtableViewModel, dragImage);
 }
@@ -179,7 +175,7 @@ function dragStart(event /*: ClientLocation */, multtableViewModel /*: Multtable
 Moves the drag image with the pointer
 ```javascript
  */
-function dragOver(event /*: ClientLocation */, multtableViewModel /*: MulttableViewModel */, dragImage /*: HTMLImageElement */) {
+function dragOver(event, multtableViewModel, dragImage) {
     const rowXcol = loc2rowXcol(multtableViewModel, event);
     // must be on first row / column to display drag image
     const swapping = dragImage.getAttribute('swapping');
@@ -206,7 +202,7 @@ Only swap the dragged row with the row under the pointer if
 
 ```javascript
  */
-function dragEnd(event /*: ClientLocation */, multtableViewModel /*: MulttableViewModel */, dragImage /*: ?HTMLImageElement */) {
+function dragEnd(event, multtableViewModel, dragImage) {
     if (dragImage != null) {
         const rowXcol = loc2rowXcol(multtableViewModel, event);
         if (rowXcol != undefined) {
@@ -226,6 +222,5 @@ function dragEnd(event /*: ClientLocation */, multtableViewModel /*: MulttableVi
         }
         dragImage.remove();
     }
-    return null;
 }
 //# sourceMappingURL=MulttableViewUI.js.map

@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # ZmnInfo
 
@@ -13,13 +13,10 @@ import { Group } from './Group.js';
 import * as IsomorphicGroups from './IsomorphicGroups.js';
 import * as MathUtils from './MathUtils.js';
 import * as SheetModel from './SheetModel.js';
-export { display };
 /*::
-import {Group} from './Group.js';
-
 import type {StrategyParameters, Layout, Direction} from './CayleyDiagramView.js';
 */
-function display(zmnInfoElementId, group) {
+export function display(zmnInfoElementId, group) {
     const zmnInfoElement = document.getElementById(zmnInfoElementId);
     if (!group.isCyclic) {
         zmnInfoElement.remove();
@@ -83,7 +80,7 @@ function formatZmnInfo(group) {
     htmlFragments.push('</details>');
     return htmlFragments.join('');
 }
-function showZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElement */) {
+function showZmnIsomorphismSheet(group, m, n) {
     const Z = (k) => `ℤ<sub>${k}</sub>`;
     const prod = (A, B) => `${A} × ${B}`;
     const a = group.elementOrders.indexOf(m);
@@ -101,7 +98,7 @@ function showZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElemen
     const sheetElementsAsJSON = [
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
-            className: 'CDElement', name: 'left', groupURL: group.URL,
+            className: 'CDElement', id: 'left', groupURL: group.URL,
             x: L, y: vizY, w: W, h: H,
             arrow_generators: [{ generator: a, color: '#660000' },
                 { generator: b, color: '#006600' }],
@@ -110,7 +107,7 @@ function showZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElemen
         },
         {
             // same as previous, plus arrow for ab
-            className: 'CDElement', name: 'middle', groupURL: group.URL,
+            className: 'CDElement', id: 'middle', groupURL: group.URL,
             x: L + W + gap, y: vizY, w: W, h: H,
             arrow_generators: [{ generator: a, color: '#660000' },
                 { generator: b, color: '#006600' },
@@ -120,7 +117,7 @@ function showZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElemen
         },
         {
             // circular CD of Z_mn with arrow for ab shown only
-            className: 'CDElement', name: 'right', groupURL: group.URL,
+            className: 'CDElement', id: 'right', groupURL: group.URL,
             x: L + 2 * (W + gap), y: vizY, w: W, h: H,
             arrow_generators: [{ generator: ab, color: '#000066' }],
             strategy_parameters: [{ generator: ab, layout: 'circular', direction: 'XY', nestingLevel: 0 }]
@@ -129,24 +126,24 @@ function showZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElemen
             className: 'TextElement',
             text: `A Cayley diagram of ${prod(Z(m), Z(n))} with generators of order ${m} and ${n} shown in red and green, respectively.`,
             x: L, y: vizY + H, w: W,
-            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_name: 'left'
+            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_id: 'left'
         },
         {
             className: 'TextElement',
             text: `The same Cayley diagram as on the left, but now with the product of the red and green generators also shown, colored blue.`,
             x: L + W + gap, y: vizY + H, w: W,
-            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_name: 'middle'
+            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_id: 'middle'
         },
         {
             className: 'TextElement',
             text: `The same Cayley diagram as in the middle, but now with the red and green generators removed. The blue generator traverses all ${m * n} nodes, so we can arrange it in a cycle.`,
             x: L + 2 * (W + gap), y: vizY + H, w: W,
-            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_name: 'right'
+            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_id: 'right'
         }
     ];
     SheetModel.createNewSheet({ title: titleText, elements: sheetElementsAsJSON });
 }
-function showNoZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElement */) {
+function showNoZmnIsomorphismSheet(group, m, n) {
     // define constants similar to those in showZmnIsomorphismSheet()
     const Z = (k) => `ℤ<sub>${k}</sub>`;
     const prod = (A, B) => `${A} × ${B}`;
@@ -159,33 +156,33 @@ function showNoZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElem
     const L = (window.innerWidth - panelWidth - totalW) / 2;
     const vizY = 0.4 * (window.innerHeight - H); // center visualizers just above midline
     // build the group Z_m x Z_n and find it in the group library.
-    const groupElems = Array.from({ length: m * n }, (_ /*: mixed */, i /*: number */) => i);
-    const multtable = groupElems.map((row /*: number */) => {
+    const groupElems = Array.from({ length: m * n }, (_, i) => i);
+    const multtable = groupElems.map((row) => {
         const a1 = Math.floor(row / n);
         const b1 = row % n;
-        return groupElems.map((col /*: number */) => {
+        return groupElems.map((col) => {
             const a2 = Math.floor(col / n);
             const b2 = col % n;
             return (a1 + a2) % m * n + (b1 + b2) % n;
         });
     });
     const tmpgp = Group.fromMulttable(multtable);
-    const ZmxZn = ((IsomorphicGroups.find(tmpgp) /*: any */) /*: Group */);
+    const ZmxZn = IsomorphicGroups.find(tmpgp);
     // find elements in that group of the needed orders
-    const f = ((IsomorphicGroups.isomorphism(tmpgp, ZmxZn) /*: any */) /*: Array<groupElement> */);
+    const f = IsomorphicGroups.isomorphism(tmpgp, ZmxZn);
     const a = f[n]; // of order m
     const b = f[1]; // of order n
     // and an element of maximal order, but not among <a>U<b>
     const available = ZmxZn.elements.filter(e => !ZmxZn.elementPowers[a].get(e) && !ZmxZn.elementPowers[b].get(e));
-    const orders /*: Array<groupElement> */ = available.map(e => ZmxZn.elementOrders[e]);
-    const maxOrd = orders.reduce((a, b) => Math.max(a, b));
+    const orders = available.map(e => ZmxZn.elementOrders[e]);
+    const maxOrd = orders.reduce((a, b) => Math.max(a, b), Number.MIN_SAFE_INTEGER);
     const maxOrdElt = available.filter(e => ZmxZn.elementOrders[e] == maxOrd)[0];
     // create a sheet based on that group and those elements
     const titleText = `Why there is no isomorphism between ${prod(Z(m), Z(n))} and ${Z(m * n)}`;
     const sheetElementsAsJSON = [
         {
             // rectangular CD of Z_m x Z_n with arrows for a,b shown
-            className: 'CDElement', name: 'left', groupURL: ZmxZn.URL,
+            className: 'CDElement', id: 'left', groupURL: ZmxZn.URL,
             x: L, y: vizY, w: W, h: H,
             arrow_generators: [{ generator: a, color: '#660000' },
                 { generator: b, color: '#006600' }],
@@ -194,7 +191,7 @@ function showNoZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElem
         },
         {
             // same as previous, plus arrow for maxOrdElt
-            className: 'CDElement', name: 'middle', groupURL: ZmxZn.URL,
+            className: 'CDElement', id: 'middle', groupURL: ZmxZn.URL,
             x: L + W + gap, y: vizY, w: W, h: H,
             arrow_generators: [{ generator: a, color: '#660000' },
                 { generator: b, color: '#006600' },
@@ -204,7 +201,7 @@ function showNoZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElem
         },
         {
             // circular CD of Z_mn with arrow for maxOrdElt shown only
-            className: 'CDElement', name: 'right', groupURL: ZmxZn.URL,
+            className: 'CDElement', id: 'right', groupURL: ZmxZn.URL,
             x: L + 2 * (W + gap), y: vizY, w: W, h: H,
             arrow_generators: [{ generator: maxOrdElt, color: '#000066' }],
             strategy_parameters: [{ generator: maxOrdElt, layout: 'rotated', direction: 'XY', nestingLevel: 0 },
@@ -214,19 +211,19 @@ function showNoZmnIsomorphismSheet(group, m /*: groupElement */, n /*: groupElem
             className: 'TextElement',
             text: `A Cayley diagram of ${prod(Z(m), Z(n))} with generators of order ${m} and ${n} shown in red and green, respectively.`,
             x: L, y: vizY + H, w: W,
-            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_name: 'left'
+            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_id: 'left'
         },
         {
             className: 'TextElement',
             text: `The same Cayley diagram as on the left, but now with the largest-order element of that group also shown, colored blue.`,
             x: L + W + gap, y: vizY + H, w: W,
-            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_name: 'middle'
+            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_id: 'middle'
         },
         {
             className: 'TextElement',
             text: `The same Cayley diagram as in the middle, but now with the red and green generators removed. The blue generator creates ${m * n / maxOrd} cycles, not one.`,
             x: L + 2 * (W + gap), y: vizY + H, w: W,
-            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_name: 'right'
+            fontSize: '1.25em', alignment: 'center', opacity: 0, anchor_id: 'right'
         }
     ];
     SheetModel.createNewSheet({ title: titleText, elements: sheetElementsAsJSON });

@@ -1,21 +1,22 @@
-// @flow
 /*
- * Function returns subgroups of group as array of BitSets
- */
+# SubgroupLattice
+
+Find subgroups of group
+
+```js
+*/
 
 import * as MathUtils from './MathUtils.js';
-import {BitSet} from './BitSet.js';
-import {Subgroup} from './Subgroup.js';
+import { BitSet } from './BitSet.js';
+import { Subgroup } from './Subgroup.js';
 
-/*::
-import {Group} from './Group.js'
- */
+import type { Group } from './Group.js'
 
 export class SubgroupLattice {
-   group /*: Group */
-   z_generators /*: BitSet */
+   group: Group
+   z_generators: BitSet
 
-   constructor (group /*: Group */) {
+   constructor (group: Group) {
       this.group = group;
       this.z_generators = new BitSet(group.order);
       for (let i = 1; i < group.order; i++) {
@@ -25,9 +26,9 @@ export class SubgroupLattice {
       }
    }
 
-   static getSubgroups (group /*: Group */) /*: [Array<Subgroup>, boolean] */ {
+   static getSubgroups (group: Group): [Subgroup[], boolean] {
       const subgroupFinder = new SubgroupLattice(group)
-      const allSubgroups /*: Array<Subgroup> */ = []
+      const allSubgroups: Subgroup[] = []
       let isSolvable  = true
 
       // special case cyclic groups, trivial group
@@ -46,7 +47,7 @@ export class SubgroupLattice {
          // take generators from the next-smallest subgroup, add an element not in that group, and minimize generators
          const new_subgroup = new Subgroup(group, last_subgroup_found.generators.toArray()).setAllMembers();
          const new_element =
-               ((BitSet.difference(new_subgroup.members, last_subgroup_found.members).first() /*: any */) /*: groupElement */);
+               BitSet.difference(new_subgroup.members, last_subgroup_found.members).first() as groupElement
          subgroupFinder.minimizeGenerators(new_subgroup, new_element);
          allSubgroups.push(new_subgroup);
       }
@@ -55,8 +56,8 @@ export class SubgroupLattice {
    }
 
 
-   findAllSubgroups () /*: Array<Subgroup> */ {
-      const subgroups /*: Array<Subgroup> */ = [];
+   findAllSubgroups (): Subgroup[] {
+      const subgroups: Subgroup[] = [];
 
       let currLayer = [new Subgroup(this.group, [0], [0])];  // 0-th layer is trivial group
       for (;;) {
@@ -75,7 +76,7 @@ export class SubgroupLattice {
       Cyclic extension algorithm from
       "Fundamental Algorithms for Permutation Groups" by Greg Butler (1991)
     */
-   findNextLayer (currLayer /*: Array<Subgroup> */) /*: Array<Subgroup> */ {
+   findNextLayer (currLayer: Subgroup[]): Subgroup[] {
       const nextLayer = [];
 
       for (let i = 0; i < currLayer.length; i++) {
@@ -85,7 +86,7 @@ export class SubgroupLattice {
             this.z_generators,
             BitSet.difference(normalizer.members, currSubgroup.members));
          for (let j = 0; j < nextLayer.length; j++) {
-            const nextSubgroup /*: Subgroup */ = nextLayer[j];
+            const nextSubgroup: Subgroup = nextLayer[j];
             if (nextSubgroup.members.contains(currSubgroup.members)) {
                todo.subtract(nextSubgroup.members);
             }
@@ -124,7 +125,7 @@ export class SubgroupLattice {
       end if
       end while
     */
-   findNormalizer (subgroup /*: Subgroup */) /*: Subgroup */ {
+   findNormalizer (subgroup: Subgroup): Subgroup {
       let normalizer = subgroup.clone(),
           todo = new BitSet(this.group.order).setAll().subtract(subgroup.members);
 
@@ -144,8 +145,8 @@ export class SubgroupLattice {
       return normalizer;
    }
 
-   normalizes (subgroup /*: Subgroup */, g /*: groupElement */) /*: boolean */{
-      const mult = (a /*: groupElement */, b /*: groupElement */) => this.group.multtable[a][b];
+   normalizes (subgroup: Subgroup, g: groupElement): boolean{
+      const mult = (a: groupElement, b: groupElement) => this.group.multtable[a][b];
       const g_inverse = this.group.inverses[g];
       for (let i = 0; i < this.group.order; i++) {
          if (subgroup.generators.isSet(i)) {
@@ -157,7 +158,7 @@ export class SubgroupLattice {
       return true;
    }
 
-   extendSubgroup (subgroup /*: Subgroup */, normalizer /*: number */) {
+   extendSubgroup (subgroup: Subgroup, normalizer: number) {
       const todo = this.group.elementPowers[normalizer];
       for (let i = 0; i < subgroup.members.len; i++) {
          if (subgroup.members.isSet(i)) {
@@ -170,7 +171,7 @@ export class SubgroupLattice {
       }
    }
 
-   minimizeGenerators (subgroup /*: Subgroup */, extension /*: number */) {
+   minimizeGenerators (subgroup: Subgroup, extension: number) {
       // 1) find an element that will generate what extension and an existing generator do now
       const generators = subgroup.generators.toArray();
       for (let i = 0; i < generators.length; i++) {
@@ -208,20 +209,20 @@ export class SubgroupLattice {
 
    // takes bitset or array of generators; return bitset
    // note that it does not rely on already knowing the group subgroups
-   #closure (generators /*: BitSet | Array<groupElement> */) /*: BitSet */ {
-      const mult = (a /*: groupElement */, b /*: groupElement */) => this.group.multtable[a][b];
+   #closure (generators: BitSet | groupElement[]): BitSet {
+      const mult = (a: groupElement, b: groupElement) => this.group.multtable[a][b];
       const gens = Array.isArray(generators) ? [...generators]  : generators.toArray();
       const rslt = new BitSet(this.group.order).set(0);
       if (gens.length == 0) {
          return rslt;
       }
-      const gensUsed = [((gens.pop() /*: any */) /*: groupElement */)];
+      const gensUsed = [gens.pop() as groupElement];
       for (let g = gensUsed[0], s = g; g != 0; g = mult(g, s)) {
          rslt.set(g);
       }
 
       while (gens.length != 0) {
-         gensUsed.push(((gens.pop() /*: any */) /*: groupElement */));
+         gensUsed.push(gens.pop() as groupElement);
          const prevRslt = rslt.toArray();  // H_{i-1}
          const coset_reps = [0];
          for (const g of coset_reps) {

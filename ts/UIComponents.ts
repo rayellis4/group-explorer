@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # UIComponents
 
@@ -23,7 +23,6 @@ showSubmenu
 ```javascript
  */
 import * as GEUtils from './GEUtils.js'
-import {THREE} from '../lib/externals.js'
 
 import {
    recognizeSelect,
@@ -32,39 +31,28 @@ import {
    recognizeMoveResize,
 } from './Gestures.js'
 
-export {
-    positionElement,  // only used in GroupTableUI
-    makeFixedMenu,
-    makeDetachedMenu,
-    makeTooltip,
-    makeMockSelect,
-    makeDialog
-}
-/*::
-interface NumberLocation {clientX: number, clientY: number}
 interface StringLocation {clientX: string, clientY: string}
 type ClientLocation = NumberLocation | StringLocation
- */
 /*
 ```
 ### makeFixedMenu
 
 ```javascript
  */
-function makeFixedMenu (element /*: HTMLElement */, callback /*: (string, Event) => void */ ) {
+export function makeFixedMenu (element: HTMLElement, callback: (action: string, event: Event) => void ) {
    createMenu(element)
    element.style.position = 'unset'
    element.style.maxHeight = 'unset'
    recognizeSelect(element, (event) => {
       event.stopPropagation()
-      const action = event.target.closest('[data-action]')?.getAttribute('data-action')
+      const action = (event.target as HTMLElement).closest('[data-action]')?.getAttribute('data-action')
       if (action != null) {
          callback(action, event)
       }
    })
    recognizeContextMenu(element, (event) => {
       event.stopPropagation()
-      const action2 = event.target.closest('[data-action2]')?.getAttribute('data-action2')
+      const action2 = (event.target as HTMLElement).closest('[data-action2]')?.getAttribute('data-action2')
       if (action2 != null) {
          callback(action2, event)
       }
@@ -76,12 +64,12 @@ function makeFixedMenu (element /*: HTMLElement */, callback /*: (string, Event)
 
 ```javascript
  */
-function makeDetachedMenu (html /*: html */, location /*: ClientLocation */) /*: Promise<?string> */ {
-   const promise = new Promise/*:: <?string> */((resolve, reject) => {
-      const contentElement = GEUtils.generateElements(html)[0]
+export function makeDetachedMenu (html: html, location: ClientLocation): Promise<Maybe<string>> {
+   const promise = new Promise<Maybe<string>> ((resolve, reject) => {
+      const contentElement = GEUtils.generateElements(html)[0] as HTMLElement
       createMenu(contentElement)
-      const rootElement /*: HTMLElement */ = makeModal(contentElement, (clickEvent) => {
-         if (!contentElement.contains(clickEvent.target)) {
+      const rootElement: HTMLElement = makeModal(contentElement, (clickEvent) => {
+         if (!contentElement.contains(clickEvent.target as HTMLElement)) {
             const displayedSubmenus = [...rootElement.querySelectorAll('.menu:not(.hidden)')]
             if (displayedSubmenus.length > 1) {
                displayedSubmenus[displayedSubmenus.length - 1].classList.toggle('hidden')
@@ -95,9 +83,9 @@ function makeDetachedMenu (html /*: html */, location /*: ClientLocation */) /*:
       recognizeSelect(contentElement,
          (event) => {
             event.stopPropagation()
-            const actionElement = event.target.closest('[data-action]')
+            const actionElement = (event.target as HTMLElement).closest('[data-action]')
             const action = actionElement?.getAttribute('data-action')
-            if (actionElement?.classList.contains('detached-submenu')) {
+            if (actionElement?.classList.contains('detached-submenu') && action != null) {
                eval(action)
             } else if (action != null) {
                resolve(action)
@@ -117,10 +105,10 @@ function makeDetachedMenu (html /*: html */, location /*: ClientLocation */) /*:
 
 ```javascript
  */
-function makeTooltip (html /*: html */, location /*: ClientLocation */) {
-   const tooltipElement = GEUtils.generateElements(html)[0]
+export function makeTooltip (html: html, location: ClientLocation) {
+   const tooltipElement = GEUtils.generateElements(html)[0] as HTMLElement
    tooltipElement.classList.add('tooltip')
-   const modalElement /*: HTMLElement */ = makeModal(tooltipElement, (_ev) => modalElement.remove())
+   const modalElement: HTMLElement = makeModal(tooltipElement, (_ev) => modalElement.remove())
    document.body.append(modalElement)
    makeMoveResizable(tooltipElement)
    positionElement(tooltipElement, location)
@@ -131,16 +119,17 @@ function makeTooltip (html /*: html */, location /*: ClientLocation */) {
 
 ```javascript
  */
-function makeMockSelect (
-   rootElement /*: HTMLElement */,
-   choices /*: Array<{value: string, label?: html, selectedLabel?: html} | {header: html, choices: Array<{value: string, label?: html, selectedLabel?: html}>}> */
-) /*: Promise<string> */ {
-   function flatChoices (items) {
+export type mockSelectChoiceItem = {value: string, label?: html, selectedLabel?: html}
+type mockSelectChoice = {header: html, choices: mockSelectChoice[]} | mockSelectChoiceItem
+   
+
+export function makeMockSelect (rootElement: HTMLElement, choices: mockSelectChoice[]): Promise<string> {
+   function flatChoices (items: mockSelectChoice[]): mockSelectChoiceItem[] {
       return items.flatMap((item) => 'header' in item ? flatChoices(item.choices) : [item])
    }
 
-   function renderItems (items) {
-      return items.map((item) =>
+   function renderItems (items: mockSelectChoice[]): html {
+      return items.map((item: mockSelectChoice) =>
          'header' in item
             ? `<li><details><summary>${item.header}</summary><ul>${renderItems(item.choices)}</ul></details></li>`
             : `<li data-action="makeSelection('${item.value}')">${item.label || item.value}</li>`
@@ -149,11 +138,11 @@ function makeMockSelect (
 
    const formattedChoices = [
       `<ul class="menu scrollable" style="resize: none; min-width: ${rootElement.offsetWidth}px; max-height: 25em">`,
-      renderItems(choices),
+         renderItems(choices),
       '</ul>'
    ].join('')
 
-   function makeSelection (value /*: string */) /*: void | string */ {
+   function makeSelection (value: string): Maybe<string> {
       const choice = flatChoices(choices).find((c) => c.value == value)
       if (choice != null) {
          rootElement.setAttribute('data-value', value)
@@ -162,11 +151,11 @@ function makeMockSelect (
       }
    }
 
-   const promise = new Promise/*:: <string> */((resolve, reject) => {
-      const choiceElement = GEUtils.generateElements(formattedChoices)[0]
+   const promise = new Promise<string> ((resolve, reject) => {
+      const choiceElement = GEUtils.generateElements(formattedChoices)[0] as HTMLElement
       createMenu(choiceElement)
 
-      const modalElement /*: HTMLElement */ = makeModal(choiceElement,
+      const modalElement: HTMLElement = makeModal(choiceElement,
          (_ev) => {
             modalElement.remove(),
             reject()
@@ -201,12 +190,12 @@ function makeMockSelect (
 
 ```javascript
  */
-function makeDialog (
-   html /*: html */,
-   location /*: ClientLocation */,
-   modalCallback /*: (Event) => void  */= (ev) => ev.stopPropagation()
-) /*: HTMLElement */ {
-   const dialogElement = GEUtils.generateElements(html)[0]
+export function makeDialog (
+   html: html,
+   location: ClientLocation,
+   modalCallback: (event: Event) => void = (ev) => ev.stopPropagation()
+): HTMLElement {
+   const dialogElement = GEUtils.generateElements(html)[0] as HTMLElement
    dialogElement.classList.add('dialog')
 
    const modalElement = makeModal(dialogElement, modalCallback)
@@ -224,11 +213,11 @@ function makeDialog (
 ```javascript
  */
 function makeModal (
-   contentElement /*: HTMLElement */,
-   clickListener /*: (Event) => void */ = () => {}
-) /*: HTMLElement */ {
+   contentElement: HTMLElement,
+   clickListener: (event: Event) => void = () => {}
+): HTMLElement {
    const modalHTML = `<div class="modal"></div>`
-   const modalElement = GEUtils.generateElements(modalHTML)[0]
+   const modalElement = GEUtils.generateElements(modalHTML)[0] as HTMLElement
    modalElement.appendChild(contentElement)
    modalElement.addEventListener('click', clickListener)
    ;['mousedown', 'mousemove', 'mouseup', 'touchstart', 'touchmove', 'touchend', 'wheel']
@@ -237,8 +226,7 @@ function makeModal (
    // Prevent Safari from rescaling browser window on pinch
    modalElement.addEventListener('touchmove',
       (ev) => {
-         // $FlowExpectedError[prop-missing] -- mobile safari non-standard touch event property
-         if (ev.scale !== 1 && ev.touches.length > 1) {
+         if ('scale' in ev &&  ev.scale !== 1 && 'touches'in ev && Array.isArray(ev.touches) && ev.touches.length > 1) {
             ev.preventDefault()
          }
       },
@@ -254,15 +242,14 @@ Specialized routine to drag-and-drop pieces of a multi-level detached menu
 
 ```javascript
  */
-function makeMovable (element /*: HTMLElement */) {
-   let scrollInProgress = false
-   let displayedSubmenu = null
-   let displayedSubmenuParent = null
+function makeMovable (element: HTMLElement) {
+   let scrollInProgress: boolean = false
+   let displayedSubmenu: Maybe<HTMLElement> = null
+   let displayedSubmenuParent: Maybe<HTMLElement> = null
 
-   const scrollKiller = (ev /*: Event */) => ev.preventDefault()
+   const scrollKiller = (ev: Event) => ev.preventDefault()
 
-   // $FlowExpectedError[incompatible-type]
-   const modalElement /*: HTMLElement */ = element.closest('.modal')
+   const modalElement: Maybe<HTMLElement> = element.closest('.modal')
    if (modalElement == null) {
       return
    }
@@ -270,8 +257,7 @@ function makeMovable (element /*: HTMLElement */) {
       (startEvent, previousEvent, endEvent, isDrop) => {
          endEvent.stopPropagation()
 
-         // $FlowExpectedError[incompatible-type]
-         const movingMenu /*: HTMLElement */ = startEvent.target.closest('.menu')
+         const movingMenu = (startEvent.target as HTMLElement).closest('.menu') as Maybe<HTMLElement>
          if (movingMenu == null) {  // pointerdown outside of displayed menu
             return
          }
@@ -332,7 +318,7 @@ Generic routine to move and resize elements on mouse or touch devices.
 
 ```javascript
  */
-function makeMoveResizable (element /*: HTMLElement */) {
+function makeMoveResizable (element: HTMLElement) {
    const disableResize = (element.style.resize == 'none')
    if (!disableResize && !GEUtils.isTouchDevice()) {
       element.insertAdjacentHTML('beforeend', '<div class="resize-handle"></div>')
@@ -341,11 +327,11 @@ function makeMoveResizable (element /*: HTMLElement */) {
    recognizeMoveResize(element, moveResizeComponent)
 
    function moveResizeComponent (
-      dx /*: number */,
-      dy /*: number */,
-      dw /*: number */,
-      dh /*: number */,
-      _isDrop /*: ?boolean */
+      dx: number,
+      dy: number,
+      dw: number,
+      dh: number,
+      _isDrop?: boolean
    ) {
       const {left, top, width, height} = element.getBoundingClientRect()
       element.style.left = `${left + dx}px`
@@ -360,7 +346,7 @@ function makeMoveResizable (element /*: HTMLElement */) {
 
 ```javascript
  */
-function positionElement (element /*: HTMLElement */,  { clientX, clientY } /*: ClientLocation */) {
+export function positionElement (element: HTMLElement,  { clientX, clientY }: ClientLocation) {
    // set horizontal position to remain within body
    const elementWidth = element.getBoundingClientRect().width
    element.style.left = (typeof clientX == 'string')
@@ -382,10 +368,8 @@ Position submenu at right end of parent menu if there's room, else on left end
 
 ```javascript
  */
-function positionDetachedSubmenu (menu /*: HTMLElement */, location /*: ClientLocation */) {
-   // $FlowExpectedError[incompatible-type] -- from createMenu logic
-   // $FlowExpectedError[incompatible-use] -- from createMenu logic
-   const containingSubmenu /*: HTMLElement */ = menu.parentElement?.closest('.menu')
+function positionDetachedSubmenu (menu: HTMLElement, location: ClientLocation) {
+   const containingSubmenu: HTMLElement = menu.parentElement?.closest('.menu') as HTMLElement
    const containingBox = containingSubmenu.getBoundingClientRect()
 
    menu.style.left = (containingBox.right + menu.offsetWidth < window.innerWidth)
@@ -400,7 +384,7 @@ function positionDetachedSubmenu (menu /*: HTMLElement */, location /*: ClientLo
 
 ```javascript
  */
-function createMenu (menuElement /*: HTMLElement */) /*: HTMLElement */ {
+function createMenu (menuElement: HTMLElement): HTMLElement {
    menuElement.classList.add('root-menu')
    menuElement.classList.add('menu')
 
@@ -421,12 +405,12 @@ function createMenu (menuElement /*: HTMLElement */) /*: HTMLElement */ {
 
 ```javascript
  */
-function setActionHandler (contentElement /*: HTMLElement */, clickHandler /*: (string, MouseEvent) => void */) {
+function setActionHandler (contentElement: HTMLElement, clickHandler: (action: string, event: MouseEvent) => void) {
    contentElement.addEventListener('click', (event) => {
       event.stopPropagation()
-      const actionElement = event.target.closest('[data-action]')
-      if (contentElement.contains(actionElement) && actionElement != null) {
-         clickHandler((actionElement.getAttribute('data-action') /*:: as any as string */), event)
+      const actionElement = (event.target as HTMLElement).closest('[data-action]') as Maybe<HTMLElement>
+      if (actionElement != null && contentElement.contains(actionElement)) {
+         clickHandler((actionElement.getAttribute('data-action') as string), event)
       }
    })
 }
@@ -436,20 +420,19 @@ function setActionHandler (contentElement /*: HTMLElement */, clickHandler /*: (
 
 ```javascript
  */
-function showSubmenu (event /*: MouseEvent */) {
-   // $FlowExpectedError[incompatible-type] -- from createMenu logic
-   // $FlowExpectedError[incompatible-use] -- from createMenu logic
-   const submenu /*: HTMLElement */ = event.target.closest('.detached-submenu').querySelector(':scope > ul')
-   submenu.classList.toggle('hidden')
-   // $FlowExpectedError[incompatible-use] -- from createMenu logic
-   event.target.closest('.root-menu').querySelectorAll('.menu:not(.hidden)')
+function showSubmenu (event: MouseEvent) {
+   const detachedSubmenu = (event.target as HTMLElement).closest('.detached-submenu') as HTMLElement
+   const submenuList = detachedSubmenu.querySelector(':scope > ul') as HTMLElement
+   submenuList.classList.toggle('hidden')
+   const rootMenu = (event.target as HTMLElement).closest('.root-menu') as HTMLElement
+   rootMenu.querySelectorAll('.menu:not(.hidden)')
       .forEach(
-         (el /*: HTMLElement */) => {
-            if (!el.contains(submenu)) {
-               el.classList.toggle('hidden')
+         (el) => {
+            if (!(el as HTMLElement).contains(submenuList)) {
+               (el as HTMLElement).classList.toggle('hidden')
             }
          })
-   if (!submenu.classList.contains('hidden')) {
-      positionDetachedSubmenu(submenu, event)
+   if (!submenuList.classList.contains('hidden')) {
+      positionDetachedSubmenu(submenuList, event)
    }
 }

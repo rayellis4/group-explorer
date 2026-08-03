@@ -1,2 +1,2 @@
-export { display };
-declare function display(userNotesElementId: any, group: any): void;
+import type { Group } from './Group.ts';
+export declare function display(userNotesElementId: string, group: Group): void;

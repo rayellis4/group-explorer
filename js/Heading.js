@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # Heading component
 
@@ -18,18 +18,8 @@ All menus include an ['About GE3' option](#aboutge3).
 import * as GEUtils from './GEUtils.js';
 import * as Settings from './Settings.js';
 import { makeDetachedMenu, makeDialog } from './UIComponents.js';
-export { display, setTitle };
-/*
-```
-## display
-Displays a consistent heading used by all the GE3 pages.
-It adds the HTML elements of the heading to the DOM, styles them, and sets the event listener
-to display the menu.
-```javascript
- */
-function display(headingElement /*: HTMLElement */, label /*: html */, menuGenerator /*: () => Array<{label: html, action: () => void}> */) {
-    // $FlowFixMe[incompatible-type] -- how to type HTMLElement w/ non-null id, needed for CSS styling
-    const headingElementId /*: string */ = headingElement.getAttribute('id');
+export function display(headingElement, label, menuGenerator) {
+    const headingElementId = headingElement.getAttribute('id');
     const headingHTML = `<style>
              #${headingElementId} {
                 background-color: var(--page-header-background);
@@ -60,10 +50,10 @@ function display(headingElement /*: HTMLElement */, label /*: html */, menuGener
           </div>`;
     headingElement.insertAdjacentHTML('beforeend', headingHTML);
     // define menu event listener
-    const showHeadingMenu = (clickEvent /*: MouseEvent */) => {
+    const showHeadingMenu = (clickEvent) => {
         clickEvent.preventDefault();
         clickEvent.stopPropagation();
-        const menuElements /*: Array<{label: html, action: () => void}> */ = menuGenerator();
+        const menuElements = menuGenerator();
         menuElements.push({ label: 'Settings', action: () => Settings.showDialog() });
         menuElements.push({ label: 'About GE3', action: () => aboutGE3() });
         // Assemble option menu elements
@@ -73,16 +63,18 @@ function display(headingElement /*: HTMLElement */, label /*: html */, menuGener
             '</ul>'
         ].join('');
         makeDetachedMenu(optionMenu, clickEvent)
-            .then((action) => { if (action != null && parseInt(action) != null)
-            menuElements[parseInt(action)].action(); });
+            .then((action) => {
+            if (action != null && parseInt(action) != null)
+                menuElements[parseInt(action)].action();
+        });
     };
-    (document.getElementById('heading-menu') /*:: as any as HTMLElement */)
+    document.getElementById('heading-menu')
         .addEventListener('click', (ev) => showHeadingMenu(ev));
     // define resize observer
     const resizeHeading = () => {
-        const label = (document.getElementById('heading-label') /*:: as any as HTMLElement */);
-        const menu = (document.getElementById('heading-menu') /*:: as any as HTMLElement */);
-        const wrapper = (document.getElementById('heading-wrapper') /*:: as any as HTMLElement */);
+        const label = document.getElementById('heading-label');
+        const menu = document.getElementById('heading-menu');
+        const wrapper = document.getElementById('heading-wrapper');
         const unstyledWidth = label.offsetWidth + 2 * menu.offsetWidth;
         const spaceAvailable = headingElement.offsetWidth;
         if (unstyledWidth > spaceAvailable) {
@@ -103,8 +95,8 @@ function display(headingElement /*: HTMLElement */, label /*: html */, menuGener
 Updates the heading title
 ```javascript
  */
-function setTitle(title /*: html */) {
-    (document.getElementById('heading-label') /*:: as any as HTMLElement */).innerHTML = title;
+export function setTitle(title) {
+    document.getElementById('heading-label').innerHTML = title;
 }
 /*
 ```
@@ -128,7 +120,7 @@ function aboutGE3() {
         clientX: (window.innerWidth - dialogSize.width) / 2,
         clientY: (window.innerHeight - dialogSize.height) / 2
     };
-    const clickHandler = (clickEvent /*: MouseEvent */) => {
+    const clickHandler = (clickEvent) => {
         const anchor = clickEvent.target.closest('a');
         const anchorPage = (anchor) ? anchor.innerHTML : null;
         if (anchorPage != null)

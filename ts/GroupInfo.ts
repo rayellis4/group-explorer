@@ -1,4 +1,10 @@
-// @flow
+/*
+# GroupInfo
+
+Assembles html page of group information
+
+```js
+ */
 
 import * as AbelianInfo from './AbelianInfo.js'
 import * as BasicFactInfo from './BasicFactInfo.js'
@@ -17,16 +23,16 @@ import * as UserNoteInfo from './UserNoteInfo.js'
 import * as ViewInfo from './ViewInfo.js'
 import * as ZmnInfo from './ZmnInfo.js'
 
-export {load}
+import type { Group } from './Group.ts'
 
-async function load () {
+export async function load () {
    insertHTML()
 
    const group = await Library.loadFromPageURL()
 
    // Create Header
    Heading.display(
-      document.getElementById('heading'),
+      document.getElementById('heading') as HTMLElement,
       formatHeading(group),
       () => [
          {label: 'Expand All',
@@ -41,7 +47,7 @@ async function load () {
       ]
    )
 
-   ;[
+   ;([
       ['basic-facts', BasicFactInfo.display],
       ['views', ViewInfo.display],
       ['abelian', AbelianInfo.display],
@@ -57,11 +63,12 @@ async function load () {
       ['user-names', NamingSchemeInfo.displayUserNames],
       ['customizations', UserNoteInfo.display],
       group.author ? ['file-data', FileDataInfo.display] : ['', () => {}]
-   ].forEach(([elementId, displayFunction]) => displayFunction(elementId, group))
+   ] as [string, (elementId: string, group: Group) => void][])
+     .forEach(([elementId, displayFunction]) => displayFunction(elementId, group))
 
    // Register for GAP button clicks
-   const computeInGAP = async (ev) => {
-      const purpose = ev.target.getAttribute('data-GAP')
+   const computeInGAP = async (ev: Event) => {
+      const purpose = (ev.target as HTMLElement)?.getAttribute('data-GAP')
       if (purpose != null)
          await ShowGAPCode.setup(purpose, group)
    }
@@ -72,11 +79,11 @@ async function load () {
       gapButtons.forEach((el) => el.addEventListener('click', (ev) => computeInGAP(ev)))
    }
 
-   document.querySelector('#content.all-info')
+   ;(document.querySelector('#content.all-info') as HTMLElement)
       .addEventListener('representationChange', () => Heading.setTitle(formatHeading(group)))
 }
 
-function formatHeading (group) {
+function formatHeading (group: Group) {
    const heading = `${group.name + ((group.phrase == null || group.phrase == "") ? '' : (' - ' + group.phrase))}`
    return heading
 }

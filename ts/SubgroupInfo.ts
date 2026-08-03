@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SubgroupInfo
 
@@ -7,24 +7,23 @@ including a table of the group's subgroups and some of their properties.
 
 ```javascript
  */
-import {BitSet} from './BitSet.js'
-import {createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
+import { BitSet } from './BitSet.js'
+import { CayleyDiagramViewModel, createCayleyDiagramThumbnailView } from './CayleyDiagramView.js'
 import * as GEUtils from './GEUtils.js'
-import {IMAGE_SIZE} from './GroupTable.js'
+import { IMAGE_SIZE } from './GroupTable.js'
 import * as Library from './Library.js'
 import * as MathUtils from './MathUtils.js'
 import * as SheetModel from './SheetModel.js'
 
-import {CayleyDiagramModel} from './CayleyDiagramModel.js'
-import {CycleGraphModel} from './CycleGraphModel.js'
-import {MulttableModel} from './MulttableModel.js'
-import {THREE} from '../lib/externals.js'
+import { CayleyDiagramModel } from './CayleyDiagramModel.js'
+import { CycleGraphModel } from './CycleGraphModel.js'
+import { MulttableModel } from './MulttableModel.js'
+import * as THREE from '../lib/externals.js'
 
-export {display}
+import type { Group  } from './Group.js'
+import type { Subgroup } from './Subgroup.js'
 
 /*::
-import {Group} from './Group.js'
-
 import type {
     JSONType,
     SheetElementJSON,
@@ -39,20 +38,21 @@ import type {
 type DecoratedSubgroup = Subgroup & {_tierIndex?: number, _used?: boolean};
 */
 
-function display (subgroupInfoElementId, group) {
+export function display (subgroupInfoElementId: string, group: Group) {
+   const subgroupInfoElement = document.getElementById(subgroupInfoElementId) as HTMLElement
    const cayleyDiagramThumbnailView = createCayleyDiagramThumbnailView( { width : IMAGE_SIZE, height : IMAGE_SIZE } );
-   const subgroupInfoElement = document.getElementById(subgroupInfoElementId)
-   subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId, cayleyDiagramThumbnailView)
+   subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId)
 
    GEUtils.createActionHandler(subgroupInfoElement, (action) => eval(action))
 
    // create twisty details on the fly
-   const generateDetail = (event) => {
-      if (event.target.querySelector('div') == null) {
-         const subgroupIndex = parseInt(event.target.getAttribute('subgroup'))
+   const generateDetail = (event: Event) => {
+      const target = event.target as HTMLElement
+      if (target.querySelector('div') == null) {
+         const subgroupIndex = parseInt(target.getAttribute('subgroup') as string)
          const expandedContent = formatSubgroupListContent(group, subgroupIndex, cayleyDiagramThumbnailView)
-         event.target.insertAdjacentHTML('beforeEnd', expandedContent)
-         event.target.removeEventListener('toggle', generateDetail)
+         target.insertAdjacentHTML('beforeend', expandedContent)
+         target.removeEventListener('toggle', generateDetail)
       }
    }
    Array.from(document.querySelectorAll('#subgroup-list details')).forEach((element) => {
@@ -62,12 +62,12 @@ function display (subgroupInfoElementId, group) {
    })
 
    // rebuild content on representation change
-   subgroupInfoElement.closest('.all-info')
+   ;(subgroupInfoElement.closest('.all-info') as HTMLElement)
       .addEventListener('representationChange',
-          () => subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId))
+         () => subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId))
 }
 
-function makeSubgroupInfoContent (group, subgroupInfoElementId, cayleyDiagramGenerator) {
+function makeSubgroupInfoContent (group: Group, subgroupInfoElementId: string) {
    const htmlFragments = [
       `<style>
          #${subgroupInfoElementId} > details > div {
@@ -101,7 +101,7 @@ function makeSubgroupInfoContent (group, subgroupInfoElementId, cayleyDiagramGen
    return htmlFragments.join('')
 }
 
-function formatSubgroupInfoHeader (group) {
+function formatSubgroupInfoHeader (group: Group) {
    const htmlFragments = [
       `<div>All <a href="./help/rf-groupterms/index.html#subgroup">subgroups</a> of
           ${group.name} are listed below, together with their
@@ -153,7 +153,7 @@ function formatSubgroupInfoHeader (group) {
    return htmlFragments
 }
 
-function formatSubgroupListElement (subgroup) {
+function formatSubgroupListElement (subgroup: Subgroup) {
    const subgroupIndex = subgroup.group.subgroups.indexOf(subgroup)
    const txtName = () => `H_${subgroupIndex}`
    const htmlName = () => `<i>H</i><sub>${subgroupIndex}</sub>`
@@ -205,15 +205,19 @@ function formatSubgroupListElement (subgroup) {
    return line
 }
 
-function formatSubgroupListContent (group, subgroupIndex, cayleyDiagramGenerator) {
+function formatSubgroupListContent (
+   group: Group,
+   subgroupIndex: integer,
+   cayleyDiagramThumbnailView: CayleyDiagramViewModel
+): html {
    const subgroup = group.subgroups[subgroupIndex]
    const elementRepresentations = subgroup.members.toArray().map(el => group.representation[el])
    const isomorphicGroup = subgroup.isomorphicGroup
 
    // create thumbnail if it doesn't exist already
    if (isomorphicGroup.thumbnails?.cayleyDiagram == null) {
-      cayleyDiagramGenerator.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name)
-      const imageSource = cayleyDiagramGenerator.getImage().src
+      cayleyDiagramThumbnailView.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name)
+      const imageSource = cayleyDiagramThumbnailView.getImage().src
       isomorphicGroup.thumbnails = isomorphicGroup.thumbnails || {}
       isomorphicGroup.thumbnails.cayleyDiagram = imageSource
       Library.saveGroup(isomorphicGroup)
@@ -240,9 +244,9 @@ function formatSubgroupListContent (group, subgroupIndex, cayleyDiagramGenerator
             ? `<div>It is a <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a> subgroup.
                   See the <a href="./help/rf-groupterms/index.html#short-exact-sequence">short exact sequence</a>
                   exhibiting the
-                  <a href="./help/rf-groupterms/index.html#quotient-group">quotient group</a>,
-                  isomorphic to <a href="./GroupInfo.html?groupURL=${subgroup.isomorphicQuotientGroup.URL}" target="_blank"
-                     >${subgroup.isomorphicQuotientGroup.name},</a> by
+                  <a href="./help/rf-groupterms/index.html#quotient-group">quotient group</a>, isomorphic to 
+                  <a href="./GroupInfo.html?groupURL=${(subgroup.isomorphicQuotientGroup as Group).URL}" target="_blank"
+                     >${(subgroup.isomorphicQuotientGroup as Group).name},</a> by
                   <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'CDElement')">Cayley diagram</a>,
                   <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'CGElement')">cycle graph</a>,
                   or <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'MTElement')">multiplication table</a>.
@@ -255,7 +259,7 @@ function formatSubgroupListContent (group, subgroupIndex, cayleyDiagramGenerator
    return contentHTML
 }
 
-function shortDescription (group, subgroup /*: Subgroup */) {
+function shortDescription (group: Group, subgroup: Subgroup) {
    let rslt = '';
 
    const elements = subgroup.members.toArray();
@@ -269,7 +273,7 @@ function shortDescription (group, subgroup /*: Subgroup */) {
                          ${prime}-group</a>, `;
       }
    } else {
-      const pSubgroupInfo = subgroup.pSubgroupInfo
+      const pSubgroupInfo = subgroup.getPSubgroupInfo()
       if (pSubgroupInfo != null) {
          if (pSubgroupInfo.isSylow) {
             rslt = `, a <a href="./help/rf-groupterms/index.html#sylow-p-subgroup">
@@ -284,13 +288,13 @@ function shortDescription (group, subgroup /*: Subgroup */) {
    return rslt;
 }
 
-function highlightSubgroup ( group, H /*: Subgroup */, type ) {
+function highlightSubgroup (group: Group, H: Subgroup, type: SheetModel.VisualizerType ) {
    const highlightColor = (type == 'CDElement') ? 'hsl(0, 50%, 30%)' : 'hsl(0, 100%, 80%)'
    return Array( group.order ).fill( '' ).map( ( e /*: color */, i ) =>
       H.members.isSet( i ) ? highlightColor : e );
 }
 
-function getHighlightColors (group, count, type) {
+function getHighlightColors (group: Group, count: integer, type: SheetModel.VisualizerType) {
    const highlightConfiguration = (type == 'CDElement')
       ? new CayleyDiagramModel(group).highlightConfiguration
       : (type == 'CGElement')
@@ -315,8 +319,12 @@ function getHighlightColors (group, count, type) {
 //   type (CDELement/CGElement/MTElement/TextElement)
 //   reduced (boolean) -- elements organized (and highlighted) by subgroup conjugacy class
 //   labelled (boolean) -- whether visualizer has label (ignored if type == TextElement)
-function showSubgroupLattice (group, type, reduced = false, labelled = false) {
-   labelled ||= (type == 'TextElement')
+function showSubgroupLattice (
+   group: Group,
+   type: SheetModel.VisualizerType,
+   reduced = false,
+   labelled = false
+) {
    const conjugateSubgroupClasses = group.conjugateSubgroupClasses
    const covering = reduced ? getSubgroupConjugacyClassCovering(group) : getSubgroupCovering(group)
    const subgroupOrders = group.subgroupOrders
@@ -324,7 +332,7 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
       .filter((count) => count != null)
       .sort((a,b) => b - a)  // reverse sort as numbers
    const tiers = reduced
-      ? conjugateSubgroupClasses.map((klass) => subgroupOrders.indexOf(group.subgroups[klass.first()].order))
+      ? conjugateSubgroupClasses.map((klass) => subgroupOrders.indexOf(group.subgroups[klass.first() as integer].order))
       : group.subgroups.map((H) => subgroupOrders.indexOf(H.order))
    const chains = layoutNodes(tiers, covering)
 
@@ -341,7 +349,7 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
    const hSize = Math.max(...chains) + 1
    const vSize = subgroupOrders.length
    const horizontalSpace = window.innerWidth - SheetModel.sheetPanelWidth()
-   const verticalSpace = window.innerHeight - document.getElementById('heading').offsetHeight
+   const verticalSpace = window.innerHeight - (document.getElementById('heading') as HTMLElement).offsetHeight
 
    const naturalWidth = horizontalSpace / hSize
    const naturalHeight = verticalSpace / vSize
@@ -360,7 +368,7 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
    const latticeLeft = (hSize * cellWidth > horizontalSpace) ? 0 : (horizontalSpace - hSize * cellWidth) / 2
 
    // Build the sheet
-   const sheetElementsAsJSON = []
+   const sheetElementsAsJSON: SheetModel.SheetJSON[] = []
 
    if (!reduced) {  // labelled visualizer
       // find conjugacy class colors
@@ -374,10 +382,10 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
       )
       const fontSize = Math.min(20, 20 * (cellWidth - 2 * hMargin) / (captionWidth + 20)) + 'px'
 
-      group.subgroups.forEach( (H /*: Subgroup */, subgroupIndex) => {
+      group.subgroups.forEach( (H: Subgroup, subgroupIndex: integer) => {
          sheetElementsAsJSON.push({
             className : type,
-            name : `viz-${subgroupIndex}`,
+            id : `viz-${subgroupIndex}`,
             groupURL : group.URL,
             diagram_name : group.cayleyDiagrams[0]?.name,
             x : latticeLeft + chains[subgroupIndex] * cellWidth + hMargin,
@@ -392,8 +400,8 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
 
          sheetElementsAsJSON.push({
             className: 'TextElement',
-            name: `sub-${subgroupIndex}`,
-            anchor_name: `viz-${subgroupIndex}`,
+            id: `sub-${subgroupIndex}`,
+            anchor_id: `viz-${subgroupIndex}`,
             text: caption,
             fontColor: H.isNormal ? 'blue' : 'black',
             color: colors[conjugacyClass],
@@ -409,7 +417,7 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
       conjugateSubgroupClasses.forEach((classSubgroupsBitSet, classIndex) => {
          const conjugacyClassSubgroups = classSubgroupsBitSet.toArray()
          const highlightColors = getHighlightColors(group, conjugacyClassSubgroups.length, type)
-         const highlights = [[], [], []]
+         const highlights: Maybe<color>[][] = [[], [], []]
          const membershipCount = new Array(group.order).fill(0)
          conjugacyClassSubgroups.forEach((subgroupIndex, inx) => {
             group.subgroups[subgroupIndex].members.toArray().forEach((el) => {
@@ -426,7 +434,7 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
 
          sheetElementsAsJSON.push({
             className : type,
-            name : `viz-${classIndex}`,
+            id : `viz-${classIndex}`,
             groupURL : group.URL,
             diagram_name : group.cayleyDiagrams[0]?.name,
             x : latticeLeft + chains[classIndex] * cellWidth + hMargin,
@@ -439,14 +447,14 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
          const caption = (conjugacyClassSubgroups.length == 1)
             ? `<i>H</i><sub>${conjugacyClassSubgroups[0]}</sub>`
             : '<div>' + conjugacyClassSubgroups.map((subgroupIndex, inx) => {
-                  const hslObject = highlightColors[inx].getHSL({})
-                  const hslString = `hsl(${Math.round(hslObject.h * 360)} 100 40)`
-                  return `<span style="color: ${hslString}"><i>H</i><sub>${subgroupIndex}</sub></span>`
-               }).join(',<wbr>') + '</div>'
+                 const hslObject = highlightColors[inx].getHSL({h: 0, s: 0, l: 0})
+                 const hslString = `hsl(${Math.round(hslObject.h * 360)} 100 40)`
+                 return `<span style="color: ${hslString}"><i>H</i><sub>${subgroupIndex}</sub></span>`
+              }).join(',<wbr>') + '</div>'
          sheetElementsAsJSON.push({
             className: 'TextElement',
-            name: `sub-${classIndex}`,
-            anchor_name: `viz-${classIndex}`,
+            id: `sub-${classIndex}`,
+            anchor_id: `viz-${classIndex}`,
             text: caption,
             fontColor: 'black',
             fontSize: 20 * scale + 'px',
@@ -468,32 +476,32 @@ function showSubgroupLattice (group, type, reduced = false, labelled = false) {
    SheetModel.createNewSheet({title, elements: sheetElementsAsJSON})
 }
 
-function getConnectionJSON (covering) {
-   const connectionJSON = covering.map((targets, source) => {
-      return targets.toArray().map((target) => {
+function getConnectionJSON (covering: BitSet[]): SheetModel.ConnectingElementJSON[] {
+   const connectionJSON = covering.map((targets: BitSet, source: integer) => {
+      return targets.toArray().map((target: integer) => {
          return {
             className: 'ConnectingElement',
-            source_name: `viz-${source}`,
-            destination_name: `viz-${target}`,
+            source_id: `viz-${source}`,
+            destination_id: `viz-${target}`,
             thickness: 2,
             hasArrowhead: false
-         }
+         } as SheetModel.ConnectingElementJSON
       })
    })
 
    return connectionJSON.flat()
 }
 
-function captionSize (caption) {
+function captionSize (caption: html): DOMRect {
    return GEUtils.measureHTML(caption, {fontSize: '20px', padding: '0'})
 }
 
-function getSubgroupCovering (group) {
+function getSubgroupCovering (group: Group): BitSet[] {
    const subgroupCovering = Array(group.subgroups.length)
    // group.subgroups is sorted in increasing subgroup order
    for (let inx = 0; inx < group.subgroups.length; inx++) {
       const inxMembers = group.subgroups[inx].members
-      const containsInx = []
+      const containsInx: integer[] = []
       for (let jnx = inx + 1; jnx < group.subgroups.length; jnx++) {
          const jnxMembers = group.subgroups[jnx].members
          // jnx contains inx and we have not found any other inx subgroup that it contains
@@ -506,18 +514,18 @@ function getSubgroupCovering (group) {
    return subgroupCovering
 }
 
-function getSubgroupConjugacyClassCovering (group) {
+function getSubgroupConjugacyClassCovering (group: Group): BitSet[] {
    // conjugate subgroup classes are sorted by increasing class order
    const subgroupCovering = getSubgroupCovering(group)
    const conjugateSubgroupClasses = group.conjugateSubgroupClasses
    const subgroupConjugacyClassCovering = Array(conjugateSubgroupClasses.length)
    for (let inx = 0; inx < conjugateSubgroupClasses.length; inx++) {
       const inxSubgroups = conjugateSubgroupClasses[inx]
-      const containsInx = []
+      const containsInx: integer[] = []
       for (let jnx = inx + 1; jnx < conjugateSubgroupClasses.length; jnx++) {
          const jnxSubgroups = conjugateSubgroupClasses[jnx].toArray()
          // if some subgroup of jnx directly contains any subgroup of inx
-         if (jnxSubgroups.some((jnxSubgroup) => subgroupCovering[inxSubgroups.first()].isSet(jnxSubgroup))) {
+         if (jnxSubgroups.some((jnxSubgroup) => subgroupCovering[inxSubgroups.first() as integer].isSet(jnxSubgroup))) {
             containsInx.push(jnx)
          }
       }
@@ -533,8 +541,8 @@ function getSubgroupConjugacyClassCovering (group) {
 // nodeTiers = Array<tier>
 // edges[source node index] = Array<target node indices>
 // produces: X,Y position for each node on the screen, list of connections
-function layoutNodes (nodeTiers, edges) {
-   const pathsUpFrom = (currentNode, nodePositions, unplacedNodes, position) => {
+function layoutNodes (nodeTiers: integer[], edges: BitSet[]): number[] {
+   const pathsUpFrom = (currentNode: integer, nodePositions: integer[], unplacedNodes: BitSet, position: integer) => {
       unplacedNodes.clear(currentNode)
       nodePositions[currentNode] = position
       // find edges that start here and go to an as-yet unplaced node
@@ -554,7 +562,7 @@ function layoutNodes (nodeTiers, edges) {
    return nodePositions
 }
 
-function showEmbeddingSheet (group, indexOfH /*: number */, type /*: VisualizerType */) {
+function showEmbeddingSheet (group: Group, indexOfH: number, type: SheetModel.VisualizerType) {
    const H = group.subgroups[indexOfH]
    const libraryH = H.isomorphicGroup
    const embedding = H.isomorphicGroupEmbedding
@@ -570,21 +578,21 @@ function showEmbeddingSheet (group, indexOfH /*: number */, type /*: VisualizerT
    const L = (window.innerWidth - panelWidth - totalW) / 2
    const vizY = 0.4 * (window.innerHeight - Hv)
 
-   const embeddingSheet = [
+   const embeddingSheet: SheetModel.SheetJSON[] = [
       {
-         className : type, groupURL : libraryH.URL, name: '1',
+         className : type, groupURL : libraryH.URL, id: '1',
          x : L, y : vizY, w : W, h : Hv,
          highlight_colors : [Array( libraryH.order ).fill( 'hsl(0, 100%, 80%)' ), [], []]
       },
       {
-         className : type, groupURL : group.URL, name: '2',
+         className : type, groupURL : group.URL, id: '2',
          x : L + W + gap, y : vizY, w : W, h : Hv,
          highlight_colors : [Array( group.order ).fill( '' )
             .map( ( _, elt ) => embedding.indexOf( elt ) > -1 ? 'hsl(0, 100%, 80%)' : '' ), [], []]
       },
       {
-         className : 'MorphismElement', labelFontSize: '1.25em',
-         source_name : '1', destination_name : '2', name : '<i>e</i>',
+         className : 'MorphismElement', fontSize: '1.25em',
+         source_id : '1', destination_id : '2', morphismName : '<i>e</i>',
          definingPairs : libraryH.generators.map(gen => [gen, embedding[gen]]),
          showManyArrows : true, showInjectionSurjection: true
       }
@@ -594,10 +602,10 @@ function showEmbeddingSheet (group, indexOfH /*: number */, type /*: VisualizerT
    SheetModel.createNewSheet({title: title, elements: embeddingSheet})
 }
 
-function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerType */) {
+function showQuotientSheet (group: Group, indexOfN: number, type: SheetModel.VisualizerType) {
    const N = group.subgroups[indexOfN]
-   const libraryQ = N.isomorphicQuotientGroup
-   const quotientMap = N.isomorphicQuotientMap
+   const libraryQ = N.isomorphicQuotientGroup as Group
+   const quotientMap = N.isomorphicQuotientMap as number[]
    const libraryN = N.isomorphicGroup
    const embedding = N.isomorphicGroupEmbedding
 
@@ -613,7 +621,7 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
    const vizY = 0.4 * (window.innerHeight - H)
    const txtH = 0.3 * H
 
-   function shrink ( order, x, y, w, h ) {
+   function shrink ( order: integer, x: float, y: float, w: float, h: float ) {
       const factor = 0.5 * ( 1 + order / group.order ),
             hMargin = ( w - factor * w ) / 2,
             vMargin = ( h - factor * h ) / 2;
@@ -642,7 +650,7 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
    high4[0] = col4;
    const headerFontSize = '2em'
    const captionFontSize = '1.25em'
-   const quotientSheet = [
+   const quotientSheet: SheetModel.SheetJSON[] = [
       {
          className : 'TextElement',
          x : L, y : vizY - txtH, w : W, h : txtH,
@@ -650,7 +658,7 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
          alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
-         className : type, name : 'trivial1', groupURL : './groups/Trivial.group',
+         className : type, id : 'trivial1', groupURL : './groups/Trivial.group',
          x : loc1.x, y : loc1.y, w : loc1.w, h : loc1.h,
          highlight_colors : [high1, [], []]
       },
@@ -660,7 +668,7 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
          text : libraryN.name, alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
-         className : type, name : 'n', groupURL : libraryN.URL,
+         className : type, id : 'n', groupURL : libraryN.URL,
          x : loc2.x, y : loc2.y, w : loc2.w, h : loc2.h,
          highlight_colors : [high2, [], []]
       },
@@ -670,7 +678,7 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
          text : group.name, alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
-         className : type, name : 'g', groupURL : group.URL,
+         className : type, id : 'g', groupURL : group.URL,
          x : loc3.x, y : loc3.y, w : loc3.w, h : loc3.h,
          highlight_colors : [high3, [], []]
       },
@@ -680,7 +688,7 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
          text : libraryQ.name, alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
-         className : type, name : 'q', groupURL : libraryQ.URL,
+         className : type, id : 'q', groupURL : libraryQ.URL,
          x : loc4.x, y : loc4.y, w : loc4.w, h : loc4.h,
          highlight_colors : [high4, [], []]
       },
@@ -691,7 +699,7 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
          alignment : 'center', fontSize : headerFontSize, opacity : 0
       },
       {
-         className : type, name : 'trivial2', groupURL : './groups/Trivial.group',
+         className : type, id : 'trivial2', groupURL : './groups/Trivial.group',
          x : loc5.x, y : loc5.y, w : loc5.w, h : loc5.h,
          highlight_colors : [high5, [], []]
       },
@@ -699,41 +707,41 @@ function showQuotientSheet (group, indexOfN /*: number */, type /*: VisualizerTy
          className : 'TextElement',
          x : L+W+gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(id)</i> = <i>Ker(e)</i>',
-         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_name : 'n'
+         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_id : 'n'
       },
       {
          className : 'TextElement',
          x : L+2*W+2*gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(e)</i> = <i>Ker(q)</i>',
-         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_name : 'g'
+         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_id : 'g'
       },
       {
          className : 'TextElement',
          x : L+3*W+3*gap, y : vizY + H, w : W, h : txtH,
          text : '<i>Im(q)</i> = <i>Ker(z)</i>',
-         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_name : 'q'
+         alignment : 'center', fontSize : captionFontSize, opacity : 0, anchor_id : 'q'
       },
       {
-         className : 'MorphismElement', name : 'id', labelFontSize: '1.25em',
-         source_name : 'trivial1', destination_name : 'n',
+         className : 'MorphismElement', morphismName : 'id', fontSize: '1.25em',
+         source_id : 'trivial1', destination_id : 'n',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : [ [ 0, 0 ] ]
       },
       {
-         className : 'MorphismElement', name : 'e', labelFontSize: '1.25em',
-         source_name : 'n', destination_name : 'g',
+         className : 'MorphismElement', morphismName : 'e', fontSize: '1.25em',
+         source_id : 'n', destination_id : 'g',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryN.generators.map(gen => [gen, embedding[gen]])
       },
       {
-         className : 'MorphismElement', name : 'q', labelFontSize: '1.25em',
-         source_name : 'g', destination_name : 'q',
+         className : 'MorphismElement', morphismName : 'q', fontSize: '1.25em',
+         source_id : 'g', destination_id : 'q',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : group.generators.map(gen => [gen, quotientMap[gen]])
       },
       {
-         className : 'MorphismElement', name : 'z', labelFontSize: '1.25em',
-         source_name : 'q', destination_name : 'trivial2',
+         className : 'MorphismElement', morphismName : 'z', fontSize: '1.25em',
+         source_id : 'q', destination_id : 'trivial2',
          showManyArrows : true, showInjectionSurjection : true,
          definingPairs : libraryQ.generators.map(gen => [gen, 0])
       }

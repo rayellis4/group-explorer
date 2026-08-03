@@ -1,37 +1,22 @@
-// @flow
 /*
- * Create Group from XML
+# XMLGroup
+
+Create Group from XML download
+
+Deprecated in favor of current JSON format
+
+```js
  */
 import * as MathML from './MathML.js';
 import { Group } from './Group.js';
-export { fromGroupFileXML };
-/*::
-// Cayley diagram from XML
-export type XMLCayleyDiagram = {
-   name: html,
-   arrows: Array<groupElement>,
-   points: Array<Array<float>>
-};
-
-// Symmetry object from XML
-type Path = {color: ?color, points: Array<Array<float>>};
-type Sphere = {radius: float, color: ?color, point: Array<float>};
-type Operation = {element: groupElement, degrees: float, point: Array<float>};
-export type XMLSymmetryObject = {
-   name: html,
-   operations: Array<Operation>,
-   spheres: Array<Sphere>,
-   paths: Array<Path>
-};
- */
-function fromGroupFileXML(text /*: string */) {
+export function fromGroupFileXML(text) {
     // Replacing named entities with unicode characters to ensure that later fragments parse successfully...
     const cleanText = text.replace(/<br.>/g, "&lt;br/&gt;"); // <br/> is not valid XML; escape it before parsing
-    const xml /*: Document */ = new DOMParser().parseFromString(cleanText, 'text/xml');
+    const xml = new DOMParser().parseFromString(cleanText, 'text/xml');
     const G = Group.fromMulttable(multtableFromXML(xml));
     G.names = Array
         .from(xml.querySelectorAll('group > name'))
-        .map((name) => (MathML.toHTML(name.innerHTML) /*:: as any as html */));
+        .map((name) => MathML.toHTML(name.innerHTML));
     const gapname = xml.querySelector('gapname')?.innerHTML;
     if (gapname != null)
         G.gapname = gapname;
@@ -66,13 +51,13 @@ function fromGroupFileXML(text /*: string */) {
     return G;
 }
 // returns representations as array of arrays of innerHTML elements
-function representationsFromXML(xml /*: Document */) {
+function representationsFromXML(xml) {
     return Array.from(xml.querySelectorAll('representation'))
         .map((representation) => Array.from(representation.querySelectorAll('element'))
-        .map((element) => (MathML.toHTML(element.innerHTML) /*:: as any as html */)));
+        .map((element) => MathML.toHTML(element.innerHTML)));
 }
 // returns <multtable> in [[],[]] format
-function multtableFromXML(xml /*: Document */) {
+function multtableFromXML(xml) {
     return Array.from(xml.querySelectorAll('multtable > row'))
         .map((row) => row.textContent
         .split(' ')
@@ -80,19 +65,19 @@ function multtableFromXML(xml /*: Document */) {
         .map((el) => parseInt(el)));
 }
 // returns generators specified in XML, not those derived in subgroup computation
-function generatorsFromXML(xml /*: Document */) {
+function generatorsFromXML(xml) {
     return Array.from(xml.querySelectorAll('generators'))
-        .map((generators) => (generators.getAttribute('list') /*:: as any as html */)
+        .map((generators) => generators.getAttribute('list')
         .split(' ')
         .map((generator) => parseInt(generator)));
 }
 // {name, arrows, points}
 // arrows are element numbers
 // points are [x,y,z] arrays
-function cayleyDiagramsFromXML(xml /*: Document */) {
+function cayleyDiagramsFromXML(xml) {
     return Array.from(xml.querySelectorAll('cayleydiagram'))
         .map((cayleyDiagram) => {
-        const name = (cayleyDiagram.querySelector('name')?.textContent /*:: as any as string */);
+        const name = cayleyDiagram.querySelector('name')?.textContent;
         const arrows = Array.from(cayleyDiagram.querySelectorAll('arrow')).map((arrow) => parseInt(arrow.textContent));
         const points = Array.from(cayleyDiagram.querySelectorAll('point'))
             .map((point) => [
@@ -103,30 +88,30 @@ function cayleyDiagramsFromXML(xml /*: Document */) {
         return { name: name, arrows: arrows, points: points };
     });
 }
-function symmetryObjectsFromXML(xml /*: Document */) {
+function symmetryObjectsFromXML(xml) {
     return Array.from(xml.querySelectorAll('symmetryobject'))
         .map((symmetryObject) => {
-        function getPoint(point /*: Element */) {
+        function getPoint(point) {
             return [
                 Number(point.getAttribute('x')),
                 Number(point.getAttribute('y')),
                 Number(point.getAttribute('z'))
             ];
         }
-        const name = (symmetryObject.getAttribute('name') /*:: as any as string */);
+        const name = symmetryObject.getAttribute('name');
         const operations = Array.from(symmetryObject.querySelectorAll('operation'))
             .map((operation) => {
             return {
                 element: Number(operation.getAttribute('element')),
                 degrees: Number(operation.getAttribute('degrees')),
-                point: getPoint((operation.querySelector('point') /*:: as any as Element */))
+                point: getPoint(operation.querySelector('point'))
             };
         });
         const spheres = Array.from(symmetryObject.querySelectorAll('sphere'))
             .map((sphere) => {
             const radius = Number(sphere.getAttribute('radius'));
             const color = sphere.getAttribute('color');
-            const point = getPoint((sphere.querySelector('point') /*:: as any as Element */));
+            const point = getPoint(sphere.querySelector('point'));
             return { radius: radius, color: color, point: point };
         });
         const paths = Array.from(symmetryObject.querySelectorAll('path'))

@@ -1,2 +1,2 @@
-export { display };
-declare function display(abelianInfoElementId: any, group: any): void;
+import type { Group } from './Group.ts';
+export declare function display(abelianInfoElementId: string, group: Group): void;

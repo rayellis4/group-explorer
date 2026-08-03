@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # ControlPanel
 
@@ -55,9 +55,6 @@ The `control-grab-indicator` element is a transparent &lt;div&gt; just inside th
 ```javascript
  */
 import { recognizeDragAndDrop } from './Gestures.js';
-/*::
-import type {DragAndDropCallback} from './Gestures.js'
- */
 /*
 ```
 ## ControlPanel
@@ -67,11 +64,11 @@ This class creates the html structure described [above](#controlpanel).
 ```javascript
  */
 export class ControlPanel {
-    controlPanelElement; /*: HTMLElement */
-    grabHandle; /*: HTMLElement */
-    controlContainer; /*: HTMLElement */
-    lastEvent; /*: Event */
-    constructor(controlPanel /*: HTMLElement */) {
+    controlPanelElement;
+    grabHandle;
+    controlContainer;
+    lastEvent;
+    constructor(controlPanel) {
         this.controlPanelElement = controlPanel;
         const controls = Array.from(this.controlPanelElement.children);
         this.controlPanelElement.insertAdjacentHTML('beforeend', `<div id="control-grab-handle"></div>
@@ -96,7 +93,7 @@ export class ControlPanel {
  
     ```javascript
      */
-    static addPanel(controlPanel /*: HTMLElement */) {
+    static addPanel(controlPanel) {
         new ControlPanel(controlPanel);
     }
     /*
@@ -106,15 +103,15 @@ export class ControlPanel {
     Creates buttons to select which controller to show and place them in 'control-options'
     ```javascript
      */
-    addControllers(controls /*: Array<HTMLElement> */) {
-        const controlContents = (document.getElementById('control-contents') /*:: as any as HTMLElement */);
+    addControllers(controls) {
+        const controlContents = document.getElementById('control-contents');
         controlContents.insertAdjacentHTML('afterbegin', `<div id="control-options" class="flex-h"></div>`);
-        const controlOptions = (document.getElementById('control-options') /*:: as any as HTMLElement */);
+        const controlOptions = document.getElementById('control-options');
         controlOptions.innerHTML =
             controls.map((control) => `<button>${control.getAttribute('data-button') || ''}</button>`).join('');
         controlOptions.querySelectorAll('button')
             .forEach((button, index) => button.addEventListener('click', (_ev) => showControl(controls[index])));
-        const showControl = (control /*: HTMLElement */) => {
+        const showControl = (control) => {
             controls.forEach((ctrl) => ctrl.style.display = (control === ctrl) ? 'block' : 'none');
         };
         showControl(controls[controls.length - 1]); // show the most interesting control?
@@ -135,7 +132,7 @@ export class ControlPanel {
     A transform is used instead of setting the position and visibiliity with CSS because it's faster.
     ```javascript
      */
-    move(_startEvent /*: PointerEvent */, previousEvent /*: PointerEvent */, currentEvent /*: PointerEvent */) {
+    move(_startEvent, previousEvent, currentEvent) {
         const deltaX = currentEvent.clientX - previousEvent.clientX;
         const maxOffset = this.controlContainer.getBoundingClientRect().width - parseInt(getComputedStyle(this.controlContainer).minWidth);
         const panelIsHidden = this.controlContainer.getBoundingClientRect().left >= document.body.getBoundingClientRect().right;

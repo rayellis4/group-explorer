@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # CyclicInfo
 
@@ -6,18 +6,18 @@ A [GroupInfo](./GroupInfo.html.md) component that displays whether a group is cy
 
 ```javascript
  */
-export {display}
+import type { Group } from './Group.ts'
 
-function display (cyclicInfoElementId, group) {
-   const cyclicInfoElement = document.getElementById(cyclicInfoElementId)
+export function display (cyclicInfoElementId: string, group: Group) {
+   const cyclicInfoElement = document.getElementById(cyclicInfoElementId) as HTMLElement
    cyclicInfoElement.innerHTML = makeCyclicInfoContent(group)
    
    // rebuild content on representation change
-   cyclicInfoElement.closest('.all-info')
+   ;(cyclicInfoElement.closest('.all-info') as HTMLElement)
       .addEventListener('representationChange', () => cyclicInfoElement.innerHTML = makeCyclicInfoContent(group))
 }
 
-function makeCyclicInfoContent (group) {
+function makeCyclicInfoContent (group: Group): html {
    const htmlFragments = [
       `<details>
           <summary>

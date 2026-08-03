@@ -1,3 +1,3 @@
-export { find, isomorphism };
-declare function find(G: any): unknown;
-declare function isomorphism(G: any, H: any): any[] | null;
+import type { Group } from './Group.js';
+export declare function find(G: Group): Maybe<Group>;
+export declare function isomorphism(G: Group, H: Group): Maybe<groupElement[]>;

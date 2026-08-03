@@ -50,13 +50,6 @@ describe('Subgroup', function () {
       [0, 1, 2, 3].forEach(el => expect(H.members.isSet(el)).to.be.true);
     });
 
-    it('creates an empty Subgroup when called with no arguments', function () {
-      const H = new Subgroup();
-      expect(H.group).to.be.undefined;
-      expect(H.generators).to.be.undefined;
-      expect(H.members).to.be.undefined;
-    });
-
     it('stores a reference to the containing group', function () {
       const H = new Subgroup(Z4, [0], [0]);
       expect(H.group).to.equal(Z4);

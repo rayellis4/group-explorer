@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SubgroupInfo
 
@@ -17,11 +17,8 @@ import * as SheetModel from './SheetModel.js';
 import { CayleyDiagramModel } from './CayleyDiagramModel.js';
 import { CycleGraphModel } from './CycleGraphModel.js';
 import { MulttableModel } from './MulttableModel.js';
-import { THREE } from '../lib/externals.js';
-export { display };
+import * as THREE from '../lib/externals.js';
 /*::
-import {Group} from './Group.js'
-
 import type {
     JSONType,
     SheetElementJSON,
@@ -35,18 +32,19 @@ import type {
 
 type DecoratedSubgroup = Subgroup & {_tierIndex?: number, _used?: boolean};
 */
-function display(subgroupInfoElementId, group) {
-    const cayleyDiagramThumbnailView = createCayleyDiagramThumbnailView({ width: IMAGE_SIZE, height: IMAGE_SIZE });
+export function display(subgroupInfoElementId, group) {
     const subgroupInfoElement = document.getElementById(subgroupInfoElementId);
-    subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId, cayleyDiagramThumbnailView);
+    const cayleyDiagramThumbnailView = createCayleyDiagramThumbnailView({ width: IMAGE_SIZE, height: IMAGE_SIZE });
+    subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId);
     GEUtils.createActionHandler(subgroupInfoElement, (action) => eval(action));
     // create twisty details on the fly
     const generateDetail = (event) => {
-        if (event.target.querySelector('div') == null) {
-            const subgroupIndex = parseInt(event.target.getAttribute('subgroup'));
+        const target = event.target;
+        if (target.querySelector('div') == null) {
+            const subgroupIndex = parseInt(target.getAttribute('subgroup'));
             const expandedContent = formatSubgroupListContent(group, subgroupIndex, cayleyDiagramThumbnailView);
-            event.target.insertAdjacentHTML('beforeEnd', expandedContent);
-            event.target.removeEventListener('toggle', generateDetail);
+            target.insertAdjacentHTML('beforeend', expandedContent);
+            target.removeEventListener('toggle', generateDetail);
         }
     };
     Array.from(document.querySelectorAll('#subgroup-list details')).forEach((element) => {
@@ -54,11 +52,10 @@ function display(subgroupInfoElementId, group) {
             element.addEventListener('toggle', generateDetail);
         }
     });
-    // rebuild content on representation change
     subgroupInfoElement.closest('.all-info')
         .addEventListener('representationChange', () => subgroupInfoElement.innerHTML = makeSubgroupInfoContent(group, subgroupInfoElementId));
 }
-function makeSubgroupInfoContent(group, subgroupInfoElementId, cayleyDiagramGenerator) {
+function makeSubgroupInfoContent(group, subgroupInfoElementId) {
     const htmlFragments = [
         `<style>
          #${subgroupInfoElementId} > details > div {
@@ -188,14 +185,14 @@ function formatSubgroupListElement(subgroup) {
     }
     return line;
 }
-function formatSubgroupListContent(group, subgroupIndex, cayleyDiagramGenerator) {
+function formatSubgroupListContent(group, subgroupIndex, cayleyDiagramThumbnailView) {
     const subgroup = group.subgroups[subgroupIndex];
     const elementRepresentations = subgroup.members.toArray().map(el => group.representation[el]);
     const isomorphicGroup = subgroup.isomorphicGroup;
     // create thumbnail if it doesn't exist already
     if (isomorphicGroup.thumbnails?.cayleyDiagram == null) {
-        cayleyDiagramGenerator.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name);
-        const imageSource = cayleyDiagramGenerator.getImage().src;
+        cayleyDiagramThumbnailView.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name);
+        const imageSource = cayleyDiagramThumbnailView.getImage().src;
         isomorphicGroup.thumbnails = isomorphicGroup.thumbnails || {};
         isomorphicGroup.thumbnails.cayleyDiagram = imageSource;
         Library.saveGroup(isomorphicGroup);
@@ -221,8 +218,8 @@ function formatSubgroupListContent(group, subgroupIndex, cayleyDiagramGenerator)
             ? `<div>It is a <a href="./help/rf-groupterms/index.html#normal-subgroup">normal</a> subgroup.
                   See the <a href="./help/rf-groupterms/index.html#short-exact-sequence">short exact sequence</a>
                   exhibiting the
-                  <a href="./help/rf-groupterms/index.html#quotient-group">quotient group</a>,
-                  isomorphic to <a href="./GroupInfo.html?groupURL=${subgroup.isomorphicQuotientGroup.URL}" target="_blank"
+                  <a href="./help/rf-groupterms/index.html#quotient-group">quotient group</a>, isomorphic to 
+                  <a href="./GroupInfo.html?groupURL=${subgroup.isomorphicQuotientGroup.URL}" target="_blank"
                      >${subgroup.isomorphicQuotientGroup.name},</a> by
                   <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'CDElement')">Cayley diagram</a>,
                   <a href="" data-action="showQuotientSheet(group, ${subgroupIndex}, 'CGElement')">cycle graph</a>,
@@ -234,7 +231,7 @@ function formatSubgroupListContent(group, subgroupIndex, cayleyDiagramGenerator)
     ].join('');
     return contentHTML;
 }
-function shortDescription(group, subgroup /*: Subgroup */) {
+function shortDescription(group, subgroup) {
     let rslt = '';
     const elements = subgroup.members.toArray();
     if (elements.length == 1) {
@@ -249,7 +246,7 @@ function shortDescription(group, subgroup /*: Subgroup */) {
         }
     }
     else {
-        const pSubgroupInfo = subgroup.pSubgroupInfo;
+        const pSubgroupInfo = subgroup.getPSubgroupInfo();
         if (pSubgroupInfo != null) {
             if (pSubgroupInfo.isSylow) {
                 rslt = `, a <a href="./help/rf-groupterms/index.html#sylow-p-subgroup">
@@ -264,7 +261,7 @@ function shortDescription(group, subgroup /*: Subgroup */) {
     ;
     return rslt;
 }
-function highlightSubgroup(group, H /*: Subgroup */, type) {
+function highlightSubgroup(group, H, type) {
     const highlightColor = (type == 'CDElement') ? 'hsl(0, 50%, 30%)' : 'hsl(0, 100%, 80%)';
     return Array(group.order).fill('').map((e /*: color */, i) => H.members.isSet(i) ? highlightColor : e);
 }
@@ -290,7 +287,6 @@ function getHighlightColors(group, count, type) {
 //   reduced (boolean) -- elements organized (and highlighted) by subgroup conjugacy class
 //   labelled (boolean) -- whether visualizer has label (ignored if type == TextElement)
 function showSubgroupLattice(group, type, reduced = false, labelled = false) {
-    labelled ||= (type == 'TextElement');
     const conjugateSubgroupClasses = group.conjugateSubgroupClasses;
     const covering = reduced ? getSubgroupConjugacyClassCovering(group) : getSubgroupCovering(group);
     const subgroupOrders = group.subgroupOrders
@@ -337,10 +333,10 @@ function showSubgroupLattice(group, type, reduced = false, labelled = false) {
         // find caption size in scratch element, and calculate scaled fontSize
         const { width: captionWidth } = captionSize(`<span style="white-space: nowrap"><i>H</i><sub>${group.order}</sub> (order ${group.order})</span>`);
         const fontSize = Math.min(20, 20 * (cellWidth - 2 * hMargin) / (captionWidth + 20)) + 'px';
-        group.subgroups.forEach((H /*: Subgroup */, subgroupIndex) => {
+        group.subgroups.forEach((H, subgroupIndex) => {
             sheetElementsAsJSON.push({
                 className: type,
-                name: `viz-${subgroupIndex}`,
+                id: `viz-${subgroupIndex}`,
                 groupURL: group.URL,
                 diagram_name: group.cayleyDiagrams[0]?.name,
                 x: latticeLeft + chains[subgroupIndex] * cellWidth + hMargin,
@@ -353,8 +349,8 @@ function showSubgroupLattice(group, type, reduced = false, labelled = false) {
             const caption = `<span style="white-space: nowrap"><i>H</i><sub>${subgroupIndex}</sub> (order ${H.order})</span>`;
             sheetElementsAsJSON.push({
                 className: 'TextElement',
-                name: `sub-${subgroupIndex}`,
-                anchor_name: `viz-${subgroupIndex}`,
+                id: `sub-${subgroupIndex}`,
+                anchor_id: `viz-${subgroupIndex}`,
                 text: caption,
                 fontColor: H.isNormal ? 'blue' : 'black',
                 color: colors[conjugacyClass],
@@ -389,7 +385,7 @@ function showSubgroupLattice(group, type, reduced = false, labelled = false) {
             }
             sheetElementsAsJSON.push({
                 className: type,
-                name: `viz-${classIndex}`,
+                id: `viz-${classIndex}`,
                 groupURL: group.URL,
                 diagram_name: group.cayleyDiagrams[0]?.name,
                 x: latticeLeft + chains[classIndex] * cellWidth + hMargin,
@@ -401,14 +397,14 @@ function showSubgroupLattice(group, type, reduced = false, labelled = false) {
             const caption = (conjugacyClassSubgroups.length == 1)
                 ? `<i>H</i><sub>${conjugacyClassSubgroups[0]}</sub>`
                 : '<div>' + conjugacyClassSubgroups.map((subgroupIndex, inx) => {
-                    const hslObject = highlightColors[inx].getHSL({});
+                    const hslObject = highlightColors[inx].getHSL({ h: 0, s: 0, l: 0 });
                     const hslString = `hsl(${Math.round(hslObject.h * 360)} 100 40)`;
                     return `<span style="color: ${hslString}"><i>H</i><sub>${subgroupIndex}</sub></span>`;
                 }).join(',<wbr>') + '</div>';
             sheetElementsAsJSON.push({
                 className: 'TextElement',
-                name: `sub-${classIndex}`,
-                anchor_name: `viz-${classIndex}`,
+                id: `sub-${classIndex}`,
+                anchor_id: `viz-${classIndex}`,
                 text: caption,
                 fontColor: 'black',
                 fontSize: 20 * scale + 'px',
@@ -432,8 +428,8 @@ function getConnectionJSON(covering) {
         return targets.toArray().map((target) => {
             return {
                 className: 'ConnectingElement',
-                source_name: `viz-${source}`,
-                destination_name: `viz-${target}`,
+                source_id: `viz-${source}`,
+                destination_id: `viz-${target}`,
                 thickness: 2,
                 hasArrowhead: false
             };
@@ -504,7 +500,7 @@ function layoutNodes(nodeTiers, edges) {
     nodePositions[0] = nodePositions[nodePositions.length - 1] = maxPosition / 2;
     return nodePositions;
 }
-function showEmbeddingSheet(group, indexOfH /*: number */, type /*: VisualizerType */) {
+function showEmbeddingSheet(group, indexOfH, type) {
     const H = group.subgroups[indexOfH];
     const libraryH = H.isomorphicGroup;
     const embedding = H.isomorphicGroupEmbedding;
@@ -518,19 +514,19 @@ function showEmbeddingSheet(group, indexOfH /*: number */, type /*: VisualizerTy
     const vizY = 0.4 * (window.innerHeight - Hv);
     const embeddingSheet = [
         {
-            className: type, groupURL: libraryH.URL, name: '1',
+            className: type, groupURL: libraryH.URL, id: '1',
             x: L, y: vizY, w: W, h: Hv,
             highlight_colors: [Array(libraryH.order).fill('hsl(0, 100%, 80%)'), [], []]
         },
         {
-            className: type, groupURL: group.URL, name: '2',
+            className: type, groupURL: group.URL, id: '2',
             x: L + W + gap, y: vizY, w: W, h: Hv,
             highlight_colors: [Array(group.order).fill('')
                     .map((_, elt) => embedding.indexOf(elt) > -1 ? 'hsl(0, 100%, 80%)' : ''), [], []]
         },
         {
-            className: 'MorphismElement', labelFontSize: '1.25em',
-            source_name: '1', destination_name: '2', name: '<i>e</i>',
+            className: 'MorphismElement', fontSize: '1.25em',
+            source_id: '1', destination_id: '2', morphismName: '<i>e</i>',
             definingPairs: libraryH.generators.map(gen => [gen, embedding[gen]]),
             showManyArrows: true, showInjectionSurjection: true
         }
@@ -538,7 +534,7 @@ function showEmbeddingSheet(group, indexOfH /*: number */, type /*: VisualizerTy
     const title = `Embedding ${libraryH.name} as <i>H</i><sub>${indexOfH}</sub> in ${group.name}`;
     SheetModel.createNewSheet({ title: title, elements: embeddingSheet });
 }
-function showQuotientSheet(group, indexOfN /*: number */, type /*: VisualizerType */) {
+function showQuotientSheet(group, indexOfN, type) {
     const N = group.subgroups[indexOfN];
     const libraryQ = N.isomorphicQuotientGroup;
     const quotientMap = N.isomorphicQuotientMap;
@@ -574,7 +570,7 @@ function showQuotientSheet(group, indexOfN /*: number */, type /*: VisualizerTyp
             alignment: 'center', fontSize: headerFontSize, opacity: 0
         },
         {
-            className: type, name: 'trivial1', groupURL: './groups/Trivial.group',
+            className: type, id: 'trivial1', groupURL: './groups/Trivial.group',
             x: loc1.x, y: loc1.y, w: loc1.w, h: loc1.h,
             highlight_colors: [high1, [], []]
         },
@@ -584,7 +580,7 @@ function showQuotientSheet(group, indexOfN /*: number */, type /*: VisualizerTyp
             text: libraryN.name, alignment: 'center', fontSize: headerFontSize, opacity: 0
         },
         {
-            className: type, name: 'n', groupURL: libraryN.URL,
+            className: type, id: 'n', groupURL: libraryN.URL,
             x: loc2.x, y: loc2.y, w: loc2.w, h: loc2.h,
             highlight_colors: [high2, [], []]
         },
@@ -594,7 +590,7 @@ function showQuotientSheet(group, indexOfN /*: number */, type /*: VisualizerTyp
             text: group.name, alignment: 'center', fontSize: headerFontSize, opacity: 0
         },
         {
-            className: type, name: 'g', groupURL: group.URL,
+            className: type, id: 'g', groupURL: group.URL,
             x: loc3.x, y: loc3.y, w: loc3.w, h: loc3.h,
             highlight_colors: [high3, [], []]
         },
@@ -604,7 +600,7 @@ function showQuotientSheet(group, indexOfN /*: number */, type /*: VisualizerTyp
             text: libraryQ.name, alignment: 'center', fontSize: headerFontSize, opacity: 0
         },
         {
-            className: type, name: 'q', groupURL: libraryQ.URL,
+            className: type, id: 'q', groupURL: libraryQ.URL,
             x: loc4.x, y: loc4.y, w: loc4.w, h: loc4.h,
             highlight_colors: [high4, [], []]
         },
@@ -615,7 +611,7 @@ function showQuotientSheet(group, indexOfN /*: number */, type /*: VisualizerTyp
             alignment: 'center', fontSize: headerFontSize, opacity: 0
         },
         {
-            className: type, name: 'trivial2', groupURL: './groups/Trivial.group',
+            className: type, id: 'trivial2', groupURL: './groups/Trivial.group',
             x: loc5.x, y: loc5.y, w: loc5.w, h: loc5.h,
             highlight_colors: [high5, [], []]
         },
@@ -623,41 +619,41 @@ function showQuotientSheet(group, indexOfN /*: number */, type /*: VisualizerTyp
             className: 'TextElement',
             x: L + W + gap, y: vizY + H, w: W, h: txtH,
             text: '<i>Im(id)</i> = <i>Ker(e)</i>',
-            alignment: 'center', fontSize: captionFontSize, opacity: 0, anchor_name: 'n'
+            alignment: 'center', fontSize: captionFontSize, opacity: 0, anchor_id: 'n'
         },
         {
             className: 'TextElement',
             x: L + 2 * W + 2 * gap, y: vizY + H, w: W, h: txtH,
             text: '<i>Im(e)</i> = <i>Ker(q)</i>',
-            alignment: 'center', fontSize: captionFontSize, opacity: 0, anchor_name: 'g'
+            alignment: 'center', fontSize: captionFontSize, opacity: 0, anchor_id: 'g'
         },
         {
             className: 'TextElement',
             x: L + 3 * W + 3 * gap, y: vizY + H, w: W, h: txtH,
             text: '<i>Im(q)</i> = <i>Ker(z)</i>',
-            alignment: 'center', fontSize: captionFontSize, opacity: 0, anchor_name: 'q'
+            alignment: 'center', fontSize: captionFontSize, opacity: 0, anchor_id: 'q'
         },
         {
-            className: 'MorphismElement', name: 'id', labelFontSize: '1.25em',
-            source_name: 'trivial1', destination_name: 'n',
+            className: 'MorphismElement', morphismName: 'id', fontSize: '1.25em',
+            source_id: 'trivial1', destination_id: 'n',
             showManyArrows: true, showInjectionSurjection: true,
             definingPairs: [[0, 0]]
         },
         {
-            className: 'MorphismElement', name: 'e', labelFontSize: '1.25em',
-            source_name: 'n', destination_name: 'g',
+            className: 'MorphismElement', morphismName: 'e', fontSize: '1.25em',
+            source_id: 'n', destination_id: 'g',
             showManyArrows: true, showInjectionSurjection: true,
             definingPairs: libraryN.generators.map(gen => [gen, embedding[gen]])
         },
         {
-            className: 'MorphismElement', name: 'q', labelFontSize: '1.25em',
-            source_name: 'g', destination_name: 'q',
+            className: 'MorphismElement', morphismName: 'q', fontSize: '1.25em',
+            source_id: 'g', destination_id: 'q',
             showManyArrows: true, showInjectionSurjection: true,
             definingPairs: group.generators.map(gen => [gen, quotientMap[gen]])
         },
         {
-            className: 'MorphismElement', name: 'z', labelFontSize: '1.25em',
-            source_name: 'q', destination_name: 'trivial2',
+            className: 'MorphismElement', morphismName: 'z', fontSize: '1.25em',
+            source_id: 'q', destination_id: 'trivial2',
             showManyArrows: true, showInjectionSurjection: true,
             definingPairs: libraryQ.generators.map(gen => [gen, 0])
         }

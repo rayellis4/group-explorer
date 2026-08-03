@@ -1,25 +1,24 @@
-// @flow
+/*
+# GroupExplorer
+
+Displays group library in table format
+
+```js
+ */
 import * as GroupTable from './GroupTable.js';
 import * as GroupTableUI from './GroupTableUI.js';
 import * as Heading from './Heading.js';
 import * as Library from './Library.js';
 import * as Settings from './Settings.js';
 import * as StoredObjects from './StoredObjects.js';
-export { load };
-/*::
-type TableConfig = {
-   visible: {[string]: boolean},
-   sort: {id: string, dir: string},
-}
-*/
-let tableConfig /*: TableConfig */ = defaultTableConfig();
+let tableConfig = defaultTableConfig();
 function defaultTableConfig() {
     return {
         visible: Object.fromEntries(GroupTable.COLUMNS.map((col) => [col.id, col.defaultVisible])),
         sort: { id: 'order', dir: 'sort-up' },
     };
 }
-async function load() {
+export async function load() {
     insertHTML();
     Heading.display(document.getElementById('heading'), `<img style="border: 1px solid black;" src="images/logo.png"/>`, makeMenu);
     // gear icon for column config — inserted into heading bar left of the hamburger menu
@@ -30,8 +29,8 @@ async function load() {
     gearBtn.style.cssText = 'color: black; margin: auto 0.5ch; cursor: pointer; user-select: none; font-size: 2rem';
     document.getElementById('heading-menu').insertAdjacentElement('beforebegin', gearBtn);
     // merge stored config on top of defaults so new columns get their default visibility
-    const stored = await StoredObjects.getTableConfig();
-    if (stored?.visible != null) {
+    const stored = ((await StoredObjects.getTableConfig()) ?? {});
+    if (stored.visible != null) {
         const defaults = defaultTableConfig();
         tableConfig = {
             visible: { ...defaults.visible, ...stored.visible },
@@ -60,7 +59,7 @@ async function load() {
                 message.updated.forEach((groupURL) => {
                     const group = Library.getGroupByURL(groupURL);
                     const gapidCell = document.querySelector(`tr[data-group="${groupURL}"] > td:first-child`);
-                    if (gapidCell != null) {
+                    if (gapidCell != null && group != null) {
                         gapidCell.children[0].textContent = group.gapid;
                     }
                 });
@@ -81,7 +80,7 @@ function makeMenu() {
 function displayGroups() {
     const groupsToDisplay = Library.allVisibleGroups(Settings.getFilterConfig());
     // sort by definition length to minimize re-layout jink during incremental load
-    groupsToDisplay.sort((G, H) => H.definition.length - G.definition.length);
+    groupsToDisplay.sort((G, H) => (H.definition?.length ?? 0) - (G.definition?.length ?? 0));
     const groupTable = document.getElementById('group-table');
     GroupTable.display(groupTable, groupsToDisplay);
     GroupTableUI.addGestures(groupTable, {

@@ -1,3 +1,6 @@
-export { setup, resolveGAPInfo };
-declare function setup(purpose: any, group: any): Promise<void>;
-declare function resolveGAPInfo(presentation: any): Promise<unknown>;
+import type { Group } from './Group.js';
+export declare function setup(purpose: string, group: Group): Promise<void>;
+export declare function resolveGAPInfo(presentation: string): Promise<{
+    gapid: string;
+    gapname: string;
+}>;

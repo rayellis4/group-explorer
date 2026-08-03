@@ -1,84 +1,63 @@
-/* @flow
+/*
 
 # CayleyDiagramModel
 
 Model for the Cayley diagram visualizer. Holds all serializable state:
 
-- **View parameters** — fog, zoom, sphere size, line width, etc.
-- **Opaque plugin slots** — `diagramControl` (owned by `CayleyDiagramControl`),
-  `viewState` (owned by `CayleyDiagramView` — serializes live camera + node/arrow/chunk
-  positions from the scene), `highlightControl` (owned by `HighlightControl`)
-- **Request fields** — `snap_to_axis_request`: set by `CayleyViewControl`, consumed and
-  cleared by `CayleyDiagramView`; not persisted
+* **View parameters**
+   * fog, zoom, sphere size, line width, etc.
+* **Opaque plugin slots**
+   * `diagramControl` (owned by `CayleyDiagramControl`)
+   * `highlightControl` (owned by `HighlightControl`)
+* **Request fields**
+   * `snap_to_axis_request`
+     * set by `CayleyViewControl`
+     * consumed and cleared by `CayleyDiagramView`
+     * not persisted
 
-`layout` is a write-only request field: `CayleyDiagramGenerator` writes it to trigger a
-scene rebuild; `CayleyDiagramViewModel` consumes it and clears it. Layout state is not
-persisted here — `viewState.toJSON()` captures the live scene (camera + node positions
-after user drag, arrow curves, chunks) and `viewState.fromJSON()` restores it.
+`layout` contains a shared description of the Cayley diagram:
+* format specified by [`CayleyDiagramView`](./CayleyDiagramView.ts.md)
+* contains pov, nodes, arrows, chunks
+* set by
+   * [`CayleyDiagramControl`](./CayleyDiagramControl.ts.md) from user input
+   * [`CayleyDiagramViewUI`](.CayleyDiagramViewUI.ts.md) on moving displayed nodes/arrows/chunks
+   * [`THREE.TrackballControl'](https://threejs.org/docs/?q=trackball#TrackballControls) on scene pan/zoom/rotate
+* consumed by [`CayleyDiagramView`](./CayleyDiagramView.ts.md)
 
 ```javascript
  */
 import * as Library from './Library.js';
-export { CayleyDiagramModel };
-/*::
-import type {Group} from './Group.js'
-import type {CayleyDiagramJSON} from './CayleyDiagramView.js'
-type POV = {
-   position: THREE.Vector3,
-   up: THREE.Vector3,
-}
-type Node = {
-   position: THREE.Vector3,
-   element: groupElement,
-   label: html
-}
-type Arrow = {
-   start_node: Node,
-   end_node: Node,
-   generator: groupElement,
-   bidirectional: boolean,
-   thirdPoint: THREE.Vector3
-   keepCurved: boolean,  // true => use specified offset
-   offset?: float,  // undefined => straight line
-   color: css_color
-}
-type Chunk = {
-   name: html,
-   box: THREE.Matrix4,
-   width: THREE.Vector3,
-   nodes: Array<Node>
-}
- */
-class CayleyDiagramModel {
-    group; /*: Group */
+export { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js';
+export class CayleyDiagramModel {
+    group;
     // Write-only request: CayleyDiagramGenerator writes this to trigger a scene rebuild;
     // CayleyDiagramViewModel consumes it. Not persisted — viewState owns serialization.
-    layout; /*: ?{pov: POV, nodes: Array<Node>, arrows: Array<Arrow>, chunks: Array<Chunk>} */
+    layout;
     // Highlight configuration — visualizer-specific parameters for HighlightControl
     highlightConfiguration = {
-        highlightTypes /*: Array<string> */: ['node color', 'a ring around the node', 'a square around the node'],
-        saturation /*: Array<number> */: [0.53, 0.53, 0.53],
-        lightness /*: Array<number> */: [0.3, 0.3, 0.3],
-        hueOffset /*: Array<number> */: [0, 0, 0]
+        highlightTypes: ['node color', 'a ring around the node', 'a square around the node'],
+        saturation: [0.53, 0.53, 0.53],
+        lightness: [0.3, 0.3, 0.3],
+        hueOffset: [0, 0, 0]
     };
     // View parameters — manipulated by CayleyViewControl sliders
-    background; /*: css_color */
-    fog_level; /*: float */
-    line_width; /*: number */
-    sphere_scale_factor; /*: float */
-    zoom_level; /*: number */
-    arrowhead_placement; /*: float */
-    label_scale_factor; /*: float */
-    showingAxes; /*: boolean */
+    background;
+    fog_level;
+    line_width;
+    sphere_scale_factor;
+    zoom_level;
+    arrowhead_placement;
+    label_scale_factor;
+    showingAxes;
     // View parameters — manipulated by HighlightControl
-    highlightColors; /*: Array<Array<?css_color>> */
+    highlightColors;
     // Opaque plugin slots (carried opaquely through serialization)
-    highlightControl; /*: any */ // owned by HighlightControl
-    diagramControl; /*: any */ // owned by CayleyDiagramControl
-    viewState; /*: any */ // owned by CayleyDiagramView
+    highlightControl; // owned by HighlightControl
+    diagramControl; // owned by CayleyDiagramControl
+    viewState; // owned by CayleyDiagramView
     // Request fields — transient commands; set by CayleyViewControl, cleared by CayleyDiagramView
-    snap_to_axis_request; /*: boolean */
-    constructor(group /*: Group */) {
+    snap_to_axis_request;
+    constructor(group) {
         this.group = group;
         this.reset();
     }
@@ -113,7 +92,7 @@ class CayleyDiagramModel {
         };
         return json;
     }
-    fromJSON(json /*: CayleyDiagramJSON */) {
+    fromJSON(json) {
         this.reset();
         if (json.group_url != null && this.group.URL != json.group_url) {
             this.group = Library.getGroupByURL(json.group_url);

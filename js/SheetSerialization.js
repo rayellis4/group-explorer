@@ -1,52 +1,71 @@
-// @flow
+/**
+# SheetSerialization
+
+Sheet serialization history:
+
+  v0 -- store group library, sheets in localStorage
+  v1 -- store group library in localStorage, sheets in indexedDB as string (stringified JSON)
+  v2 -- store group library, sheets in indexedDB as ExportedSheet w/ version == 2
+
+```js
+ */
 import { layoutCayleyDiagram } from './CayleyDiagramGenerator.js';
 import * as Library from './Library.js';
 import * as Log from './Log.js';
 import * as MathML from './MathML.js';
-import { THREE } from '../lib/externals.js';
+import * as THREE from '../lib/externals.js';
 import * as SheetView from './SheetView.js';
-export { serializeSheet, deserializeSheet };
-/*::
-import type SheetModel from './SheetModel.js'
-
-type ExportedSheet = {  // Does it make sense to add other metadata to ExportedSheet?
-   version: number,
-   sheet: SheetModelJSON
- */
 const CURRENT_FORMAT = 2;
-// do we import/export JSON string or JSON text?
-// StoredObjects doesn't need/use string and it's the main client, so just used object
-// given SheetModel object, return JSON with version, sheet
-function serializeSheet(sheet /*: SheetModel */) {
+// separate wrapping/unwrapping sheet with version (and possibly other metadata) from serializing/deserializing
+export function wrapSheet(sheet) {
     return {
         version: CURRENT_FORMAT,
         sheet: sheet
     };
 }
+export function unwrapSheet(wrappedSheet) {
+    return wrappedSheet.sheet;
+}
+/*
+normal:
+import from textarea (could be left over from old export!)
+restore v2 export string from clipboard (version, no SheetName => ExportedSheet; deserialized as ExportedSheet object)
+restore v1 export string from clipboard (no version, SheetName => old export; deserialized as string)
+restore v2 backup from file/clipboard (Array of named ExportedSheets; array of deserialize calls of ExportedSheet objects)
+
+update:
+migrateToV1: create 'storedSheets' in indexedDB;  if 'sheets' exist in localStore, deserialize/stringify/store to indexedDB
+migrateToV2: deserialize v1 sheet string and store object in indexeddb
+ */
 // given object for v0, v1, or v2 sheet, return SheetModel object
-function deserializeSheet(json /*: string | Obj */) {
+export function deserializeSheet(json) {
     let sheet;
-    if (json?.version != null) {
+    if (typeof json === 'object' && json?.version != null) { // version >= 2
         sheet = convertSheetFromVersion(json.sheet, json.version);
     }
-    else if (typeof json == 'string') { // can be text input or v1 stored sheet
-        json = JSON.parse(json);
-        if ('version' in json) {
-            sheet = convertSheetFromVersion(json.sheet, json.version);
+    else if (typeof json == 'string') { // might be text input or v1 stored sheet
+        const parsedString = JSON.parse(json);
+        if (typeof parsedString?.version === 'number') { // v2 export or later
+            sheet = convertSheetFromVersion(parsedString.sheet, parsedString.version);
         }
-        else { // must be v1 string, json export wasn't available when v0 was being used
-            sheet = convertSheetFromVersion(json, 1);
+        else if (Array.isArray(parsedString) && typeof parsedString[0] === 'object') {
+            sheet = convertSheetFromVersion(parsedString, 1);
+        }
+        else {
+            const errorMessage = `SheetSerialization.deserializeSheet: unrecognized string argument: ${json}`;
+            Log.err(errorMessage);
+            throw new TypeError(errorMessage);
         }
     }
     else {
         const jsonString = (json instanceof Object) ? JSON.stringify(json) : json;
-        const errorMessage = `SheetSerialization.deserializeSheet: unrecognized object encountered: ${jsonString}`;
+        const errorMessage = `SheetSerialization.deserializeSheet: unrecognized object argument: ${jsonString}`;
         Log.err(errorMessage);
         throw new TypeError(errorMessage);
     }
     return sheet;
 }
-function convertSheetFromVersion(json /*: Obj */, version /*: number */) {
+function convertSheetFromVersion(json, version) {
     switch (version) {
         case 0: json = convertV0ToV1(json);
         case 1: json = convertV1ToV2(json);
@@ -177,72 +196,80 @@ export function convertV0ToV1(oldJSONArray) {
     }
     return oldJSONArray;
 }
-// given JSON for v1 sheet, return JSON for v2 sheet
-export function convertV1ToV2(jsonObjects /*: mixed */) {
-    for (const jsonObject of jsonObjects) {
-        // on v1 morphisms: migrate {source, destination}Id to {source, destination}_name
-        if (jsonObject.className == 'MorphismElement' || jsonObject.className == 'ConnectingElement') {
-            jsonObject.source_name = jsonObject.sourceId;
-            jsonObject.destination_name = jsonObject.destinationId;
-        }
-        // migrate 'id' from v1 to 'name' on v2
-        if (jsonObject.name == null) { // set 'name' to old 'id' if no other name specified
-            jsonObject.name = jsonObject.id;
-        }
-        delete jsonObject.sourceId;
-        delete jsonObject.destinationId;
-        delete jsonObject.id;
-    }
-    const upgradeCandidates = jsonObjects
-        .filter((jsonObject) => jsonObject.visualizer != null && !('highlight_colors' in jsonObject.visualizer));
-    if (upgradeCandidates.length == 0) {
-        return jsonObjects;
-    }
-    const cleanColorList = (colorList /*: Array<?color> */, nullish /*: ?color */ = null) => {
-        const result /*: Array<?color> */ = (colorList == null) ? [] : colorList.map((color) => (color == nullish) ? null : color);
+// given JSON object for v1 sheet, return JSON object for v2 sheet
+export function convertV1ToV2(v1Objects) {
+    const formatHighlights = (highlights, nullish = []) => {
+        const result = highlights.map((colorList, inx) => (colorList == null) ? [] : colorList.map((color) => (color == nullish[inx]) ? null : color));
         return result;
     };
-    for (const jsonObject of upgradeCandidates) {
-        const visualizer = jsonObject.visualizer;
-        let newHighlights /*: Array<Array<?color>> */ = [];
-        switch (jsonObject.className) {
+    // loop over all v1Objects:
+    //   create SheetJSON objects w/ className & id
+    // first switch:
+    // second switch:
+    // third switch:
+    const v2Objects = v1Objects.map((v1Object) => {
+        // create SheetJSON objects
+        const v2Object = {
+            className: v1Object.className,
+            id: v1Object.id,
+        };
+        // create visualizers for each VisualizerElement
+        // create source_id, destination_id fields for LinkElemnts
+        switch (v1Object.className) {
             case 'CDElement': {
-                if (visualizer.diagram_name == null && visualizer.strategy_parameters == null) {
-                    Log.err('unrecognizable json in StoredObjects.migrateSheetToV2');
+                const v1Visualizer = v1Object.visualizer;
+                if (v1Visualizer == null) {
                     break;
                 }
-                visualizer.line_width = null; // material has changed meaning of 'line width', just use default
-                newHighlights.push(cleanColorList(visualizer?.color_highlights, '#8c8c8c'), // CayleyDiagramView.DEFAULT_NODE_COLOR
-                cleanColorList(visualizer?.ring_highlights, null), cleanColorList(visualizer?.square_highlights, null));
-                const group = Library.getGroupByURL(visualizer.groupURL);
-                if (jsonObject.isClean) {
+                if (v1Visualizer.groupURL == null
+                    || Library.getGroupByURL(v1Visualizer.groupURL) == null
+                    || (v1Visualizer.diagram_name == null && v1Visualizer.strategy_parameters == null)) {
+                    Log.err('unrecognizable v1 json in SheetSerialization.convertV1ToV2');
+                    break;
+                }
+                v2Object.highlight_colors = formatHighlights([v1Visualizer?.color_highlights, v1Visualizer?.ring_highlights, v1Visualizer?.square_highlights], ['#8c8c8c', null, null]); // CayleyDiagramView.DEFAULT_NODE_COLOR
+                const v2Visualizer = {
+                    group_url: v1Visualizer.groupURL,
+                    ...(v1Visualizer.background != null && { background: v1Visualizer.background }),
+                    ...(v1Visualizer.fog_level != null && { fog_level: v1Visualizer.fog_level }),
+                    ...(v1Visualizer.zoom_level != null && { zoom_level: v1Visualizer.zoom_level }),
+                    ...(v1Visualizer.arrowhead_placement != null && { arrowhead_placement: v1Visualizer.arrowhead_placement }),
+                    ...(v1Visualizer.label_scale_factor != null && { label_scale_factor: v1Visualizer.label_scale_factor }),
+                    highlight_colors: v2Object.highlight_colors,
+                    // sphere_scale_factor: CayleyDiagramModel['sphere_scale_factor'],
+                    // sphere_base_radius??
+                };
+                v2Object.visualizer = v2Visualizer;
+                const group = Library.getGroupByURL(v1Visualizer.groupURL);
+                if (v1Object.isClean) {
                     // layout was generated and hasn't been edited yet
                     // we'll recompute the entire layout
-                    const layout = layoutCayleyDiagram(group, visualizer?.diagram_name);
-                    visualizer.view_state = layout;
+                    const nameOrStrategies = v1Visualizer?.diagram_name ?? v1Visualizer?.strategy_parameters;
+                    const layout = layoutCayleyDiagram(group, nameOrStrategies);
+                    v2Visualizer.view_state = layout;
                 }
                 else {
                     // convert camera: extract position from column-major matrix[12,13,14], use cameraUp for up
-                    const matrix = visualizer.cameraJSON?.object?.matrix;
+                    const matrix = v1Visualizer.cameraJSON?.object?.matrix;
                     const position = matrix
                         ? { x: matrix[12], y: matrix[13], z: matrix[14] }
                         : { x: 0, y: 0, z: 3 };
-                    const up = visualizer.cameraUp ?? { x: 0, y: 1, z: 0 };
+                    const up = v1Visualizer.cameraUp ?? { x: 0, y: 1, z: 0 };
                     // convert nodes: add color field
-                    const nodes = (visualizer.nodes ?? []).map((node) => ({ ...node, color: null }));
+                    const nodes = (v1Visualizer.nodes ?? []).map((node) => ({ ...node, color: null }));
                     const nodeMap = new Map(nodes.map((node) => [node.element, node]));
                     // convert arrows: start_element/end_element → start_node/end_node
-                    const arrows = (visualizer.arrows ?? []).map(({ start_element, end_element, ...rest }) => ({
+                    const arrows = (v1Visualizer.arrows ?? []).map(({ start_element, end_element, ...rest }) => ({
                         ...rest,
                         start_node: nodeMap.get(start_element) ?? { element: start_element },
                         end_node: nodeMap.get(end_element) ?? { element: end_element }
                     }));
-                    if (visualizer.diagram_name == null) {
+                    if (v1Visualizer.diagram_name == null) {
                         // layout was generated from strategy_parameters but has been edited; the chunks
                         // aren't recorded in V1, so we'll recompute the entire layout to get the chunks
-                        const layout = layoutCayleyDiagram(group, visualizer.strategy_parameters, (visualizer.arrows ?? [])
+                        const layout = layoutCayleyDiagram(group, v1Visualizer.strategy_parameters, (v1Visualizer.arrows ?? [])
                             .filter((arrow) => arrow.start_element == 0)
-                            .map((arrow) => ({ generator: arrow.generator, color: arrow.color })), visualizer.right_multiply, (visualizer.chunk == null || visualizer.chunk === 0) ? null : visualizer.chunk);
+                            .map((arrow) => ({ generator: arrow.generator, color: arrow.color })), v1Visualizer.right_multiply, (v1Visualizer.chunk == null || v1Visualizer.chunk === 0) ? null : v1Visualizer.chunk);
                         const chunks = layout.chunks?.map((chunk) => {
                             return {
                                 box: chunk.box,
@@ -251,58 +278,127 @@ export function convertV1ToV2(jsonObjects /*: mixed */) {
                                 widths: chunk.widths
                             };
                         }) ?? [];
-                        visualizer.view_state = { pov: { position, up }, nodes, arrows, chunks };
+                        v2Visualizer.view_state = { pov: { position, up }, nodes, arrows, chunks };
                     }
                     else {
                         // layout was generated from a diagram and has been edited
                         // it can't be chunked since it was created from a diagram, so we can use the layout as is
-                        visualizer.view_state = { pov: { position, up }, nodes, arrows, chunks: [] };
+                        v2Visualizer.view_state = { pov: { position, up }, nodes, arrows, chunks: [] };
                     }
                 }
                 // consolidate diagram layout fields into diagram_control
                 // chunk: 0 in V1 UI meant 'no chunking' (same visual as trivial subgroup)
-                visualizer.diagram_control = {
-                    diagram_name: visualizer.diagram_name ?? null,
-                    strategy_parameters: visualizer.strategy_parameters ?? [],
-                    chunk_subgroup_index: (visualizer.chunk == null || visualizer.chunk === 0)
-                        ? null : visualizer.chunk
+                v2Visualizer.diagram_control = {
+                    ...(v1Visualizer.diagram_name != null && { diagram_name: v1Visualizer.diagram_name }),
+                    ...(v1Visualizer.strategy_parameters != null && { strategy_parameters: v1Visualizer.strategy_parameters }),
+                    arrow_generators: Array.from(v1Visualizer.arrows
+                        .reduce((gens, { generator }) => gens.add(generator), new Set())),
+                    right_multiply: v1Visualizer.right_multiply ?? true,
+                    ...(v1Visualizer.chunk != null && v1Visualizer.chunk != 0 && { chunk_subgroup_index: v1Visualizer.chunk }),
                 };
-                // rename groupURL → group_url; drop fields not in new model
-                visualizer.group_url = visualizer.groupURL;
-                // delete fields not in new model
-                delete jsonObject._visualizer; // delete _visualizer (legacy)
-                delete jsonObject.isClean; // runtime flag, not persistent state
-                delete visualizer.color_highlights;
-                delete visualizer.ring_highlights;
-                delete visualizer.square_highlights;
-                delete visualizer.cameraJSON;
-                delete visualizer.cameraUp;
-                delete visualizer.nodes;
-                delete visualizer.arrows;
-                delete visualizer.diagram_name;
-                delete visualizer.strategy_parameters;
-                delete visualizer.chunk;
-                delete visualizer.groupURL;
-                delete visualizer.right_multiply;
-                delete visualizer.sphere_base_radius;
                 break;
             }
-            case 'CGElement':
-                newHighlights.push(cleanColorList(visualizer?.highlights?.background, null), cleanColorList(visualizer?.highlights?.border, null), cleanColorList(visualizer?.highlights?.top, null));
-                delete visualizer.highlights;
-                visualizer.group_url = visualizer.groupURL;
-                delete visualizer.groupURL;
+            case 'CGElement': {
+                const v1Visualizer = v1Object.visualizer;
+                if (v1Visualizer == null) {
+                    break;
+                }
+                const highlight_colors = formatHighlights([v1Visualizer?.highlights?.background, v1Visualizer?.highlights?.border, v1Visualizer?.highlights?.top], [null, null, null]);
+                const v2Visualizer = {
+                    group_url: v1Visualizer.groupURL,
+                    highlight_colors: highlight_colors
+                };
+                v2Object.visualizer = v2Visualizer;
                 break;
-            case 'MTElement':
-                newHighlights.push(cleanColorList(visualizer?.highlights?.background, '#E5E5E5'), // MulttableView.DEFAULT_BACKGROUND
-                cleanColorList(visualizer?.highlights?.border, null), cleanColorList(visualizer?.highlights?.corner, null));
-                delete visualizer.highlights;
-                visualizer.group_url = visualizer.groupURL;
-                delete visualizer.groupURL;
+            }
+            case 'MTElement': {
+                const v1Visualizer = v1Object.visualizer;
+                if (v1Visualizer == null) {
+                    break;
+                }
+                const highlight_colors = formatHighlights([v1Visualizer?.highlights?.background, v1Visualizer?.highlights?.border, v1Visualizer?.highlights?.corner], ['#E5E5E5', null, null]);
+                const v2Visualizer = {
+                    group_url: v1Visualizer.groupURL,
+                    highlight_colors: highlight_colors,
+                    organizing_subgroup: v1Visualizer.organizingSubgroup,
+                    separation: v1Visualizer.separation,
+                    coloration: v1Visualizer.coloration,
+                    color_reordering: v1Visualizer.colorReordering,
+                    elements: v1Visualizer.elements
+                };
+                v2Object.visualizer = v2Visualizer;
                 break;
+            }
+            case 'ConnectingElement':
+            case 'MorphismElement': {
+                ;
+                v2Object.source_id = v1Object.sourceId;
+                v2Object.destination_id = v1Object.destinationId;
+                break;
+            }
         }
-        visualizer.highlight_colors = newHighlights;
-    }
-    return jsonObjects;
+        // add NodeElement fields to Visualizers, TextElements
+        switch (v1Object.className) {
+            case 'CDElement':
+            case 'CGElement':
+            case 'MTElement':
+            case 'TextElement': {
+                ['x', 'y', 'w', 'h', 'z'].forEach((field) => {
+                    if (field in v1Object) {
+                        v2Object[field] = v1Object[field];
+                    }
+                });
+            }
+        }
+        // add highlights, groupURL to VisualizerElements
+        // finish TextElements, ConnectingElements, MorphismElement
+        switch (v1Object.className) {
+            case 'CDElement':
+            case 'CGElement':
+            case 'MTElement': {
+                if (v1Object.groupURL != null) {
+                    v2Object.groupURL = v1Object.groupURL;
+                }
+                if ('visualizer' in v2Object && v2Object.visualizer != null) {
+                    const v2Visualizer = v2Object.visualizer;
+                    if (v2Visualizer != null && 'highlight_colors' in v2Visualizer && v2Visualizer.highlight_colors != null) {
+                        v2Object.highlight_colors = v2Visualizer.highlight_colors;
+                    }
+                }
+            }
+            case 'TextElement': {
+                ['alignment', 'color', 'fontColor', 'fontSize', 'isPlainText', 'opacity', 'text']
+                    .forEach((field) => {
+                    if (field in v1Object) {
+                        ;
+                        v2Object[field] = v1Object[field];
+                    }
+                });
+                break;
+            }
+            case 'ConnectingElement': {
+                ['color', 'hasArrowhead', 'thickness'].forEach((field) => {
+                    if (field in v1Object) {
+                        v2Object[field] = v1Object[field];
+                    }
+                });
+                break;
+            }
+            case 'MorphismElement': {
+                ['arrowMargin', 'definingPairs', 'showDefiningPairs', 'showDomainAndCodomain', 'showInjectionSurjection',
+                    'showManyArrows'].forEach((field) => {
+                    if (field in v1Object) {
+                        v2Object[field] = v1Object[field];
+                    }
+                });
+                if (v1Object.name != null) {
+                    v2Object.morphismName = v1Object.name;
+                }
+                break;
+            }
+        }
+        return v2Object;
+    });
+    return v2Objects;
 }
 //# sourceMappingURL=SheetSerialization.js.map

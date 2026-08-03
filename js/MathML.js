@@ -1,4 +1,4 @@
-/* @flow
+/*
 # MathML utilities
 
 Most of the group names and element representations are defined in the .group files as MathML and transformed into HTML by routines in this class.
@@ -6,16 +6,8 @@ Most of the group names and element representations are defined in the .group fi
 A legacy routine no longer used in the body of GE3, `mathml2text` is maintained for use in [ge-lib-endmatter.js](./ge-lib-endmatter.js).
 ```js
 */
-export { toHTML, htmlToUnicode };
-export { mathml2text }; // used in ge-lib-endmatter.js
-/*::
-declare class XSLTProcessor {
-   importStylesheet(Node): void;
-   transformToFragment(Node, Document): DocumentFragment;
-}
- */
 // Unicode characters for numeric subscripts, superscripts
-const Subscripts /*: {[key: string]: string} */ = {
+const Subscripts = {
     '0': '\u2080',
     '1': '\u2081',
     '2': '\u2082',
@@ -27,7 +19,7 @@ const Subscripts /*: {[key: string]: string} */ = {
     '8': '\u2088',
     '9': '\u2089'
 };
-const Superscripts /*: {[key: string]: string } */ = {
+const Superscripts = {
     '0': '\u2070',
     '1': '\u00B9',
     '2': '\u00B2',
@@ -40,7 +32,7 @@ const Superscripts /*: {[key: string]: string } */ = {
     '9': '\u2079',
     '-': '\u207B'
 };
-let xsltProcessor; /*: XSLTProcessor */
+let xsltProcessor;
 // XSLT to transform MathML subset into HTML
 const MATHML_2_HTML = `<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -135,7 +127,7 @@ const MATHML_2_HTML = `<?xml version="1.0" encoding="UTF-8"?>
 
 ```js
 */
-function toHTML(mathml /*: ?string */) {
+export function toHTML(mathml) {
     if (mathml == null) {
         return null;
     }
@@ -148,7 +140,7 @@ function toHTML(mathml /*: ?string */) {
     const result = new XMLSerializer().serializeToString(frag);
     return result;
 }
-function htmlToUnicode(html /*: html */) {
+export function htmlToUnicode(html) {
     const domParser = new DOMParser();
     const document = domParser.parseFromString(html, 'text/html');
     document.querySelectorAll('body sub').forEach((sub) => {
@@ -160,7 +152,7 @@ function htmlToUnicode(html /*: html */) {
     const result = document.body?.textContent;
     return result;
 }
-function mathml2text(mathml /*: string */) {
+export function mathml2text(mathml) {
     const htmlFromMathML = toHTML(mathml);
     return (htmlFromMathML == null) ? null : htmlToUnicode(htmlFromMathML);
 }

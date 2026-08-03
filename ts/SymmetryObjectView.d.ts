@@ -1,25 +1,41 @@
-export { layoutSymmetryObject, createSymmetryObjectThumbnailView, createSymmetryObjectView };
-declare class SymmetryObjectViewModel {
+import { AbstractDiagramDisplay } from './AbstractDiagramDisplay.js';
+import * as THREE from '../lib/externals.js';
+import type { CayleyDiagramModel, POV } from './CayleyDiagramModel.ts';
+import type { Group } from './Group.ts';
+import type { Updatable, SubscriptionProxy } from './GEUtils.ts';
+import type { AbstractDiagramDisplayOptions } from './AbstractDiagramDisplay.ts';
+export type SymmetryObjectViewOptions = {
+    group?: Group;
+    diagramName?: string;
+} & AbstractDiagramDisplayOptions;
+type PathType = {
+    vertices: THREE.Vector3[];
+    color: color;
+};
+type SymmetryObjectLayout = {
+    pov: POV;
+    spheres: {
+        position: THREE.Vector3;
+        radius: float;
+        color: color;
+    }[];
+    paths: PathType[];
+};
+export declare class SymmetryObjectViewModel implements Updatable {
     #private;
-    get group(): any;
-    get view(): any;
-    get model(): any;
-    setModel(model: any): void;
-    setView(view: any): void;
-    updateModel(field: any, value: any): void;
-    update(field: any, value: any): void;
+    get group(): Group;
+    get view(): AbstractDiagramDisplay;
+    get model(): CayleyDiagramModel;
+    setModel(model: SubscriptionProxy<CayleyDiagramModel>): void;
+    setView(view: AbstractDiagramDisplay): void;
+    updateModel(field: string, value: any): void;
+    update(field: string, value: any): void;
     resize(): void;
     showGraphic(): void;
-    getImage(): any;
-    draw(group: any, diagramName: any): void;
+    getImage(): HTMLImageElement;
+    draw(group: Group, diagramName: string): void;
 }
-declare function createSymmetryObjectThumbnailView(options?: {}): SymmetryObjectViewModel;
-declare function createSymmetryObjectView(model: any, options?: {}): SymmetryObjectViewModel;
-declare function layoutSymmetryObject(group: any, symmetryObjectName: any): {
-    pov: {
-        position: any;
-        up: any;
-    };
-    spheres: any;
-    paths: any;
-};
+export declare function createSymmetryObjectThumbnailView(options?: SymmetryObjectViewOptions): SymmetryObjectViewModel;
+export declare function createSymmetryObjectView(model: SubscriptionProxy<CayleyDiagramModel>, options?: SymmetryObjectViewOptions): SymmetryObjectViewModel;
+export declare function layoutSymmetryObject(group: Group, symmetryObjectName: string): SymmetryObjectLayout;
+export {};

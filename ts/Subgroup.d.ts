@@ -1,25 +1,33 @@
 import { BitSet } from './BitSet.js';
+import { Group } from './Group.js';
+import type { BitSetJSON } from './BitSet.js';
+export type SubgroupJSON = {
+    group: string;
+    generators: BitSetJSON;
+    members: BitSetJSON;
+};
 export declare class Subgroup {
     #private;
-    group: any;
-    generators: BitSet | undefined;
-    members: BitSet | undefined;
-    constructor(group: any, generators?: never[], members?: never[]);
+    group: Group;
+    generators: BitSet;
+    members: BitSet;
+    constructor(group: Group, generators?: number[], members?: number[]);
     clone(): Subgroup;
-    setAllMembers(): this;
+    setAllMembers(): Subgroup;
     toString(): string;
-    get order(): any;
-    get index(): any;
-    get isCyclic(): any;
-    get isNormal(): any;
-    get isomorphicGroup(): any;
-    get isomorphicGroupEmbedding(): any;
-    get isomorphicQuotientGroup(): any;
-    get isomorphicQuotientMap(): any;
-    get leftCosets(): any;
-    get rightCosets(): any;
-    get subgroupIndex(): any;
-    getPSubgroupInfo(): {
-        p: any;
-    } | undefined;
+    get order(): number;
+    get index(): number;
+    get isCyclic(): boolean;
+    get isNormal(): boolean;
+    get isomorphicGroup(): Group;
+    get isomorphicGroupEmbedding(): groupElement[];
+    get isomorphicQuotientGroup(): Maybe<Group>;
+    get isomorphicQuotientMap(): Maybe<groupElement[]>;
+    get leftCosets(): BitSet[];
+    get rightCosets(): BitSet[];
+    get subgroupIndex(): number;
+    getPSubgroupInfo(): Maybe<{
+        p: number;
+        isSylow?: boolean;
+    }>;
 }

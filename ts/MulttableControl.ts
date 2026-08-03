@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # MulttableControl
 
@@ -10,22 +10,22 @@ Display input elements that configure the MulttableView:
 
 ```javascript
  */
-import {makeMockSelect} from './UIComponents.js'
+import { makeMockSelect } from './UIComponents.js'
 
-export {addControl}
-/*::
-import {MulttableView} from './MulttableView.js'
- */
+import { SubscriptionProxy } from './GEUtils.js'
+import { Group } from './Group.js'
+import { MulttableModel, MulttableColoration, MulttableColorReordering } from './MulttableModel.js'
+import { MulttableView } from './MulttableView.js'
 
-function addControl (multtableControlElement /*: HTMLElement */, modelProxy /*: SubscriptionProxy<MulttableModel> */) {
+export function addControl (multtableControlElement: HTMLElement, modelProxy: SubscriptionProxy<MulttableModel>) {
    const viewModel = new ViewModel(modelProxy)
    new View(viewModel, multtableControlElement)
 }
 
 class ViewModel /*: implements Updatable */ {
-   #model /*: MulttableModel */
-   #view /*: View */
-   #modelFields /*: Array<string> */ = [
+   #model!: MulttableModel
+   #view!: View
+   #modelFields: Array<keyof MulttableModel> = [
       'organizingSubgroup',
       'separation',
       'coloration',
@@ -33,28 +33,28 @@ class ViewModel /*: implements Updatable */ {
    ]
 
 
-   constructor (model /*: SubscriptionProxy<MulttableModel> */) {
+   constructor (model: SubscriptionProxy<MulttableModel>) {
       this.model = model
    }
 
-   get group () /*: Group */ {
+   get group (): Group {
       return this.model.group
    }
 
-   get view () /*: View */ {
+   get view (): View {
       return this.#view
    }
 
-   set view (view /*: View */) {
+   set view (view: View) {
       this.#view = view
       this.#modelFields.forEach((field) => this.update(field, this.model[field]))
    }
 
-   get model () /*: MulttableModel */ {
+   get model (): MulttableModel {
       return this.#model
    }
 
-   set model (multtableModel /*: SubscriptionProxy<MulttableProxy> */) {
+   set model (multtableModel: SubscriptionProxy<MulttableModel>) {
       this.#model = multtableModel
       this.#modelFields.forEach((field) => {
          multtableModel.$subscribe(this, field)
@@ -62,30 +62,34 @@ class ViewModel /*: implements Updatable */ {
       })
    }
 
-   update (field /*: string */, value /*: any */) {
+   update (field: string, value: any) {
       if (this.view == null) {
          return
       }
       switch (field) {
-      case 'organizingSubgroup':
-         this.view['subgroupIndex'] = value ?? 0
-         break
-      case 'coloration':
-      case 'colorReordering':
-         this.view[field] = value
-         break
-      case 'separation':
-         this.view[field] = 100 * value
-         break
+         case 'organizingSubgroup':
+            this.view['subgroupIndex'] = value ?? 0
+            break
+         case 'coloration':
+            this.view[field] = value
+            break
+         case 'colorReordering':
+            this.view[field] = value
+            break
+         case 'separation':
+            this.view[field] = 100 * value
+            break
       }
    }
 
-   updateFromView (field /*: string */, value /*: any */) {
+   updateFromView (field: string, value: any) {
       switch (field) {
       case 'subgroupIndex':
          this.model['organizingSubgroup'] = parseInt(value)
          break
       case 'coloration':
+         this.model[field] = value
+         break
       case 'colorReordering':
          this.model[field] = value
          break
@@ -97,20 +101,20 @@ class ViewModel /*: implements Updatable */ {
 }
 
 class View {
-   viewModel /*: ViewModel */
-   rootElement /*: HTMLElement */
+   viewModel: ViewModel
+   rootElement: HTMLElement
 
-   constructor (viewModel /*: ViewModel */, rootElement /*: HTMLElement */) {
+   constructor (viewModel: ViewModel, rootElement: HTMLElement) {
       this.viewModel = viewModel
       this.rootElement = rootElement
-      rootElement.innerHTML = View.getViewHTML(rootElement.getAttribute('id'))
-      rootElement.querySelector('#organization-select')
-         .addEventListener('click', (clickEvent) => this.displayOrganizationChoices(clickEvent.target))
+      rootElement.innerHTML = View.getViewHTML(rootElement.getAttribute('id') as html)
+      ;(rootElement.querySelector('#organization-select') as HTMLElement)
+         .addEventListener('click', (clickEvent) => this.displayOrganizationChoices(clickEvent.target as HTMLElement))
       rootElement.addEventListener('change', (changeEvent) => this.handleChangeEvent(changeEvent))
    }
 
-   displayOrganizationChoices (target /*: HTMLElement */) {
-      const choices /*: Array<{value: string, label?: html}> */ = this.viewModel.group.subgroups.slice(0, -1)
+   displayOrganizationChoices (target: HTMLElement) {
+      const choices: Array<{value: string, label?: html}> = this.viewModel.group.subgroups.slice(0, -1)
          .map((_subgroup, index) => { return {value: `${index}`, label: this.formatSubgroupChoice(index)} })
       makeMockSelect(target, choices)
          .then(
@@ -119,7 +123,7 @@ class View {
          )
    }
 
-   formatSubgroupChoice (subgroupIndex /*: integer */) {
+   formatSubgroupChoice (subgroupIndex: integer) {
       const subgroup = this.viewModel.group.subgroups[subgroupIndex]
       return (subgroupIndex === 0)
          ? 'none'
@@ -127,42 +131,45 @@ class View {
                a subgroup of order ${subgroup.order}</span>`
    }
 
-   handleChangeEvent (changeEvent /*: Event */) {
-      const inputElement = changeEvent.target
+   handleChangeEvent (changeEvent: Event) {
+      const inputElement = changeEvent.target as Maybe<HTMLInputElement>
       if (inputElement != null) {
-         const field = inputElement.getAttribute('data-bind')
+         const field = inputElement.getAttribute('data-bind') as string
          const value = inputElement.value
          this.updateViewModel(field, value)
       }
    }
 
-   updateViewModel (field /*: string */, value /*: any */) {
+   updateViewModel (field: string, value: any) {
       this.viewModel.updateFromView(field, value)
    }
 
-   set subgroupIndex (subgroupIndex /*: number */) {
-      const organizationSelectElement = rootElement.querySelector('#organization-select')
-      organizationSelectElement.setAttribute('data-index', subgroupIndex)
+   set subgroupIndex (subgroupIndex: number) {
+      const organizationSelectElement = this.rootElement.querySelector('#organization-select') as HTMLElement
+      organizationSelectElement.setAttribute('data-index', subgroupIndex.toString())
       organizationSelectElement.innerHTML = this.formatSubgroupChoice(subgroupIndex)
    }
 
-   set separation (separation /*: number */) {
-      rootElement.querySelector('#separation-slider').setAttribute('value', separation)
+   set separation (separation: number) {
+      (this.rootElement.querySelector('#separation-slider') as HTMLInputElement)
+         .setAttribute('value', separation.toString())
    }
 
-   set coloration (coloration /*: 'rainbow' | 'grayscale' | 'none' */) {
-      rootElement.querySelectorAll('[name="coloration"]')
-         .forEach((radioButton) => radioButton.setAttribute('checked', false))
-      rootElement.querySelector(`[value="${coloration}"]`).setAttribute('checked', true)
+   set coloration (coloration: MulttableColoration) {
+      this.rootElement.querySelectorAll('[name="coloration"]')
+         .forEach((radioButton) => radioButton.setAttribute('checked', false.toString()))
+      ;(this.rootElement.querySelector(`[value="${coloration}"]`) as HTMLInputElement)
+         .setAttribute('checked', true.toString())
    }
 
-   set colorReordering (colorReordering /*: 'topRowFixed' | 'elementColorsFixed' */) {
-      rootElement.querySelectorAll('[name="color-order"]')
-         .forEach((radioButton) => radioButton.setAttribute('checked', false))
-      rootElement.querySelector(`[value="${colorReordering}"]`).setAttribute('checked', true)
+   set colorReordering (colorReordering: MulttableColorReordering) {
+      this.rootElement.querySelectorAll('[name="color-order"]')
+         .forEach((radioButton) => radioButton.setAttribute('checked', false.toString()))
+      ;(this.rootElement.querySelector(`[value="${colorReordering}"]`) as HTMLInputElement)
+         .setAttribute('checked', true.toString())
    }
 
-   static getViewHTML (rootId /*: string */) {
+   static getViewHTML (rootId: string) {
       return `
           <style>
              #${rootId} > *:first-child {

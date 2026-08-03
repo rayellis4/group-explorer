@@ -13,13 +13,21 @@
       <link rel="preload" href="./fonts/MathJax_SansSerif-Bold.woff" as="font" crossorigin />
       <link rel="preload" href="./fonts/MathJax_SansSerif-Italic.woff" as="font" crossorigin />
       <link rel="stylesheet" href="./style/ge3.css" type="text/css" />
-
+      <script type="importmap">
+       {
+          "imports": {
+             "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+             "three/": "https://cdn.jsdelivr.net/npm/three@0.170.0/",
+             "three/examples/jsm/controls/TrackballControls.js": "./lib/TrackballControls.js"
+          }
+       }
+      </script>
       <script type="module">
        import * as AutoUpgrade from './js/AutoUpgrade.js'
        await AutoUpgrade.initialize()
 
        import ('./js/GroupExplorer.js')
-          .then((GroupExplorer) => GroupExplorer.load())
+                        .then((GroupExplorer) => GroupExplorer.load())
       </script>
    </head>
    <body>

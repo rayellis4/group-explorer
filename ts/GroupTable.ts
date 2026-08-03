@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # GroupTable component
 
@@ -13,30 +13,30 @@ classes on the `<table>` element (see `hide-{col-id}` rules in `tableHTML`).
 ```javascript
 */
 
-import {createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
-import {createUnlabelledCycleGraphView} from './CycleGraphView.js'
-import {createMinimalMulttableView} from './MulttableView.js'
-import {createSymmetryObjectThumbnailView} from './SymmetryObjectView.js'
+import { CayleyDiagramViewModel, createCayleyDiagramThumbnailView } from './CayleyDiagramView.js'
+import { createUnlabelledCycleGraphView, CycleGraphViewModel } from './CycleGraphView.js'
+import { createMinimalMulttableView, MulttableViewModel } from './MulttableView.js'
+import { createSymmetryObjectThumbnailView, SymmetryObjectViewModel } from './SymmetryObjectView.js'
 import * as Library from './Library.js'
 
-export {IMAGE_SIZE, COLUMNS, display}
+import type { Group } from './Group.ts'
 
-const IMAGE_SIZE = 96
+export const IMAGE_SIZE = 96
 
-/*::
-type Aux = {cayleyTitle: ?string}
+
+type Aux = {cayleyTitle: Maybe<string>}
+export type sortComparator = (v1: string, v2: string) => number
 type ColumnDef = {
    id: string,
    label: string,
    headerHTML: string,
    headerClass?: string,
    defaultVisible: boolean,
-   sortComparator: ?((v1: string, v2: string) => number),
+   sortComparator?: sortComparator
    cellHTML: (group: any, aux: Aux) => string,
 }
-*/
 
-const COLUMNS /*: Array<ColumnDef> */ = [
+export const COLUMNS: ColumnDef[] = [
    {
       id: 'gap-id',
       label: 'GAP ID',
@@ -44,9 +44,9 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       defaultVisible: true,
       sortComparator: (v1, v2) => {
          const [[v11, v12], [v21, v22]] = [v1.split(','), v2.split(',')]
-         return v11 - v21 || v12 - v22
+         return parseInt(v11) - parseInt(v21) || parseInt(v12) - parseInt(v22)
       },
-      cellHTML: (group) =>
+      cellHTML: (group: Group) =>
          `<td class="no-diagram center" data-tooltip="Open Group Info page">
              <a href="GroupInfo.html?groupURL=${group.URL}" target="_blank">
                 <div>${group.gapid}</div>
@@ -59,7 +59,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: 'Name',
       defaultVisible: true,
       sortComparator: (v1, v2) => v1.replace('(', '').localeCompare(v2.replace('(', '')),
-      cellHTML: (group) =>
+      cellHTML: (group: Group) =>
          `<td class="no-diagram" data-tooltip="Open Group Info page">
              <a href="GroupInfo.html?groupURL=${group.URL}" target="_blank">
                 <div>${group.name}</div>
@@ -71,16 +71,15 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       label: 'Order',
       headerHTML: '<a href="help/rf-groupterms/index.html#order-of-a-group">Order</a>',
       defaultVisible: true,
-      sortComparator: (v1, v2) => v1 - v2,
-      cellHTML: (group) => `<td class="no-diagram center">${group.order}</td>`,
+      sortComparator: (v1, v2) => parseInt(v1) - parseInt(v2),
+      cellHTML: (group: Group) => `<td class="no-diagram center">${group.order}</td>`,
    },
    {
       id: 'definition',
       label: 'Definition',
       headerHTML: '<a href="help/rf-groupterms/index.html#definition-of-a-group-via-generators-and-relations">Definition</a>',
       defaultVisible: true,
-      sortComparator: null,
-      cellHTML: (group) =>
+      cellHTML: (group: Group) =>
          `<td class="no-diagram" data-tooltip="Open Group Info page">
              <a href="GroupInfo.html?groupURL=${group.URL}" target="_blank">
                 <div>${group.definition}</div>
@@ -92,8 +91,8 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       label: 'Subgroups',
       headerHTML: 'Subgroups',
       defaultVisible: false,
-      sortComparator: (v1, v2) => v1 - v2,
-      cellHTML: (group) => `<td class="no-diagram center">${group.subgroups.length}</td>`,
+      sortComparator: (v1, v2) => parseInt(v1) - parseInt(v2),
+      cellHTML: (group: Group) => `<td class="no-diagram center">${group.subgroups.length}</td>`,
    },
    {
       id: 'is-abelian',
@@ -101,7 +100,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: '<a href="help/rf-groupterms/index.html#abelian-group">Abelian</a>',
       defaultVisible: false,
       sortComparator: (v1, v2) => v1.localeCompare(v2),
-      cellHTML: (group) => `<td class="no-diagram center">${group.isAbelian ? '✓' : ''}</td>`,
+      cellHTML: (group: Group) => `<td class="no-diagram center">${group.isAbelian ? '✓' : ''}</td>`,
    },
    {
       id: 'is-cyclic',
@@ -109,7 +108,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: '<a href="help/rf-groupterms/index.html#cyclic-group">Cyclic</a>',
       defaultVisible: false,
       sortComparator: (v1, v2) => v1.localeCompare(v2),
-      cellHTML: (group) => `<td class="no-diagram center">${group.isCyclic ? '✓' : ''}</td>`,
+      cellHTML: (group: Group) => `<td class="no-diagram center">${group.isCyclic ? '✓' : ''}</td>`,
    },
    {
       id: 'is-simple',
@@ -117,7 +116,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: '<a href="help/rf-groupterms/index.html#simple-group">Simple</a>',
       defaultVisible: false,
       sortComparator: (v1, v2) => v1.localeCompare(v2),
-      cellHTML: (group) => `<td class="no-diagram center">${group.isSimple ? '✓' : ''}</td>`,
+      cellHTML: (group: Group) => `<td class="no-diagram center">${group.isSimple ? '✓' : ''}</td>`,
    },
    {
       id: 'is-solvable',
@@ -125,7 +124,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: '<a href="help/rf-groupterms/index.html#solvable-group-solvable-decomposition">Solvable</a>',
       defaultVisible: false,
       sortComparator: (v1, v2) => v1.localeCompare(v2),
-      cellHTML: (group) => `<td class="no-diagram center">${group.isSolvable ? '✓' : ''}</td>`,
+      cellHTML: (group: Group) => `<td class="no-diagram center">${group.isSolvable ? '✓' : ''}</td>`,
    },
    {
       id: 'cayley-diagram',
@@ -133,7 +132,6 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: '<a href="help/rf-groupterms/index.html#cayley-diagrams">Cayley diagram</a>',
       headerClass: 'diagram-header',
       defaultVisible: true,
-      sortComparator: null,
       cellHTML: (group, {cayleyTitle}) => {
          const selector = cayleyTitle != null ? `&diagram=${encodeURIComponent(cayleyTitle)}` : ''
          return `<td class="cayley-diagram center" data-tooltip="Open Cayley Diagram visualizer">
@@ -149,8 +147,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: '<a href="help/rf-groupterms/index.html#multiplication-table">Multiplication table</a>',
       headerClass: 'diagram-header',
       defaultVisible: true,
-      sortComparator: null,
-      cellHTML: (group) =>
+      cellHTML: (group: Group) =>
          `<td class="multiplication-table center" data-tooltip="Open Multiplication Table visualizer">
              <a href="Multtable.html?groupURL=${group.URL}" target="_blank">
                 <img src="${group.thumbnails.multtable}" width="100px" height="100px">
@@ -163,8 +160,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: '<a href="help/rf-groupterms/index.html#objects-of-symmetry">Object of symmetry</a>',
       headerClass: 'diagram-header',
       defaultVisible: true,
-      sortComparator: null,
-      cellHTML: (group) =>
+      cellHTML: (group: Group) =>
          group.thumbnails.symmetryObject == null
             ? `<td class="no-diagram center"><div>none</div></td>`
             : `<td class="symmetry-object center" data-tooltip="Open Symmetry Object visualizer">
@@ -179,8 +175,7 @@ const COLUMNS /*: Array<ColumnDef> */ = [
       headerHTML: '<a href="help/rf-groupterms/index.html#cycle-graph">Cycle graph</a>',
       headerClass: 'diagram-header',
       defaultVisible: true,
-      sortComparator: null,
-      cellHTML: (group) =>
+      cellHTML: (group: Group) =>
          `<td class="cycle-graph center" data-tooltip="Open Cycle Graph visualizer">
              <a href="CycleGraph.html?groupURL=${group.URL}" target="_blank">
                 <img src="${group.thumbnails.cycleGraph}" width="100px" height="100px">
@@ -197,11 +192,17 @@ rendered; `GroupTableUI.addGestures` applies initial visibility via CSS classes.
 
 ```javascript
 */
-function display (tableElement, groupsToDisplay) {
+type imageGenerators = {
+   cayleyDiagramView: CayleyDiagramViewModel,
+   cycleGraphView: CycleGraphViewModel,
+   multtableView: MulttableViewModel,
+   symmetryObjectView: SymmetryObjectViewModel,
+}
+export function display (tableElement: HTMLElement, groupsToDisplay: Group[]) {
    tableElement.innerHTML = tableHTML(tableElement)
 
-   document.getElementById('loadingMessage').classList.toggle('hidden')
-   const generators = {}
+   ;(document.getElementById('loadingMessage') as HTMLElement).classList.toggle('hidden') 
+   const imageGenerators: imageGenerators = {} as imageGenerators
    let updateLibrary = false
 
    for (const [inx, group] of groupsToDisplay.entries()) {
@@ -209,20 +210,20 @@ function display (tableElement, groupsToDisplay) {
       const symmetryTitle = group.symmetryObjects[0]?.name ?? null
 
       if (group.thumbnails?.multtable == null) {
-         if (generators.cayleyDiagramView == null) {
-            generators.cayleyDiagramView = createCayleyDiagramThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
-            generators.cycleGraphView = createUnlabelledCycleGraphView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
-            generators.multtableView = createMinimalMulttableView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
-            generators.symmetryObjectView = createSymmetryObjectThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
+         if (imageGenerators.cayleyDiagramView == null) {
+            imageGenerators.cayleyDiagramView = createCayleyDiagramThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
+            imageGenerators.cycleGraphView = createUnlabelledCycleGraphView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
+            imageGenerators.multtableView = createMinimalMulttableView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
+            imageGenerators.symmetryObjectView = createSymmetryObjectThumbnailView({ height: IMAGE_SIZE, width: IMAGE_SIZE })
          }
 
          updateLibrary = true
 
          setTimeout(() => {
             const loadingMessage = `Loading groups (${((inx + 1) * 100 / groupsToDisplay.length) | 0}%)...`
-            document.querySelector('#loadingMessage i').textContent = loadingMessage
+            ;(document.querySelector('#loadingMessage i') as HTMLElement).textContent = loadingMessage
 
-            generateThumbnails(generators, group, cayleyTitle, symmetryTitle)
+            generateThumbnails(imageGenerators, group, cayleyTitle, symmetryTitle)
             addToTable(tableElement, group, cayleyTitle)
          })
       } else {
@@ -234,11 +235,11 @@ function display (tableElement, groupsToDisplay) {
       if (updateLibrary)
          Library.saveGroup(Library.getGroupsByOrder(1)[0])
 
-      document.getElementById('loadingMessage').classList.toggle('hidden')
+      ;(document.getElementById('loadingMessage') as HTMLElement).classList.toggle('hidden')
    })
 }
 
-function tableHTML (tableElement) {
+function tableHTML (tableElement: HTMLElement) {
    const tableElementId = tableElement.getAttribute('id')
 
    // one hide-{id} rule per column; GroupTableUI toggles these classes on the table element
@@ -348,7 +349,7 @@ group in the library.
 
 ```javascript
 */
-function generateThumbnails (generators, group, cayleyTitle, symmetryTitle) {
+function generateThumbnails (generators: imageGenerators, group: Group, cayleyTitle: string, symmetryTitle: string) {
    const thumbnails = group.thumbnails = group.thumbnails || {}
 
    if (thumbnails.cayleyDiagram == null) {
@@ -385,7 +386,7 @@ by column id rather than by position.
 
 ```javascript
 */
-function addToTable (tableElement, group, cayleyTitle) {
+function addToTable (tableElement: HTMLElement, group: Group, cayleyTitle: string) {
    const aux = {cayleyTitle}
    const groupLibrary = group.library || 'default'
 
@@ -393,7 +394,7 @@ function addToTable (tableElement, group, cayleyTitle) {
       col.cellHTML(group, aux).replace('<td', `<td data-col-id="${col.id}"`)
    ).join('\n          ')
 
-   tableElement.querySelector('tbody').insertAdjacentHTML('beforeend',
+   ;(tableElement.querySelector('tbody') as HTMLElement).insertAdjacentHTML('beforeend',
       `<tr data-group="${group.URL}" data-library="${groupLibrary}">
           ${cells}
        </tr>`)

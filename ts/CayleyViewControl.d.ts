@@ -1,2 +1,3 @@
-export { addControl };
-declare function addControl(cayleyViewControlElement: any, cayleyDiagramModel: any): void;
+import type { CayleyDiagramModel } from './CayleyDiagramModel.js';
+import type { SubscriptionProxy } from './GEUtils.js';
+export declare function addControl(cayleyViewControlElement: HTMLElement, cayleyDiagramModel: SubscriptionProxy<CayleyDiagramModel>): void;

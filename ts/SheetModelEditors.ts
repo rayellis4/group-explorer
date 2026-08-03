@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SheetModelEditors
 
@@ -16,42 +16,46 @@ import {DEFAULT_SPHERE_COLOR} from './AbstractDiagramDisplay.js'
 import * as Log from './Log.js'
 import * as GEUtils from './GEUtils.js'
 import * as StoredObjects from './StoredObjects.js'
-import {THREE} from '../lib/externals.js'
-import {makeDialog, makeMockSelect} from './UIComponents.js'
+import * as THREE from '../lib/externals.js'
+import {makeDialog, makeMockSelect, mockSelectChoiceItem, } from './UIComponents.js'
 import {redrawLinksFor} from './SheetView.js'
 import {addControl as addHighlightControl} from './HighlightControl.js'
 
-export {TextEditor, ConnectionEditor, MorphismEditor, RemoteEditor}
+import type { SheetViewModel, SheetElement, NodeElement, TextElement, VisualizerElement, CDElement, 
+   CGElement, MTElement, LinkElement, ConnectingElement, MorphismElement } from './SheetViewModel.ts'
+import type * as SheetModel from './SheetModel.ts'
 /*
 ```
 ### SheetElementEditor
 ```javascript
  */
-class SheetElementEditor {
-   modelElement
-   initialJSON
-   location
-   editor
+abstract class SheetElementEditor {
+   modelElement: SheetElement
+   initialJSON: SheetModel.SheetElementJSON
+   location: NumberLocation
+   editor: HTMLElement
 
-   constructor (modelElement, dialogHTML, location) {
+   constructor (modelElement: SheetElement, dialogHTML: html, location: NumberLocation) {
       this.modelElement = modelElement
       this.initialJSON = JSON.parse(JSON.stringify(modelElement.toJSON()))
       this.location = location
 
       this.editor = makeDialog(dialogHTML, location)
-      const dialog = this.editor.classList.contains('dialog') ? this.editor : this.editor.querySelector('.dialog')
+      const dialog = this.editor.classList.contains('dialog')
+         ? this.editor
+         : this.editor.querySelector('.dialog') as HTMLElement
       GEUtils.createActionHandler(dialog, (action) => eval(action))
       dialog.addEventListener('input', (ev) => this.onInput(ev))
    }
 
-   onInput (event) {
-      const maybeSynced = event.target.closest('.synced')
+   onInput (event: Event) {
+      const maybeSynced = (event.target as HTMLElement).closest('.synced') as Maybe<HTMLInputElement>
       if (maybeSynced != null) {
-         maybeSynced.parentElement
+         (maybeSynced.parentElement as HTMLElement)
             .querySelectorAll('.synced')
             .forEach((el) => {
                if (el != maybeSynced) {
-                  el.value = maybeSynced.value
+                  (el as HTMLInputElement).value = maybeSynced.value
                }
             })
       }
@@ -74,9 +78,7 @@ class SheetElementEditor {
       this.exit()
    }
 
-   updateModelElement () {
-      /* Subclass responsibility */
-   }
+   abstract updateModelElement (): void
 
    exit () {
       this.editor.remove()
@@ -87,8 +89,10 @@ class SheetElementEditor {
 ### TextEditor
 ```javascript
  */
-class TextEditor extends SheetElementEditor {
-   constructor (textElement, location) {
+export class TextEditor extends SheetElementEditor {
+   declare modelElement: TextElement
+   
+   constructor (textElement: TextElement, location: NumberLocation) {
       const textEditorHTML = `
          <div id="text-editor" class="box stack-15.em flex-v">
              <div class="stretch">Text:<br>
@@ -174,13 +178,14 @@ class TextEditor extends SheetElementEditor {
 
    updateModelElement () {
       const textBox = this.modelElement
-      textBox.text = document.getElementById('text-editor-text').value.trim()
-      textBox.isPlainText = !document.getElementById('text-editor-html').checked
-      textBox.fontColor = document.getElementById('text-editor-text-color').value
-      textBox.fontSize = document.getElementById('text-editor-font-size').value.trim() + 'px'
-      textBox.alignment = this.editor.querySelector('[type="radio"]:checked').value
-      textBox.color = document.getElementById('text-editor-color').value
-      textBox.opacity = document.getElementById('text-editor-opacity').value
+      textBox.text = (document.getElementById('text-editor-text') as HTMLTextAreaElement).value.trim()
+      textBox.isPlainText = !(document.getElementById('text-editor-html') as HTMLInputElement).checked
+      textBox.fontColor = (document.getElementById('text-editor-text-color') as HTMLInputElement).value
+      textBox.fontSize = (document.getElementById('text-editor-font-size') as HTMLInputElement).value.trim() + 'px'
+      textBox.alignment =
+         (this.editor.querySelector('[type="radio"]:checked') as HTMLInputElement).value as SheetModel.alignmentType
+      textBox.color = (document.getElementById('text-editor-color') as HTMLInputElement).value
+      textBox.opacity = parseInt((document.getElementById('text-editor-opacity') as HTMLInputElement).value)
    }
 }
 /*
@@ -188,8 +193,10 @@ class TextEditor extends SheetElementEditor {
 ### ConnectionEditor
 ```javascript
  */
-class ConnectionEditor extends SheetElementEditor {
-   constructor (connectingElement, location) {
+export class ConnectionEditor extends SheetElementEditor {
+   declare modelElement: ConnectingElement
+
+   constructor (connectingElement: ConnectingElement, location: NumberLocation) {
       const connectionEditorHTML = `
          <div id="connection-editor" class="box stack-08em" style="resize: none">
              <div>Line color:
@@ -242,9 +249,9 @@ class ConnectionEditor extends SheetElementEditor {
 
    updateModelElement () {
       const connection = this.modelElement
-      connection.color = document.getElementById('connection-editor-color').value
-      connection.thickness = parseInt(document.getElementById('connection-editor-thickness').value)
-      connection.hasArrowhead = document.getElementById('connection-editor-draw-arrowhead').checked
+      connection.color = (document.getElementById('connection-editor-color') as HTMLInputElement).value
+      connection.thickness = parseInt((document.getElementById('connection-editor-thickness') as HTMLInputElement).value)
+      connection.hasArrowhead = (document.getElementById('connection-editor-draw-arrowhead') as HTMLInputElement).checked
    }
 }
 /*
@@ -252,12 +259,16 @@ class ConnectionEditor extends SheetElementEditor {
 ### MorphismEditor
 ```javascript
  */
-class MorphismEditor extends SheetElementEditor {
-   constructor (morphismElement, location) {
+export class MorphismEditor extends SheetElementEditor {
+   declare modelElement: MorphismElement
+   sourceHighlightSnapshot!: Maybe<color>[]
+   destHighlightSnapshot!: Maybe<color>[]
+
+   constructor (morphismElement: MorphismElement, location: NumberLocation) {
       const morphismEditorHTML = `
          <div id="morphism-editor" class="sheet-editor box stack-03em" style="resize: none">
              <div>Morphism name:
-                 <input id="morphism-editor-name" type="text" value="${morphismElement.name}">
+                 <input id="morphism-editor-name" type="text" value="${morphismElement.morphismName}">
              </div>
                  <details open><summary>Options:</summary>
              <div><input id="morphism-editor-show-domain-codomain" type="checkbox"
@@ -322,7 +333,7 @@ class MorphismEditor extends SheetElementEditor {
              </div>
              <div id="morphism-add-defining-pair">
                  <button data-action="this.addDefiningPair()">Add</button>
-                 <span id="morphism-name">${morphismElement.name}</span>
+                 <span id="morphism-name">${morphismElement.morphismName}</span>
                  (<div id="domain-select" class="mock-select" data-action="this.showDomainChoices()"></div>)
                  =
                  <div id="codomain-select" class="mock-select" data-action="this.showCodomainChoices()"></div>
@@ -482,9 +493,12 @@ class MorphismEditor extends SheetElementEditor {
 
       // set column widths in defining pair table
       const DISPLAY_FONT_SIZE = 20
-      const domainHeaderSize = document.querySelector('#defining-pair-table th:first-child').getBoundingClientRect().width
-      const codomainHeaderSize = document.querySelector('#defining-pair-table th:nth-child(2)').getBoundingClientRect().width
-      const removeColumnSize = document.querySelector('#defining-pair-table th:nth-child(3)').getBoundingClientRect().width
+      const domainHeaderSize =
+         (document.querySelector('#defining-pair-table th:first-child') as HTMLElement).getBoundingClientRect().width
+      const codomainHeaderSize =
+         (document.querySelector('#defining-pair-table th:nth-child(2)') as HTMLElement).getBoundingClientRect().width
+      const removeColumnSize =
+         (document.querySelector('#defining-pair-table th:nth-child(3)') as HTMLElement).getBoundingClientRect().width
       const maxDomainContent = this.modelElement.source.group.longestHTMLLabel * DISPLAY_FONT_SIZE
       const maxCodomainContent = this.modelElement.destination.group.longestHTMLLabel * DISPLAY_FONT_SIZE
 
@@ -505,9 +519,9 @@ class MorphismEditor extends SheetElementEditor {
           </style>`
       this.editor.insertAdjacentHTML('beforeend', adjustedStyle)
 
-      const domainSelect = document.getElementById('domain-select')
+      const domainSelect = document.getElementById('domain-select') as HTMLElement
       domainSelect.style.minWidth = `calc(${maxDomainContent}px + ${getComputedStyle(domainSelect).width})`
-      const codomainSelect = document.getElementById('codomain-select')
+      const codomainSelect = document.getElementById('codomain-select') as HTMLElement
       codomainSelect.style.minWidth = `calc(${maxCodomainContent}px + ${getComputedStyle(codomainSelect).width})`
 
       this.fillDefiningPairs()
@@ -515,34 +529,41 @@ class MorphismEditor extends SheetElementEditor {
       this.updatePreview()
 
       addHighlightControl(
-         document.getElementById('morphism-domain-highlight-control'),
+         document.getElementById('morphism-domain-highlight-control') as HTMLElement,
          morphismElement.source.viewElement.highlightModelProxy)
       addHighlightControl(
-         document.getElementById('morphism-codomain-highlight-control'),
+         document.getElementById('morphism-codomain-highlight-control') as HTMLElement,
          morphismElement.destination.viewElement.highlightModelProxy)
    }
 
    updateModelElement () {
       const morphism = this.modelElement
-      morphism.name = document.getElementById('morphism-editor-name').value.trim()
-      morphism.showDomainAndCodomain = document.getElementById('morphism-editor-show-domain-codomain').checked
-      morphism.showDefiningPairs = document.getElementById('morphism-editor-show-defining-pairs').checked
-      morphism.showInjectionSurjection = document.getElementById('morphism-editor-show-injection-surjection').checked
-      morphism.showManyArrows = document.getElementById('morphism-editor-show-many-arrows').checked
-      morphism.arrowColor = document.getElementById('morphism-arrow-color-source').checked
-         ? 'source'
-         : document.getElementById('morphism-arrow-color-destination').checked
-            ? 'destination'
-            : 'none'
+      morphism.morphismName =
+         (document.getElementById('morphism-editor-name') as HTMLInputElement).value.trim()
+      morphism.showDomainAndCodomain = 
+         (document.getElementById('morphism-editor-show-domain-codomain') as HTMLInputElement).checked
+      morphism.showDefiningPairs =
+         (document.getElementById('morphism-editor-show-defining-pairs') as HTMLInputElement).checked
+      morphism.showInjectionSurjection =
+         (document.getElementById('morphism-editor-show-injection-surjection') as HTMLInputElement).checked
+      morphism.showManyArrows =
+         (document.getElementById('morphism-editor-show-many-arrows') as HTMLInputElement).checked
+      morphism.arrowColor =
+         (document.getElementById('morphism-arrow-color-source') as HTMLInputElement).checked
+            ? 'source'
+            : (document.getElementById('morphism-arrow-color-destination') as HTMLInputElement).checked
+               ? 'destination'
+               : 'none'
 
-      morphism.arrowMargin = parseFloat(document.getElementById('morphism-editor-arrow-margin').value)/100
+      morphism.arrowMargin =
+         parseFloat((document.getElementById('morphism-editor-arrow-margin') as HTMLInputElement).value)/100
       if (morphism.source .className === 'MTElement') {
          morphism.useMulttableSourceTopRow =
-            document.getElementById('morphism-editor-multtable-source-top-row').checked
+            (document.getElementById('morphism-editor-multtable-source-top-row') as HTMLInputElement).checked
       }
       if (morphism.destination .className === 'MTElement') {
          morphism.useMulttableDestinationTopRow =
-            document.getElementById('morphism-editor-multtable-destination-top-row').checked
+            (document.getElementById('morphism-editor-multtable-destination-top-row') as HTMLInputElement).checked
       }
    }
 
@@ -555,7 +576,7 @@ class MorphismEditor extends SheetElementEditor {
    }
 
    fillDefiningPairs () {
-      const tbody = document.querySelector('#defining-pair-table tbody')
+      const tbody = document.querySelector('#defining-pair-table tbody') as HTMLElement
       if (this.modelElement.mapping.definingPairs.length === 0) {
          tbody.innerHTML =
             `<tr>
@@ -566,7 +587,7 @@ class MorphismEditor extends SheetElementEditor {
       } else {
          tbody.innerHTML = ''
          this.modelElement.mapping.definingPairs.forEach(
-            ([domainElement, codomainElement]) => {
+            ([domainElement, codomainElement]: [groupElement, groupElement]) => {
                const definingPairRow =
                   `<tr id="defining-pair-${domainElement}">
                       <td>${this.modelElement.source.group.representation[domainElement]}</td>
@@ -578,14 +599,15 @@ class MorphismEditor extends SheetElementEditor {
       }
    }
 
-   onInput (event) {
+   onInput (event: Event) {
       // sync name
-      if (event.target.getAttribute('id') == 'morphism-editor-name') {
-         document.getElementById('morphism-name').innerHTML = event.target.value
+      if ((event.target as HTMLInputElement).getAttribute('id') == ('morphism-editor-name')) {
+         (document.getElementById('morphism-name') as HTMLInputElement).innerHTML =
+            (event.target as HTMLInputElement).value
       }
 
       // clear warning message
-      document.getElementById('morphism-subgroup-transform-warning').innerHTML = ''
+      (document.getElementById('morphism-subgroup-transform-warning') as HTMLElement).innerHTML = ''
 
       super.onInput(event)
    }
@@ -593,76 +615,80 @@ class MorphismEditor extends SheetElementEditor {
    setupMorphismAdd () {
       if (this.modelElement.mapping.image.includes(undefined)) {
          // domain selection is first unmapped source
-         const domainSelection = this.modelElement.mapping.image.findIndex((el) => el === undefined)
-         document.getElementById('domain-select').setAttribute('data-value', domainSelection)
-         document.getElementById('domain-select').innerHTML =
+         const domainSelection = this.modelElement.mapping.image.findIndex((el) => el == null)
+         ;(document.getElementById('domain-select') as HTMLElement).setAttribute('data-value', domainSelection.toString())
+         ;(document.getElementById('domain-select') as HTMLElement).innerHTML =
             this.modelElement.source.group.representation[domainSelection]
 
          this.setupCodomainChoice(domainSelection)
 
-         document.getElementById('morphism-add-defining-pair').classList.remove('hidden')
+         ;(document.getElementById('morphism-add-defining-pair') as HTMLElement).classList.remove('hidden')
       } else {
-         document.getElementById('morphism-add-defining-pair').classList.add('hidden')
+         ;(document.getElementById('morphism-add-defining-pair') as HTMLElement).classList.add('hidden')
       }
    }
 
    showDomainChoices () {
-      const codomainChoice = parseInt(document.getElementById('codomain-select').getAttribute('data-value'))
+      const codomainChoice =
+         parseInt((document.getElementById('codomain-select') as HTMLElement).getAttribute('data-value') as string)
       const validSources = this.modelElement.mapping.validSources(codomainChoice)
-      const choices = validSources.map((source) => {
-         return {value: source, label: this.modelElement.source.group.representation[source]}
+      const choices: mockSelectChoiceItem[] = validSources.map((source) => {
+         return {value: source.toString(), label: this.modelElement.source.group.representation[source]}
       }).sort((a, b) => a.label.localeCompare(b.label))
-      makeMockSelect(document.getElementById('domain-select'), choices)
+      makeMockSelect(document.getElementById('domain-select') as HTMLElement, choices)
          .then(
-            (domainChoice) => this.setupCodomainChoice(domainChoice),
+            (domainChoice) => this.setupCodomainChoice(parseInt(domainChoice)),
             () => {}
          )
    }
 
    showCodomainChoices () {
-      const domainChoice = parseInt(document.getElementById('domain-select').getAttribute('data-value'))
+      const domainChoice =
+         parseInt((document.getElementById('domain-select') as HTMLElement).getAttribute('data-value') as string)
       const validTargets = this.modelElement.mapping.validTargets(domainChoice)
-      const choices = validTargets.map((target) => {
-         return {value: target, label: this.modelElement.destination.group.representation[target]}
+      const choices: mockSelectChoiceItem[] = validTargets.map((target) => {
+         return {value: target.toString(), label: this.modelElement.destination.group.representation[target]}
       }).sort((a, b) => a.label.localeCompare(b.label))
-      makeMockSelect(document.getElementById('codomain-select'), choices)
+      makeMockSelect(document.getElementById('codomain-select') as HTMLElement, choices)
          .then(
-            (codomainChoice) => this.setupDomainChoice(codomainChoice),
+            (codomainChoice) => this.setupDomainChoice(parseInt(codomainChoice)),
             () => {}
          )
    }
-      // save old choice if it still works...
+   // save old choice if it still works...
    // domain choice is first valid source  of codomain selection
-   setupDomainChoice (codomainSelection) {
-      const currentDomainSelection = parseInt(document.getElementById('domain-select').getAttribute('data-value'))
+   setupDomainChoice (codomainSelection: groupElement) {
+      const currentDomainSelection =
+         parseInt((document.getElementById('domain-select') as HTMLElement).getAttribute('data-value') as string)
       const validSources = this.modelElement.mapping.validSources(codomainSelection)
       if (!validSources.includes(currentDomainSelection)) {
          const validDomainSelection = validSources[0]
-         document.getElementById('domain-select').setAttribute('data-value', validDomainSelection)
-         document.getElementById('domain-select').innerHTML =
+         ;(document.getElementById('domain-select') as HTMLElement).setAttribute('data-value', validDomainSelection.toString())
+         ;(document.getElementById('domain-select') as HTMLElement).innerHTML =
             this.modelElement.source.group.representation[validDomainSelection]
       }
    }
 
    // codomain choice is first valid target of domain selection
-   setupCodomainChoice (domainSelection) {
-      const currentCodomainSelection = parseInt(document.getElementById('codomain-select').getAttribute('data-value'))
+   setupCodomainChoice (domainSelection: groupElement) {
+      const currentCodomainSelection =
+         parseInt((document.getElementById('codomain-select') as HTMLElement).getAttribute('data-value') as string)
       const validTargets = this.modelElement.mapping.validTargets(domainSelection)
       if (!validTargets.includes(currentCodomainSelection)) {
          const validCodomainSelection = validTargets[0]
-         document.getElementById('codomain-select').setAttribute('data-value', validCodomainSelection)
-         document.getElementById('codomain-select').innerHTML =
+         ;(document.getElementById('codomain-select') as HTMLElement).setAttribute('data-value', validCodomainSelection.toString())
+         ;(document.getElementById('codomain-select') as HTMLElement).innerHTML =
             this.modelElement.destination.group.representation[validCodomainSelection]
       }
    }
 
    updatePreview () {
-      const previewTable = document.getElementById('morphism-preview-table')
+      const previewTable = document.getElementById('morphism-preview-table') as HTMLElement
       if (previewTable.style.display !== 'none') {
-         const previewTableBody = previewTable.querySelector('tbody')
+         const previewTableBody = previewTable.querySelector('tbody') as HTMLElement
          previewTableBody.innerHTML = ''
          this.modelElement.mapping.fullMapping.forEach(
-            (codomainElement, domainElement) => {
+            (codomainElement: groupElement, domainElement: groupElement) => {
                const morphismPreviewRow =
                   `<tr>
                       <td>${this.modelElement.source.group.representation[domainElement]}</td>
@@ -674,8 +700,10 @@ class MorphismEditor extends SheetElementEditor {
    }
 
    addDefiningPair () {
-      const domainElement = parseInt(document.getElementById('domain-select').getAttribute('data-value'))
-      const codomainElement = parseInt(document.getElementById('codomain-select').getAttribute('data-value'))
+      const domainElement =
+         parseInt((document.getElementById('domain-select') as HTMLElement).getAttribute('data-value') as string)
+      const codomainElement =
+         parseInt((document.getElementById('codomain-select') as HTMLElement).getAttribute('data-value') as string)
       this.modelElement.mapping.addDefiningPair(domainElement, codomainElement)
       this.fillDefiningPairs()
 
@@ -686,7 +714,7 @@ class MorphismEditor extends SheetElementEditor {
       this.modelElement.viewElement?.redraw()
    }
 
-   removeDefiningPair(domainElement /*: groupElement */) {
+   removeDefiningPair(domainElement: groupElement) {
       this.modelElement.mapping.removeDefiningPair(domainElement)
       this.fillDefiningPairs()
 
@@ -701,11 +729,12 @@ class MorphismEditor extends SheetElementEditor {
       const fullMapping = this.modelElement.mapping.fullMapping
       const colorMap = new Map()
       // generate color map of destination elements that are the image of highlighted elements in source
-      this.modelElement.source.viewElement.visualizer.model.highlightColors[0].forEach((color, inx) => {
-         if (color != null && color != DEFAULT_SPHERE_COLOR) {
-            colorMap.set(fullMapping[inx], new THREE.Color(color))
-         }
-      })
+      this.modelElement.source.viewElement.visualizer.model.highlightColors[0]
+         .forEach((color: Maybe<color>, inx: integer) => {
+            if (color != null && color != DEFAULT_SPHERE_COLOR) {
+               colorMap.set(fullMapping[inx], new THREE.Color(color))
+            }
+         })
 
       // convert colorMap to destination's coniguration
       const destinationHighlightConfig = this.modelElement.destination.viewElement.visualizer.model.highlightConfiguration
@@ -716,40 +745,42 @@ class MorphismEditor extends SheetElementEditor {
 
       // highlight image in destination
       const destinationHighlights = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]
-      this.modelElement.destination.viewElement.visualizer.model.group.elements.forEach((inx) => {
-         const c = colorMap.get(inx)
-         destinationHighlights[inx] = c != null ? ('#' + c.getHexString()) : null
-      })
+      this.modelElement.destination.viewElement.visualizer.model.group.elements
+         .forEach((inx: integer) => {
+            const c = colorMap.get(inx)
+            destinationHighlights[inx] = c != null ? ('#' + c.getHexString()) : null
+         })
       this.modelElement.destination.viewElement.visualizer.model.$touch('highlightColors')
       this.modelElement.destination.viewElement.redraw()
       redrawLinksFor(this.modelElement.destination)
    }
 
    pullTargetThroughMorphism () {
-      const inverseMapping = new Map()
+      const inverseMapping = new Map<groupElement, groupElement[]>()
       this.modelElement.mapping.fullMapping.forEach((dest, src) => {
          if (!inverseMapping.has(dest)) {
             inverseMapping.set(dest, [])
          }
-         inverseMapping.get(dest).push(src)
+         (inverseMapping.get(dest) as groupElement[]).push(src)
       })
       const colorMap = new Map()
 
       // generate color map of source elements whose images are highlighted elements in destination
       let incompletePreImage = false
-      this.modelElement.destination.viewElement.visualizer.model.highlightColors[0].forEach((color, dest) => {
-         if (color != null && color != DEFAULT_SPHERE_COLOR) {
-            if (inverseMapping.has(dest)) {
-               inverseMapping.get(dest).forEach((src) => colorMap.set(src, new THREE.Color(color)))
-            } else {
-               incompletePreImage = true
+      this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]
+         .forEach((color: Maybe<color>, dest: integer) => {
+            if (color != null && color != DEFAULT_SPHERE_COLOR) {
+               if (inverseMapping.has(dest)) {
+                  (inverseMapping.get(dest) as groupElement[]).forEach((src) => colorMap.set(src, new THREE.Color(color)))
+               } else {
+                  incompletePreImage = true
+               }
             }
-         }
-      })
+         })
       if (incompletePreImage) {
          // set warning message, cleared next time onInput runs
          const message = '(Warning: Some highlighted elements have no pre-image)'
-         document.getElementById('morphism-subgroup-transform-warning').innerHTML = message
+         ;(document.getElementById('morphism-subgroup-transform-warning') as HTMLElement).innerHTML = message
       }
 
       // convert colorMap to source's configuration
@@ -761,7 +792,7 @@ class MorphismEditor extends SheetElementEditor {
 
       // highlight pre-image in source
       const sourceHighlights = this.modelElement.source.viewElement.visualizer.model.highlightColors[0]
-      this.modelElement.source.viewElement.visualizer.model.group.elements.forEach((inx) => {
+      this.modelElement.source.viewElement.visualizer.model.group.elements.forEach((inx: groupElement) => {
          sourceHighlights[inx] = colorMap.has(inx) ? ('#' + colorMap.get(inx).getHexString()) : null
       })
       this.modelElement.source.viewElement.visualizer.model.$touch('highlightColors')
@@ -774,25 +805,26 @@ class MorphismEditor extends SheetElementEditor {
 ### RemoteEditor
 ```javascript
  */
-class RemoteEditor {
-   static #messageHandler  // singleton message handler to update visualizers
+export class RemoteEditor {
+   static #messageHandler: (messageEvent: MessageEvent) => void  // singleton message handler to update visualizers
    static #editorWindows = new Map()  // elementId → editor window reference
 
-   static #editPageURLs = {
+   static #editPageURLs: Record<string, string> = {
       MTElement: './Multtable.html',
       CGElement: './CycleGraph.html',
       CDElement: './CayleyDiagram.html'
    }
 
-   static editElement (modelElement) {
+   static editElement (modelElement: VisualizerElement & {onVisualizerChange?: (json: unknown) => void}) {
       // create listener instance, if needed; holds reference to Model instance
       if (RemoteEditor.#messageHandler == null) {
          const model = modelElement.model
-         RemoteEditor.#messageHandler = (messageEvent) => {
-            if (messageEvent.data?.source != 'editor') return
+         RemoteEditor.#messageHandler = (messageEvent: MessageEvent) => {
+            if (messageEvent.data?.source != 'editor')
+               return
             const {elementId, json} = messageEvent.data
             Log.debug(`RemoteEditor received msg for modelElement ${elementId}`, json)
-            model.sheetElements.get(elementId)?.updateVisualizer?.(json)
+            ;(model.sheetElements.get(elementId) as VisualizerElement)?.updateVisualizer?.(json)
          }
          window.addEventListener('message', RemoteEditor.#messageHandler)
       }
@@ -815,12 +847,12 @@ class RemoteEditor {
    }
 
    // push updated JSON to an open editor tab for this element, if one exists
-   static pushToEditor (elementId, json) {
+   static pushToEditor (elementId: string, json: unknown) {
       const editorWindow = RemoteEditor.#editorWindows.get(elementId)
       if (editorWindow == null || editorWindow.closed) {
          RemoteEditor.#editorWindows.delete(elementId)
          return
       }
-      editorWindow.postMessage({source: 'sheet', elementId, json}, '*')
+      editorWindow.postMessage({source: 'sheet', elementId: elementId, json: json}, '*')
    }
 }

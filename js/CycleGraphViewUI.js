@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # CycleGraphViewUI component
 
@@ -12,11 +12,7 @@ This component adds the following UI gestures to a CycleGraphView:
  */
 import { recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizeZoom } from './Gestures.js';
 import { makeTooltip } from './UIComponents.js';
-export { addGestures };
-/*::
-import type {CycleGraphView} from './CycleGraphView.js'
- */
-function addGestures(cycleGraphView /*: CycleGraphView */) {
+export function addGestures(cycleGraphView) {
     cycleGraphView.reset();
     addSelect(cycleGraphView);
     addContextMenu(cycleGraphView);
@@ -28,7 +24,7 @@ function addGestures(cycleGraphView /*: CycleGraphView */) {
 ### select
 ```javascript
 */
-function addSelect(cycleGraphView /*: CycleGraphView */) {
+function addSelect(cycleGraphView) {
     recognizeSelect(cycleGraphView.canvas, (event) => {
         const boundingRectangle = cycleGraphView.canvas.getBoundingClientRect();
         const clickX = event.clientX - boundingRectangle.left;
@@ -47,7 +43,7 @@ function addSelect(cycleGraphView /*: CycleGraphView */) {
 ### contextMenu
 ```javascript
 */
-function addContextMenu(cycleGraphView /*: CycleGraphView */) {
+function addContextMenu(cycleGraphView) {
     recognizeContextMenu(cycleGraphView.canvas, (_event) => {
         cycleGraphView.reset();
     });
@@ -57,7 +53,7 @@ function addContextMenu(cycleGraphView /*: CycleGraphView */) {
 ### move
 ```javascript
 */
-function addMove(cycleGraphView /*: CycleGraphView */) {
+function addMove(cycleGraphView) {
     recognizeDragAndDrop(cycleGraphView.canvas, (startEvent, _previousEvent, currentEvent, isDrop) => {
         const dx = currentEvent.clientX - startEvent.clientX;
         const dy = currentEvent.clientY - startEvent.clientY;
@@ -76,7 +72,7 @@ function addMove(cycleGraphView /*: CycleGraphView */) {
 ### zoom
 ```javascript
 */
-function addZoom(cycleGraphView /*: CycleGraphView */) {
+function addZoom(cycleGraphView) {
     let totalZoom = 1;
     recognizeZoom(cycleGraphView.canvas, (scaleFactor, isLastEvent) => {
         totalZoom *= (1 + scaleFactor);

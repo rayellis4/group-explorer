@@ -1,12 +1,16 @@
 {
    "compilerOptions": {
       "target": "ES2022",
-      "module": "ES2015",
+      "module": "ES2020",
       "rootDir": "./ts",
       "outDir": "./js",
       "declaration": true,
       "declarationDir": "./ts",
-      "sourceMap": true
+      "sourceMap": true,
+      "moduleResolution": "bundler",
+      "paths": {
+         "three": ["./node_modules/@types/three"]
+      }
    },
    "include": [
       "ts/*.ts"

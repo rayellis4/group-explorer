@@ -1,41 +1,45 @@
-// @flow
+/*
+# Multtable
 
-import {ControlPanel} from './ControlPanel.js'
-import {createModelProxy} from './GEUtils.js'
+Assembles large multtable visualizer html page
+
+```js
+ */
+
+import { ControlPanel } from './ControlPanel.js'
+import { createModelProxy } from './GEUtils.js'
 import * as Heading from './Heading.js'
 import * as HighlightControl from './HighlightControl.js'
 import * as Library from './Library.js'
 import * as MulttableControl from './MulttableControl.js'
-import {MulttableModel} from'./MulttableModel.js'
-import {createInteractiveMulttableView} from './MulttableView.js'
+import { MulttableModel } from'./MulttableModel.js'
+import { createInteractiveMulttableView } from './MulttableView.js'
 import * as SheetEditor from './SheetEditor.js'
 import * as Log from './Log.js'
 
-export {load}
-
-/*::
-import type {Group} from './Group.js'
- */
+import type { SubscriptionProxy } from './GEUtils.js'
+import type { Group } from './Group.js'
+import type { MulttableJSON } from './MulttableModel.js'
 
 // Load group from invocation URL and complete setup
-async function load () {
+export async function load () {
    insertHTML()
 
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
    // If this page is editing a sheet...
-   const {elementId, json: initialJSON} /*: unknown */ = await (window.location.href.includes('SheetEditor')
+   const {elementId, json: initialJSON} = (await (window.location.href.includes('SheetEditor')
       ? SheetEditor.getInitialData()
-      : {elementId: null, json: null})
+      : {elementId: null, json: null})) as {elementId: Maybe<string>, json: Maybe<MulttableJSON>}
 
    // Get group, either from page URL or data from Sheet
-   const group /*: Group */ = await ((initialJSON?.group_url == null)
+   const group: Group = await ((initialJSON?.group_url == null)
       ? Library.loadFromPageURL()
-      : Library.getGroupByURL(initialJSON.group_url))
+      : Library.getGroupByURL(initialJSON.group_url)) as Group
 
    // Create Header
    Heading.display(
-      (document.getElementById('heading') /*:: as any as HTMLElement */),
+      (document.getElementById('heading') as HTMLElement),
       `Multiplication Table for ${group.name}`,
       () => [
          {label: 'Group Info', action: () => window.open(`GroupInfo.html?groupURL=${group.URL}`)},
@@ -47,11 +51,11 @@ async function load () {
    )
 
    // Create Multtable model
-   const multtableModel /*: SubscriptionProxy<MulttableModel> */ = createModelProxy(new MulttableModel(group))
+   const multtableModel: SubscriptionProxy<MulttableModel> = createModelProxy(new MulttableModel(group))
 
    // Create multtableView in graphic div and attach to multtableModel
    const multtableViewModel = createInteractiveMulttableView(multtableModel, {
-      container: document.getElementById('graphic')
+      container: document.getElementById('graphic') as HTMLElement
    })
 
    // Initialize Multtable model, change broadcast if editing a sheet
@@ -63,21 +67,21 @@ async function load () {
       }
 
       SheetEditor.enableChangeBroadcast(() => {
-         return { elementId: elementId, json: multtableModel.toJSON() }
+         return { elementId: elementId as string, json: multtableModel.toJSON() }
       })
-      SheetEditor.listenForSheetUpdates((json) => multtableModel.fromJSON(json))
+      SheetEditor.listenForSheetUpdates((json: MulttableJSON) => multtableModel.fromJSON(json))
       window.setInterval(() => SheetEditor.broadcastChange(), 1000)
    }
 
    // Create Control Panel
-   ControlPanel.addPanel(document.getElementById('control-panel'))
+   ControlPanel.addPanel(document.getElementById('control-panel') as HTMLElement)
 
    // Initialize HighlightControl
-   const highlightControlElement = document.getElementById('highlight-control')
+   const highlightControlElement = document.getElementById('highlight-control') as HTMLElement
    HighlightControl.addControl(highlightControlElement, multtableModel)
 
    // Add Multtable Control panel
-   const tableControlElement = document.getElementById('table-control')
+   const tableControlElement = document.getElementById('table-control') as HTMLElement
    MulttableControl.addControl(tableControlElement, multtableModel)  // Initializes Multtable Controller directly
 
    // Register window resize handler

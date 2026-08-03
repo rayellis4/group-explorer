@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # GroupTableUI component
 
@@ -11,17 +11,9 @@ These include
 */
 import { positionElement, makeDialog } from './UIComponents.js';
 import { COLUMNS } from './GroupTable.js';
-export { addGestures };
-/*::
-type TableConfig = {
-   visible: {[string]: boolean},
-   sort: {id: string, dir: string},
-}
-type ConfigChangeCallback = (patch: {[string]: any}) => void
-*/
 // set by addGestures, used by tableSort to persist sort state
-let onConfigChange /*: ?ConfigChangeCallback */ = null;
-function addGestures(table /*: HTMLElement */, { config, onConfigChange: callback } /*: {config: TableConfig, onConfigChange: ConfigChangeCallback} */) {
+let onConfigChange = null;
+export function addGestures(table, { config, onConfigChange: callback }) {
     onConfigChange = callback;
     const tableId = table.getAttribute('id');
     table.insertAdjacentHTML('beforeend', `<style>
@@ -86,7 +78,6 @@ function addGestures(table /*: HTMLElement */, { config, onConfigChange: callbac
     // sort handlers (initial sort is applied by GroupExplorer after addGestures)
     table.querySelectorAll('th.sortable')
         .forEach((el) => el.addEventListener('click', tableSortHandler));
-    // gear icon — column visibility dropdown
     document.getElementById('column-config-btn')
         .addEventListener('click', (event) => {
         event.stopPropagation();
@@ -100,13 +91,13 @@ function addGestures(table /*: HTMLElement */, { config, onConfigChange: callbac
 ### Table sort
 ```javascript
  */
-function tableSortHandler(event /*: MouseEvent */) {
+function tableSortHandler(event) {
     tableSort(event.currentTarget);
 }
-function tableSort(column /*: HTMLElement */, direction /*: ?string */) {
+function tableSort(column, direction) {
     const colId = column.dataset.colId;
     const colDef = COLUMNS.find((col) => col.id === colId);
-    if (colDef?.sortComparator == null)
+    if (colDef == null || !('sortComparator' in colDef))
         return;
     // direction param is used for programmatic restore; user clicks toggle
     const sortAscending = direction != null
@@ -121,7 +112,7 @@ function tableSort(column /*: HTMLElement */, direction /*: ?string */) {
     });
     const colIndex = COLUMNS.indexOf(colDef);
     const getCellValue = (row) => row.children[colIndex].textContent;
-    const sortFunction = (a /*: HTMLTableRowElement */, b /*: HTMLTableRowElement */) => colDef.sortComparator(getCellValue(sortAscending ? a : b), getCellValue(sortAscending ? b : a));
+    const sortFunction = (a, b) => colDef.sortComparator(getCellValue(sortAscending ? a : b), getCellValue(sortAscending ? b : a));
     const tableBody = document.querySelector('#group-table tbody');
     Array.from(tableBody.children)
         .sort(sortFunction)
@@ -135,7 +126,7 @@ function tableSort(column /*: HTMLElement */, direction /*: ?string */) {
 ### Column configuration
 ```javascript
 */
-function showColumnDropdown(table /*: HTMLElement */, config /*: TableConfig */) {
+function showColumnDropdown(table, config) {
     document.getElementById('column-dropdown')?.remove();
     const dropdownHTML = [
         `<div id="column-dropdown" class="menu" style="resize: none">
@@ -176,7 +167,8 @@ function showColumnDropdown(table /*: HTMLElement */, config /*: TableConfig */)
         COLUMNS.forEach((col) => {
             table.classList.toggle(`hide-${col.id}`, !defaults[col.id]);
         });
-        document.getElementById('column-dropdown').querySelectorAll('input[type="checkbox"]')
+        document.getElementById('column-dropdown')
+            .querySelectorAll('input[type="checkbox"]')
             .forEach((cb, i) => {
             cb.checked = COLUMNS[i].defaultVisible;
         });
@@ -194,8 +186,8 @@ function clearEmphasis() {
     document.querySelectorAll('.emphasized').forEach((el) => el.classList.remove('emphasized'));
 }
 // ── Mouse ──────────────────────────────────────────────────────────────────
-let mouseTooltipTimer /*: ?TimeoutID */ = null;
-let lastMouseCell /*: ?Element */ = null;
+let mouseTooltipTimer = null;
+let lastMouseCell = null;
 function addMouseHandlers(tableBody) {
     // pointerover bubbles, so one listener on tbody tracks all cell transitions
     tableBody.addEventListener('pointerover', (event) => {
@@ -233,9 +225,9 @@ function clearMouseState() {
     clearEmphasis();
 }
 // ── Touch ──────────────────────────────────────────────────────────────────
-let touchCell /*: ?Element */ = null;
-let touchDownInfo /*: ?{x: number, y: number, cell: ?Element} */ = null;
-let secondTapPending /*: boolean */ = false;
+let touchCell = null;
+let touchDownInfo = null;
+let secondTapPending = false;
 function addTouchHandlers(tableBody) {
     tableBody.addEventListener('pointerdown', (event) => {
         if (event.pointerType === 'mouse')
@@ -252,9 +244,7 @@ function addTouchHandlers(tableBody) {
         secondTapPending = false;
     });
     tableBody.addEventListener('pointerup', (event) => {
-        if (event.pointerType === 'mouse')
-            return;
-        if (touchDownInfo == null)
+        if (event.pointerType === 'mouse' || touchDownInfo == null)
             return;
         const { x, y, cell } = touchDownInfo;
         touchDownInfo = null;

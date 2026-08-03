@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # ControlPanel
 
@@ -55,9 +55,9 @@ The `control-grab-indicator` element is a transparent &lt;div&gt; just inside th
 ```javascript
  */
 import { recognizeDragAndDrop } from './Gestures.js'
-/*::
-import type {DragAndDropCallback} from './Gestures.js'
- */
+
+import type { DragAndDropCallback } from './Gestures.js'
+
 /*
 ```
 ## ControlPanel
@@ -67,23 +67,23 @@ This class creates the html structure described [above](#controlpanel).
 ```javascript
  */
 export class ControlPanel {
-   controlPanelElement /*: HTMLElement */
-   grabHandle /*: HTMLElement */
-   controlContainer /*: HTMLElement */
-   lastEvent /*: Event */
+   controlPanelElement: HTMLElement
+   grabHandle: HTMLElement
+   controlContainer: HTMLElement
+   lastEvent!: Event
 
-   constructor (controlPanel /*: HTMLElement */) {
+   constructor (controlPanel: HTMLElement) {
       this.controlPanelElement = controlPanel
 
-      const controls = Array.from(this.controlPanelElement.children)
+      const controls = Array.from(this.controlPanelElement.children) as HTMLElement[]
       this.controlPanelElement.insertAdjacentHTML('beforeend',
          `<div id="control-grab-handle"></div>
           <div id="control-grab-indicator"></div>
           <div id="control-contents" class="flex-v stretch">
              <div id="control-container" class="stretch"></div>
           </div>`)
-      this.controlContainer = document.getElementById('control-container')
-      this.grabHandle = document.getElementById('control-grab-handle')
+      this.controlContainer = document.getElementById('control-container') as HTMLElement
+      this.grabHandle = document.getElementById('control-grab-handle') as HTMLElement
 
       // controllers from 'control-panel' to 'control-container'
       controls.forEach((el) => this.controlContainer.appendChild(el))
@@ -103,7 +103,7 @@ export class ControlPanel {
 
    ```javascript
     */
-   static addPanel (controlPanel /*: HTMLElement */) {
+   static addPanel (controlPanel: HTMLElement) {
       new ControlPanel(controlPanel)
    }
 /*
@@ -113,18 +113,18 @@ export class ControlPanel {
 Creates buttons to select which controller to show and place them in 'control-options'
 ```javascript
  */
-   addControllers (controls /*: Array<HTMLElement> */) {
-      const controlContents = (document.getElementById('control-contents') /*:: as any as HTMLElement */)
+   addControllers (controls: HTMLElement[]) {
+      const controlContents = document.getElementById('control-contents') as HTMLElement
 
       controlContents.insertAdjacentHTML('afterbegin', `<div id="control-options" class="flex-h"></div>`)
-      const controlOptions = (document.getElementById('control-options') /*:: as any as HTMLElement */)
+      const controlOptions = document.getElementById('control-options') as HTMLElement
 
       controlOptions.innerHTML =
          controls.map((control) => `<button>${control.getAttribute('data-button') || ''}</button>`).join('')
       controlOptions.querySelectorAll('button')
          .forEach((button, index) => button.addEventListener('click', (_ev) => showControl(controls[index])))
 
-      const showControl = (control /*: HTMLElement */) => {
+      const showControl = (control: HTMLElement) => {
          controls.forEach((ctrl) => ctrl.style.display = (control === ctrl) ? 'block' : 'none')
       }
       showControl(controls[controls.length - 1])  // show the most interesting control?
@@ -145,7 +145,7 @@ is exposed/hidden (see [CSS styling discussion](#css-styling) above).
 A transform is used instead of setting the position and visibiliity with CSS because it's faster.
 ```javascript
  */
-   move (_startEvent /*: PointerEvent */, previousEvent /*: PointerEvent */, currentEvent /*: PointerEvent */) {
+   move (_startEvent: PointerEvent, previousEvent: PointerEvent, currentEvent: PointerEvent) {
       const deltaX = currentEvent.clientX - previousEvent.clientX
 
       const maxOffset = this.controlContainer.getBoundingClientRect().width - parseInt(getComputedStyle(this.controlContainer).minWidth)

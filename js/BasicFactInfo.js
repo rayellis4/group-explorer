@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # BasicFactInfo
 
@@ -8,8 +8,7 @@ its order and a defining relation.
 ```javascript
  */
 import * as Library from './Library.js';
-export { display };
-function display(basicFactsElementId, group) {
+export function display(basicFactsElementId, group) {
     const basicFactsElement = document.getElementById(basicFactsElementId);
     basicFactsElement.innerHTML = getBasicFactsHTML(basicFactsElementId, group);
     document.querySelector('#content.all-info').addEventListener('representationChange', () => basicFactsElement.innerHTML = getBasicFactsHTML(basicFactsElementId, group));
@@ -26,7 +25,7 @@ function display(basicFactsElementId, group) {
                         el.parentElement.children[1].textContent = newGroup.gapid;
                     }
                     else if (el.textContent === 'GAP name') {
-                        el.parentElement.children[1].textContent = newGroup.gapname;
+                        el.parentElement.children[1].textContent = newGroup.gapname ?? null;
                     }
                 });
             }

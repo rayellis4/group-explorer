@@ -1,2 +1,2 @@
-export { addGestures };
-declare function addGestures(multtableViewModel: any): void;
+import { MulttableViewModel } from './MulttableView.js';
+export declare function addGestures(multtableViewModel: MulttableViewModel): void;

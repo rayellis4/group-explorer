@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # MulttableControl
 
@@ -11,24 +11,20 @@ Display input elements that configure the MulttableView:
 ```javascript
  */
 import { makeMockSelect } from './UIComponents.js';
-export { addControl };
-/*::
-import {MulttableView} from './MulttableView.js'
- */
-function addControl(multtableControlElement /*: HTMLElement */, modelProxy /*: SubscriptionProxy<MulttableModel> */) {
+export function addControl(multtableControlElement, modelProxy) {
     const viewModel = new ViewModel(modelProxy);
     new View(viewModel, multtableControlElement);
 }
 class ViewModel /*: implements Updatable */ {
-    #model; /*: MulttableModel */
-    #view; /*: View */
-    #modelFields /*: Array<string> */ = [
+    #model;
+    #view;
+    #modelFields = [
         'organizingSubgroup',
         'separation',
         'coloration',
         'colorReordering'
     ];
-    constructor(model /*: SubscriptionProxy<MulttableModel> */) {
+    constructor(model) {
         this.model = model;
     }
     get group() {
@@ -37,21 +33,21 @@ class ViewModel /*: implements Updatable */ {
     get view() {
         return this.#view;
     }
-    set view(view /*: View */) {
+    set view(view) {
         this.#view = view;
         this.#modelFields.forEach((field) => this.update(field, this.model[field]));
     }
     get model() {
         return this.#model;
     }
-    set model(multtableModel /*: SubscriptionProxy<MulttableProxy> */) {
+    set model(multtableModel) {
         this.#model = multtableModel;
         this.#modelFields.forEach((field) => {
             multtableModel.$subscribe(this, field);
             this.update(field, this.model[field]);
         });
     }
-    update(field /*: string */, value /*: any */) {
+    update(field, value) {
         if (this.view == null) {
             return;
         }
@@ -60,6 +56,8 @@ class ViewModel /*: implements Updatable */ {
                 this.view['subgroupIndex'] = value ?? 0;
                 break;
             case 'coloration':
+                this.view[field] = value;
+                break;
             case 'colorReordering':
                 this.view[field] = value;
                 break;
@@ -68,12 +66,14 @@ class ViewModel /*: implements Updatable */ {
                 break;
         }
     }
-    updateFromView(field /*: string */, value /*: any */) {
+    updateFromView(field, value) {
         switch (field) {
             case 'subgroupIndex':
                 this.model['organizingSubgroup'] = parseInt(value);
                 break;
             case 'coloration':
+                this.model[field] = value;
+                break;
             case 'colorReordering':
                 this.model[field] = value;
                 break;
@@ -84,9 +84,9 @@ class ViewModel /*: implements Updatable */ {
     }
 }
 class View {
-    viewModel; /*: ViewModel */
-    rootElement; /*: HTMLElement */
-    constructor(viewModel /*: ViewModel */, rootElement /*: HTMLElement */) {
+    viewModel;
+    rootElement;
+    constructor(viewModel, rootElement) {
         this.viewModel = viewModel;
         this.rootElement = rootElement;
         rootElement.innerHTML = View.getViewHTML(rootElement.getAttribute('id'));
@@ -94,20 +94,20 @@ class View {
             .addEventListener('click', (clickEvent) => this.displayOrganizationChoices(clickEvent.target));
         rootElement.addEventListener('change', (changeEvent) => this.handleChangeEvent(changeEvent));
     }
-    displayOrganizationChoices(target /*: HTMLElement */) {
-        const choices /*: Array<{value: string, label?: html}> */ = this.viewModel.group.subgroups.slice(0, -1)
+    displayOrganizationChoices(target) {
+        const choices = this.viewModel.group.subgroups.slice(0, -1)
             .map((_subgroup, index) => { return { value: `${index}`, label: this.formatSubgroupChoice(index) }; });
         makeMockSelect(target, choices)
             .then((choice) => this.updateViewModel('subgroupIndex', choice), () => { });
     }
-    formatSubgroupChoice(subgroupIndex /*: integer */) {
+    formatSubgroupChoice(subgroupIndex) {
         const subgroup = this.viewModel.group.subgroups[subgroupIndex];
         return (subgroupIndex === 0)
             ? 'none'
             : `<span style="color: ${subgroup.isNormal ? 'blue' : 'black'}"><i>H</i><sub>${subgroupIndex}</sub>,
                a subgroup of order ${subgroup.order}</span>`;
     }
-    handleChangeEvent(changeEvent /*: Event */) {
+    handleChangeEvent(changeEvent) {
         const inputElement = changeEvent.target;
         if (inputElement != null) {
             const field = inputElement.getAttribute('data-bind');
@@ -115,28 +115,31 @@ class View {
             this.updateViewModel(field, value);
         }
     }
-    updateViewModel(field /*: string */, value /*: any */) {
+    updateViewModel(field, value) {
         this.viewModel.updateFromView(field, value);
     }
-    set subgroupIndex(subgroupIndex /*: number */) {
-        const organizationSelectElement = rootElement.querySelector('#organization-select');
-        organizationSelectElement.setAttribute('data-index', subgroupIndex);
+    set subgroupIndex(subgroupIndex) {
+        const organizationSelectElement = this.rootElement.querySelector('#organization-select');
+        organizationSelectElement.setAttribute('data-index', subgroupIndex.toString());
         organizationSelectElement.innerHTML = this.formatSubgroupChoice(subgroupIndex);
     }
-    set separation(separation /*: number */) {
-        rootElement.querySelector('#separation-slider').setAttribute('value', separation);
+    set separation(separation) {
+        this.rootElement.querySelector('#separation-slider')
+            .setAttribute('value', separation.toString());
     }
-    set coloration(coloration /*: 'rainbow' | 'grayscale' | 'none' */) {
-        rootElement.querySelectorAll('[name="coloration"]')
-            .forEach((radioButton) => radioButton.setAttribute('checked', false));
-        rootElement.querySelector(`[value="${coloration}"]`).setAttribute('checked', true);
+    set coloration(coloration) {
+        this.rootElement.querySelectorAll('[name="coloration"]')
+            .forEach((radioButton) => radioButton.setAttribute('checked', false.toString()));
+        this.rootElement.querySelector(`[value="${coloration}"]`)
+            .setAttribute('checked', true.toString());
     }
-    set colorReordering(colorReordering /*: 'topRowFixed' | 'elementColorsFixed' */) {
-        rootElement.querySelectorAll('[name="color-order"]')
-            .forEach((radioButton) => radioButton.setAttribute('checked', false));
-        rootElement.querySelector(`[value="${colorReordering}"]`).setAttribute('checked', true);
+    set colorReordering(colorReordering) {
+        this.rootElement.querySelectorAll('[name="color-order"]')
+            .forEach((radioButton) => radioButton.setAttribute('checked', false.toString()));
+        this.rootElement.querySelector(`[value="${colorReordering}"]`)
+            .setAttribute('checked', true.toString());
     }
-    static getViewHTML(rootId /*: string */) {
+    static getViewHTML(rootId) {
         return `
           <style>
              #${rootId} > *:first-child {

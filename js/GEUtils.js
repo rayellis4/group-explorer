@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # GEUtils
 
@@ -19,16 +19,13 @@ A collection of utility routines used throughout GE3.
  */
 export { equals, fromRainbow, isTouchDevice, measureHTML, htmlToContext, escapeHTML, generateElements, createActionHandler, createModelProxy, countBy, };
 export { version } from './AutoUpgrade.js';
-/*::
-export type Tree<T> = Array< T | Tree<T> >;
- */
 /*
 ```
 ### equals
 Determine whether two arrays are equal according to whether their elements are ==.
 ```javascript
 */
-function equals(a /*: Array<any> */, b /*: Array<any> */) {
+function equals(a, b) {
     if (Array.isArray(a) && Array.isArray(b) && a.length == b.length) {
         for (let inx = 0; inx < a.length; inx++) {
             if (a[inx] != b[inx]) {
@@ -46,7 +43,7 @@ Return an hsl string given hue, saturation, and lightness values
 ```javascript
 */
 // All arguments, including hue, are fractional values 0 <= val <= 1.0
-function fromRainbow(hue /*: float */, saturation /*: float */ = 1.0, lightness /*: float */ = .8, offset /*: float */ = 0) {
+function fromRainbow(hue, saturation = 1.0, lightness = .8, offset = 0) {
     const h = Math.round(360 * ((hue + offset) - Math.floor(hue + offset)));
     return `hsl(${h}, ${Math.round(100 * saturation)}%, ${Math.round(100 * lightness)}%)`;
 }
@@ -70,7 +67,7 @@ The base style is reset on each call so callers cannot accidentally inherit each
 ```javascript
 */
 let _scratch = null;
-function _setupScratch(style /*: {[string]: string} */ = {}) {
+function _setupScratch(style = {}) {
     if (_scratch == null) {
         _scratch = document.createElement('div');
         document.body.appendChild(_scratch);
@@ -79,7 +76,7 @@ function _setupScratch(style /*: {[string]: string} */ = {}) {
     Object.assign(_scratch.style, style);
     return _scratch;
 }
-function measureHTML(html /*: string */, style /*: {[string]: string} */ = {}) {
+function measureHTML(html, style = {}) {
     const el = _setupScratch(style);
     el.innerHTML = html;
     return el.getBoundingClientRect();
@@ -96,18 +93,17 @@ from `getClientRects()` on each text node.
 
 ```javascript
 */
-function htmlToContext(html /*: string */, style /*: {[string]: string} */, context /*: CanvasRenderingContext2D */, center /*: interface {x: number, y: number} */) {
+function htmlToContext(html, style, context, center) {
     const source = _setupScratch(style);
     source.innerHTML = html;
     // find all text nodes in source element
     const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT);
     const textNodes = [];
-    for (let nextNode = walker.nextNode(); nextNode != undefined; nextNode = walker.nextNode()) {
+    for (let nextNode = walker.nextNode(); nextNode != null; nextNode = walker.nextNode()) {
         textNodes.push(nextNode);
     }
     const range = document.createRange();
-    const nodesAndRects /*: Array<{+node: Node, rect: ClientRect}> */ = Array.from(textNodes)
-        .reduce((nodes, node) => {
+    const nodesAndRects = textNodes.reduce((nodes, node) => {
         range.selectNodeContents(node);
         const rects = Array.from(range.getClientRects());
         if (rects.length != 0) {
@@ -153,7 +149,7 @@ function escapeHTML(string) {
 Create elements from HTML, return results as HTMLCollection
 ```javascript
  */
-function generateElements(html /*: html */) {
+function generateElements(html) {
     const template = document.createElement('template');
     template.innerHTML = html.trim();
     return template.content.children;
@@ -165,47 +161,22 @@ function generateElements(html /*: html */) {
 Creates handler to eval data-action attribute on click event
 ```javascript
  */
-function createActionHandler(element /*: Element */, actionCallback /*: (string) => void */) {
+function createActionHandler(element, actionCallback) {
     element.addEventListener('click', (event) => {
-        const action = ((event.target /*: any */) /*: Element */).closest('[data-action]')?.getAttribute('data-action');
+        const action = event.target.closest('[data-action]')?.getAttribute('data-action');
         if (action != null) {
             event.preventDefault();
             actionCallback(action);
         }
     });
 }
-/*
-```
-### createModelProxy
-* Creates proxy for model, in which 'set' invokes update notifications
-* DIY notifications via callback to subscriber.update
-* Also handles Map-valued fields: mutations via .set()/.delete()/.clear() trigger notifications
-
-```javascript
- */
-/*::
-export interface Updatable {
-   update(string, any): void,
-}
-export type SubscriptionProxy<T> = T & {
-   $subscribe: (subscriber: Updatable, field: string) => void,
-   $unsubscribe: (subscriber: Updatable, field: string) => void,
-   $touch: (field: string) => void
-}
-
-type Subscription = {
-   field: string,
-   subscriber: WeakRef<Updatable>,
-}
-type SubscriptionMap = Map<string, Array<Subscription>>
- */
-function createModelProxy /*:: <T: Object> */(model /*: T */) {
-    const subscriptionMap /*: SubscriptionMap */ = new Map();
-    const proxyCache /*: Map<string, Map<any,any>> */ = new Map();
-    const handler /*: Proxy$traps<T> */ = {
-        get(model /*: T */, property /*: string */, _receiver /*: Proxy<T> */) {
+function createModelProxy(model) {
+    const subscriptionMap = new Map();
+    const proxyCache = new Map();
+    const handler = {
+        get(model, property, _receiver) {
             if (property == '$subscribe') {
-                return (subscriber /*: Updatable */, field /*: string */) => {
+                return (subscriber, field) => {
                     // should you be able to subscribe to a field that doesn't exist yet? not wrong, but no use case yet
                     if (field in model) {
                         subscribe(subscriptionMap, subscriber, field);
@@ -213,10 +184,10 @@ function createModelProxy /*:: <T: Object> */(model /*: T */) {
                 };
             }
             if (property == '$unsubscribe') {
-                return (subscriber /*: Updatable */, field /*: string */) => unsubscribe(subscriptionMap, subscriber, field);
+                return (subscriber, field) => unsubscribe(subscriptionMap, subscriber, field);
             }
             if (property == '$touch') {
-                return (field /*: string */) => notifySubscribers(subscriptionMap, field, Reflect.get(model, field));
+                return (field) => notifySubscribers(subscriptionMap, field, Reflect.get(model, field));
             }
             const value = Reflect.get(model, property);
             if (value instanceof Map) {
@@ -227,7 +198,7 @@ function createModelProxy /*:: <T: Object> */(model /*: T */) {
             }
             return value;
         },
-        set(model /*: T */, property /*: string */, value /*: any */, receiver /*: Proxy<T> */) {
+        set(model, property, value, receiver) {
             if (Object.getOwnPropertyNames(model).includes(property)) {
                 Reflect.set(model, property, value);
                 if (value instanceof Map) {
@@ -238,15 +209,15 @@ function createModelProxy /*:: <T: Object> */(model /*: T */) {
             return Reflect.set(model, property, value, receiver);
         }
     };
-    return (new Proxy(model, handler) /*:: as any as SubscriptionProxy<T> */);
-    function createMapProxy(map /*: Map<any,any> */, fieldName /*: string */) {
+    return new Proxy(model, handler);
+    function createMapProxy(map, fieldName) {
         const MAP_MUTATING_METHODS = ['set', 'delete', 'clear'];
         return new Proxy(map, {
-            get(target /*: Map<any,any> */, method /*: string */) {
+            get(target, method) {
                 const value = Reflect.get(target, method);
                 if (typeof value === 'function') {
                     if (MAP_MUTATING_METHODS.includes(method)) {
-                        return (...args /*: Array<any> */) => {
+                        return (...args) => {
                             const result = value.apply(target, args);
                             notifySubscribers(subscriptionMap, fieldName, { map: target, key: args[0] });
                             return result;
@@ -258,27 +229,25 @@ function createModelProxy /*:: <T: Object> */(model /*: T */) {
             }
         });
     }
-    function subscribe(subscriptionMap /*: SubscriptionMap */, subscriber /*: Updatable */, field /*: string */) {
+    function subscribe(subscriptionMap, subscriber, field) {
         const newSubscription = { field: field, subscriber: new WeakRef(subscriber) };
         if (!subscriptionMap.has(field)) {
             subscriptionMap.set(field, []);
         }
         subscriptionMap.get(field)?.push(newSubscription);
     }
-    // ToDo: unsubscribe from a single field or all fields
-    function unsubscribe(subscriptionMap /*: SubscriptionMap */, subscriber /*: Updatable */, _field /*: string */) {
+    // ToDo: unsubscribe from a single field or all fields?
+    function unsubscribe(subscriptionMap, subscriber, _field) {
         const subscription = Array.from(subscriptionMap.values()).flat()
-            .reduce((subscription, curr) => {
-            return (curr.subscriber == subscriber) ? curr : subscription;
-        }, (null /*: ?Subscription */));
+            .find((subscription) => subscription.subscriber.deref() == subscriber);
         if (subscription != null) {
-            const mappedSubscriptions = (subscriptionMap.get(subscription.field) /*:: as any as Array<Subscription> */);
-            const mappedSubscriptionIndex = mappedSubscriptions.findIndex((sub) => sub.subscriber == subscriber);
+            const mappedSubscriptions = subscriptionMap.get(subscription.field);
+            const mappedSubscriptionIndex = mappedSubscriptions.findIndex((sub) => sub.subscriber.deref() == subscriber);
             mappedSubscriptions.splice(mappedSubscriptionIndex, 1);
             subscriptionMap.set(subscription.field, mappedSubscriptions);
         }
     }
-    function notifySubscribers(subscriptionMap /*: SubscriptionMap */, property /*: string */, value /*: any */) {
+    function notifySubscribers(subscriptionMap, property, value) {
         const subscriptions = subscriptionMap.get(property);
         if (subscriptions?.length) {
             for (let inx = subscriptions.length - 1; inx >= 0; inx--) {
@@ -300,7 +269,7 @@ Utility function returns an array of the counts of values of indexMap(value)
 For example, `countBy([{v: 4}, {v: 1}, {v: 2}, {v: 0}, {v: 1}], (val) => val.v) == [1,2,1,0,1]`
 ```javascript
 */
-function countBy(valueArray /*: Array<value> */, indexMap /*: (value) => number */) {
+function countBy(valueArray, indexMap) {
     const countArray = valueArray.reduce((countArray, value) => {
         const bin = indexMap(value);
         if (countArray[bin] == null) {

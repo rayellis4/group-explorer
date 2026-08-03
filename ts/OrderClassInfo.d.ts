@@ -1,2 +1,2 @@
-export { display };
-declare function display(orderClassElementId: any, group: any): void;
+import type { Group } from './Group.ts';
+export declare function display(orderClassElementId: string, group: Group): void;

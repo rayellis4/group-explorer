@@ -1,24 +1,31 @@
-// @flow
+/*
+# Sheet
 
-import {ControlPanel} from './ControlPanel.js'
-import {createModelProxy} from './GEUtils.js'
+Assembles Sheet html page
+
+```js
+ */
+
+
+import { ControlPanel } from './ControlPanel.js'
+import { createModelProxy } from './GEUtils.js'
 import * as Heading from './Heading.js'
-import {SheetModel, loadPassedSheet} from './SheetModel.js'
-import {SheetViewModel} from './SheetViewModel.js'
-import {View as SheetView} from './SheetView.js'
+import { SheetModel, loadPassedSheet } from './SheetModel.js'
+import { SheetViewModel } from './SheetViewModel.js'
+import { View as SheetView } from './SheetView.js'
 import * as SheetViewUI from './SheetViewUI.js'
 import * as SheetControl from './SheetControl.js'
 
-export {load}
+import type { SubscriptionProxy } from './GEUtils.ts'
 
-async function load () {
+export async function load () {
    insertHTML()
 
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
    // Create Header
    Heading.display(
-      document.getElementById('heading'),
+      document.getElementById('heading') as HTMLElement,
       'Group Explorer Sheet',
       () => [
          {label: 'Group Library', action: () => window.open('GroupExplorer.html')},
@@ -29,26 +36,28 @@ async function load () {
    )
 
    // initialize Sheet components
-   const sheetModel = createModelProxy(new SheetModel())
+   const sheetModel = createModelProxy(new SheetModel()) as SubscriptionProxy<SheetModel>
    const sheetViewModel = new SheetViewModel(sheetModel)
-   const graphicElement = document.getElementById('graphic')
+   const graphicElement = document.getElementById('graphic') as HTMLElement
    new SheetView(sheetViewModel, graphicElement)
    SheetViewUI.init(sheetViewModel, graphicElement)
 
    // Create Control Panel
-   const controlPanelElement = document.getElementById('control-panel')
+   const controlPanelElement = document.getElementById('control-panel') as HTMLElement
    ControlPanel.addPanel(controlPanelElement)
 
    // Initialize Sheet Control
-   const sheetControlElement = document.getElementById('sheet-control')
+   const sheetControlElement = document.getElementById('sheet-control') as HTMLElement
    SheetControl.addControl(sheetControlElement, sheetModel, sheetViewModel)
 
    // check for passedSheet in URL, load it if present
    const invokeParameters = new URL(window.location.href).searchParams
    if (invokeParameters.get('passedSheet') != null) {
-      loadPassedSheet(sheetModel).then((title) => {
-         if (title != null) Heading.setTitle(title)
-      })
+      loadPassedSheet(sheetModel)
+         .then((title) => {
+            if (title != null)
+               Heading.setTitle(title)
+         })
    }
 }
 

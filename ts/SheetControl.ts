@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SheetControl component
 
@@ -16,17 +16,27 @@ import * as Library from './Library.js'
 import * as Settings from './Settings.js'
 import * as GEUtils from './GEUtils.js'
 import * as Heading from './Heading.js'
-import {serializeSheet, deserializeSheet} from './SheetSerialization.js'
-import * as StoredObjects from './StoredObjects.js'
-import {makeFixedMenu, makeDetachedMenu, makeMockSelect, makeDialog} from './UIComponents.js'
+import { deserializeSheet, WrappedSheet, wrapSheet, unwrapSheet } from './SheetSerialization.js'
+import { getStoredSheet, saveStoredSheet, removeStoredSheet, listStoredSheets } from './StoredObjects.js'
+import { makeFixedMenu, makeDetachedMenu, makeMockSelect, makeDialog } from './UIComponents.js'
+import { SheetModel } from './SheetModel.js'
+import * as SheetView from './SheetView.js'
 
-export {addControl}
+import type { Group } from './Group.ts'
+import type { SheetJSON } from './SheetModel.ts'
+import type { SheetViewModel } from './SheetViewModel.ts'
+
+type NamedSheet = { sheetName: string, sheetJSON: WrappedSheet }
 /*
 ```
 ### addControl
 ```javascript
  */
-function addControl (sheetControlElement, sheetModelProxy, sheetViewModel) {
+export function addControl (
+   sheetControlElement: HTMLElement,
+   sheetModelProxy: SheetModel,
+   sheetViewModel: SheetViewModel
+) {
    const viewModel = new ViewModel(sheetModelProxy, sheetViewModel)
    new View(viewModel, sheetControlElement)
 }
@@ -36,11 +46,11 @@ function addControl (sheetControlElement, sheetModelProxy, sheetViewModel) {
 ```javascript
  */
 class ViewModel {
-   #model
-   #sheetViewModel
-   #view
+   #model: SheetModel
+   #sheetViewModel: SheetViewModel
+   #view!: View
 
-   constructor (sheetModelProxy, sheetViewModel) {
+   constructor (sheetModelProxy: SheetModel, sheetViewModel: SheetViewModel) {
       this.#model = sheetModelProxy
       this.#sheetViewModel = sheetViewModel
    }
@@ -51,32 +61,45 @@ class ViewModel {
    viewportOrigin () { return this.#sheetViewModel.viewportOrigin() }
    viewportScale () { return this.#sheetViewModel.viewportScale() }
 
-   addElement (className /*: string */, groupURL /*: string */) {
+   addElement (className: string, groupURL: string) {
       const {x, y} = this.viewportOrigin()
       const scale = this.viewportScale()
-      const element /*: {[key: string]: any} */ = { x, y, w: 0.1 * scale, h: 0.1 * scale, groupURL }
-      if (className === 'RectangleElement') {
-         className = 'TextElement'
-         element.text = ''
-         element.color = '#DDDDDD'
-      } else if (className === 'TextElement') {
-         element.text = 'Enter text'
-         element.color = '#DDDDDD'
-         element.opacity = '0.5'
-         element.fontSize = '1.25rem'
-         delete element.w
-         delete element.h
-      } else if (className === 'CDElement') {
-         element.highlightColors = {}
+      const element: Record<string, unknown> = { x, y }
+      switch (className) {
+         case 'RectangleElement':
+            className = 'TextElement'
+            element.text = ''
+            element.color = '#DDDDDD'
+            element.w = 0.1 * scale
+            element.h = 0.1 * scale
+            break
+
+         case 'TextElement':
+            element.text = 'Enter text'
+            element.color = '#DDDDDD'
+            element.opacity = '0.5'
+            element.fontSize = '1.25rem'
+            delete element.w
+            delete element.h
+            break
+
+         case 'CDElement':
+            element.highlightColors = {}
+         case 'CGElement':
+         case 'MTElement':
+            element.w = 0.1 * scale
+            element.h = 0.1 * scale
+            element.groupURL = groupURL
+            break
       }
-      this.#model.addObjectAsElement(element, className)
+      this.#model.addObjectAsElement(element as unknown as SheetJSON, className)
    }
 
    toJSON () {
       return this.#model.toJSON()
    }
 
-   fromJSON (json /*: string */) {
+   fromJSON (json: string | SheetJSON[]) {
       this.#model.fromJSON(json)
    }
 
@@ -84,17 +107,17 @@ class ViewModel {
       this.#model.sheetElements.clear()
    }
 
-   async loadSheet (sheetName /*: string */) {
-      const jsonObject = await StoredObjects.getStoredSheet(sheetName)
+   async loadSheet (sheetName: string) {
+      const jsonObject = unwrapSheet((await getStoredSheet(sheetName)) as WrappedSheet)
       this.#model.fromJSON(jsonObject)
    }
 
-   saveSheet (sheetName /*: string */) {
-      StoredObjects.saveStoredSheet(sheetName, this.#model.toJSON())
+   saveSheet (sheetName: string) {
+      saveStoredSheet(sheetName, wrapSheet(this.#model.toJSON()))
    }
 
-   async deleteSheet (sheetName /*: string */) {
-      await StoredObjects.removeStoredSheet(sheetName)
+   async deleteSheet (sheetName: string) {
+      await removeStoredSheet(sheetName)
    }
 }
 /*
@@ -103,54 +126,53 @@ class ViewModel {
 ```javascript
  */
 class View {
-   viewModel /*: ViewModel */
-   rootElement /*: HTMLElement */
+   viewModel: ViewModel
+   rootElement: HTMLElement
 
-   constructor (viewModel /*: ViewModel */, rootElement /*: HTMLElement */) {
+   constructor (viewModel: ViewModel, rootElement: HTMLElement) {
       this.viewModel = viewModel
       this.viewModel.view = this
       this.rootElement = rootElement
       rootElement.innerHTML = View.getViewHTML()
 
       // setup initial group selection
-      const mockSelectGroup = rootElement.querySelector('#visualizer-select-group')
+      const mockSelectGroup = rootElement.querySelector('#visualizer-select-group') as HTMLElement
       const trivialGroup = Library.getGroupsByOrder(1)[0]
       mockSelectGroup.setAttribute('data-value', trivialGroup.URL)
       mockSelectGroup.innerHTML = trivialGroup.name
 
       this.showStoredSheets()
 
-      const addElement = (className) => this.addElement(className)
+      const addElement = (className: string) => this.addElement(className)
       const showGroupSelect = () => this.showGroupSelect()
-      const showStoredSheetMenu = (event, name) => this.showStoredSheetMenu(event, name)
-      const redrawAll = () => {}  // TODO: wire to SheetViewModel.redrawAll()
+      const showStoredSheetMenu = (event: NumberLocation, name: string) => this.showStoredSheetMenu(event, name)
+      const redrawAll = () => SheetView.redrawAll()  // same as right-click in graphic
       const clearCurrentSheet = () => this.clearCurrentSheet()
       makeFixedMenu(rootElement, (action) => eval(action))
 
-      rootElement.querySelector('#stored-sheet-list').addEventListener('contextmenu', (ev) => {
-         const action = ev.target.closest('[data-action]')?.getAttribute('data-action')
-         if (action != null) {
-            const showStoredSheetMenu = (event, name) => this.showStoredSheetMenu(event, name)
-            eval(action)
-         }
+      ;(rootElement.querySelector('#stored-sheet-list') as HTMLElement).addEventListener('contextmenu', (ev) => {
+         const action = (ev.target as HTMLElement).closest('[data-action]')?.getAttribute('data-action') as Maybe<string>
+         (action != null) && eval(action)
       })
    }
 
-   displaySheetName (sheetName /*: ?string */ = null) {
+   displaySheetName (sheetName: Maybe<string> = null) {
       Heading.setTitle(sheetName || 'Group Explorer Sheet')
    }
 
    showGroupSelect () {
       const sortedGroups = Library.allVisibleGroups(Settings.getFilterConfig()).sort((g, h) => g.order - h.order)
 
-      const byOrder = new Map()
+      const byOrder: Map<integer, Group[]> = new Map()
       sortedGroups.forEach((g) => {
-         if (!byOrder.has(g.order)) byOrder.set(g.order, [])
-         byOrder.get(g.order).push(g)
+         if (!byOrder.has(g.order))
+            byOrder.set(g.order, [])
+         ;(byOrder.get(g.order) as Group[]).push(g)
       })
 
-      const groupChoices = []
-      byOrder.forEach((groups, order) => {
+      const groupChoices: ({ header: string, choices: {value: string, label: string, selectedLabel: string }[] } |
+         { value: string, label: string })[] = []
+      byOrder.forEach((groups: Group[], order: integer) => {
          if (groups.length === 1) {
             groupChoices.push({value: groups[0].URL, label: `${groups[0].name} (${order})`})
          } else {
@@ -161,18 +183,19 @@ class View {
          }
       })
 
-      const mockSelectGroup = this.rootElement.querySelector('#visualizer-select-group')
+      const mockSelectGroup = this.rootElement.querySelector('#visualizer-select-group') as HTMLElement
       makeMockSelect(mockSelectGroup, groupChoices).then(() => {}, () => {})
    }
 
-   addElement (className /*: string */) {
-      const groupURL = this.rootElement.querySelector('#visualizer-select-group').getAttribute('data-value')
+   addElement (className: string) {
+      const groupURL = (this.rootElement.querySelector('#visualizer-select-group') as HTMLElement)
+         .getAttribute('data-value') as string
       this.viewModel.addElement(className, groupURL)
    }
 
    async showStoredSheets () {
-      const sheetList = this.rootElement.querySelector('#stored-sheet-list')
-      const sheetChoices = (await StoredObjects.listStoredSheets()).sort()
+      const sheetList = this.rootElement.querySelector('#stored-sheet-list') as HTMLElement
+      const sheetChoices = (await listStoredSheets()).sort()
       sheetList.innerHTML = ''
       if (sheetChoices.length === 0) {
          sheetList.insertAdjacentHTML('beforeend', '<li><i>(None)</i></li>')
@@ -184,7 +207,7 @@ class View {
       }
    }
 
-   showStoredSheetMenu (event, storedSheet /*: string */) {
+   showStoredSheetMenu (event: NumberLocation, storedSheet: string) {
       const escapedString = GEUtils.escapeHTML(storedSheet)
       const storedSheetMenu = [
          '<ul>',
@@ -203,33 +226,33 @@ class View {
          </ul>`
       ].join('')
 
-      const loadSheet = (name) => this.loadSheet(name)
-      const saveSheet = (name) => this.saveSheet(name)
-      const renameSheet = (name, ev) => this.renameSheet(name, ev)
-      const deleteSheet = (name) => this.deleteSheet(name)
-      const showCreateSheetDialog = (ev) => this.showCreateSheetDialog(ev)
-      const showExportSheetDialog = (ev) => this.showExportSheetDialog(ev)
-      const showImportSheetDialog = (ev) => this.showImportSheetDialog(ev)
-      const showBackupSheetsDialog = (ev) => this.showBackupSheetsDialog(ev)
-      const showRestoreSheetsDialog = (ev) => this.showRestoreSheetsDialog(ev)
+      const loadSheet = (name: string) => this.loadSheet(name)
+      const saveSheet = (name: string) => this.saveSheet(name)
+      const renameSheet = (name: string, ev: NumberLocation) => this.renameSheet(name, ev)
+      const deleteSheet = (name: string) => this.deleteSheet(name)
+      const showCreateSheetDialog = (ev: NumberLocation) => this.showCreateSheetDialog(ev)
+      const showExportSheetDialog = (ev: NumberLocation) => this.showExportSheetDialog(ev)
+      const showImportSheetDialog = (ev: NumberLocation) => this.showImportSheetDialog(ev)
+      const showBackupSheetsDialog = (ev: NumberLocation) => this.showBackupSheetsDialog(ev)
+      const showRestoreSheetsDialog = (ev: NumberLocation) => this.showRestoreSheetsDialog(ev)
       const showStoredSheets = () => this.showStoredSheets()
 
-      makeDetachedMenu(storedSheetMenu, event).then((action) => eval(action))
+      makeDetachedMenu(storedSheetMenu, event).then((action) => (action != null) && eval(action))
    }
 
-   async loadSheet (sheetName /*: string */) {
+   async loadSheet (sheetName: string) {
       await this.viewModel.loadSheet(sheetName)
       this.displaySheetName(sheetName)
    }
 
-   saveSheet (sheetName /*: string */) {
+   saveSheet (sheetName: string) {
       this.viewModel.saveSheet(sheetName)
       this.displaySheetName(sheetName)
       this.showStoredSheets()
    }
 
-   async renameSheet (sheetName /*: string */, location) {
-      const sheetContent = await StoredObjects.getStoredSheet(sheetName)
+   async renameSheet (sheetName: string, location: NumberLocation) {
+      const sheetContent = unwrapSheet((await getStoredSheet(sheetName)) as WrappedSheet)
       const newName = await this.showNameSheetDialog(location, sheetName, sheetContent)
       if (newName != null) {
          await this.viewModel.deleteSheet(sheetName)
@@ -238,7 +261,7 @@ class View {
       }
    }
 
-   deleteSheet (sheetName /*: string */) {
+   deleteSheet (sheetName: string) {
       if (window.confirm(`Are you sure you want to delete stored sheet ${sheetName}?\nThis cannot be undone.`)) {
          this.viewModel.deleteSheet(sheetName).then(() => this.showStoredSheets())
       }
@@ -249,11 +272,15 @@ class View {
       this.displaySheetName()
    }
 
-   showCreateSheetDialog (location) {
+   showCreateSheetDialog (location: NumberLocation) {
       this.showNameSheetDialog(location, null, this.viewModel.toJSON())
    }
-
-   async showNameSheetDialog (location, sheetName, sheetContent) {
+ 
+   async showNameSheetDialog (
+      location: NumberLocation,
+      sheetName: Maybe<string>,
+      sheetContent: SheetJSON[]
+   ): Promise<string> {
       const placeHolder = sheetName || 'New sheet name'
       const createSheetDialogHTML =
         `<div id="new-sheet-dialog" data-action="() => {}" class="flex-v"
@@ -270,29 +297,29 @@ class View {
          </div>`
 
       const dialog = makeDialog(createSheetDialogHTML, location)
-      const allNames = await StoredObjects.listStoredSheets()
+      const allNames = await listStoredSheets()
 
-      const newName = new Promise((resolve, _reject) => {
+      const newName = new Promise<string>((resolve, _reject) => {
          GEUtils.createActionHandler(dialog, (action) => eval(action))
 
-         document.getElementById('new-sheet-value')
+         ;(document.getElementById('new-sheet-value') as HTMLElement)
             .addEventListener('keydown', (event) => {
                if (event.key == 'Enter') saveNewSheet()
             })
 
-         const close = (newName) => {
+         const close = (newName: string) => {
             dialog.remove()
             resolve(newName)
          }
 
          const saveNewSheet = () => {
-            const newSheetName = document.getElementById('new-sheet-value').value
+            const newSheetName = (document.getElementById('new-sheet-value') as HTMLInputElement).value
             if (newSheetName === '') {
                alert('Empty sheet name -- click "Cancel" to dismiss')
             } else if (allNames.includes(newSheetName)) {
                alert(`A stored sheet named "${newSheetName}" already exists`)
             } else {
-               StoredObjects.saveStoredSheet(newSheetName, sheetContent)
+               saveStoredSheet(newSheetName, wrapSheet(sheetContent))
                   .then(() => {
                      this.showStoredSheets()
                      this.displaySheetName(newSheetName)
@@ -305,8 +332,8 @@ class View {
       return await newName
    }
 
-   showExportSheetDialog (location) {
-      const modelJSON = JSON.stringify(serializeSheet(this.viewModel.toJSON()))
+   showExportSheetDialog (location: NumberLocation) {
+      const modelJSON = JSON.stringify(wrapSheet(this.viewModel.toJSON()))
       const exportSheetDialogHTML =
          `<div id="export-sheet-dialog" class="flex-v" style="min-height: 15em; min-width: 60ch; overflow: hidden">
             <style>
@@ -328,7 +355,7 @@ class View {
       GEUtils.createActionHandler(dialog, (action) => eval(action))
    }
 
-   showImportSheetDialog (location) {
+   showImportSheetDialog (location: NumberLocation) {
       const importSheetDialogHTML =
         `<div id="import-sheet-dialog" class="flex-v" style="min-height: 15em; min-width: 60ch; overflow: hidden">
             <div>Enter sheet data to import (JSON):</div>
@@ -344,7 +371,7 @@ class View {
       GEUtils.createActionHandler(dialog, (action) => eval(action))
 
       const importFromTextarea = () => {
-         const jsonString = document.getElementById('import-sheet-value').value
+         const jsonString = (document.getElementById('import-sheet-value') as HTMLInputElement).value
          if (jsonString !== '') {
             this.viewModel.fromJSON(deserializeSheet(jsonString))
          }
@@ -352,8 +379,8 @@ class View {
       }
    }
 
-   async showBackupSheetsDialog (location) {
-      const allSheets = (await StoredObjects.listStoredSheets()).sort()
+   async showBackupSheetsDialog (location: NumberLocation) {
+      const allSheets = (await listStoredSheets()).sort()
 
       const backupSheetsDialogHTML = [
          `<div id="backup-sheets-dialog" class="flex-v" style="min-height: 13em; min-width: 50ch; width: 60ch; overflow: hidden">
@@ -411,11 +438,13 @@ class View {
       GEUtils.createActionHandler(dialog, (action) => eval(action))
 
       const markAllSheets = () => {
-         document.querySelectorAll('#backup-sheets-choices input').forEach((cb) => cb.checked = true)
+         (Array.from(document.querySelectorAll('#backup-sheets-choices input')) as HTMLInputElement[])
+            .forEach((cb) => cb.checked = true)
       }
 
       const clearAllSheets = () => {
-         document.querySelectorAll('#backup-sheets-choices input').forEach((cb) => cb.checked = false)
+         (Array.from(document.querySelectorAll('#backup-sheets-choices input')) as HTMLInputElement[])
+            .forEach((cb) => cb.checked = false)
       }
 
       const backupToClipboard = async () => {
@@ -425,16 +454,16 @@ class View {
       }
 
       const setupFileDownload = () => {
-         document.getElementById('backup-sheets-file-name-container').classList.remove('hidden')
+         (document.getElementById('backup-sheets-file-name-container') as HTMLElement).classList.remove('hidden')
          document.querySelectorAll('#backup-sheets-buttons button.backup-target-button')
             .forEach((button) => button.classList.add('hidden'))
-         document.getElementById('backup-act-anchor').classList.remove('hidden')
+         ;(document.getElementById('backup-act-anchor') as HTMLElement).classList.remove('hidden')
       }
 
       const downloadToFile = async () => {
          const checkedSheetsJSONString = await getCheckedSheetsJSONString()
-         const anchor = document.querySelector('#backup-sheets-buttons a')
-         let downloadFileName = document.getElementById('backup-sheets-file-name').value
+         const anchor = document.querySelector('#backup-sheets-buttons a') as HTMLElement
+         let downloadFileName = (document.getElementById('backup-sheets-file-name') as HTMLInputElement).value
          if (!downloadFileName?.length) downloadFileName = 'download.sheet'
          anchor.setAttribute('download', downloadFileName)
          anchor.setAttribute('href', 'data:,' + encodeURIComponent(checkedSheetsJSONString))
@@ -443,24 +472,26 @@ class View {
       }
 
       const getCheckedSheetsJSONString = async () => {
-         const checkedSheetNames = Array
-            .from(document.querySelectorAll('#backup-sheets-choices input:checked'))
+         const checkedSheetNames = (Array
+            .from(document.querySelectorAll('#backup-sheets-choices input:checked')) as HTMLInputElement[])
             .map((checkbox) => checkbox.name)
          const checkedSheetsJSON = await Promise
-            .allSettled(checkedSheetNames.map((name) => StoredObjects.getStoredSheet(name)))
+            .allSettled(checkedSheetNames.map((name) => getStoredSheet(name) as Promise<WrappedSheet>))
 
          const result = []
          for (const inx in checkedSheetNames) {
-            const namedSheet = 
-               {sheetName: checkedSheetNames[inx], sheetJSON: serializeSheet(checkedSheetsJSON[inx].value)}
-            result.push(namedSheet)
+            if (checkedSheetsJSON[inx].status === 'fulfilled') {
+               const namedSheet = 
+                  {sheetName: checkedSheetNames[inx], sheetJSON: checkedSheetsJSON[inx].value}
+               result.push(namedSheet)
+            }
          }
 
          return JSON.stringify(result)
       }
    }
 
-   async showRestoreSheetsDialog (location) {
+   async showRestoreSheetsDialog (location: NumberLocation) {
       const restoreSheetsDialogHTML =
          `<div id="restore-sheets-dialog" class="flex-v" style="min-height: 13em; min-width: 50ch; width: 60ch; overflow: hidden">
             <style>
@@ -503,11 +534,13 @@ class View {
       GEUtils.createActionHandler(dialog, (action) => eval(action))
 
       const markAllSheets = () => {
-         document.querySelectorAll('#restore-sheets-choices input').forEach((cb) => cb.checked = true)
+         (Array.from(document.querySelectorAll('#restore-sheets-choices input')) as HTMLInputElement[])
+            .forEach((cb) => cb.checked = true)
       }
 
       const clearAllSheets = () => {
-         document.querySelectorAll('#restore-sheets-choices input').forEach((cb) => cb.checked = false)
+         (Array.from(document.querySelectorAll('#restore-sheets-choices input')) as HTMLInputElement[])
+            .forEach((cb) => cb.checked = false)
       }
 
       const restoreFromClipboard = () => {
@@ -515,13 +548,14 @@ class View {
       }
 
       const restoreFromFile = () => {
-         const filePicker = document.getElementById('restore-sheets-file-input')
+         const filePicker = document.getElementById('restore-sheets-file-input') as HTMLInputElement
          filePicker.click()
          filePicker.addEventListener('cancel', dialog.remove)
          filePicker.addEventListener('change', () => {
-            const pickedFile = filePicker.files?.[0]
+            const pickedFile = filePicker.files?.[0] as File
             const fileReader = new FileReader()
-            fileReader.addEventListener('loadend', (ev) => storeJSON(ev.target.result))
+            fileReader.addEventListener('loadend',
+               (ev: ProgressEvent) => storeJSON((ev.target as FileReader)?.result as string))
             fileReader.readAsText(pickedFile)
          })
       }
@@ -531,39 +565,40 @@ class View {
          window.setTimeout(() => this.showStoredSheets(), 0)
       }
 
-      const storeJSON = async (restoredJSONString) => {
+      const storeJSON = async (restoredJSONString: string) => {
          if (restoredJSONString !== '') {
             let restoredJSONObject = JSON.parse(restoredJSONString)
             if (  !Array.isArray(restoredJSONObject)
                && restoredJSONObject.version != null
                && restoredJSONObject.sheet.sheetName == null
             ) {
-               StoredObjects.saveStoredSheet('unnamed sheet', deserializeSheet(restoredJSONObject))
+               saveStoredSheet('unnamed sheet', restoredJSONObject)
                closeDialog()
             } else if (restoredJSONObject.length > 0 && restoredJSONObject[0].sheetName == null) {
-                  StoredObjects.saveStoredSheet('unnamed sheet', deserializeSheet(JSON.stringify(restoredJSONObject)))
-                  closeDialog()
-            } else {
-               const restoreSheetsChoices = restoredJSONObject
+               saveStoredSheet('unnamed sheet', wrapSheet(deserializeSheet(restoredJSONString)))
+               closeDialog()
+            } else if (Array.isArray(restoredJSONObject) && 'sheetName' in restoredJSONObject[0]) {
+               const restoreSheetsChoices = (restoredJSONObject as NamedSheet[])
                   .map(({sheetName}) =>
                      `<input type="checkbox" name="${GEUtils.escapeHTML(sheetName)}" checked>
                          <label for="${GEUtils.escapeHTML(sheetName)}">${sheetName}</label><br>`)
                   .join('')
-               document.getElementById('restore-sheets-choices').innerHTML = restoreSheetsChoices
+               ;(document.getElementById('restore-sheets-choices') as HTMLElement).innerHTML = restoreSheetsChoices
 
                Array.from(document.querySelectorAll('#restore-sheets-buttons button.restore-source-button'))
                   .forEach((el) => el.classList.add('hidden'))
-               const restoreButton = document.querySelector('#restore-sheets-buttons button.restore-act-button')
+               const restoreButton =
+                  document.querySelector('#restore-sheets-buttons button.restore-act-button') as HTMLElement
                restoreButton.classList.remove('hidden')
 
                restoreButton.addEventListener('click', () => {
-                  const sheetNamesToRestore = Array
-                     .from(document.querySelectorAll('#restore-sheets-choices input:checked'))
+                  const sheetNamesToRestore = (Array
+                     .from(document.querySelectorAll('#restore-sheets-choices input:checked')) as HTMLInputElement[])
                      .map((checkbox) => checkbox.name)
                   Promise
                      .allSettled(sheetNamesToRestore.map((name) => {
                         const sheetJSON = restoredJSONObject.find(({sheetName}) => sheetName == name).sheetJSON
-                        return StoredObjects.saveStoredSheet(name, deserializeSheet(sheetJSON))
+                        return saveStoredSheet(name, sheetJSON)
                      }))
                      .then(() => closeDialog())
                })

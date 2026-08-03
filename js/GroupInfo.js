@@ -1,4 +1,10 @@
-// @flow
+/*
+# GroupInfo
+
+Assembles html page of group information
+
+```js
+ */
 import * as AbelianInfo from './AbelianInfo.js';
 import * as BasicFactInfo from './BasicFactInfo.js';
 import * as ClassEquationInfo from './ClassEquationInfo.js';
@@ -15,8 +21,7 @@ import * as SubgroupInfo from './SubgroupInfo.js';
 import * as UserNoteInfo from './UserNoteInfo.js';
 import * as ViewInfo from './ViewInfo.js';
 import * as ZmnInfo from './ZmnInfo.js';
-export { load };
-async function load() {
+export async function load() {
     insertHTML();
     const group = await Library.loadFromPageURL();
     // Create Header
@@ -47,10 +52,11 @@ async function load() {
         ['user-names', NamingSchemeInfo.displayUserNames],
         ['customizations', UserNoteInfo.display],
         group.author ? ['file-data', FileDataInfo.display] : ['', () => { }]
-    ].forEach(([elementId, displayFunction]) => displayFunction(elementId, group));
+    ]
+        .forEach(([elementId, displayFunction]) => displayFunction(elementId, group));
     // Register for GAP button clicks
     const computeInGAP = async (ev) => {
-        const purpose = ev.target.getAttribute('data-GAP');
+        const purpose = ev.target?.getAttribute('data-GAP');
         if (purpose != null)
             await ShowGAPCode.setup(purpose, group);
     };
@@ -61,6 +67,7 @@ async function load() {
     else {
         gapButtons.forEach((el) => el.addEventListener('click', (ev) => computeInGAP(ev)));
     }
+    ;
     document.querySelector('#content.all-info')
         .addEventListener('representationChange', () => Heading.setTitle(formatHeading(group)));
 }

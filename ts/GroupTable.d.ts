@@ -1,30 +1,18 @@
-export { IMAGE_SIZE, COLUMNS, display };
-declare const IMAGE_SIZE = 96;
-declare const COLUMNS: ({
+import type { Group } from './Group.ts';
+export declare const IMAGE_SIZE = 96;
+type Aux = {
+    cayleyTitle: Maybe<string>;
+};
+export type sortComparator = (v1: string, v2: string) => number;
+type ColumnDef = {
     id: string;
     label: string;
     headerHTML: string;
+    headerClass?: string;
     defaultVisible: boolean;
-    sortComparator: (v1: any, v2: any) => any;
-    cellHTML: (group: any) => string;
-    headerClass?: undefined;
-} | {
-    id: string;
-    label: string;
-    headerHTML: string;
-    defaultVisible: boolean;
-    sortComparator: null;
-    cellHTML: (group: any) => string;
-    headerClass?: undefined;
-} | {
-    id: string;
-    label: string;
-    headerHTML: string;
-    headerClass: string;
-    defaultVisible: boolean;
-    sortComparator: null;
-    cellHTML: (group: any, { cayleyTitle }: {
-        cayleyTitle: any;
-    }) => string;
-})[];
-declare function display(tableElement: any, groupsToDisplay: any): void;
+    sortComparator?: sortComparator;
+    cellHTML: (group: any, aux: Aux) => string;
+};
+export declare const COLUMNS: ColumnDef[];
+export declare function display(tableElement: HTMLElement, groupsToDisplay: Group[]): void;
+export {};

@@ -1,16 +1,22 @@
-export { Mapping };
-declare class Mapping {
-    constructor(domain: any, codomain: any, definingPairs?: never[]);
+import type { Group } from './Group.ts';
+export type definingPairType = [groupElement, groupElement];
+export declare class Mapping {
+    domain: Group;
+    codomain: Group;
+    definingPairs: [groupElement, groupElement][];
+    image: Maybe<groupElement>[];
+    fullMapping_: Maybe<Maybe<groupElement>[]>;
+    constructor(domain: Group, codomain: Group, definingPairs?: Array<[groupElement, groupElement]>);
     update(): void;
-    removeDefiningPair(domainElement: any): void;
-    addDefiningPair(domainElement: any, codomainElement: any): void;
+    removeDefiningPair(domainElement: groupElement): void;
+    addDefiningPair(domainElement: groupElement, codomainElement: groupElement): void;
     get isInjective(): boolean;
     get isSurjective(): boolean;
-    get isHomomorphism(): any;
+    get isHomomorphism(): boolean;
     clone(): Mapping;
-    extend(domainElement: any, codomainElement: any): this;
-    validSources(codomainElement: any): any;
-    validTargets(domainElement: any): any;
-    get fullMapping(): any;
-    extendedMap(mapping: any): any;
+    extend(domainElement: groupElement, codomainElement: groupElement): Mapping;
+    validSources(codomainElement: groupElement): groupElement[];
+    validTargets(domainElement: groupElement): groupElement[];
+    get fullMapping(): groupElement[];
+    extendedMap(mapping: Mapping): Maybe<Mapping>;
 }

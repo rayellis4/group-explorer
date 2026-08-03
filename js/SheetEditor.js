@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SheetEditor
  * receive initial data from Sheet and return asynchronously
@@ -8,10 +8,9 @@
  */
 import * as StoredObjects from './StoredObjects.js';
 import * as Log from './Log.js';
-export { broadcastChange, getInitialData, enableChangeBroadcast, listenForSheetUpdates };
-let broadcastChange = () => { };
+export let broadcastChange = () => { };
 let lastJsonString; // module-level so listenForSheetUpdates can set it to suppress echo-back
-async function getInitialData() {
+export async function getInitialData() {
     const { elementId, json } = await StoredObjects.getPassedJSON();
     if (Log.isActive('debug')) {
         Log.debug(`initial data retrieved for element ${elementId}: ${JSON.stringify(json)}`);
@@ -33,7 +32,7 @@ has been abstracted here.
 when the Sheet posts a change, and updates `lastJsonString` to prevent the editor echoing it back.
 ```javascript
 */
-function enableChangeBroadcast(jsonGenerator) {
+export function enableChangeBroadcast(jsonGenerator) {
     broadcastChange = function changeBroadcaster() {
         const { elementId, json: currentJson } = jsonGenerator();
         const currentJsonString = JSON.stringify(currentJson);
@@ -45,7 +44,7 @@ function enableChangeBroadcast(jsonGenerator) {
         }
     };
 }
-function listenForSheetUpdates(fromJSONCallback) {
+export function listenForSheetUpdates(fromJSONCallback) {
     window.addEventListener('message', (event) => {
         if (event.data?.source !== 'sheet')
             return;

@@ -1,81 +1,108 @@
+import * as GEUtils from './GEUtils.js';
+import * as THREE from '../lib/externals.js';
 export { CycleGraphViewModel, CycleGraphView, createUnlabelledCycleGraphView, createLargeCycleGraphView, createInteractiveCycleGraphView };
-declare class CycleGraphViewModel {
+import type { CycleGraphJSON, CycleGraphModel } from './CycleGraphModel.js';
+import type { Group } from './Group.js';
+export type CycleGraphOptions = {
+    container?: Maybe<HTMLElement>;
+    group?: Group;
+    height?: float;
+    width?: float;
+};
+type Coordinate = {
+    x: float;
+    y: float;
+};
+type Path = {
+    pts: Coordinate[];
+    partIndex?: number;
+    part?: groupElement[][];
+    cycleIndex?: number;
+    cycle?: groupElement[];
+    pathIndex?: number;
+};
+declare class CycleGraphViewModel implements GEUtils.Updatable {
     #private;
-    get view(): any;
-    set view(view: any);
-    get model(): any;
-    set model(cycleGraphModel: any);
-    get group(): any;
-    get highlightColors(): any;
-    update(field: any, value: any): void;
-    setSize(x: any, y: any): void;
+    get view(): CycleGraphView;
+    set view(view: CycleGraphView);
+    get model(): CycleGraphModel;
+    set model(cycleGraphModel: GEUtils.SubscriptionProxy<CycleGraphModel>);
+    get group(): Group;
+    get highlightColors(): Maybe<color>[][];
+    update(field: string, value: any): void;
+    setSize(x: number, y: number): void;
     resize(): void;
     showGraphic(): void;
-    unitSquarePositions(): any;
-    getImage(): any;
-    get canvas(): any;
-    toJSON(): any;
-    fromJSON(jsonObject: any): void;
-    draw(group: any): void;
+    unitSquarePositions(): THREE.Vector2[];
+    getImage(): HTMLImageElement;
+    get canvas(): HTMLCanvasElement;
+    toJSON(): CycleGraphJSON;
+    fromJSON(jsonObject: CycleGraphJSON): void;
+    draw(group: Group): void;
 }
 declare class CycleGraphView {
-    viewModel: any;
-    bbox: any;
+    viewModel: CycleGraphViewModel;
+    bbox: {
+        left: float;
+        right: float;
+        top: float;
+        bottom: float;
+    };
     canvas: HTMLCanvasElement;
-    closestTwoPositions: any;
-    context: CanvasRenderingContext2D | null;
-    cyclePaths: any;
-    cycles: any;
-    displays_labels: any;
-    options: {};
-    partIndices: any;
-    positions: any;
-    radius: any;
-    rings: any;
+    closestTwoPositions: number;
+    context: CanvasRenderingContext2D;
+    cyclePaths: Path[];
+    cycles: groupElement[][];
+    displays_labels: boolean;
+    options: CycleGraphOptions;
+    partIndices: number[];
+    positions: Coordinate[];
+    radius: number;
+    rings: number[];
     show_request: boolean;
-    transform: any;
+    transform: THREE.Matrix3;
     translate: {
         dx: number;
         dy: number;
     };
     zoomFactor: number;
-    constructor(options?: {});
+    constructor(options?: CycleGraphOptions);
     get size(): {
-        w: number;
-        h: number;
+        w: float;
+        h: float;
     };
     set size(newSize: {
-        w: number;
-        h: number;
+        w: float;
+        h: float;
     });
     getSize(): {
-        w: number;
-        h: number;
+        w: float;
+        h: float;
     };
-    setSize(w: any, h: any): void;
+    setSize(w: float, h: float): void;
     resize(): void;
     getImage(): HTMLImageElement;
     queueShowGraphic(): void;
     showGraphic(): void;
     drawGraphic(): void;
     reset(): void;
-    zoom(factor: any): this;
-    move(deltaX: any, deltaY: any): this;
-    select(screenX: any, screenY: any): any;
-    unitSquarePosition(element: any): {
-        x: number;
-        y: number;
+    zoom(factor: float): this;
+    move(deltaX: float, deltaY: float): this;
+    select(screenX: number, screenY: number): Maybe<groupElement>;
+    unitSquarePosition(element: groupElement): {
+        x: float;
+        y: float;
     };
-    unitSquarePositions(): any;
-    get group(): any;
-    get highlightColors(): any;
-    orbitOf(g: any): number[];
-    raiseToThe(h: any, n: any): number;
-    howSoonDoesOrbitIntersect(g: any, array: any): any;
-    bestPowerRelativeTo(h: any, g: any): number;
+    unitSquarePositions(): THREE.Vector2[];
+    get group(): Group;
+    get highlightColors(): Maybe<color>[][];
+    orbitOf(g: groupElement): groupElement[];
+    raiseToThe(h: groupElement, n: number): groupElement;
+    howSoonDoesOrbitIntersect(g: groupElement, array: groupElement[]): number;
+    bestPowerRelativeTo(h: groupElement, g: groupElement): number;
     layoutElementsAndPaths(): void;
     findClosestTwoPositions(): void;
 }
-declare function createUnlabelledCycleGraphView(options?: {}): CycleGraphViewModel;
-declare function createLargeCycleGraphView(model: any, options?: {}): CycleGraphViewModel;
-declare function createInteractiveCycleGraphView(model: any, options?: {}): CycleGraphViewModel;
+declare function createUnlabelledCycleGraphView(options?: CycleGraphOptions): CycleGraphViewModel;
+declare function createLargeCycleGraphView(model: GEUtils.SubscriptionProxy<CycleGraphModel>, options?: CycleGraphOptions): CycleGraphViewModel;
+declare function createInteractiveCycleGraphView(model: GEUtils.SubscriptionProxy<CycleGraphModel>, options?: CycleGraphOptions): CycleGraphViewModel;

@@ -1,4 +1,4 @@
-/* @flow
+/*
 # HighlightControlViewModel - ViewModel for Subset and Highlighting
 
 HighlightControlViewModel implements the ViewModel layer of HighlightControl's MVVM pattern.
@@ -7,25 +7,50 @@ and serialization for Sheet ↔ Editor navigation.
 
 ```js
  */
-import {BitSet} from './BitSet.js'
+import { BitSet, BitSetJSON } from './BitSet.js'
 import * as GEUtils from './GEUtils.js'
 import * as Log from './Log.js'
-import {SubgroupLattice} from './SubgroupLattice.js'
-import {THREE} from '../lib/externals.js'
-/*::
-import {CycleGraphModel} from './CycleGraphModel.js'
-import type {Updatable, SubscriptionProxy} from './GEUtils.js'
-import {Group} from './Group.js'
+import { SubgroupLattice } from './SubgroupLattice.js'
+import * as THREE from '../lib/externals.js'
+
+import type { Group } from './Group.js'
+import type { Updatable, SubscriptionProxy } from './GEUtils.js'
+import type { HighlightControlModelInterface } from './HighlightControl.js'
+import type { HighlightControlView } from './HighlightControlView.js'
+
+export type {
+   DisplayItem,
+   AbstractSubset,
+   Subgroop,
+   Subset,
+   Partition,
+   ConjugacyClass,
+   OrderClass,
+   Coset,
+   PartitioningScheme,
+   ConjugacyClasses,
+   OrderClasses,
+   Cosets
+}
 
 type HighlightControlJSON = {
-  nextId: number,
-  nextSubsetIndex: number,
-  highlightedItems: Array<number | void>,
-  displayMap: Array<any>
-  ...
+   next_id: number,
+   next_subset_index: number,
+   highlighted_items: Maybe<number>[],
+   display_map: Array<{ class_name: string } & any>
 }
- */
-export {HighlightControlViewModel}
+type sides = 'left' | 'right'
+type displayItemJSON = {
+   id: number,
+   class_name: string,
+   elements?: BitSetJSON,
+   subgroup_index?: integer,
+   subset_index?: integer,
+   partitioning_scheme?: integer,
+   sub_index?: integer,
+   subgroop_id?: integer,
+   side?: sides
+}
 /*
 ```
 ## ViewModel
@@ -40,36 +65,35 @@ export {HighlightControlViewModel}
   *  displayMap -- a map of all display items by id
 ```js
  */
-class HighlightControlViewModel /*:: implements Updatable */ {
-   #model /*: CycleGraphModel */
-   #view /*: HighlightControlView */
+export class HighlightControlViewModel implements Updatable {
+   #model!: SubscriptionProxy<HighlightControlModelInterface>
+   #view!: HighlightControlView
+   nextId!: number
+   nextSubsetIndex!: number
+   highlightedItems!: Maybe<DisplayItem>[]
+   displayMap: Map<number, DisplayItem> = new Map()
 
-   nextId /*: number */
-   nextSubsetIndex /*: number */
-   highlightedItems /*: Array<?DisplayItem> */ = [null, null, null]
-   displayMap /*: Map<number, DisplayItem> */ = new Map()
-
-   constructor (model /*: SubscriptionProxy<CycleGraphModel> */) {
+   constructor (model: SubscriptionProxy<HighlightControlModelInterface>) {
       this.model = model
    }
 
-   get group () /*: Group */ {
+   get group (): Group {
       return this.model.group
    }
 
-   get highlightColors () /*: Array<Array<?color>> */ {
+   get highlightColors (): Maybe<color>[][] {
       return this.model.highlightColors
    }
 
-   get highlightTypes () /*: Array<string> */ {
+   get highlightTypes (): string[] {
       return this.model.highlightConfiguration.highlightTypes
    }
 
-   get view () /*: HighlightControlView */ {
+   get view (): HighlightControlView {
       return this.#view  // this could also add it to an Array or Map
    }
 
-   set view (view /*: HighlightControlView */) {
+   set view (view: HighlightControlView) {
       this.#view = view
       Array.from(this.displayMap.values())
          .filter((item) => item instanceof Subgroop || item instanceof Subset || item instanceof PartitioningScheme)
@@ -79,11 +103,11 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       }
    }
 
-   get model () /*: CycleGraphModel */ {
+   get model (): SubscriptionProxy<HighlightControlModelInterface> {
       return this.#model
    }
 
-   set model (model /*: SubscriptionProxy<CycleGraphModel> */) {
+   set model (model: SubscriptionProxy<HighlightControlModelInterface>) {
       this.#model = model
       // normalize: if model.highlightControl is already a live ViewModel (e.g. morphism editor reopened),
       // convert to JSON so fromJSON receives the expected plain-object format
@@ -123,7 +147,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
                })
                const subgroupIndex = this.group.subgroups.findIndex((H) => highlightedElements.equals(H.members))
                const highlightedItem = Array.from(this.displayMap)
-                  .find(([_inx, subgroop]) => subgroop.subgroupIndex == subgroupIndex)?.[1]
+                  .find(([_inx, subgroop]) => 'subgroupIndex' in subgroop && subgroop.subgroupIndex == subgroupIndex)?.[1]
                this.highlightedItems[inx] = highlightedItem
             }
          })
@@ -132,7 +156,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 
    reset ()  {
       this.nextId = 0
-      const initialJSON = {
+      const initialJSON: HighlightControlJSON = {
          next_id: this.group.subgroups.length,
          next_subset_index: 0,
          highlighted_items: [null, null, null],
@@ -143,19 +167,20 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       this.fromJSON(initialJSON)
    }
 
-   toJSON () /*: HighlightControlJSON */ {
+   toJSON (): HighlightControlJSON {
       const highlightControlJSON = {
          next_id: this.nextId,
          next_subset_index: this.nextSubsetIndex,
-         highlighted_items: this.highlightedItems.map((item) => item?.id),
+         highlighted_items: this.highlightedItems?.map((item) => item?.id) ?? [] as Maybe<DisplayItem>[],
          display_map: Array.from(this.displayMap.values()).map((item) => item.toJSON())
       }
 
       return highlightControlJSON
    }
 
-   fromJSON (jsonObject /*: HighlightControlJSON */) {
-      const classMap /*: {[string]: Class<DisplayItem>} */ = {
+
+   fromJSON (jsonObject: HighlightControlJSON) {
+      const classMap: {[key: string]: { fromJSON: (jsonObject: object) => DisplayItem } & any } = {
          Subgroop: Subgroop,
          Subset: Subset,
          ConjugacyClass: ConjugacyClass,
@@ -174,7 +199,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
          this.displayMap.set(displayItemJSON.id, displayItem)
       })
 
-      this.highlightedItems = jsonObject.highlighted_items.map((item) => this.displayMap.get(item))
+      this.highlightedItems = jsonObject.highlighted_items.map((item) => item ? this.displayMap.get(item) : null)
 
       this.#updateHighlightColors()
 
@@ -188,7 +213,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 ### Create / Destroy display items
 ```js
  */
-   #createItem (item /*: DisplayItem */) /*: DisplayItem */ {
+   #createItem (item: DisplayItem): DisplayItem {
       item.id = this.nextId++
       this.displayMap.set(item.id, item)
 
@@ -206,15 +231,15 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       return item
    }
 
-   #matchingSubsets (elements /*: BitSet */) /*: Array<Subgroop | Subset>*/ {
+   #matchingSubsets (elements: BitSet): Array<Subgroop | Subset> {
       const matchingSubsets = Array.from(this.displayMap.values())
-         .filter((displayItem) =>
-            (displayItem instanceof Subgroop || displayItem instanceof Subset) && elements.equals(displayItem.elements))
+         .filter((displayItem) => displayItem instanceof Subgroop || displayItem instanceof Subset)
+         .filter((displayItem) => elements.equals(displayItem.elements))
 
       return matchingSubsets
    }
 
-   async createAndConfirmSubset (elements /*: BitSet */, explanation /*: html */) /*: Promise<?Subset> */ {
+   async createAndConfirmSubset (elements: BitSet, explanation: html): Promise<Maybe<Subset>> {
       const matchingSubsets = this.#matchingSubsets(elements)
 
       let result
@@ -228,19 +253,19 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       return result
    }
 
-   createSubset (elements /*: BitSet */) /*: Subset */ {
-      return this.#createItem(new Subset(this, elements))
+   createSubset (elements: BitSet): Subset {
+      return this.#createItem(new Subset(this, elements)) as Subset
    }
 
    createConjugacyClasses () {
-      this.#createItem(new ConjugacyClasses(this))
+      this.#createItem(new ConjugacyClasses(this)) as ConjugacyClasses
    }
 
    createOrderClasses () {
       this.#createItem(new OrderClasses(this))
    }
 
-   createCosets (subgroopId /*: integer */, side /*: string */) {
+   createCosets (subgroopId: integer, side: sides) {
       const subgroop = this.displayMap.get(subgroopId)
       if (subgroop instanceof Subgroop) {
          this.#createItem(new Cosets(this, subgroop, side))
@@ -248,14 +273,18 @@ class HighlightControlViewModel /*:: implements Updatable */ {
    }
 
    createDerivedSubset (
-      type /*: 'closure' | 'normalizer' | 'intersection' | 'union' | 'elementwiseProduct' */,
-      subsetId /*: integer */,
-      subset2Id /*: integer */
+      type: 'closure' | 'normalizer' | 'intersection' | 'union' | 'elementwiseProduct',
+      subsetId: integer,
+      subset2Id: integer
    ) {
       const subset = this.displayMap.get(subsetId)
       const subset2 = this.displayMap.get(subset2Id)
       if (subset instanceof AbstractSubset && (subset2 == null || subset2 instanceof AbstractSubset)) {
-         const derivedSubset = (subset2 == null) ? subset[type] : subset[type](subset2)
+         const derivedSubset = (subset2 != null)
+            ? subset[type as 'intersection' | 'union' | 'elementwiseProduct'](subset2)
+            : (type == 'normalizer' && 'normalizer' in subset)
+               ? (subset as Subgroop).normalizer
+               : subset.closure
          const matchingSubsets = this.#matchingSubsets(derivedSubset)
          if  (matchingSubsets.length == 0) {
             this.createSubset(derivedSubset)
@@ -266,8 +295,8 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       }
    }
 
-   destroyItem (itemId /*: integer */) {
-      const clearItemHighlight = (item /*: DisplayItem */) => {
+   destroyItem (itemId: integer) {
+      const clearItemHighlight = (item: DisplayItem) => {
          this.highlightedItems = this.highlightedItems.map((highlightedItem) => {
             return (highlightedItem == item) ? null : highlightedItem
          })
@@ -295,7 +324,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
  */
    #updateHighlightColors () {
       const highlightColors = this.highlightedItems.map((item, inx) => {
-         let highlight = []
+         let highlight: Maybe<color>[] = []
          if (item == null) {
             return highlight
          }
@@ -321,13 +350,13 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       this.updateModel('highlightColors', highlightColors)
    }
 
-   highlightItem (itemId /*: integer */, highlightTypeIndex /*: integer */) {
+   highlightItem (itemId: integer, highlightTypeIndex: integer) {
       const item = this.displayMap.get(itemId)
       this.highlightedItems[highlightTypeIndex] = item
       this.#updateHighlightColors()
    }
 
-   toggleColorHighlight (itemId /*: integer */) {
+   toggleColorHighlight (itemId: integer) {
       const item = this.displayMap.get(itemId)
       this.highlightedItems[0] = (this.highlightedItems[0] == item) ? null : item
       this.#updateHighlightColors()
@@ -342,15 +371,15 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 ### Predicates for displaying various partitioning schemes
 ```js
  */
-   canShowConjugacyClasses () /*: boolean */ {
+   canShowConjugacyClasses (): boolean {
       return Array.from(this.displayMap.values()).find((item) => item instanceof ConjugacyClasses) == null
    }
 
-   canShowOrderClasses () /*: boolean */ {
+   canShowOrderClasses (): boolean {
       return Array.from(this.displayMap.values()).find((item) => item instanceof OrderClasses) == null
    }
 
-   canShowCosets (subgroopId /*: number */, side /*: string */) /*: boolean */ {
+   canShowCosets (subgroopId: number, side: sides): boolean {
       return Array.from(this.displayMap.values())
          .find((item) => item instanceof Cosets && item.subgroop.id == subgroopId && item.side == side) == null
    }
@@ -359,7 +388,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
 ### Receiving and pushing updates to/from this.#model
 ```js
  */
-   updateModel (field /*: string */, value /*: any */) {
+   updateModel (field: string, value: any) {
       switch (field) {
       case 'highlightColors':
          this.model['highlightColors'] = value
@@ -372,7 +401,7 @@ class HighlightControlViewModel /*:: implements Updatable */ {
       this.model.$touch('highlightControl')
    }
 
-   update (field /*: string */, value /*: any */) {
+   update (field: string, value: any) {
       switch (field) {
       case 'group':
          this.reset()
@@ -404,14 +433,15 @@ VIEW MODEL HIERARCHY (Domain Objects - No HTML/DOM knowledge)
 ```js
  */
 class DisplayItem {
-   id /*: number */
-   viewModel /*: HighlightControlViewModel */
+   id!: number
+   viewModel: HighlightControlViewModel
+   className!: string
 
-   constructor (viewModel /*: HighlightControlViewModel */) {
+   constructor (viewModel: HighlightControlViewModel) {
       this.viewModel = viewModel
    }
 
-   toJSON () {
+   toJSON (): displayItemJSON {
       const jsonObject = {
          id: this.id,
          class_name: this.className
@@ -419,28 +449,28 @@ class DisplayItem {
       return jsonObject
    }
 
-   fromJSON (jsonObject) {
+   fromJSON (jsonObject: displayItemJSON): this {
       this.id = jsonObject.id
       return this
    }
 }
 
 class AbstractSubset extends DisplayItem {
-   elements /*: BitSet */
+   elements!: BitSet
 
-   get closure () /*: BitSet */ {
+   get closure (): BitSet {
       return this.viewModel.group.closure(this.elements)
    }
 
-   union (other /*: AbstractSubset */) /*: BitSet */ {
+   union (other: AbstractSubset): BitSet {
       return BitSet.union(this.elements, other.elements)
    }
 
-   intersection (other /*: AbstractSubset */) /*: BitSet */ {
+   intersection (other: AbstractSubset): BitSet {
       return BitSet.intersection(this.elements, other.elements)
    }
 
-   elementwiseProduct (other /*: AbstractSubset */) /*: BitSet */ {
+   elementwiseProduct (other: AbstractSubset): BitSet {
       const elementwiseProductElements = new BitSet(this.viewModel.group.order)
       for (let i = 0; i < this.elements.len; i++) {
          if (this.elements.isSet(i)) {
@@ -454,63 +484,63 @@ class AbstractSubset extends DisplayItem {
       return elementwiseProductElements
    }
 
-   toJSON () {
+   toJSON (): displayItemJSON {
       const jsonObject = super.toJSON()
       jsonObject.elements = this.elements.toJSON()
       return jsonObject
    }
 
-   fromJSON (jsonObject) {
+   fromJSON (jsonObject: displayItemJSON): this {
       super.fromJSON(jsonObject)
-      this.elements = new BitSet().fromJSON(jsonObject.elements)
+      this.elements = new BitSet().fromJSON(jsonObject.elements as BitSetJSON)
       return this
    }
 }
 
 class Subgroop extends AbstractSubset {
    className = 'Subgroop'
-   subgroupIndex /*: number */
+   subgroupIndex: integer
 
-   constructor(viewModel /*: HighlightControlViewModel */, subgroupIndex /*: number */) {
+   constructor(viewModel: HighlightControlViewModel, subgroupIndex: number) {
       super(viewModel)
 
       this.subgroupIndex = subgroupIndex
       this.elements = viewModel.group.subgroups[subgroupIndex]?.members
    }
 
-   get normalizer () /*: BitSet */ {
+   get normalizer (): BitSet {
       const normalizerElements = new SubgroupLattice(this.viewModel.group)
          .findNormalizer(this.viewModel.group.subgroups[this.subgroupIndex]).members
 
       return normalizerElements
    }
 
-   get leftCosets () /*: Cosets */ {
+   get leftCosets (): Cosets {
       return new Cosets(this.viewModel, this, 'left')
    }
 
-   get rightCosets () /*: Cosets */ {
+   get rightCosets (): Cosets {
       return new Cosets(this.viewModel, this, 'right')
    }
 
-   toJSON () {
+   toJSON (): displayItemJSON {
       const jsonObject = super.toJSON()
       jsonObject.subgroup_index = this.subgroupIndex
       return jsonObject
    }
 
-   fromJSON (jsonObject) {
+   fromJSON (jsonObject: displayItemJSON): this {
       super.fromJSON(jsonObject)
-      this.subgroupIndex = jsonObject.subgroup_index
+      this.subgroupIndex = jsonObject.subgroup_index as integer
       return this
    }
 }
 
 class Subset extends AbstractSubset {
    className = 'Subset'
-   subsetIndex /*: number */
+   subsetIndex!: integer
 
-   constructor (viewModel /*: HighlightControlViewModel */, elements /*: void | Array<groupElement> | BitSet */) {
+   constructor (viewModel: HighlightControlViewModel, elements: void | Array<groupElement> | BitSet) {
       super(viewModel)
 
       if (elements === undefined) {
@@ -524,28 +554,28 @@ class Subset extends AbstractSubset {
       }
    }
 
-   toJSON () {
+   toJSON (): displayItemJSON {
       const jsonObject = super.toJSON()
       jsonObject.subset_index = this.subsetIndex
       return jsonObject
    }
 
-   fromJSON (jsonObject)  {
+   fromJSON (jsonObject: displayItemJSON): this {
       super.fromJSON(jsonObject)
-      this.subsetIndex = jsonObject.subset_index
+      this.subsetIndex = jsonObject.subset_index as integer
       return this
    }
 }
 
 class Partition extends AbstractSubset {
-   partitioningScheme /*: PartitioningScheme */
-   subIndex /*: number */
+   partitioningScheme: PartitioningScheme
+   subIndex: number
 
    constructor (
-      viewModel /*: HighlightControlViewModel */,
-      partitioningScheme /*: PartitioningScheme */,
-      subIndex /*: number */,
-      elements /*: BitSet */
+      viewModel: HighlightControlViewModel,
+      partitioningScheme: PartitioningScheme,
+      subIndex: number,
+      elements: BitSet
    ) {
       super(viewModel)
 
@@ -554,23 +584,23 @@ class Partition extends AbstractSubset {
       this.elements = elements
    }
 
-   toJSON () {
+   toJSON (): displayItemJSON {
       const jsonObject = super.toJSON()
       jsonObject.partitioning_scheme = this.partitioningScheme.id
       jsonObject.sub_index = this.subIndex
       return jsonObject
    }
 
-   fromJSON (jsonObject) {
+   fromJSON (jsonObject: displayItemJSON): this {
       super.fromJSON(jsonObject)
-      this.subIndex = jsonObject.sub_index
+      this.subIndex = jsonObject.sub_index as integer
       this.partitioningScheme = Array.from(this.viewModel.displayMap.values())
-         .find((item) => item.id == jsonObject.partitioning_scheme)
-      this.partitioningScheme.partitions[jsonObject.sub_index] = this
+         .find((item) => item.id == jsonObject.partitioning_scheme as integer) as PartitioningScheme
+      this.partitioningScheme.partitions[jsonObject.sub_index as integer] = this
       return this
    }
 }
-
+ 
 class ConjugacyClass extends Partition {
    className = 'ConjugacyClass'
 }
@@ -584,12 +614,12 @@ class Coset extends Partition {
 }
 
 class PartitioningScheme extends DisplayItem {
-   partitions /*: Array<Partition> */ = []
+   partitions: Partition[] = []
 }
 
 class ConjugacyClasses extends PartitioningScheme {
    className = 'ConjugacyClasses'
-   constructor (viewModel /*: HighlightControlViewModel */) {
+   constructor (viewModel: HighlightControlViewModel) {
       super(viewModel)
 
       viewModel.group.conjugacyClasses
@@ -602,7 +632,7 @@ class ConjugacyClasses extends PartitioningScheme {
 
 class OrderClasses extends PartitioningScheme {
    className = 'OrderClasses'
-   constructor (viewModel /*: HighlightControlViewModel */) {
+   constructor (viewModel: HighlightControlViewModel) {
       super(viewModel)
 
       viewModel.group.orderClasses
@@ -616,10 +646,10 @@ class OrderClasses extends PartitioningScheme {
 
 class Cosets extends PartitioningScheme {
    className = 'Cosets'
-   subgroop /*: Subgroop */
-   side /*: string */
+   subgroop: Subgroop
+   side: sides
 
-   constructor(viewModel /*: HighlightControlViewModel */, subgroop /*: Subgroop */, side /*: string */) {
+   constructor(viewModel: HighlightControlViewModel, subgroop: Subgroop, side: sides) {
       super(viewModel)
 
       this.subgroop = subgroop
@@ -635,18 +665,18 @@ class Cosets extends PartitioningScheme {
       }
    }
 
-   toJSON () {
+   toJSON (): displayItemJSON {
       const jsonObject = super.toJSON()
-      jsonObject.subgroop = this.subgroop.id
+      jsonObject.subgroop_id = this.subgroop.id
       jsonObject.side = this.side
       return jsonObject
    }
 
-   fromJSON (jsonObject) /*: this */ {
+   fromJSON (jsonObject: displayItemJSON): this {
       super.fromJSON(jsonObject)
       this.subgroop = Array.from(this.viewModel.displayMap.values())
-         .find((item) => item.id == jsonObject.subgroop)
-      this.side = jsonObject.side
+         .find((item) => item.id == jsonObject.subgroop_id as integer) as Subgroop
+      this.side = jsonObject.side as sides
       return this
    }
 }

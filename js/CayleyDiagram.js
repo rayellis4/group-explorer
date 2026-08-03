@@ -1,4 +1,10 @@
-// @flow
+/*
+# CayleyDiagram
+
+Assembles large Cayley diagram visualizer html page
+
+```js
+ */
 import { CayleyDiagramModel } from './CayleyDiagramModel.js';
 import * as CayleyDiagramControl from './CayleyDiagramControl.js';
 import * as CayleyViewControl from './CayleyViewControl.js';
@@ -10,20 +16,15 @@ import * as HighlightControl from './HighlightControl.js';
 import * as Library from './Library.js';
 import * as Log from './Log.js';
 import * as SheetEditor from './SheetEditor.js';
-export { load };
-/*::
-   import type {CayleyDiagramJSON} from './js/CayleyDiagramView.js';
-   import type {MSG_external} from './js/SheetModel.js';
- */
-async function load() {
+export async function load() {
     insertHTML();
     document.body.addEventListener('contextmenu', (ev) => ev.preventDefault());
     // If this page is editing a sheet...
-    const { elementId, json: initialJSON } /*: unknown */ = await (window.location.href.includes('SheetEditor')
+    const { elementId, json: initialJSON } = (await (window.location.href.includes('SheetEditor')
         ? SheetEditor.getInitialData()
-        : { elementId: null, json: null });
+        : { elementId: null, json: null }));
     // Get group, either from page URL or data from Sheet
-    const group /*: Group */ = await ((initialJSON?.group_url == null)
+    const group = await ((initialJSON?.group_url == null)
         ? Library.loadFromPageURL()
         : Library.getGroupByURL(initialJSON.group_url));
     // Create Header
@@ -34,7 +35,7 @@ async function load() {
         { label: '<hr>', action: () => { } },
         { label: 'Cayley Diagram Help', action: () => window.open('help/rf-um-cd-options/index.html') }
     ]);
-    const cayleyDiagramModel /*: SubscriptionProxy<CayleyDiagramModel> */ = createModelProxy(new CayleyDiagramModel(group));
+    const cayleyDiagramModel = createModelProxy(new CayleyDiagramModel(group));
     const cayleyDiagramViewModel = createInteractiveCayleyDiagramView(cayleyDiagramModel, {
         container: document.getElementById('graphic')
     });

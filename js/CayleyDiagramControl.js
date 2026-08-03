@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # CayleyDiagramControl
 
@@ -17,21 +17,8 @@ import { BitSet } from './BitSet.js';
 import { DIRECTION_INDEX, AXIS_NAME, layoutCayleyDiagram, nextArrowColor, getDefaultStrategies } from './CayleyDiagramGenerator.js';
 import * as Log from './Log.js';
 import { makeDetachedMenu, makeMockSelect } from './UIComponents.js';
-export { addControl };
-/*::
-import type {Layout, Direction, StrategyParameters} from './CayleyDiagramGenerator.js';
-import type {NodeData, ArrowData, ChunkData} from './CayleyDiagramView.js';
-import type {Tree} from './GEUtils.js';
-import type {Group} from './Group.js'
-import type {CayleyDiagramModel} from './CayleyDiagramModel.js'
-import XMLGroup from './XMLGroup.js';
-import type {XMLCayleyDiagram} from './XMLGroup.js';
-interface NumberLocation {clientX: number, clientY: number}
-
-import type {StrategyParameters, ArrowGenerator} from './CayleyDiagramGenerator.js'
- */
 // layout choices (linear/circular/rotated), direction (X/Y/Z)
-const AXIS_LABELS /*: {[layout: string]: {[direction: string]: html}} */ = {
+const AXIS_LABELS = {
     linear: { X: 'Linear in <i>x</i>',
         Y: 'Linear in <i>y</i>',
         Z: 'Linear in <i>z</i>' },
@@ -42,13 +29,13 @@ const AXIS_LABELS /*: {[layout: string]: {[direction: string]: html}} */ = {
         XZ: 'Rotated in <i>x</i>, <i>z</i>',
         XY: 'Rotated in <i>x</i>, <i>y</i>' },
 };
-const AXIS_IMAGES /*: {[layout: string]: {[direction: string]: string}} */ = {
+const AXIS_IMAGES = {
     linear: { X: 'axis-x.png', Y: 'axis-y.png', Z: 'axis-z.png' },
     circular: { YZ: 'axis-yz.png', XZ: 'axis-xz.png', XY: 'axis-xy.png' },
     rotated: { YZ: 'axis-ryz.png', XZ: 'axis-rxz.png', XY: 'axis-rxy.png' },
 };
 // nesting order labels
-const ORDER_LABELS /*: Array<Array<string>> */ = [
+const ORDER_LABELS = [
     [],
     ['N/A'],
     ['inside', 'outside'],
@@ -63,7 +50,7 @@ const ORDER_LABELS /*: Array<Array<string>> */ = [
     ['innermost', 'second innermost', 'third innermost', 'fourth innermost', 'middle', 'fourth outermost',
         'third outermost', 'second outermost', 'outermost'],
 ];
-function addControl(cayleyDiagramControlElement /*: HTMLElement */, model /*: CayleyDiagramModel */) {
+export function addControl(cayleyDiagramControlElement, model) {
     const viewModel = new ViewModel(cayleyDiagramControlElement, model);
     new DiagramChoice(viewModel);
     new Generator(viewModel);
@@ -72,7 +59,7 @@ function addControl(cayleyDiagramControlElement /*: HTMLElement */, model /*: Ca
     new Chunking(viewModel);
     model.diagramControl = viewModel;
 }
-function clickHandler(event /*: MouseEvent */) {
+function clickHandler(event) {
     event.preventDefault();
     const action = event.target.closest('[data-action]');
     if (action != null) {
@@ -82,14 +69,14 @@ function clickHandler(event /*: MouseEvent */) {
 }
 class ViewModel {
     #model;
-    rootElement; /*: HTMLElement */
-    handlers /*: Updatable */ = [];
-    diagramName /*: string */ = null; // null => generate diagram
-    strategyParameters /*: Array<StrategyParameters> */ = [];
-    arrowGenerators /*: ?Array<ArrowGenerator> */ = null; // null => use default arrows
-    rightMultiply /*: boolean */ = true;
-    chunkSubgroupIndex /*: numeber */ = null; // null => no chunking
-    constructor(rootElement /*: HTMLElement */, model /*: CayleyDiagramModel */) {
+    rootElement;
+    handlers = [];
+    diagramName = null; // null => generate diagram
+    strategyParameters = [];
+    arrowGenerators = null; // null => use default arrows; [] => no arrows
+    rightMultiply = true;
+    chunkSubgroupIndex = null; // null => no chunking
+    constructor(rootElement, model) {
         this.#model = model;
         this.rootElement = rootElement;
         // get diagram name from sheet editor JSON or URL
@@ -112,7 +99,7 @@ class ViewModel {
             this.updateLayout();
         }
     }
-    registerForUpdates(handler /*: Updatable */) {
+    registerForUpdates(handler) {
         this.handlers.push(handler);
     }
     updateLayout() {
@@ -144,21 +131,24 @@ class ViewModel {
         this.handlers.forEach((handler) => handler.update());
     }
     toJSON() {
-        const json = {
-            diagram_name: this.diagramName,
-            strategy_parameters: this.strategyParameters,
-            arrow_generators: this.arrowGenerators,
-            right_multiply: this.rightMultiply,
-            chunk_subgroup_index: this.chunkSubgroupIndex
-        };
+        const json = {};
+        if (this.diagramName != null)
+            json.diagram_name = this.diagramName;
+        if (this.strategyParameters.length != 0)
+            json.strategy_parameters = this.strategyParameters;
+        if (this.arrowGenerators?.length != 0)
+            json.arrow_generators = this.arrowGenerators;
+        json.right_multiply = this.rightMultiply;
+        if (this.chunkSubgroupIndex != null)
+            json.chunk_subgroup_index = this.chunkSubgroupIndex;
         return json;
     }
-    fromJSON(jsonObject /*: CayleyDiagramControlJSON */) {
-        this.diagramName = jsonObject.diagram_name;
-        this.strategyParameters = jsonObject.strategy_parameters;
-        this.arrowGenerators = jsonObject.arrow_generators;
-        this.rightMultiply = jsonObject.right_multiply;
-        this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index;
+    fromJSON(jsonObject) {
+        this.diagramName = jsonObject.diagram_name ?? null;
+        this.strategyParameters = jsonObject.strategy_parameters ?? [];
+        this.arrowGenerators = jsonObject.arrow_generators ?? null;
+        this.rightMultiply = jsonObject.right_multiply ?? true;
+        this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index ?? null;
         this.updateLayout();
         return this;
     }
@@ -206,9 +196,9 @@ class ViewModel {
             allGenerators.push(strategy.generator);
             return { subgroupIndex: this.#findSubgroupIndex(allGenerators), allGenerators: [...allGenerators] };
         });
-        return newChoices; // Array<{subgroupIndex: number, allGenerators: Array<groupElement>}>
+        return newChoices;
     }
-    #findSubgroupIndex(elementArray /*: Array<groupElements> */) {
+    #findSubgroupIndex(elementArray) {
         const elements = new BitSet(this.group.order, elementArray);
         for (const [index, subgroup] of this.group.subgroups.entries()) {
             if (BitSet.intersection(subgroup.members, elements).equals(elements)) {
@@ -217,17 +207,17 @@ class ViewModel {
         }
     }
     // Actions called by View
-    chooseDiagram(choice /*: string */) {
+    chooseDiagram(choice) {
         this.diagramName = (choice === 'Generate diagram') ? null : choice;
         this.strategyParameters.length = 0;
         this.arrowGenerators = null;
         this.updateLayout();
     }
-    updateStrategies(strategies /*: Array<StrategyParameters> */) {
+    updateStrategies(strategies) {
         this.strategyParameters = this.#refineStrategies(strategies);
         this.updateLayout();
     }
-    updateGenerator(strategyIndex /*: number */, generator /*: number */) {
+    updateGenerator(strategyIndex, generator) {
         const strategyParameters = this.strategyParameters;
         strategyParameters[strategyIndex].generator = generator;
         this.strategyParameters = this.#refineStrategies(strategyParameters);
@@ -246,27 +236,27 @@ class ViewModel {
         });
         this.updateLayout();
     }
-    organizeBy(subgroupIndex /*: number */) {
+    organizeBy(subgroupIndex) {
         this.group.subgroups[subgroupIndex].generators.toArray()
             .forEach((generator, inx) => {
             this.updateGenerator(inx, generator);
             this.updateOrder(inx, inx);
         });
     }
-    updateAxes(strategyIndex /*: number */, layout /*: Layout */, direction /*: Direction */) {
+    updateAxes(strategyIndex, layout, direction) {
         const strategyParameters = this.strategyParameters;
         strategyParameters[strategyIndex].layout = layout;
         strategyParameters[strategyIndex].direction = direction;
         this.updateStrategies(strategyParameters);
     }
-    updateOrder(strategyIndex /*: number */, order /*: number */) {
+    updateOrder(strategyIndex, order) {
         const strategyParameters = this.strategyParameters;
         const otherStrategy = strategyParameters.findIndex((strategy) => strategy.nestingLevel == order);
         strategyParameters[otherStrategy].nestingLevel = strategyParameters[strategyIndex].nestingLevel;
         strategyParameters[strategyIndex].nestingLevel = order;
         this.updateStrategies(strategyParameters);
     }
-    addArrow(element /*: groupElement */) {
+    addArrow(element) {
         this.arrowGenerators = this.arrowGenerators ?? [];
         const usedColors = this.arrowGenerators.map((arrowGenerator) => arrowGenerator.color);
         if (!this.arrowGenerators.map((arrowGenerator) => arrowGenerator.generator).includes(element)) {
@@ -274,26 +264,28 @@ class ViewModel {
             this.updateLayout();
         }
     }
-    removeArrow(element /*: groupElement */) {
-        const arrowIndex = this.arrowGenerators.findIndex((arrowGenerator) => arrowGenerator.generator == element);
-        if (arrowIndex >= 0) {
-            this.arrowGenerators.splice(arrowIndex, 1);
+    removeArrow(element) {
+        if (this.arrowGenerators != null) {
+            const arrowIndex = this.arrowGenerators.findIndex((arrowGenerator) => arrowGenerator.generator == element);
+            if (arrowIndex >= 0) {
+                this.arrowGenerators.splice(arrowIndex, 1);
+            }
+            this.updateLayout();
         }
-        this.updateLayout();
     }
-    setRightMultiply(rightMultiply /*: boolean */) {
+    setRightMultiply(rightMultiply) {
         this.rightMultiply = rightMultiply;
         this.updateLayout();
     }
-    setChunk(index /*: integer */) {
+    setChunk(index) {
         this.chunkSubgroupIndex = index;
         this.updateLayout();
     }
     // Moved from Generator View class: validates and completes strategy params before feeding to generator
-    #refineStrategies(newStrategies /*: Array<StrategyParameters> */) {
+    #refineStrategies(newStrategies) {
         const generatorsUsed = new BitSet(this.group.order);
         const elementsGenerated = new BitSet(this.group.order, [0]);
-        const strategies /*: Array<StrategyParameters> */ = [];
+        const strategies = [];
         newStrategies.forEach((strategy) => {
             if (!elementsGenerated.isSet(strategy.generator)) {
                 const previousElementCount = elementsGenerated.popcount();
@@ -376,7 +368,7 @@ class DiagramChoice extends View {
             .then((choice) => this.viewModel.chooseDiagram(choice), () => { });
     }
     update() {
-        this.diagramSelect.setAttribute('data-index', this.viewModel.diagramName);
+        this.diagramSelect.setAttribute('data-index', this.viewModel.diagramName ?? 'null');
         const currentLabel = this.choices[this.currentChoice].label || this.choices[this.currentChoice].value;
         this.diagramSelect.innerHTML = currentLabel;
     }
@@ -482,14 +474,14 @@ class Generator extends View {
     /*
      * Show option menus for the columns of the Generator table
      */
-    showGeneratorMenu(clickLocation /*: NumberLocation */, strategyIndex /*: number */) {
+    showGeneratorMenu(clickLocation, strategyIndex) {
         // find complement of closure of generators in previous strategyParameters
         // search through subgroups to find first subgroup such that members & generators == generators
         //
         // show only elements not generated by previously applied strategies
-        let eligibleGenerators;
+        const eligibleGenerators = [];
         if (strategyIndex == 0) {
-            eligibleGenerators = this.group.elements.slice(1);
+            eligibleGenerators.push(...this.group.elements.slice(1));
         }
         else {
             const currentGenerators = this.viewModel.strategyParameters
@@ -499,7 +491,7 @@ class Generator extends View {
             for (let inx = 0; inx < this.group.subgroups.length; inx++) {
                 const subgroupMembers = this.group.subgroups[inx].members;
                 if (BitSet.intersection(subgroupMembers, currentGeneratorBitSet).equals(currentGeneratorBitSet)) {
-                    eligibleGenerators = subgroupMembers.clone().complement().toArray();
+                    eligibleGenerators.push(...subgroupMembers.clone().complement().toArray());
                     break;
                 }
             }
@@ -521,7 +513,7 @@ class Generator extends View {
         makeDetachedMenu(generatorMenu, clickLocation)
             .then((action) => eval(action));
     }
-    showAxisMenu(clickLocation /*: NumberLocation */, strategyIndex /*: number */) {
+    showAxisMenu(clickLocation, strategyIndex) {
         // previously generated subgroup must have > 2 cosets in this subgroup
         //   in order to show it in a curved (circular or rotated) layout
         const strategies = this.viewModel.strategyParameters;
@@ -553,7 +545,7 @@ class Generator extends View {
         makeDetachedMenu(axisMenu, clickLocation)
             .then((action) => eval(action));
     }
-    showOrderMenu(clickLocation /*: NumberLocation */, strategyIndex /*: number */) {
+    showOrderMenu(clickLocation, strategyIndex) {
         const numStrategies = this.viewModel.strategyParameters.length;
         const orderList = this.viewModel.strategyParameters.map((_strategy, order) => `<li data-action="this.viewModel.updateOrder(${strategyIndex}, ${order})">${ORDER_LABELS[numStrategies][order]}</li>`);
         const orderMenuHTML = [
@@ -579,12 +571,12 @@ class Generator extends View {
     /*
      * Drag-and-drop generation-table rows to re-order generators
      */
-    dragStart(dragstartEvent /*: DragEvent */) {
+    dragStart(dragstartEvent) {
         const target = dragstartEvent.target;
         const dataTransfer = dragstartEvent.dataTransfer;
         dataTransfer.setData('text/plain', target.textContent);
     }
-    drop(dropEvent /*: DragEvent */) {
+    drop(dropEvent) {
         dropEvent.preventDefault();
         const target = dropEvent.target;
         const dataTransfer = dropEvent.dataTransfer;
@@ -594,7 +586,7 @@ class Generator extends View {
         strategyParameters.splice(dest - 1, 0, strategyParameters.splice(src - 1, 1)[0]);
         this.viewModel.updateStrategies(strategyParameters);
     }
-    dragOver(dragoverEvent /*: DragEvent */) {
+    dragOver(dragoverEvent) {
         dragoverEvent.preventDefault();
     }
 }
@@ -649,15 +641,15 @@ class Arrow extends View {
         return document.getElementById('arrow-list');
     }
     get arrowAddButton() {
-        return (document.getElementById('arrow-add-button') /*:: as any as HTMLButtonElement */);
+        return document.getElementById('arrow-add-button');
     }
     get arrowRemoveButton() {
-        return (document.getElementById('arrow-remove-button') /*:: as any as HTMLButtonElement */);
+        return document.getElementById('arrow-remove-button');
     }
     clearHighlights() {
         this.arrowListElement.querySelectorAll('li').forEach((el) => el.classList.remove('highlighted'));
     }
-    selectArrow(element /*: number */) {
+    selectArrow(element) {
         this.clearHighlights();
         this.arrowListElement.querySelector(`li[data-arrow="${element}"]`)?.classList.add('highlighted');
         this.arrowRemoveButton.setAttribute('data-action', `this.removeArrow(${element})`);
@@ -667,9 +659,9 @@ class Arrow extends View {
     getAllArrows() {
         return Array
             .from(this.arrowListElement.querySelectorAll('li'))
-            .map((listItem /*: HTMLLIElement */) => parseInt(listItem.getAttribute('arrow')));
+            .map((listItem) => parseInt(listItem.getAttribute('arrow')));
     }
-    showAddArrowMenu(event /*: MouseEvent */) {
+    showAddArrowMenu(event) {
         // make an array of HTML strings with a list element for each arrow that can be added to the arrow-list
         const group = this.viewModel.group;
         const arrowList = group.elements
@@ -681,10 +673,10 @@ class Arrow extends View {
         makeDetachedMenu(arrowMenu, event)
             .then((action) => eval(action));
     }
-    addArrow(element /*: number */) {
+    addArrow(element) {
         this.viewModel.addArrow(element);
     }
-    removeArrow(element /*: number */) {
+    removeArrow(element) {
         this.arrowRemoveButton.disabled = true;
         this.viewModel.removeArrow(element);
     }
@@ -725,12 +717,12 @@ class Multiplication extends View {
         this.update();
     }
     get leftMultiplicationElement() {
-        return (document.getElementById('left-multiplication') /*:: as any as HTMLInputElement */);
+        return document.getElementById('left-multiplication');
     }
     get rightMultiplicationElement() {
-        return (document.getElementById('right-multiplication') /*:: as any as HTMLInputElement */);
+        return document.getElementById('right-multiplication');
     }
-    setMult(rightOrLeft /*: string */) {
+    setMult(rightOrLeft) {
         this.viewModel.setRightMultiply(rightOrLeft == 'right');
     }
     update() {
@@ -772,12 +764,12 @@ class Chunking extends View {
         return document.getElementById('chunking-fog');
     }
     displayChunkingOptions() {
-        const choices /*: Array<{value: string, label?: html}> */ = [
+        const choices = [
             { value: '0', label: '(no chunking)' }
         ];
         if (this.viewModel.chunkingIsPossible) {
             this.viewModel.getChunkingChoices()
-                .forEach(({ subgroupIndex /*: number */, allGenerators /*: Array<groupElement> */ }) => {
+                .forEach(({ subgroupIndex, allGenerators }) => {
                 const allGeneratorsRepresentation = allGenerators.map((element) => this.group.representation[element]);
                 const label = (subgroupIndex === this.group.subgroups.length - 1)
                     ? 'The whole group'

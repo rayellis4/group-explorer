@@ -1,2 +1,2 @@
-export { display };
-declare function display(cyclicInfoElementId: any, group: any): void;
+import type { Group } from './Group.ts';
+export declare function display(cyclicInfoElementId: string, group: Group): void;

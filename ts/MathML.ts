@@ -1,4 +1,4 @@
-/* @flow
+/*
 # MathML utilities
 
 Most of the group names and element representations are defined in the .group files as MathML and transformed into HTML by routines in this class.
@@ -6,18 +6,9 @@ Most of the group names and element representations are defined in the .group fi
 A legacy routine no longer used in the body of GE3, `mathml2text` is maintained for use in [ge-lib-endmatter.js](./ge-lib-endmatter.js).
 ```js
 */
-export { toHTML, htmlToUnicode }
-export { mathml2text } // used in ge-lib-endmatter.js
-
-/*::
-declare class XSLTProcessor {
-   importStylesheet(Node): void;
-   transformToFragment(Node, Document): DocumentFragment;
-}
- */
 
 // Unicode characters for numeric subscripts, superscripts
-const Subscripts /*: {[key: string]: string} */ = {
+const Subscripts: {[key: string]: string} = {
   '0': '\u2080',
   '1': '\u2081',
   '2': '\u2082',
@@ -30,7 +21,7 @@ const Subscripts /*: {[key: string]: string} */ = {
   '9': '\u2089'
 }
 
-const Superscripts /*: {[key: string]: string } */ = {
+const Superscripts: {[key: string]: string } = {
   '0': '\u2070',
   '1': '\u00B9',
   '2': '\u00B2',
@@ -44,7 +35,7 @@ const Superscripts /*: {[key: string]: string } */ = {
   '-': '\u207B'
 }
 
-let xsltProcessor /*: XSLTProcessor */
+let xsltProcessor: XSLTProcessor
 
 // XSLT to transform MathML subset into HTML
 const MATHML_2_HTML =
@@ -141,7 +132,7 @@ const MATHML_2_HTML =
 
 ```js
 */
-function toHTML (mathml /*: ?string */) /*: ?html */ {
+export function toHTML (mathml?: string): Maybe<html> {
   if (mathml == null) {
     return null
   }
@@ -159,7 +150,7 @@ function toHTML (mathml /*: ?string */) /*: ?html */ {
   return result
 }
 
-function htmlToUnicode (html /*: html */) /*: ?string */ {
+export function htmlToUnicode (html: html): Maybe<string> {
   const domParser = new DOMParser()
   const document = domParser.parseFromString(html, 'text/html')
 
@@ -175,7 +166,7 @@ function htmlToUnicode (html /*: html */) /*: ?string */ {
   return result
 }
 
-function mathml2text (mathml /*: string */) /*: ?string */ {
+export function mathml2text (mathml: string): Maybe<string> {
   const htmlFromMathML = toHTML(mathml)
   return (htmlFromMathML == null) ? null : htmlToUnicode(htmlFromMathML)
 }

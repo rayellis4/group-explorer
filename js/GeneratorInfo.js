@@ -1,16 +1,6 @@
-/* @flow
-
-# GeneratorInfo
-
-A [GroupInfo](./GroupInfo.html.md) component that displays the group's generators.
-
-```javascript
- */
-export { display };
-function display(generatorElementId, group) {
+export function display(generatorElementId, group) {
     const generatorElement = document.getElementById(generatorElementId);
     generatorElement.innerHTML = makeGeneratorContent(group);
-    // rebuild content on representation change
     generatorElement.closest('.all-info')
         .addEventListener('representationChange', () => generatorElement.innerHTML = makeGeneratorContent(group));
 }
@@ -30,7 +20,7 @@ function makeGeneratorContent(group) {
             return acc + `, ${rep}`;
         }
     }, '');
-    const generatorLines = (group.declaredGenerators?.length > 0)
+    const generatorLines = (group.declaredGenerators != null && group.declaredGenerators.length > 0)
         ? group.declaredGenerators.map((gen) => `<li>${generatorLine(gen)}</li>`).join('')
         : `<li>${generatorLine(group.generators)}</li>`;
     const generatorDisplay = `<details>

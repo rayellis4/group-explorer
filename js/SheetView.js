@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # SheetView
 
@@ -7,7 +7,7 @@ The View part of the Sheet Model-View-Controller structure.
 ```javascript
  */
 /* global DOMRect MouseEvent ResizeObserver TouchEvent Touch */
-import { THREE } from '../lib/externals.js';
+import * as THREE from '../lib/externals.js';
 import { CayleyDiagramModel } from './CayleyDiagramModel.js';
 import { layoutCayleyDiagram, getDefaultStrategies } from './CayleyDiagramGenerator.js';
 import { createStaticCayleyDiagramView } from './CayleyDiagramView.js';
@@ -16,20 +16,20 @@ import { createLargeCycleGraphView } from './CycleGraphView.js';
 import { createModelProxy } from './GEUtils.js';
 import { MulttableModel } from './MulttableModel.js';
 import { createLargeMulttableView } from './MulttableView.js';
-let Graphic /*: HTMLElement */ = null;
-export let graphicRect /*: DOMRect */ = new DOMRect(0, 0, 0, 0);
-let PixelsPerModelUnit /*: float */ = 0;
-export let zoomFactor /*: float */ = 1;
-let panVector; /*: THREE.Vector2 */ // pan offset in graphic pixels
-let _view /*: ?View */ = null; // set by View constructor; used by module-level functions
+let Graphic;
+export let graphicRect = new DOMRect(0, 0, 0, 0);
+let PixelsPerModelUnit = 0;
+export let zoomFactor = 1;
+let panVector; // pan offset in graphic pixels
+let _view = null; // set by View constructor; used by module-level functions
 export function init() {
     Graphic = document.getElementById('graphic');
-    graphicRect = ((Graphic.getBoundingClientRect() /*: any */) /*: DOMRect */);
+    graphicRect = Graphic.getBoundingClientRect();
     PixelsPerModelUnit = Math.min(graphicRect.width, graphicRect.height);
     panVector = new THREE.Vector2();
     new ResizeObserver((entries) => {
         if (entries.findIndex((entry) => entry.target.id === 'graphic') !== -1) {
-            graphicRect = ((Graphic.getBoundingClientRect() /*: any */) /*: DOMRect */);
+            graphicRect = Graphic.getBoundingClientRect();
         }
     }).observe(document.getElementById('graphic'));
 }
@@ -40,16 +40,17 @@ export function init() {
 function graphicCenter() {
     return new THREE.Vector2(graphicRect.width, graphicRect.height).multiplyScalar(0.5);
 }
-export function modelToDisplay(pt /*: THREE.Vector2 */) {
+export function modelToDisplay(pt) {
     const center = graphicCenter();
     return pt.clone().sub(center).multiplyScalar(zoomFactor).add(center).add(panVector);
 }
-export function displayToModel(pt /*: THREE.Vector2 */) {
+export function displayToModel(pt) {
     const center = graphicCenter();
     return pt.clone().sub(panVector).sub(center).multiplyScalar(1 / zoomFactor).add(center);
 }
-export function fromEvent(event /*: MouseEvent | TouchEvent | Touch */) {
-    let windowX, windowY;
+export function fromEvent(event) {
+    let windowX = 0;
+    let windowY = 0;
     if (event instanceof MouseEvent
         || (typeof Touch !== 'undefined' && event instanceof Touch)) {
         windowX = event.clientX;
@@ -74,22 +75,22 @@ export function fromEvent(event /*: MouseEvent | TouchEvent | Touch */) {
     return displayToModel(new THREE.Vector2(windowX - graphicRect.x, windowY - graphicRect.y));
 }
 // pan Sheet by {dx, dy} display pixels
-export function pan(dx /*: float */, dy /*: float */) {
+export function pan(dx, dy) {
     panVector.set(panVector.x + dx, panVector.y + dy);
     updateTransforms();
 }
-export function zoom(scaleFactor /*: float */) {
+export function zoom(scaleFactor) {
     zoomFactor *= scaleFactor;
     updateTransforms();
 }
 export function redrawAll() {
-    graphicRect = ((Graphic.getBoundingClientRect() /*: any */) /*: DOMRect */);
+    graphicRect = Graphic.getBoundingClientRect();
     PixelsPerModelUnit = Math.min(graphicRect.width, graphicRect.height);
     panVector.set(0, 0);
     zoomFactor = 1;
     updateTransforms();
     _view?.viewElements.forEach((viewEl) => {
-        if (viewEl.modelElement?.isLink)
+        if ('isLink' in viewEl.modelElement)
             viewEl.redraw();
     });
     setTimeout(() => redrawNodes(), 0);
@@ -99,20 +100,20 @@ function updateTransforms() {
 }
 function redrawNodes() {
     _view?.viewElements.forEach((viewEl) => {
-        if (viewEl.modelElement?.isNode)
+        if ('isNode' in viewEl.modelElement)
             viewEl.redraw();
     });
 }
-export function redrawLinksFor(modelElement /*: SheetModel.NodeElement */) {
+export function redrawLinksFor(modelElement) {
     _view?.viewElements.forEach((viewEl) => {
-        if (viewEl.modelElement?.isLink
-            && (viewEl.modelElement.source?.id === modelElement.id
-                || viewEl.modelElement.destination?.id === modelElement.id)) {
+        if ('isLink' in viewEl.modelElement
+            && (viewEl.modelElement.source.id === modelElement.id
+                || viewEl.modelElement.destination.id === modelElement.id)) {
             viewEl.redraw();
         }
     });
 }
-function makeCssTransform(scale /*: THREE.Vector2 | float */ = new THREE.Vector2(1, 1), direction /*: THREE.Vector2 */ = new THREE.Vector2(1, 0), position /*: THREE.Vector2 */ = new THREE.Vector2() // display coords, or model coords within a zoomed container
+function makeCssTransform(scale = new THREE.Vector2(1, 1), direction = new THREE.Vector2(1, 0), position = new THREE.Vector2() // display coords, or model coords within a zoomed container
 ) {
     scale = (typeof scale === 'number') ? new THREE.Vector2(scale, scale) : scale;
     return `matrix(${scale.x * direction.x}, ${scale.x * direction.y},
@@ -121,8 +122,8 @@ function makeCssTransform(scale /*: THREE.Vector2 | float */ = new THREE.Vector2
 }
 export class View {
     viewModel;
-    viewElements /*: Map<string, SheetView> */ = new Map();
-    constructor(viewModel, rootElement) {
+    viewElements = new Map();
+    constructor(viewModel, _rootElement) {
         init();
         _view = this;
         this.viewModel = viewModel;
@@ -163,7 +164,7 @@ export class View {
     }
     removeElement(modelElement) {
         const sheetViewElement = this.viewElements.get(modelElement.id);
-        sheetViewElement.destroy();
+        sheetViewElement?.destroy();
         this.viewElements.delete(modelElement.id);
     }
     clear() {
@@ -182,56 +183,49 @@ export class View {
     }
     getVisualizerJSON(modelElement) {
         const viewElement = this.viewElements.get(modelElement.id);
-        return viewElement.getVisualizerJSON();
+        return viewElement?.getVisualizerJSON();
     }
     updateVisualizer(modelElement, json) {
         const viewElement = this.viewElements.get(modelElement.id);
-        viewElement.updateFromJSON(json);
+        viewElement?.updateFromJSON(json);
         this.#redrawLinks(modelElement);
     }
     #redrawLinks(modelElement) {
         this.viewElements.forEach((viewEl) => {
-            if (viewEl.modelElement?.isLink
-                && (viewEl.modelElement.source?.id === modelElement.id
-                    || viewEl.modelElement.destination?.id === modelElement.id)) {
+            if ('isLink' in viewEl.modelElement
+                && (viewEl.modelElement.source.id === modelElement.id
+                    || viewEl.modelElement.destination.id === modelElement.id)) {
                 viewEl.redraw();
             }
         });
     }
 }
-class SheetView {
-    view; /*: View */
-    modelElement; /*: SheetModel.SheetElement */
-    domElement; /*: HTMLElement */
-    constructor(view /*: View */, modelElement /*: SheetModel.SheetElement */, domElement /*: HTMLElement */) {
+export class SheetView {
+    view;
+    modelElement;
+    domElement;
+    constructor(view, modelElement, domElement) {
         this.view = view;
         this.modelElement = modelElement;
         this.domElement = domElement || document.createElement('div');
-        this.domElement.setAttribute('id', this.modelElement.id);
-        this.domElement.classList.add(this.modelElement.className);
+        this.domElement.setAttribute('id', modelElement.id);
+        this.domElement.classList.add(modelElement.className);
         this.domElement.style.position = 'absolute';
-        this.domElement.style.left = 0;
-        this.domElement.style.top = 0;
-        this.domElement.style.zIndex = modelElement.z;
+        this.domElement.style.left = '0';
+        this.domElement.style.top = '0';
+        this.domElement.style.zIndex = modelElement.z.toString();
         this.domElement.style.transformOrigin = 'top left';
         Graphic.append(this.domElement);
     }
-    // redraw element
-    redraw() { }
-    // retransform element to position and scale
-    updateTransform() { }
     destroy() {
         this.domElement.remove();
     }
     updateZ() {
-        this.domElement.style.zIndex = this.modelElement.z;
+        this.domElement.style.zIndex = this.modelElement.z.toString();
     }
 }
-class NodeView extends SheetView {
-    /*::
-      +modelElement: SheetModel.NodeElement
-    */
-    constructor(view /*: View */, modelElement /*: SheetModel.NodeElement */, domElement /*: HTMLElement */) {
+export class NodeView extends SheetView {
+    constructor(view, modelElement, domElement) {
         super(view, modelElement, domElement);
         this.domElement.classList.add('draggable');
         this.domElement.classList.add('NodeElement');
@@ -249,11 +243,8 @@ class NodeView extends SheetView {
         return new THREE.Vector2(this.modelElement.w, this.modelElement.h);
     }
 }
-class TextView extends NodeView {
-    /*::
-      +modelElement: SheetModel.TextElement
-    */
-    constructor(view /*: View */, modelElement /*: SheetModel.TextElement */, domElement /*: HTMLElement */) {
+export class TextView extends NodeView {
+    constructor(view, modelElement, domElement) {
         super(view, modelElement, domElement);
         this.domElement.style.display = 'flex';
         this.domElement.style.flexDirection = 'column';
@@ -277,7 +268,7 @@ class TextView extends NodeView {
             this.domElement.style.width = `${this.modelElement.w}px`;
             this.domElement.style.height = `${this.modelElement.h}px`;
             this.domElement.style.backgroundColor = backgroundCss;
-            this.domElement.style.padding = 0;
+            this.domElement.style.padding = '0';
             this.domElement.style.minHeight = '';
             contentElement.textContent = '';
             this.updateTransform();
@@ -287,8 +278,8 @@ class TextView extends NodeView {
         this.domElement.style.backgroundColor = backgroundCss;
         this.domElement.style.color = this.modelElement.fontColor;
         this.domElement.style.fontSize = this.modelElement.fontSize;
-        this.domElement.style.lineHeight = 1.2;
-        this.domElement.style.zIndex = this.modelElement.z;
+        this.domElement.style.lineHeight = '1.2';
+        this.domElement.style.zIndex = this.modelElement.z.toString();
         contentElement.style.textAlign = this.modelElement.alignment;
         contentElement.style.marginLeft = (this.modelElement.alignment == 'left') ? '0' : 'auto';
         contentElement.style.marginRight = (this.modelElement.alignment == 'right') ? '0' : 'auto';
@@ -322,14 +313,11 @@ class TextView extends NodeView {
         this.updateTransform();
     }
 }
-class VisualizerView extends NodeView {
-    unitSquarePositions; /*: Array<THREE.Vector2> */
-    lastZoom; /*: float */
-    /*::
-     +modelElement: SheetModel.VisualizerElement
-     +domElement: HTMLCanvasElement
-    */
-    constructor(view /*: View */, modelElement /*: SheetModel.VisualizerElement */, domElement /*: HTMLElement */) {
+export class VisualizerView extends NodeView {
+    unitSquarePositions;
+    lastZoom;
+    _highlightSubscriber;
+    constructor(view, modelElement, domElement) {
         super(view, modelElement, domElement);
         this.domElement.classList.add('VisualizerElement');
     }
@@ -354,10 +342,12 @@ class VisualizerView extends NodeView {
     }
     get highlightModelProxy() {
         if (this._highlightSubscriber == null) {
-            let debounceTimer = null;
+            let debounceTimer;
             this._highlightSubscriber = {
                 update: (field, value) => {
-                    if (field === 'highlightColors' || (field === 'highlightControl' && value?.nextId != null)) {
+                    if (value != null
+                        && (field === 'highlightColors'
+                            || (field === 'highlightControl' && value?.nextId != null))) {
                         clearTimeout(debounceTimer);
                         debounceTimer = setTimeout(() => {
                             this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.());
@@ -374,11 +364,9 @@ class VisualizerView extends NodeView {
         return this.visualizer.toJSON();
     }
 }
-class CGView extends VisualizerView {
-    /*::
-      +modelElement: SheetModel.CGElement
-    */
-    constructor(view /*: View */, modelElement /*: SheetModel.CGElement */) {
+export class CGView extends VisualizerView {
+    cgViewModel;
+    constructor(view, modelElement) {
         const cgModel = createModelProxy(new CycleGraphModel(modelElement.group));
         if (modelElement.highlightColors != null) {
             cgModel.highlightColors = modelElement.highlightColors;
@@ -395,11 +383,9 @@ class CGView extends VisualizerView {
         return this.cgViewModel;
     }
 }
-class MTView extends VisualizerView {
-    /*::
-      +modelElement: SheetModel.MTElement
-    */
-    constructor(view /*: View */, modelElement /*: SheetModel.MTElement */) {
+export class MTView extends VisualizerView {
+    mtViewModel;
+    constructor(view, modelElement) {
         const mtModel = createModelProxy(new MulttableModel(modelElement.group));
         if (modelElement.highlightColors != null) {
             mtModel.highlightColors = modelElement.highlightColors;
@@ -422,11 +408,12 @@ class MTView extends VisualizerView {
         return this.mtViewModel;
     }
 }
-class CDView extends VisualizerView {
+export class CDView extends VisualizerView {
+    _highlightModelProxy;
     savedVisualizerJSON;
-    static #sharedViewModel /*: CayleyDiagramViewModel */ = null;
-    static #activeView /*: ?CDView */ = null;
-    constructor(view /*: View */, modelElement /*: SheetModel.CDElement */) {
+    static #sharedViewModel = null;
+    static #activeView = null;
+    constructor(view, modelElement) {
         super(view, modelElement, document.createElement('canvas'));
         this.redraw();
     }
@@ -476,14 +463,15 @@ class CDView extends VisualizerView {
             this.savedVisualizerJSON = this.#initFromVisualizer(cdViewModel);
             CDView.#sharedViewModel = cdViewModel;
         }
-        else { // have a shared view model
+        else { // shared view model already made
             if (CDView.#activeView != null) {
                 CDView.#activeView.savedVisualizerJSON = CDView.#sharedViewModel.toJSON();
             }
             if (this.savedVisualizerJSON == null) { // first time through
-                const visualizer = this.modelElement.visualizer; // remove after use? it's no longer golden
+                // visualizer is JSON object -- remove after use? it's no longer golden
+                const visualizer = this.modelElement.visualizer;
                 if (CDView.#sharedViewModel.group == this.modelElement.group
-                    && visualizer?.view_state == null
+                    && (visualizer == null || visualizer?.view_state == null)
                     && this.modelElement.diagramControl?.strategy_parameters == null
                     && this.modelElement.highlightColors != null) { // fast path: same group, no stored layout — just apply highlights
                     CDView.#sharedViewModel.model.highlightColors = this.modelElement.highlightColors;
@@ -500,9 +488,11 @@ class CDView extends VisualizerView {
                 }
             }
             else if (CDView.#sharedViewModel.group == this.modelElement.group
-                && this.modelElement.visualizer?.view_state == null
+                && (this.modelElement.visualizer == null
+                    || this.modelElement.visualizer.view_state == null)
                 && this.modelElement.diagramControl?.strategy_parameters == null
-                && CDView.#activeView?.modelElement.visualizer?.view_state == null
+                && (CDView.#activeView?.modelElement.visualizer == null
+                    || CDView.#activeView.modelElement.visualizer.view_state == null)
                 && CDView.#activeView?.modelElement.diagramControl?.strategy_parameters == null) { // fast path: same group, both elements clean — only update highlights
                 CDView.#sharedViewModel.model.highlightColors = this.modelElement.highlightColors;
             }
@@ -537,6 +527,9 @@ class CDView extends VisualizerView {
                         this.visualizer.model.highlightControl = value.toJSON();
                         this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.());
                     }
+                    else if (field === 'highlightControl') {
+                        // debugger  // FIXME -- why should this ever occur? see HighlightControlViewModel set model 
+                    }
                 }
             };
             model.$subscribe(this._highlightSubscriber, 'highlightColors');
@@ -570,8 +563,8 @@ class CDView extends VisualizerView {
         this.visualizer.setSize(size.x, size.y);
         this.visualizer.view.rescaleLines();
         this.visualizer.showGraphic();
-        this.domElement.setAttribute('width', size.x);
-        this.domElement.setAttribute('height', size.y);
+        this.domElement.setAttribute('width', size.x.toString());
+        this.domElement.setAttribute('height', size.y.toString());
         const context = this.domElement.getContext('2d');
         context.drawImage(this.visualizer.view.canvas, 0, 0);
         this.unitSquarePositions = CDView.#sharedViewModel.unitSquarePositions();
@@ -579,8 +572,10 @@ class CDView extends VisualizerView {
     restoreHighlights(snapshot) {
         this.modelElement.highlightColors[0] = snapshot;
         if (CDView.#activeView === this) {
+            ;
             CDView.#sharedViewModel.model.highlightColors = this.modelElement.highlightColors;
-            CDView.#sharedViewModel.model.$touch('highlightColors');
+            CDView.#sharedViewModel.model
+                .$touch('highlightColors');
         }
         else {
             this.savedVisualizerJSON = null; // force fast path on next access (reads from modelElement)
@@ -599,15 +594,13 @@ class CDView extends VisualizerView {
 }
 const LINE_LEN = 40;
 class Arrow {
-    /*::
-      static PIXELS_PER_INCH: number
-      line: HTMLCanvasElement
-      head: HTMLCanvasElement
-      lineWidth: float
-      color: color
-      highlightColor: color
-    */
-    constructor(container /*: HTMLElement */, lineWidth /*: number */ = 1, color /*: color */ = 'black') {
+    static PIXELS_PER_INCH;
+    line;
+    head;
+    lineWidth;
+    color;
+    highlightColor;
+    constructor(container, lineWidth = 1, color = 'black') {
         this.line = document.createElement('canvas');
         this.line.setAttribute('width', `${LINE_LEN}px`);
         this.line.style.position = 'absolute';
@@ -632,8 +625,10 @@ class Arrow {
         }
         this.drawBase(lineWidth, color);
     }
-    drawBase(lineWidth /*: float */, color /*: color */) {
-        if (this.lineWidth === lineWidth && this.line.getContext('2d').strokeStyle == color && this.highlightColor == null) {
+    drawBase(lineWidth, color) {
+        if (this.lineWidth === lineWidth
+            && this.line.getContext('2d').strokeStyle == color
+            && this.highlightColor == null) {
             return;
         }
         const ACTIVE_WIDTH = Math.ceil(Arrow.PIXELS_PER_INCH / 20) * 2;
@@ -662,8 +657,8 @@ class Arrow {
         headContext.closePath();
         headContext.fill();
     }
-    update(start /*: THREE.Vector2 */, // model coords; container div is CSS-scaled by zoomFactor so these map correctly to display pixels
-    end /*: THREE.Vector2 */, lineWidth /*: number */ = 1, headOffset /*: float */ = 1, color /*: color */ = 'black') {
+    update(start, // model coords; container div is CSS-scaled by zoomFactor so these map correctly to display pixels
+    end, lineWidth = 1, headOffset = 1, color = 'black') {
         const FOUR = 4;
         this.drawBase(lineWidth * FOUR, color);
         const hasArrowhead = (this.head.style.display !== 'none');
@@ -691,11 +686,9 @@ class Arrow {
                 ${lineCenter.x}, ${lineCenter.y})`;
     }
 }
-class LinkView extends SheetView {
-    /*::
-      +modelElement: SheetModel.LinkElement
-    */
-    constructor(view /*: View */, modelElement /*: SheetModel.LinkElement */) {
+export class LinkView extends SheetView {
+    arrow;
+    constructor(view, modelElement) {
         super(view, modelElement);
         this.domElement.classList.add('LinkElement');
     }
@@ -726,12 +719,8 @@ class LinkView extends SheetView {
     }
 }
 /* Connector is constructed from a <div> containing a single Arrow */
-class ConnectingView extends LinkView {
-    /*::
-      +modelElement: SheetModel.ConnectingElement
-      arrow: Arrow
-    */
-    constructor(view /*: View */, modelElement /*: SheetModel.ConnectingElement */) {
+export class ConnectingView extends LinkView {
+    constructor(view, modelElement) {
         super(view, modelElement);
         Graphic.append(this.domElement);
         this.arrow = new Arrow(this.domElement, modelElement.thickness, modelElement.color);
@@ -761,16 +750,12 @@ class ConnectingView extends LinkView {
  *    a single Arrow from the source group visualizer to the target (showManyArrows = false)
  *    an Array of Arrows from each element in the source visualizer to its mapping in the target (showManyArrows = true)
  */
-class MorphismView extends LinkView {
-    /*::
-      +modelElement: SheetModel.MorphismElement
-      label: HTMLElement
-      arrow: Arrow
-      arrows: Array<Arrow>
-      position: THREE.Vector2
-      labelContent: html
-    */
-    constructor(view /*: View */, modelElement /*: SheetModel.MorphismElement */) {
+export class MorphismView extends LinkView {
+    label;
+    arrows;
+    position;
+    labelContent;
+    constructor(view, modelElement) {
         super(view, modelElement);
         this.domElement.style.pointerEvents = 'none';
         this.label = document.createElement('div');
@@ -786,9 +771,21 @@ class MorphismView extends LinkView {
         this.label.style.position = 'absolute';
         this.label.style.pointerEvents = 'auto';
         this.label.style.transformOrigin = 'top left';
-        this.label.style.zIndex = 1;
+        this.label.style.zIndex = '1';
         this.domElement.append(this.label);
         this.redraw();
+    }
+    get destination() {
+        return this.modelElement.destination;
+    }
+    get destinationView() {
+        return this.view.viewElements.get(this.destination.id);
+    }
+    get source() {
+        return this.modelElement.source;
+    }
+    get sourceView() {
+        return this.view.viewElements.get(this.modelElement.source.id);
     }
     updateTransform() {
         const source = this.source;
@@ -821,7 +818,7 @@ class MorphismView extends LinkView {
         this.label.style.transform = makeCssTransform(1, undefined, topLeftCorner);
     }
     getLabel() {
-        let html = this.modelElement.name;
+        let html = this.modelElement.morphismName;
         if (this.modelElement.showDomainAndCodomain) {
             html += ` : ${this.modelElement.source.group.name} ⟶ ${this.modelElement.destination.group.name}`;
         }
@@ -829,7 +826,7 @@ class MorphismView extends LinkView {
             html += this.modelElement.mapping
                 ?.definingPairs
                 .map(([g, h]) => {
-                return `<br>${this.modelElement.name}(${this.source.group.representation[g]}) = ${this.destination.group.representation[h]}`;
+                return `<br>${this.modelElement.morphismName}(${this.source.group.representation[g]}) = ${this.destination.group.representation[h]}`;
             })
                 .join('');
         }
@@ -857,7 +854,7 @@ class MorphismView extends LinkView {
             }
         }
         // make sure z-index of main arrow is under starting visualizer to terminate it cleanly
-        this.domElement.style.zIndex = this.modelElement.z;
+        this.domElement.style.zIndex = this.modelElement.z.toString();
         const [enter, exit] = this.getCrossingEndpoints().map((v) => v.sub(this.position));
         const lineLength = enter.distanceTo(exit);
         const padding = LINE_WIDTH + 0.5 * Math.sqrt(0.1 * LINE_WIDTH * lineLength);
@@ -867,12 +864,12 @@ class MorphismView extends LinkView {
     }
     drawManyLines() {
         const LINE_COLOR = 'black';
-        const source = ((this.source /*: any */) /*: SheetModel.VisualizerElement */);
-        const destination = ((this.destination /*: any */) /*: SheetModel.VisualizerElement */);
+        const source = this.source;
+        const destination = this.destination;
         const LINE_WIDTH = Math.max(Math.min(Math.min(source.w, destination.w) / 200, 2), 1);
         // create mapping arrows if they don't exist
         if (this.arrows === undefined) {
-            this.arrows = Array.from({ length: ((source /*: any */) /*: SheetModel.VisualizerElement */).group.order }, () => new Arrow(this.domElement, LINE_WIDTH, LINE_COLOR));
+            this.arrows = Array.from({ length: source.group.order }, () => new Arrow(this.domElement, LINE_WIDTH, LINE_COLOR));
         }
         // display mapping arrows if they're hidden
         if (this.arrows[0].line.style.display === 'none') {
@@ -887,7 +884,7 @@ class MorphismView extends LinkView {
             this.arrow.head.style.display = 'none';
         }
         // make sure z-index of arrows displays them on top of the visualizers
-        this.domElement.style.zIndex = this.modelElement.z;
+        this.domElement.style.zIndex = this.modelElement.z.toString();
         // get mapping
         const mapping = this.modelElement.mapping.fullMapping;
         // get unitSquarePosition for source and destination visualizers
@@ -935,8 +932,9 @@ class MorphismView extends LinkView {
                     highlightColor = this.modelElement.source.viewElement.visualizer.model.highlightColors[0]?.[inx];
                 }
                 else {
-                    const destinationIndex = this.modelElement.mapping.image[inx];
-                    highlightColor = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]?.[destinationIndex];
+                    const destinationIndex = this.modelElement.mapping.image[inx]; // FIXME?
+                    highlightColor =
+                        this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]?.[destinationIndex];
                 }
                 if (highlightColor == null) {
                     arrowColor = LINE_COLOR;

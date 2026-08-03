@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # ClassEquationInfo
 
@@ -10,35 +10,20 @@ class informaation.
 import * as GEUtils from './GEUtils.js';
 import * as SheetModel from './SheetModel.js';
 
-export {display}
+import type { Group } from './Group.ts'
 
-/*::
-import {Group} from './Group.js'
-
-import type {
-    JSONType,
-    SheetElementJSON,
-    RectangleElementJSON,
-    TextElementJSON,
-    VisualizerType,
-    VisualizerElementJSON,
-    ConnectingElementJSON,
-    MorphismElementJSON
-} from './SheetModel.js';
- */
-
-function display (classEquationInfoElementId, group) {
-   const classEquationInfoElement = document.getElementById(classEquationInfoElementId)
+export function display (classEquationInfoElementId: string, group: Group) {
+   const classEquationInfoElement = document.getElementById(classEquationInfoElementId) as HTMLElement
    classEquationInfoElement.innerHTML = makeClassEquationContent(group)
 
    GEUtils.createActionHandler(classEquationInfoElement, (action) => eval(action))
 
    // rebuild content on representation change
-   classEquationInfoElement.closest('.all-info')
+   ;(classEquationInfoElement.closest('.all-info') as HTMLElement)
       .addEventListener('representationChange', () => classEquationInfoElement.innerHTML = makeClassEquationContent(group))
 }
 
-function makeClassEquationContent (group) {
+function makeClassEquationContent (group: Group) {
    const htmlFragments = [
       `<details>
           <summary>
@@ -84,7 +69,7 @@ function makeClassEquationContent (group) {
    return htmlFragments.join('')
 }
 
-function classEquation (group) {
+function classEquation (group: Group) {
    if (group.order > 5 && group.conjugacyClasses.every( (el) => el.popcount() == 1 )) {
       return `1 + 1 + ... (${group.order} times) ... + 1 = ${group.order}`
    } else {
@@ -95,13 +80,14 @@ function classEquation (group) {
    }
 }
 
-function addHighlights (group, i /*: number */, array /*: ?Array<null | void | color> */) /*: Array<null | void | color> */ {
-    if ( !array ) array = (Array( group.order ).fill('') /*: Array<null | void | string> */);
-    return array.map( ( e, j ) => group.conjugacyClasses[i].isSet( j ) ? GEUtils.fromRainbow( i / group.conjugacyClasses.length ) : e );
+function addHighlights (group: Group, i: integer, array: void | Maybe<color>[]): Maybe<color>[] {
+    array ??= Array(group.order).fill('')
+    return array.map((el, inx) =>
+      group.conjugacyClasses[i].isSet(inx) ? GEUtils.fromRainbow(i / group.conjugacyClasses.length) : el)
 }
 
-function showAsSheet (group, type /*: VisualizerType*/) {
-    const n = group.conjugacyClasses.length
+function showAsSheet (group:Group, type: SheetModel.VisualizerType) {
+   const n = group.conjugacyClasses.length
     // If the group is abelian, it may have an equation like
     // 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1=17, which we want to abbreviate
     // as 1+1+1+...+1=17, so we have "fake" values of n and i:
@@ -122,7 +108,7 @@ function showAsSheet (group, type /*: VisualizerType*/) {
     const L = (window.innerWidth - SheetModel.sheetPanelWidth() - totalW) / 2
     const T = 0.4 * (window.innerHeight - numH - H)
 
-    const sheetElementsAsJSON = []
+    const sheetElementsAsJSON: SheetModel.SheetJSON[] = []
 
     for (let i = 0; i < fakeN; i++) {
         const fakeIndex = (fakeN == n) ? i
@@ -164,8 +150,9 @@ function showAsSheet (group, type /*: VisualizerType*/) {
     const lastX = L + fakeN * (W + opW)
     const numY = T
     const vizY = T + numH
-    let highlights = null
-    for (let i = 0; i < n; i++) highlights = addHighlights(group, i, highlights)
+    const highlights: Maybe<color>[] = Array(group.order).fill('')
+    for (let i = 0; i < n; i++)
+        addHighlights(group, i, highlights)
     sheetElementsAsJSON.push(
         { className: 'TextElement', x: lastX, y: numY, w: W, h: numH,
           text: `${group.order}`,

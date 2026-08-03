@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # UserNoteInfo
 
@@ -11,8 +11,7 @@ the GE3 pages, and persist across GE3 invocations.
  */
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js';
-export { display };
-function display(userNotesElementId, group) {
+export function display(userNotesElementId, group) {
     const userNotesElement = document.getElementById(userNotesElementId);
     userNotesElement.querySelector('details').insertAdjacentHTML('beforeend', `<div id="user-name">
           <details>
@@ -61,18 +60,20 @@ function closeNotesDisplay(group) {
     document.querySelector('#user-notes details').open = false;
 }
 function showNotes(notes) {
-    document.querySelector('#user-notes span.summary').innerHTML = (notes.length != 0) ? notes.slice(0, 80) : '<i>none</i>';
+    ;
+    document.querySelector('#user-notes span.summary').innerHTML = // FIXME?
+        (notes.length != 0) ? notes.slice(0, 80) : '<i>none</i>';
     const userNotesDisplay = document.getElementById('user-notes-display');
     if (userNotesDisplay != null) {
         userNotesDisplay.innerHTML = (notes == null || notes === '') ? '<i>none</i>' : notes;
     }
 }
 function previewNotes() {
-    const notes = document.getElementById('user-notes-edit').querySelector('textarea').value;
+    const notes = (document.getElementById('user-notes-edit')?.querySelector('textarea')).value;
     showNotes(notes);
 }
 function saveNotesEdit(group) {
-    group.userNotes = document.getElementById('user-notes-edit').querySelector('textarea').value;
+    group.userNotes = (document.getElementById('user-notes-edit')?.querySelector('textarea')).value;
     Library.saveGroup(group);
     closeNotesDisplay(group);
 }
@@ -100,15 +101,16 @@ function clearNameEditor() {
     previewName();
 }
 function previewName() {
-    const name = document.getElementById('user-name-edit').querySelector('textarea').value;
+    const name = (document.getElementById('user-name-edit')?.querySelector('textarea')).value;
     showName((name.length == 0) ? null : name);
 }
 function saveNameEdit(group) {
-    group.customName = document.getElementById('user-name-edit').querySelector('textarea').value;
+    group.customName = (document.getElementById('user-name-edit')?.querySelector('textarea')).value;
     Library.saveGroup(group);
     closeNameDisplay(group);
     // Notify dependent display elements when changing the group name
     const representationChangeEvent = new CustomEvent('representationChange', {});
-    document.getElementById('user-name-edit').closest('.all-info').dispatchEvent(representationChangeEvent);
+    const allInfoElement = document.getElementById('user-name-edit')?.closest('.all-info');
+    allInfoElement.dispatchEvent(representationChangeEvent);
 }
 //# sourceMappingURL=UserNoteInfo.js.map

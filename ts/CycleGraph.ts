@@ -1,41 +1,44 @@
-// @flow
+/*
+# CycleGraph
 
-import {ControlPanel} from './ControlPanel.js'
-import {CycleGraphModel} from'./CycleGraphModel.js'
-import {createInteractiveCycleGraphView} from './CycleGraphView.js'
-import {createModelProxy} from './GEUtils.js'
+Assembles large cycle graph visualizer html page
+
+```js
+ */
+
+import { ControlPanel } from './ControlPanel.js'
+import { CycleGraphModel } from'./CycleGraphModel.js'
+import { createInteractiveCycleGraphView } from './CycleGraphView.js'
+import { createModelProxy } from './GEUtils.js'
 import * as Heading from './Heading.js'
 import * as HighlightControl from './HighlightControl.js';
 import * as Library from './Library.js'
 import * as SheetEditor from './SheetEditor.js'
 import * as Log from './Log.js'
 
-export {load}
+import type { CycleGraphJSON } from './CycleGraphModel.ts'
+import type { SubscriptionProxy } from './GEUtils.js'
+import type { Group } from './Group.js'
 
-/*::
-import type {Group} from './Group.js'
-import type {Updatable} from './CycleGraphModel.js'
- */
-
-async function load () {
+export async function load () {
    // Add top level HTML
    insertHTML()
 
    document.body.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
    // If this page is editing a sheet...
-   const {elementId, json: initialJSON} /*: unknown */ = await (window.location.href.includes('SheetEditor')
+   const {elementId, json: initialJSON} = (await (window.location.href.includes('SheetEditor')
       ? SheetEditor.getInitialData()
-      : {elementId: null, json: null})
+      : {elementId: null, json: null})) as {elementId: Maybe<string>, json: Maybe<CycleGraphJSON>}
 
    // Get group, either from page URL or data from Sheet
-   const group /*: Group */ = await ((initialJSON?.group_url == null)
+   const group = await ((initialJSON?.group_url == null)
       ? Library.loadFromPageURL()
-      : Library.getGroupByURL(initialJSON.group_url))
+      : Library.getGroupByURL(initialJSON.group_url)) as Group  // FIXME: refine error for typo in URL
 
    // Create Header
    Heading.display (
-      (document.getElementById('heading') /*:: as any as HTMLElement */),
+      (document.getElementById('heading') as HTMLElement),
       `Cycle Graph for ${group.name}`,
       () => [
          {label: 'Group Info', action: () => window.open(`GroupInfo.html?groupURL=${group.URL}`)},
@@ -47,7 +50,7 @@ async function load () {
    )
 
    // Create CycleGraph model
-   const cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */ = createModelProxy(new CycleGraphModel(group))
+   const cycleGraphModel: SubscriptionProxy<CycleGraphModel> = createModelProxy(new CycleGraphModel(group))
 
    // Create cycleGraphView in graphic div and attach to cycleGraphModel
    const cycleGraphViewModel = createInteractiveCycleGraphView(cycleGraphModel, {
@@ -63,17 +66,17 @@ async function load () {
       }
 
       SheetEditor.enableChangeBroadcast(() => {
-         return { elementId: elementId, json: cycleGraphModel.toJSON() }
+         return { elementId: elementId as string, json: cycleGraphModel.toJSON() }
       })
-      SheetEditor.listenForSheetUpdates((json) => cycleGraphModel.fromJSON(json))
+      SheetEditor.listenForSheetUpdates((json: CycleGraphJSON) => cycleGraphModel.fromJSON(json))
       window.setInterval(() => SheetEditor.broadcastChange(), 1000)
    }
 
    // Create Control Panel
-   ControlPanel.addPanel(document.getElementById('control-panel'))
+   ControlPanel.addPanel(document.getElementById('control-panel') as HTMLElement)
 
    // Initialize HighlightControl
-   const highlightControlElement = document.getElementById('highlight-control')
+   const highlightControlElement = document.getElementById('highlight-control') as HTMLElement
    HighlightControl.addControl(highlightControlElement, cycleGraphModel)
 
    // Register window resize handler

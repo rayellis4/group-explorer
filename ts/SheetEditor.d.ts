@@ -1,8 +1,10 @@
-export { broadcastChange, getInitialData, enableChangeBroadcast, listenForSheetUpdates };
-declare let broadcastChange: () => void;
-declare function getInitialData(): Promise<{
-    elementId: any;
-    json: any;
+export declare let broadcastChange: () => void;
+export declare function getInitialData(): Promise<{
+    elementId: string;
+    json: unknown;
 }>;
-declare function enableChangeBroadcast(jsonGenerator: any): void;
-declare function listenForSheetUpdates(fromJSONCallback: any): void;
+export declare function enableChangeBroadcast(jsonGenerator: () => {
+    elementId: string;
+    json: unknown;
+}): void;
+export declare function listenForSheetUpdates(fromJSONCallback: (json: any) => unknown): void;

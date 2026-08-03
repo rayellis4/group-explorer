@@ -1,8 +1,16 @@
+/*
+
+# SolvableInfo
+
+A [GroupInfo](./GroupInfo.html.md) component that displays information about a group's solvability,
+including displaying a solvable decomposition by Cayley diagrams, multiplication table, or cycle
+graph, on a [Sheet](./Sheet.html.md).
+
+```javascript
+ */
 import * as GEUtils from './GEUtils.js';
-import * as Library from './Library.js';
 import * as SheetModel from './SheetModel.js';
-export { display };
-function display(solvableGroupElementId, group) {
+export function display(solvableGroupElementId, group) {
     const solvableGroupElement = document.getElementById(solvableGroupElementId);
     solvableGroupElement.innerHTML = makeSolvableGroupContent(group);
     GEUtils.createActionHandler(solvableGroupElement, (action) => eval(action));
@@ -20,50 +28,32 @@ function makeSolvableGroupContent(group) {
             because it is <a href="./help/rf-groupterms/index.html#abelian-group">abelian</a>.</div>`);
     }
     else if (group.isSolvable) {
-        let decomposition /*: Decomposition */ = [];
-        try {
-            decomposition = findSolvableDecomposition(group.subgroups.at(-1));
-            const decompositionDisplay = decomposition
-                .map((H) => makeGroupRef(H.isomorphicGroup))
-                .join(' ⊲ '); // 'normal subgroup of' character, #22b2
-            decomposition.reverse().pop();
-            const decompositionExplained = decomposition.map((H, inx) => (inx == decomposition.length - 1)
-                ? `<div>The group ${makeGroupRef(H.isomorphicGroup)} is
-                     <a href="./help/rf-groupterms/index.html#abelian-group">abelian</a>.</div>`
-                : `<div>The <a href="./help/rf-groupterms/index.html#quotient-group">quotient</a> of
-                     ${makeGroupRef(H.isomorphicGroup)}</a> by its
-                     <a href="./help/rf-groupterms/index.html#normal-subgroup">normal subgroup</a>
-                     <i>H</i><sub>${H.isomorphicGroup.subgroups.indexOf(decomposition[inx + 1])}</sub>
-                     (<a href="./help/rf-groupterms/index.html#isomorphism-isomorphic">isomorphic</a> to
-                     ${makeGroupRef(decomposition[inx + 1].isomorphicGroup)}) gives
-                     ${makeGroupRef(decomposition[inx + 1].isomorphicQuotientGroup)}.</div>`);
-            htmlFragments.push(`<div class="indent-children">${group.name} is a
-               <a href="./help/rf-groupterms/index.html#solvable-group-solvable-decomposition">solvable</a>
-               group by the following solvable decomposition:
-               <div class="compact-lines">`, ...decompositionExplained, `</div>
-             </div>
-            <div>In summary, ${decompositionDisplay}.</div>
-            <div>You can see a diagram of all the groups in the solvable decomposition,
-               including quotient maps, by
-                  <a href="" data-action="showSolvableDecompositionSheet(group, 'CDElement')">Cayley diagram</a>,
-                  <a href="" data-action="showSolvableDecompositionSheet(group, 'CGElement')">cycle graph</a>, or
-                  <a href="" data-action="showSolvableDecompositionSheet(group, 'MTElement')">multiplication table</a>.
-             </div>`);
-        }
-        catch (err) {
-            const unknown_subgroup = decomposition.find((gr) => !'name' in gr);
-            htmlFragments.push(`<div>Group Explorer is currently unable to determine whether ${group.name} is a
-                <a href="./help/rf-groupterms/index.html#solvable-group-solvable-decomposition">solvable</a> group because
-                   it does not have access to all the groups it needs. For example, there is a
-                <a href="./help/rf-groupterms/index.html#normal-subgroup">normal subgroup</a>
-                  of order ${unknown_subgroup.order} that yields an
-                  <a href="./help/rf-groupterms/index.html#abelian-group">abelian</a>
-                  <a href="./help/rf-groupterms/index.html#quotient-group">quotient</a> group, but that is not
-                  <a href="./help/rf-groupterms/index.html#isomorphism-isomorphic">isomorphic</a> to any group in
-                  the library currently loaded.</div>
-              <div>You will need to more groups loaded (see <a href="">options window</a> for starters)
-              to make this computation possible.</div>`);
-        }
+        const decomposition = findSolvableDecomposition(group.subgroups.at(-1));
+        const decompositionDisplay = decomposition
+            .map((H) => makeGroupRef(H.isomorphicGroup))
+            .join(' ⊲ '); // 'normal subgroup of' character, #22b2
+        decomposition.reverse().pop();
+        const decompositionExplanation = decomposition.map((H, inx) => (inx == decomposition.length - 1)
+            ? `<div>The group ${makeGroupRef(H.isomorphicGroup)} is
+                  <a href="./help/rf-groupterms/index.html#abelian-group">abelian</a>.</div>`
+            : `<div>The <a href="./help/rf-groupterms/index.html#quotient-group">quotient</a> of
+                  ${makeGroupRef(H.isomorphicGroup)}</a> by its
+                  <a href="./help/rf-groupterms/index.html#normal-subgroup">normal subgroup</a>
+                  <i>H</i><sub>${H.isomorphicGroup.subgroups.indexOf(decomposition[inx + 1])}</sub>
+                  (<a href="./help/rf-groupterms/index.html#isomorphism-isomorphic">isomorphic</a> to
+                  ${makeGroupRef(decomposition[inx + 1].isomorphicGroup)}) gives
+                  ${makeGroupRef(decomposition[inx + 1].isomorphicQuotientGroup)}.</div>`);
+        htmlFragments.push(`<div class="indent-children">${group.name} is a
+             <a href="./help/rf-groupterms/index.html#solvable-group-solvable-decomposition">solvable</a>
+             group by the following solvable decomposition:
+             <div class="compact-lines">`, ...decompositionExplanation, `</div>
+          </div>
+          <div>In summary, ${decompositionDisplay}.</div>
+          <div>You can see a diagram of all the groups in the solvable decomposition, including quotient maps, by
+             <a href="" data-action="showSolvableDecompositionSheet(group, 'CDElement')">Cayley diagram</a>
+             <a href="" data-action="showSolvableDecompositionSheet(group, 'CGElement')">cycle graph</a>, or
+             <a href="" data-action="showSolvableDecompositionSheet(group, 'MTElement')">multiplication table</a>.
+          </div>`);
     }
     else {
         htmlFragments.push(`<div>${group.name} is not a
@@ -79,14 +69,8 @@ function makeSolvableGroupContent(group) {
       </details>`);
     return htmlFragments.join('');
 }
-function makeGroupRef(group /*: AugmentedGroup */) {
-    const g = (Library.getGroupByURL(group.URL) == null) ? group.isIsomorphicTo : group;
-    if (g != null && ('name' in group)) {
-        return `<a href="./GroupInfo.html?groupURL=${g.URL}" target="_blank">${g.name}</a>`;
-    }
-    else {
-        return '';
-    }
+function makeGroupRef(group) {
+    return `<a href="./GroupInfo.html?groupURL=${group.URL}" target="_blank">${group.name}</a>`;
 }
 function findSolvableDecomposition(subgroup) {
     let decomposition;
@@ -99,7 +83,7 @@ function findSolvableDecomposition(subgroup) {
     decomposition.push(subgroup);
     return decomposition;
 }
-function showSolvableDecompositionSheet(group /*: Group */, type /*: 'CDElement' | 'CGElement' | 'MTElement' */) {
+function showSolvableDecompositionSheet(group, type) {
     const D = findSolvableDecomposition(group.subgroups.at(-1));
     const panelWidth = SheetModel.sheetPanelWidth();
     const sheetHeight = window.innerHeight - document.getElementById('heading').offsetHeight;
@@ -129,7 +113,6 @@ function showSolvableDecompositionSheet(group /*: Group */, type /*: 'CDElement'
     const [s, l] = (type == 'CDElement') ? [0.53, .3] : [1, 0.8];
     let previousVizName;
     D.forEach((entry, index) => {
-        const previous = (index == 0) ? null : D[index - 1];
         const vizName = `viz-${index}`;
         // put name of group atop each element in top row, the decomposition
         sheetElementsAsJSON.push({
@@ -142,13 +125,14 @@ function showSolvableDecompositionSheet(group /*: Group */, type /*: 'CDElement'
         if (index == 0) {
             // trivial group: shrink to W/3 and center in column
             sheetElementsAsJSON.push({
-                className: type, name: vizName,
+                className: type, id: vizName,
                 groupURL: entry.isomorphicGroup.URL,
                 x: L + W / 4, y: vizY + H / 4, w: W / 2, h: H / 2,
                 highlight_colors: [[GEUtils.fromRainbow(0, s, l)], [], []],
             });
         }
         else {
+            const previous = D[index - 1];
             // current decomposition element
             const cosetColors = Array.from({ length: previous.index }, (_, inx) => GEUtils.fromRainbow(inx / previous.index, s, l));
             const highlights = [];
@@ -156,7 +140,7 @@ function showSolvableDecompositionSheet(group /*: Group */, type /*: 'CDElement'
                 coset.toArray().forEach((el) => highlights[el] = cosetColors[inx]);
             });
             sheetElementsAsJSON.push({
-                className: type, name: vizName,
+                className: type, id: vizName,
                 groupURL: entry.isomorphicGroup.URL,
                 x: L + index * W + index * hgap, y: vizY, w: W, h: H,
                 highlight_colors: [highlights, [], []], organizing_subgroup: previous.subgroupIndex
@@ -164,9 +148,9 @@ function showSolvableDecompositionSheet(group /*: Group */, type /*: 'CDElement'
             // morphism from previous decomposition element
             sheetElementsAsJSON.push({
                 className: 'MorphismElement',
-                name: `<i>e</i><sub>${index}</sub>`,
-                labelFontSize: '1.25em',
-                source_name: previousVizName, destination_name: vizName,
+                morphismName: `<i>e</i><sub>${index}</sub>`,
+                fontSize: '1.25em',
+                source_id: previousVizName, destination_id: vizName,
                 showManyArrows: true, arrowColor: 'source',
                 definingPairs: previous.isomorphicGroup.generators.map(gen => [gen, previous.isomorphicGroupEmbedding[gen]])
             });
@@ -174,10 +158,11 @@ function showSolvableDecompositionSheet(group /*: Group */, type /*: 'CDElement'
             const qVizName = `q-viz-${index}`;
             const quotientGroupHighlights = [];
             previous.leftCosets.forEach((coset, inx) => {
-                quotientGroupHighlights[previous.isomorphicQuotientMap[coset.first()]] = cosetColors[inx];
+                const previousQuotientMap = previous.isomorphicQuotientMap;
+                quotientGroupHighlights[previousQuotientMap[coset.first()]] = cosetColors[inx];
             });
             sheetElementsAsJSON.push({
-                className: type, name: qVizName,
+                className: type, id: qVizName,
                 groupURL: previous.isomorphicQuotientGroup.URL,
                 x: L + index * W + index * hgap + bottomShift, y: vizY + H + vgap,
                 w: W, h: H,
@@ -186,11 +171,12 @@ function showSolvableDecompositionSheet(group /*: Group */, type /*: 'CDElement'
             // quotient map
             sheetElementsAsJSON.push({
                 className: 'MorphismElement',
-                name: `<i>q</i><sub>${index}</sub>`,
-                labelFontSize: '1.25em',
-                source_name: vizName, destination_name: qVizName,
+                morphismName: `<i>q</i><sub>${index}</sub>`,
+                fontSize: '1.25em',
+                source_id: vizName, destination_id: qVizName,
                 showManyArrows: true, arrowColor: 'source',
-                definingPairs: entry.isomorphicGroup.generators.map(gen => [gen, previous.isomorphicQuotientMap[gen]])
+                definingPairs: entry.isomorphicGroup.generators
+                    .map(gen => [gen, previous.isomorphicQuotientMap[gen]])
             });
             // quotient group name
             sheetElementsAsJSON.push({
@@ -201,7 +187,7 @@ function showSolvableDecompositionSheet(group /*: Group */, type /*: 'CDElement'
                 x: L + index * W + index * hgap + bottomShift, y: vizY + 2 * H + vgap,
                 w: W, h: txtH,
                 fontSize: fittedFontSize, alignment: 'center', opacity: 0,
-                anchor_name: qVizName
+                anchor_id: qVizName
             });
         }
         previousVizName = vizName;

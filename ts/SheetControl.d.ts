@@ -1,2 +1,3 @@
-export { addControl };
-declare function addControl(sheetControlElement: any, sheetModelProxy: any, sheetViewModel: any): void;
+import { SheetModel } from './SheetModel.js';
+import type { SheetViewModel } from './SheetViewModel.ts';
+export declare function addControl(sheetControlElement: HTMLElement, sheetModelProxy: SheetModel, sheetViewModel: SheetViewModel): void;

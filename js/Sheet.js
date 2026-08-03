@@ -1,4 +1,10 @@
-// @flow
+/*
+# Sheet
+
+Assembles Sheet html page
+
+```js
+ */
 import { ControlPanel } from './ControlPanel.js';
 import { createModelProxy } from './GEUtils.js';
 import * as Heading from './Heading.js';
@@ -7,8 +13,7 @@ import { SheetViewModel } from './SheetViewModel.js';
 import { View as SheetView } from './SheetView.js';
 import * as SheetViewUI from './SheetViewUI.js';
 import * as SheetControl from './SheetControl.js';
-export { load };
-async function load() {
+export async function load() {
     insertHTML();
     document.body.addEventListener('contextmenu', (ev) => ev.preventDefault());
     // Create Header
@@ -33,7 +38,8 @@ async function load() {
     // check for passedSheet in URL, load it if present
     const invokeParameters = new URL(window.location.href).searchParams;
     if (invokeParameters.get('passedSheet') != null) {
-        loadPassedSheet(sheetModel).then((title) => {
+        loadPassedSheet(sheetModel)
+            .then((title) => {
             if (title != null)
                 Heading.setTitle(title);
         });

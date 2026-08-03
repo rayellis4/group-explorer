@@ -1,4 +1,4 @@
-/* @flow
+/*
 
 # CycleGraphViewUI component
 
@@ -10,29 +10,26 @@ This component adds the following UI gestures to a CycleGraphView:
 
 ```javascript
  */
-import {recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizeZoom} from './Gestures.js'
-import {makeTooltip} from './UIComponents.js'
+import { recognizeSelect, recognizeContextMenu, recognizeDragAndDrop, recognizeZoom } from './Gestures.js'
+import { makeTooltip } from './UIComponents.js'
 
-export {addGestures}
-/*::
-import type {CycleGraphView} from './CycleGraphView.js'
- */
-
-function addGestures (cycleGraphView /*: CycleGraphView */) {
+export function addGestures (cycleGraphView: CycleGraphView) {
    cycleGraphView.reset()
    addSelect(cycleGraphView)
    addContextMenu(cycleGraphView)
    addMove(cycleGraphView)
    addZoom(cycleGraphView)
 }
+
+import type { CycleGraphView } from './CycleGraphView.js'
 /*
 ```
 ### select
 ```javascript
 */
-function addSelect (cycleGraphView /*: CycleGraphView */) {
+function addSelect (cycleGraphView: CycleGraphView) {
    recognizeSelect(cycleGraphView.canvas,
-      (event) => {
+      (event: MouseEvent) => {
          const boundingRectangle = cycleGraphView.canvas.getBoundingClientRect()
          const clickX = event.clientX - boundingRectangle.left
          const clickY = event.clientY - boundingRectangle.top
@@ -51,9 +48,9 @@ function addSelect (cycleGraphView /*: CycleGraphView */) {
 ### contextMenu
 ```javascript
 */
-function addContextMenu (cycleGraphView /*: CycleGraphView */) {
+function addContextMenu (cycleGraphView: CycleGraphView) {
    recognizeContextMenu(cycleGraphView.canvas,
-      (_event) => {
+      (_event: Event) => {
          cycleGraphView.reset()
       })
 }
@@ -62,9 +59,9 @@ function addContextMenu (cycleGraphView /*: CycleGraphView */) {
 ### move
 ```javascript
 */
-function addMove (cycleGraphView /*: CycleGraphView */) {
+function addMove (cycleGraphView: CycleGraphView) {
    recognizeDragAndDrop(cycleGraphView.canvas,
-      (startEvent, _previousEvent, currentEvent, isDrop) => {
+      (startEvent: MouseEvent, _previousEvent: MouseEvent, currentEvent: MouseEvent, isDrop: boolean) => {
          const dx = currentEvent.clientX - startEvent.clientX
          const dy = currentEvent.clientY - startEvent.clientY
          if (isDrop) {
@@ -81,10 +78,10 @@ function addMove (cycleGraphView /*: CycleGraphView */) {
 ### zoom
 ```javascript
 */
-function addZoom (cycleGraphView /*: CycleGraphView */) {
+function addZoom (cycleGraphView: CycleGraphView) {
    let totalZoom = 1
    recognizeZoom(cycleGraphView.canvas,
-      (scaleFactor, isLastEvent) => {
+      (scaleFactor: number, isLastEvent: boolean) => {
          totalZoom *= (1 + scaleFactor)
          if (isLastEvent) {
             cycleGraphView.canvas.style.transform = ''

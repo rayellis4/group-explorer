@@ -1,12 +1,18 @@
+import { Group } from './Group.js';
+import type { GroupFileJSON } from './Group.js';
 export { allVisibleGroups, deleteGroups, getAllGroups, getGroupsByOrder, getGroupByURL, isEmpty, loadFromPageURL, loadFromStoredGroups, loadLibrary, saveGroup, updateAllGroups };
 declare function loadLibrary(): Promise<void>;
-declare function loadFromStoredGroups(storedGroups: any): void;
-declare function deleteGroups(groups: any): void;
-declare function getAllGroups(): unknown[];
-declare function allVisibleGroups(filterConfig: any): unknown[];
-declare function getGroupsByOrder(order: any): unknown[];
-declare function getGroupByURL(url: any): any;
+declare function loadFromStoredGroups(storedGroups: {
+    [key: string]: GroupFileJSON;
+}): void;
+declare function deleteGroups(groups: Group[]): void;
+declare function getAllGroups(): Group[];
+declare function allVisibleGroups(filterConfig: {
+    [key: string]: any;
+}): Group[];
+declare function getGroupsByOrder(order: integer): Group[];
+declare function getGroupByURL(url: string): Maybe<Group>;
 declare function isEmpty(): boolean;
-declare function loadFromPageURL(): Promise<any>;
-declare function saveGroup(group: any): void;
-declare function updateAllGroups(manifestURLs: any): Promise<void>;
+declare function loadFromPageURL(): Promise<Group>;
+declare function saveGroup(group: Maybe<Group>): void;
+declare function updateAllGroups(manifestURLs: string[]): Promise<void>;
