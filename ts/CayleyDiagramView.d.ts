@@ -145,7 +145,7 @@ export declare class CayleyDiagramViewModel implements Updatable, SheetVisualize
     get canvas(): HTMLCanvasElement;
     toJSON(): CayleyDiagramModelJSON;
     fromJSON(jsonObject: CayleyDiagramModelJSON): void;
-    draw(group: Group, diagramNameOrStrategies: string | StrategyParameters[] | undefined, arrowGenerators?: ArrowGenerator[]): void;
+    draw(group: Group, diagramName?: string, strategyParameters?: StrategyParameters[], arrowGenerators?: ArrowGenerator[]): void;
 }
 export declare class CayleyDiagramView extends AbstractDiagramDisplay {
     viewModel: CayleyDiagramViewModel;

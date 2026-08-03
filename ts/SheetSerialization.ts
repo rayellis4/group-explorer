@@ -20,7 +20,7 @@ import * as SheetView from './SheetView.js'
 
 import type { ArrowGenerator, StrategyParameters } from './CayleyDiagramGenerator.ts'
 import type { CayleyDiagramControlJSON } from './CayleyDiagramControl.ts'
-import type { CayleyDiagramModelJSON, ChunkType } from './CayleyDiagramModel.ts'
+import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.ts'
 import type { POV, Vector3JSON, Matrix4JSON, POVJSON, NodeDataJSON, ArrowDataJSON, ChunkDataJSON, LayoutDataJSON} from './CayleyDiagramView.ts'
 import type { CycleGraphJSON } from './CycleGraphModel.ts'
 import type { Group } from './Group.ts'
@@ -409,15 +409,15 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
 
             const strategyParameters = v1Visualizer.strategy_parameters?.map((strategy_parameter) => {
                return {...strategy_parameter}
-            })
+            }) ?? []
 
-            const arrowGenerators: ArrowGenerator[] = (v1Visualizer.arrows ?? [])
+            const arrowGenerators: ArrowGenerator[] = v1Visualizer?.arrows
                .filter((arrow) => arrow.start_element == 0)
                .map((arrow) => ({generator: arrow.generator, color: arrow.color}))
 
             const diagramControl: CayleyDiagramControlJSON = {
-               ...(v1Visualizer.diagram_name != null && {diagram_name: v1Visualizer.diagram_name}),
-               ...(v1Visualizer.strategy_parameters != null && {strategy_parameters: strategyParameters}),
+               diagram_name: v1Visualizer.diagram_name,
+               strategy_parameters: strategyParameters,
                arrow_generators: arrowGenerators,
                right_multiply: v1Visualizer.right_multiply,
                chunk_subgroup_index: v1Visualizer.chunk
@@ -465,10 +465,11 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                const maybeLayout =
                   layoutCayleyDiagram(
                      group,
-                     v1Visualizer?.diagram_name ?? v1Visualizer?.strategy_parameters,
+                     v1Visualizer?.diagram_name ?? undefined,
+                     v1Visualizer?.strategy_parameters,
                      arrowGenerators,
                      v1Visualizer.right_multiply,
-                     (v1Visualizer.chunk == null || v1Visualizer.chunk === 0) ? null : v1Visualizer.chunk
+                     v1Visualizer?.chunk ?? undefined,  // v1Visualizer.chunk == 0?
                   )
 
                chunks.push(...maybeLayout.chunks.map((chunk) => {

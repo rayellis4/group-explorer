@@ -32,17 +32,18 @@ const DEFAULT_ARC_OFFSET = 0.15
 
 export function layoutCayleyDiagram (
    group: Group,
-   nameOrStrategies?: string | StrategyParameters[] | undefined,
-   arrowGenerators?: Maybe<ArrowGenerator[]>,
+   diagramName?: string,
+   strategyParameters?: StrategyParameters[],
+   arrowGenerators?: ArrowGenerator[],
    rightMultiply?: boolean,
-   chunkSubgroupIndex?: Maybe<integer>
+   chunkSubgroupIndex?: integer
 ): LayoutType {
-   if (nameOrStrategies == null) {
-      return drawDefault(group)
-   } else if (typeof nameOrStrategies == 'string') {
-      return drawDiagram(group, nameOrStrategies, arrowGenerators, rightMultiply)
+   if (diagramName != null) {
+      return drawDiagram(group, diagramName, arrowGenerators, rightMultiply)
+   } else if (strategyParameters != null) {
+      return drawFromStrategy(group, strategyParameters, arrowGenerators, rightMultiply, chunkSubgroupIndex)
    } else {
-      return drawFromStrategy(group, nameOrStrategies, arrowGenerators, rightMultiply, chunkSubgroupIndex)
+      return drawDefault(group)
    }
 }
 

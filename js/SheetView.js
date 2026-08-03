@@ -416,26 +416,24 @@ export class CDView extends VisualizerView {
             // create diagramControl with default values, if needed
             if (visualizerJSON.diagram_control == null) {
                 const generatedStrategyParameters = getDefaultStrategies(group);
-                const layout = layoutCayleyDiagram(group, generatedStrategyParameters);
+                const layout = layoutCayleyDiagram(group, undefined, generatedStrategyParameters);
                 const arrowGeneratorMap = new Map();
                 layout.arrows.forEach((arrow) => {
                     arrowGeneratorMap.set(arrow.generator, { generator: arrow.generator, color: arrow.color });
                 });
                 const arrowGenerators = Array.from(arrowGeneratorMap.values());
                 visualizerJSON.diagram_control = {
+                    diagram_name: null,
                     strategy_parameters: generatedStrategyParameters,
-                    arrow_generators: arrowGenerators
+                    arrow_generators: arrowGenerators,
+                    right_multiply: true,
+                    chunk_subgroup_index: 0
                 };
             }
             // create cdViewModel layout from diagramControl parameters
             const diagramControl = cdViewModel.model.diagramControl =
                 visualizerJSON.diagram_control;
-            if ('strategy_parameters' in diagramControl || 'arrow_generators' in diagramControl) {
-                cdViewModel.draw(group, diagramControl.strategy_parameters, diagramControl.arrow_generators);
-            }
-            else if ('diagram_name' in diagramControl) {
-                cdViewModel.draw(group, diagramControl.diagram_name);
-            }
+            cdViewModel.draw(group, diagramControl.diagram_name ?? undefined, diagramControl.strategy_parameters, diagramControl.arrow_generators ?? undefined);
         }
         return cdViewModel.toJSON();
     }

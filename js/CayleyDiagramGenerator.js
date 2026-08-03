@@ -10,15 +10,15 @@ import { DEFAULT_NODE_COLOR } from "./CayleyDiagramModel.js";
 export const DIRECTION_INDEX = { X: 0, Y: 1, Z: 2, YZ: 0, XZ: 1, XY: 2 };
 export const AXIS_NAME = ['X', 'Y', 'Z'];
 const DEFAULT_ARC_OFFSET = 0.15;
-export function layoutCayleyDiagram(group, nameOrStrategies, arrowGenerators, rightMultiply, chunkSubgroupIndex) {
-    if (nameOrStrategies == null) {
-        return drawDefault(group);
+export function layoutCayleyDiagram(group, diagramName, strategyParameters, arrowGenerators, rightMultiply, chunkSubgroupIndex) {
+    if (diagramName != null) {
+        return drawDiagram(group, diagramName, arrowGenerators, rightMultiply);
     }
-    else if (typeof nameOrStrategies == 'string') {
-        return drawDiagram(group, nameOrStrategies, arrowGenerators, rightMultiply);
+    else if (strategyParameters != null) {
+        return drawFromStrategy(group, strategyParameters, arrowGenerators, rightMultiply, chunkSubgroupIndex);
     }
     else {
-        return drawFromStrategy(group, nameOrStrategies, arrowGenerators, rightMultiply, chunkSubgroupIndex);
+        return drawDefault(group);
     }
 }
 export function getDefaultStrategies(group) {

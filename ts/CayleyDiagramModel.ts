@@ -28,7 +28,8 @@ Model for the Cayley diagram visualizer. Holds all serializable state:
  */
 import * as Library from './Library.js'
 
-import type { CayleyDiagramView, LayoutData as LayoutType } from './CayleyDiagramView.ts'
+import type { CayleyDiagramControlJSON } from './CayleyDiagramControl.ts'
+import type { LayoutData as LayoutType } from './CayleyDiagramView.ts'
 import type { Group } from './Group.ts'
 import type { HighlightControlModelInterface } from './HighlightControl.ts'
 
@@ -58,7 +59,7 @@ export type CayleyDiagramModelJSON = {
    showing_axes: CayleyDiagramModel['showingAxes'],
    highlight_colors: CayleyDiagramModel['highlightColors'],
    highlight_control: CayleyDiagramModel['highlightControl'],
-   diagram_control: CayleyDiagramModel['diagramControl'],
+   diagram_control: CayleyDiagramControlJSON,
    view_state: CayleyDiagramModel['viewState'],
 }
 

@@ -226,13 +226,13 @@ export function convertV1ToV2(v1Objects) {
                 const group = Library.getGroupByURL(v1Visualizer.groupURL);
                 const strategyParameters = v1Visualizer.strategy_parameters?.map((strategy_parameter) => {
                     return { ...strategy_parameter };
-                });
-                const arrowGenerators = (v1Visualizer.arrows ?? [])
+                }) ?? [];
+                const arrowGenerators = v1Visualizer?.arrows
                     .filter((arrow) => arrow.start_element == 0)
                     .map((arrow) => ({ generator: arrow.generator, color: arrow.color }));
                 const diagramControl = {
-                    ...(v1Visualizer.diagram_name != null && { diagram_name: v1Visualizer.diagram_name }),
-                    ...(v1Visualizer.strategy_parameters != null && { strategy_parameters: strategyParameters }),
+                    diagram_name: v1Visualizer.diagram_name,
+                    strategy_parameters: strategyParameters,
                     arrow_generators: arrowGenerators,
                     right_multiply: v1Visualizer.right_multiply,
                     chunk_subgroup_index: v1Visualizer.chunk
@@ -269,7 +269,7 @@ export function convertV1ToV2(v1Objects) {
                 });
                 const chunks = [];
                 if (v1Visualizer?.chunk != null && v1Visualizer.chunk !== 0) {
-                    const maybeLayout = layoutCayleyDiagram(group, v1Visualizer?.diagram_name ?? v1Visualizer?.strategy_parameters, arrowGenerators, v1Visualizer.right_multiply, (v1Visualizer.chunk == null || v1Visualizer.chunk === 0) ? null : v1Visualizer.chunk);
+                    const maybeLayout = layoutCayleyDiagram(group, v1Visualizer?.diagram_name ?? undefined, v1Visualizer?.strategy_parameters, arrowGenerators, v1Visualizer.right_multiply, v1Visualizer?.chunk ?? undefined);
                     chunks.push(...maybeLayout.chunks.map((chunk) => {
                         return {
                             box: JSON.parse(JSON.stringify(chunk.box)).elements,

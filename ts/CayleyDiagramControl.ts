@@ -30,11 +30,11 @@ import type { CayleyDiagramModel } from './CayleyDiagramModel.js'
 import type {StrategyParameters, ArrowGenerator} from './CayleyDiagramGenerator.js'
 
 export type CayleyDiagramControlJSON = {
-   diagram_name?: string,
-   strategy_parameters?: StrategyParameters[],
-   arrow_generators?: ArrowGenerator[],
-   right_multiply?: boolean,
-   chunk_subgroup_index?: integer
+   diagram_name: Maybe<string>,                 // null => generate diagram from strategy parameters
+   strategy_parameters: StrategyParameters[],   // null => generate default diagram
+   arrow_generators: Maybe<ArrowGenerator[]>,   // null => use default arrows; [] => use no arrows
+   right_multiply: boolean,
+   chunk_subgroup_index: Maybe<integer>         // null => no chunking
 }
 
 // layout choices (linear/circular/rotated), direction (X/Y/Z)
@@ -98,11 +98,11 @@ class ViewModel {
    #model
    rootElement: HTMLElement
    handlers: View[] = []
-   diagramName: Maybe<string> = null  // null => generate diagram
+   diagramName: Maybe<string> = null                // null => generate diagram
    strategyParameters: StrategyParameters[] = []
    arrowGenerators: Maybe<ArrowGenerator[]> = null  // null => use default arrows; [] => no arrows
    rightMultiply: boolean = true
-   chunkSubgroupIndex: Maybe<number> = null  // null => no chunking
+   chunkSubgroupIndex: Maybe<number> = null         // null => no chunking
 
    constructor (rootElement: HTMLElement, model: CayleyDiagramModel) {
       this.#model = model
@@ -125,6 +125,10 @@ class ViewModel {
          this.diagramName = null
       }
 
+      if (model.diagramControl?.chunk_subgroup_index != null) {
+         this.chunkSubgroupIndex = model.diagramControl.chunk_subgroup_index
+      }
+
       if (!window.location.href.includes('SheetEditor')) {  // don't overwrite info from Sheet
          this.updateLayout()
       }
@@ -139,7 +143,7 @@ class ViewModel {
          if (this.strategyParameters.length == 0) {  // default layout
             this.strategyParameters = getDefaultStrategies(this.group)
             this.rightMultiply = true
-            this.model.layout = layoutCayleyDiagram(this.group, this.strategyParameters)
+            this.model.layout = layoutCayleyDiagram(this.group, undefined, this.strategyParameters)
             const arrowGeneratorMap = new Map()
             this.model.layout.arrows.forEach((arrow) => {
                arrowGeneratorMap.set(arrow.generator, {generator: arrow.generator, color: arrow.color})
@@ -148,18 +152,20 @@ class ViewModel {
          } else {  // user-specified strategy
             this.model.layout = layoutCayleyDiagram(
                this.group,
+               undefined,
                this.strategyParameters,
-               this.arrowGenerators,
+               this.arrowGenerators ?? undefined,
                this.rightMultiply,
-               this.chunkSubgroupIndex
+               this.chunkSubgroupIndex ?? undefined
             )
          }
       } else {  // user-specified diagram
          this.model.layout = layoutCayleyDiagram(
             this.group,
             this.diagramName,
-            this.arrowGenerators,
-            this.rightMultiply
+            undefined,
+            (this.arrowGenerators == null) ? undefined : this.arrowGenerators,
+            this.rightMultiply,
          )
          if (this.arrowGenerators == null) {
             const arrowGeneratorMap = new Map()
@@ -174,12 +180,13 @@ class ViewModel {
    }
 
    toJSON (): CayleyDiagramControlJSON {
-      const json: CayleyDiagramControlJSON = {}
-      if (this.diagramName != null)             json.diagram_name = this.diagramName
-      if (this.strategyParameters.length != 0)  json.strategy_parameters = this.strategyParameters
-      if (this.arrowGenerators?.length != 0)    json.arrow_generators = this.arrowGenerators as ArrowGenerator[]
-                                                json.right_multiply = this.rightMultiply
-      if (this.chunkSubgroupIndex != null)      json.chunk_subgroup_index = this.chunkSubgroupIndex as integer
+      const json = {
+         diagram_name: this.diagramName,
+         strategy_parameters: this.strategyParameters,
+         arrow_generators: this.arrowGenerators,
+         right_multiply: this.rightMultiply,
+         chunk_subgroup_index: this.chunkSubgroupIndex,
+      }
 
       return json
    }
@@ -191,7 +198,7 @@ class ViewModel {
       this.rightMultiply = jsonObject.right_multiply ?? true
       this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index ?? null
 
-      this.updateLayout()
+      //      this.updateLayout()
 
       return this
    }
@@ -924,20 +931,25 @@ class Chunking extends View {
       return document.getElementById('chunking-fog') as HTMLElement
    }
 
+   displayChunkingChoice (chosenSubgroupIndex: integer) {
+      const choice = this.viewModel.getChunkingChoices().find((choice) => choice.subgroupIndex == chosenSubgroupIndex)
+      if (choice != null) {
+         const chunkSelectElement = document.getElementById('chunk-select') as HTMLElement
+         chunkSelectElement.innerHTML = this.formatChoice(choice)
+         chunkSelectElement.setAttribute('data-value', chosenSubgroupIndex.toString())
+      }     
+   }
+
    displayChunkingOptions () {
       const choices: {value: string, label?: html}[] = [
          {value: '0', label: '(no chunking)'}
       ]
 
       if (this.viewModel.chunkingIsPossible) {
-         this.viewModel.getChunkingChoices()
-            .forEach(({subgroupIndex, allGenerators}) => {
-               const allGeneratorsRepresentation = allGenerators.map((element) => this.group.representation[element])
-               const label = (subgroupIndex === this.group.subgroups.length - 1)
-                  ? 'The whole group'
-                  : `<i>H</i><sub>${subgroupIndex}</sub>, generated by { ${allGeneratorsRepresentation.join(', ')} }`
-               choices.push({value: `${subgroupIndex}`, label: label})
-            })
+         choices.push(...this.viewModel.getChunkingChoices()
+            .map((choice) => {
+               return {value: choice.subgroupIndex.toString(), label: this.formatChoice(choice)}
+         }))
       }
 
       makeMockSelect(this.chunkSelect, choices)
@@ -945,6 +957,15 @@ class Chunking extends View {
             (choice) => this.viewModel.setChunk(choice === '0' ? null : parseInt(choice)),
             () => {}
          )
+   }
+
+   formatChoice ({subgroupIndex, allGenerators}:{subgroupIndex: integer, allGenerators: groupElement[]}): html {
+      const allGeneratorsRepresentation = allGenerators.map((element) => this.group.representation[element])
+      const label = (subgroupIndex === this.group.subgroups.length - 1)
+         ? 'The whole group'
+         : `<i>H</i><sub>${subgroupIndex}</sub>, generated by { ${allGeneratorsRepresentation.join(', ')} }`
+
+      return label
    }
 
    // Only the null case needs handling here: makeMockSelect updates the display on user selection.
@@ -955,6 +976,9 @@ class Chunking extends View {
          this.chunkSelect.setAttribute('data-index', '0')
          this.chunkSelect.innerHTML = '(no chunking)'
          this.chunkingFog.style.display = this.viewModel.chunkingIsPossible ? 'none' : 'block'
+      } else {
+         this.displayChunkingChoice(this.viewModel.chunkSubgroupIndex)
+         this.chunkingFog.style.display = 'none'
       }
    }
 }

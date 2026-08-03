@@ -375,10 +375,11 @@ export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterfa
    fromJSON (jsonObject: CayleyDiagramModelJSON)  { this.model.fromJSON(jsonObject) }
    draw (
       group: Group,
-      diagramNameOrStrategies: string | StrategyParameters[] | undefined,
+      diagramName?: string,
+      strategyParameters?: StrategyParameters[],
       arrowGenerators?: ArrowGenerator[]
    ) {
-      const layout = CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramNameOrStrategies, arrowGenerators)
+      const layout = CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramName, strategyParameters, arrowGenerators)
       this.update('group', group)
       this.update('layout', layout)
    }
