@@ -1,0 +1,12 @@
+export { allVisibleGroups, deleteGroups, getAllGroups, getGroupsByOrder, getGroupByURL, isEmpty, loadFromPageURL, loadFromStoredGroups, loadLibrary, saveGroup, updateAllGroups };
+declare function loadLibrary(): Promise<void>;
+declare function loadFromStoredGroups(storedGroups: any): void;
+declare function deleteGroups(groups: any): void;
+declare function getAllGroups(): unknown[];
+declare function allVisibleGroups(filterConfig: any): unknown[];
+declare function getGroupsByOrder(order: any): unknown[];
+declare function getGroupByURL(url: any): any;
+declare function isEmpty(): boolean;
+declare function loadFromPageURL(): Promise<any>;
+declare function saveGroup(group: any): void;
+declare function updateAllGroups(manifestURLs: any): Promise<void>;

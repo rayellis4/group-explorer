@@ -1,0 +1,1 @@
+../ts/SymmetryObject.ts

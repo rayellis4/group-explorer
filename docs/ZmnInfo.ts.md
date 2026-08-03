@@ -1,0 +1,1 @@
+../ts/ZmnInfo.ts

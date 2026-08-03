@@ -1,14 +1,14 @@
 # Build procedure assumes all files will be served in place.
 # This is simple and, with modern browsers, performance is adequate.
 
-# set version from latest git tag
-#    make
-# or from command line
-#    make VERSION=3.7.1
-VERSION := $(shell git describe --abbrev=0 --tags)
+# compiles ts/*.ts, sets version
+#    make VERSION=3.7.0
+
+all : setVersion
+	npx tsc
 
 PAGES = GroupExplorer GroupInfo Multtable CayleyDiagram CycleGraph SymmetryObject Sheet
-PAGE_TEMPLATE = docs/PageTemplate.html
+PAGE_TEMPLATE = html/PageTemplate.html
 
 setVersion : $(PAGES)
 	sed -i --follow-symlinks '/^# Group Explorer 3.*/ c\# Group Explorer $(VERSION)' README.md

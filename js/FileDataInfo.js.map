@@ -1,0 +1,1 @@
+{"version":3,"file":"FileDataInfo.js","sourceRoot":"","sources":["../ts/FileDataInfo.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AACH,OAAO,EAAC,OAAO,EAAC,CAAA;AAEhB,SAAS,OAAO,CAAE,iBAAiB,EAAE,KAAK;IACvC,MAAM,eAAe,GAAG,QAAQ,CAAC,cAAc,CAAC,iBAAiB,CAAC,CAAA;IAClE,eAAe,CAAC,SAAS;QACtB;;;;;+CAKyC,KAAK,CAAC,MAAM;+CACZ,KAAK,CAAC,GAAG;+CACT,KAAK,CAAC,oBAAoB;;kBAEvD,CAAA;AAClB,CAAC"}

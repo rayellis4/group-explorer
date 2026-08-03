@@ -4,7 +4,6 @@
   "description": "Group theory visualization application for the web",
   "main": "index.js",
   "scripts": {
-     "build:flowtypes": "find ./flow-typed/three/src -type f -name '*.d.ts' -exec sh -c 'flowgen --add-flow-header $1 -o ${1%.*.*}.js' _ '{}' \\;",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -19,10 +18,8 @@
     "three": "^0.170.0"
   },
   "devDependencies": {
-    "@types/three": "^0.170.0",
+    "typescript": "^6.0.3",
     "chai": "^4.3.8",
-    "flow-bin": "^0.294.0",
-    "flow-typed": "^4.1.1",
     "mocha": "^10.2.0"
   }
 }

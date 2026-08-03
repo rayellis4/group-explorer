@@ -1,0 +1,1 @@
+../ts/AutoUpgrade.ts

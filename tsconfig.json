@@ -1,0 +1,17 @@
+{
+   "compilerOptions": {
+      "target": "ES2022",
+      "module": "ES2015",
+      "rootDir": "./ts",
+      "outDir": "./js",
+      "declaration": true,
+      "declarationDir": "./ts",
+      "sourceMap": true
+   },
+   "include": [
+      "ts/*.ts"
+   ],
+   "exclude": [
+      "node_modules"
+   ]
+}

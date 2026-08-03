@@ -1,0 +1,705 @@
+import * as CycleGraphViewUI from './CycleGraphViewUI.js';
+import * as GEUtils from './GEUtils.js';
+import * as Log from './Log.js';
+import { THREE } from '../lib/externals.js';
+export { CycleGraphViewModel, CycleGraphView, createUnlabelledCycleGraphView, createLargeCycleGraphView /* CycleGraphView */, createInteractiveCycleGraphView /* CycleGraphView */ };
+/*::
+import {Group} from './Group.js'
+import type {VizDisplay} from './SheetModel.js';
+import type {Updatable, SubscriptionProxy} from './GEUtils.js'
+import {CycleGraphModel} from './CycleGraphModel.js'
+
+export type CycleGraphJSON = {
+    groupURL: string,
+    highlightColors: Array<Array<?color>>,
+    highlightControl: any,
+};
+
+type CycleGraphOptions = {
+    container?: HTMLElement,
+    group?: Group,
+};
+
+type Coordinate = {x: float, y: float};
+type Path = {
+    pts: Array<Coordinate>,
+    partIndex?: number,
+    part?: Array<Array<groupElement>>,
+    cycleIndex?: number,
+    cycle?: Array<groupElement>,
+    pathIndex?: number,
+};
+*/
+const DEFAULT_MIN_CANVAS_HEIGHT = 200;
+const DEFAULT_MIN_CANVAS_WIDTH = 200;
+const DEFAULT_MIN_RADIUS = 30;
+const DEFAULT_ZOOM_STEP = 0.002;
+const DEFAULT_CANVAS_WIDTH = 96;
+const DEFAULT_CANVAS_HEIGHT = 96;
+const HIGHLIGHT_BACKGROUND = 0;
+const HIGHLIGHT_BORDER = 1;
+const HIGHLIGHT_TOP = 2;
+/*
+ViewModel
+View
+ */
+class CycleGraphViewModel /*:: implements Updatable */ {
+    #model; /*: CycleGraphModel */
+    #view; /*: CycleGraphView */
+    #modelFields /*: Array<string> */ = [
+        'group',
+        'highlightColors'
+    ];
+    #group;
+    get view() {
+        return this.#view;
+    }
+    set view(view /*: CycleGraphView */) {
+        this.#view = view;
+        if (this.model != null) {
+            this.#modelFields.forEach((field) => this.update(field, this.model[field]));
+        }
+    }
+    get model() {
+        return this.#model;
+    }
+    set model(cycleGraphModel /*: SubscriptionProxy<CycleGraphModel> */) {
+        this.#model = cycleGraphModel;
+        this.#modelFields.forEach((field) => {
+            this.model.$subscribe(this, field);
+            this.update(field, this.model[field]);
+        });
+    }
+    get group() {
+        return this.model?.group ?? this.#group;
+    }
+    get highlightColors() {
+        return this.model?.highlightColors ?? [[], [], []];
+    }
+    update(field /*: string */, value /*: any */) {
+        if (this.view == null) {
+            return;
+        }
+        switch (field) {
+            case 'group':
+            case 'highlightColors':
+                this.view.queueShowGraphic();
+                break;
+            default:
+                Log.info(`unsupported field ${field} in CycleGraphView.CycleGraphViewModel.updateView`);
+        }
+    }
+    // Functions used by Sheet
+    setSize(x /*: number */, y /*: number */) { this.view.setSize(x, y); }
+    resize() { this.view.resize(); }
+    showGraphic() { this.view.queueShowGraphic(); }
+    unitSquarePositions() { return this.view.unitSquarePositions(); }
+    getImage() { return this.view.getImage(); }
+    get canvas() { return this.view.canvas; }
+    toJSON() { return this.model.toJSON(); }
+    fromJSON(jsonObject) { this.model.fromJSON(jsonObject); }
+    draw(group) { this.#group = group; }
+}
+class CycleGraphView /*:: implements VizDisplay<CycleGraphJSON> */ {
+    viewModel; /*: CycleGraphViewModel */
+    bbox; /*: {left: number, right: number, top: number, bottom: number} */
+    canvas; /*: HTMLCanvasElement */
+    closestTwoPositions; /*: number */
+    context; /*: CanvasRenderingContext2D */
+    cyclePaths; /*: Array<Path> */
+    cycles; /*: Array<Array<groupElement>> */
+    displays_labels; /*: boolean */
+    options; /*: CycleGraphOptions */
+    partIndices; /*: Array<number> */
+    positions; /*: Array<Coordinate> */
+    radius; /*: number */
+    rings; /*: Array<number> */
+    show_request /*: boolean */ = false;
+    transform /*: THREE.Matrix3 */ = new THREE.Matrix3(); // current cycleGraph -> screen transformation
+    translate /*: {dx: number, dy: number} */ = { dx: 0, dy: 0 }; // user-supplied translation, in screen coordinates
+    zoomFactor /*: number */ = 1; // user-supplied scale factor multiplier
+    constructor(options /*: CycleGraphOptions */ = {}) {
+        this.canvas = (document.createElement(`canvas`) /*:: as any as HTMLCanvasElement */);
+        const container = options.container || document.createElement('div');
+        container.appendChild(this.canvas);
+        let width = container.offsetWidth || DEFAULT_CANVAS_WIDTH;
+        let height = container.offsetHeight || DEFAULT_CANVAS_HEIGHT;
+        this.setSize(width, height);
+        this.context = this.canvas.getContext('2d');
+        this.options = options;
+        this.zoomFactor = 1; // user-supplied scale factor multiplier
+        this.translate = { dx: 0, dy: 0 }; // user-supplied translation, in screen coordinates
+        this.transform = new THREE.Matrix3(); // current cycleGraph -> screen transformation
+        this.show_request = false;
+    }
+    get size() {
+        return { w: this.canvas.width, h: this.canvas.height };
+    }
+    set size(newSize /*: {w: number, h: number} */) {
+        const { w, h } = newSize;
+        if (this.canvas.width != w || this.canvas.height != h) {
+            this.canvas.width = Math.round(w);
+            this.canvas.height = Math.round(h);
+        }
+    }
+    getSize() {
+        return this.size;
+    }
+    setSize(w /*: number */, h /*: number */) {
+        this.size = { w, h };
+    }
+    resize() {
+        if (this.canvas.parentElement != null) {
+            const { width, height } = this.canvas.parentElement.getBoundingClientRect();
+            this.size = { w: width, h: height };
+            this.queueShowGraphic();
+        }
+    }
+    getImage() {
+        this.showGraphic();
+        const img = new Image();
+        img.src = this.canvas.toDataURL();
+        return img;
+    }
+    queueShowGraphic() {
+        if (!this.show_request) {
+            this.show_request = true;
+            setTimeout(() => this.showGraphic(), 0);
+        }
+    }
+    showGraphic() {
+        this.show_request = false;
+        this.drawGraphic();
+    }
+    // This routine draws the cycle graph from the data generated
+    // by the layoutElementsAndPaths method.
+    // Displaying labels within the cycle graph nodes is controlled by
+    // the value of 'this.display_labels', set in the factory methods.
+    // Not displaying the element names allows the nodes in the
+    // graph to be much smaller and so better suited for thumbnails.
+    drawGraphic() {
+        if (this.group == null) {
+            const errorMessage = 'CycleGraphView.drawGraphic called with null group';
+            Log.err(errorMessage);
+            throw new TypeError(errorMessage);
+        }
+        this.layoutElementsAndPaths();
+        this.findClosestTwoPositions();
+        const bbox = this.bbox;
+        // paint the background
+        this.context.setTransform(1, 0, 0, 1, 0, 0); // reset the transform, so repeated calls paint entire background
+        this.context.fillStyle = '#C8C8E8';
+        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // calculate node radius in cycleGraph units
+        const max_cg_dimension = Math.max(bbox.right - bbox.left, bbox.top - bbox.bottom);
+        const pixels2cg = (val /*: number */) => val * Math.min((bbox.right - bbox.left) / this.canvas.width, (bbox.top - bbox.bottom) / this.canvas.height);
+        const bestSize = (r /*: number */) => r * Math.max(10, 8 + 2.5 * max_cg_dimension / this.closestTwoPositions, 200 / r); // min size = 200
+        if (this.displays_labels) {
+            this.radius = Math.min(this.closestTwoPositions / 2.5, max_cg_dimension / 10);
+        }
+        else {
+            this.radius = pixels2cg(6 * this.canvas.width / bestSize(6)); // size for nodes in thumbnails
+        }
+        // set up scaling, translation from cycleGraph units to screen pixels
+        // leave room around bbox for node radius + space (which we set to another node radius)
+        const margin = 2 * this.radius;
+        // canvas / bbox ratio
+        const raw_scale = Math.min(this.canvas.width / (bbox.right - bbox.left + 2 * margin), this.canvas.height / (bbox.top - bbox.bottom + 2 * margin));
+        // scale with zoom
+        let scale = this.zoomFactor * raw_scale;
+        // translate center of scaled bbox to center of canvas
+        let x_translate = (this.canvas.width - scale * (bbox.right + bbox.left)) / 2;
+        let y_translate = (this.canvas.height - scale * (bbox.top + bbox.bottom)) / 2;
+        // algorithm doesn't cover trivial group, treat it specially
+        if (this.group.order == 1) {
+            const sideLength = Math.min(this.canvas.width, this.canvas.height);
+            this.radius = sideLength / 10;
+            scale = this.zoomFactor * sideLength / (sideLength + 4 * this.radius);
+            x_translate = this.canvas.width / 2;
+            y_translate = this.canvas.height / 2;
+        }
+        // set transform to include translation generated by user drag-and-drop
+        this.context.setTransform(scale, 0, 0, scale, x_translate + this.translate.dx, y_translate + this.translate.dy);
+        // transform used to position the labels in screen space
+        //   calculated even if we don't render labels because they're too small,
+        //   since select method also uses this to determine element from node click
+        this.transform.set(scale, 0, x_translate + this.translate.dx, 0, scale, y_translate + this.translate.dy, 0, 0, 1);
+        // calculate the pre_image of the screen, in order to skip drawing labels on nodes not in view
+        const upper_left = new THREE.Vector2(0, 0).applyMatrix3(this.transform.clone().invert());
+        const lower_right = new THREE.Vector2(this.canvas.width, this.canvas.height)
+            .applyMatrix3(this.transform.clone().invert());
+        const pre_image = { minX: upper_left.x, minY: upper_left.y, maxX: lower_right.x, maxY: lower_right.y };
+        // draw all the paths first, because they're behind the vertices
+        this.context.lineWidth = 1 / scale;
+        this.context.strokeStyle = '#000';
+        this.cyclePaths.forEach(points => {
+            let isDrawing = true; // was the last
+            this.context.beginPath();
+            points.pts.forEach((point, index) => {
+                // is the current point in the view?
+                let pointVisible = point.x > pre_image.minX && point.x < pre_image.maxX
+                    && point.y > pre_image.minY && point.y < pre_image.maxY;
+                if (index == 0) {
+                    // always move to the start of the path
+                    this.context.moveTo(point.x, point.y);
+                }
+                else if (isDrawing) {
+                    // the entire line segment from index-1 to index is visible; draw it,
+                    // and you can assume that we already did lineTo() the last point.
+                    this.context.lineTo(point.x, point.y);
+                }
+                else if (pointVisible) {
+                    // the previous point was out of view but this one is in view; draw it,
+                    // but you can't assume that we already did lineTo() the last point.
+                    let prev = points.pts[index - 1];
+                    this.context.moveTo(prev.x, prev.y);
+                    this.context.lineTo(point.x, point.y);
+                }
+                // update isDrawing to reflect whether the last drawn point was in the view
+                isDrawing = pointVisible;
+            });
+            this.context.stroke();
+        });
+        // draw all elements as vertices, on top of the paths we just drew
+        this.positions.forEach((pos, elt) => {
+            // skip nodes that are off screen
+            if (pos.x + this.radius < pre_image.minX || pos.x - this.radius > pre_image.maxX
+                || pos.y + this.radius < pre_image.minY || pos.y - this.radius > pre_image.maxY)
+                return;
+            // draw the background, defaulting to white, but using whatever
+            // highlighting information for backgrounds is in the cycleGraph
+            this.context.beginPath();
+            this.context.arc(pos.x, pos.y, this.radius, 0, 2 * Math.PI);
+            if (this.highlightColors[HIGHLIGHT_BACKGROUND]?.[elt]) {
+                this.context.fillStyle = this.highlightColors[HIGHLIGHT_BACKGROUND][elt].toString();
+            }
+            else {
+                this.context.fillStyle = '#fff';
+            }
+            this.context.fill();
+            // over the background, only if there is "top"-style highlighting,
+            // draw a little cap on the top of the vertex's circle
+            if (this.highlightColors[HIGHLIGHT_TOP]?.[elt]) {
+                this.context.beginPath();
+                this.context.arc(pos.x, pos.y, this.radius, -3 * Math.PI / 4, -Math.PI / 4);
+                this.context.fillStyle = this.highlightColors[HIGHLIGHT_TOP][elt].toString();
+                this.context.fill();
+            }
+            // draw the border around the node, a thin black line
+            this.context.beginPath();
+            this.context.arc(pos.x, pos.y, this.radius, 0, 2 * Math.PI);
+            this.context.strokeStyle = '#000';
+            this.context.lineWidth = 1 / scale;
+            this.context.stroke();
+            // if border is highlighted draw concentric circle with thick colored line
+            if (this.highlightColors[HIGHLIGHT_BORDER]?.[elt]) {
+                this.context.beginPath();
+                this.context.arc(pos.x, pos.y, this.radius + 0.01, 0, 2 * Math.PI);
+                this.context.strokeStyle = this.highlightColors[HIGHLIGHT_BORDER][elt].toString();
+                this.context.lineWidth = 0.2 / Math.sqrt(scale);
+                this.context.stroke();
+            }
+        });
+        // all done except for labels
+        if (!this.displays_labels) {
+            return;
+        }
+        // pick sensible font size and style for node labels
+        this.context.setTransform(1, 0, 0, 1, 0, 0);
+        // find diameter of longest label in 20px font: Math.sqrt(length^2 + height^2) = Math.sqrt(length^2 + 20^2)
+        // scale font size so that label diameter ~ 0.8 * scaled diameter
+        const maxLabelLength = this.group.longestHTMLLabel; // longest label in 1px font
+        const fontScale = Math.min(150, 1.6 * scale * this.radius / Math.sqrt(1 + maxLabelLength * maxLabelLength));
+        // skip out if this font would be too read
+        if (fontScale < 6) {
+            return;
+        }
+        // now draw all the labels, skipping nodes outside of the pre_image
+        this.context.textAlign = 'center';
+        this.context.textBaseline = 'middle';
+        this.context.fillStyle = '#000';
+        const pos_vector = new THREE.Vector2();
+        this.positions.forEach((pos, elt) => {
+            // skip nodes that are off the screen
+            if (pos.x < pre_image.minX || pos.x > pre_image.maxX
+                || pos.y < pre_image.minY || pos.y > pre_image.maxY) {
+                return;
+            }
+            // write the element name inside it
+            const loc = pos_vector.set(pos.x, pos.y).applyMatrix3(this.transform);
+            GEUtils.htmlToContext(this.group.representation[elt], { fontSize: `${fontScale}px` }, this.context, loc);
+        });
+    }
+    // interface for zoom-to-fit GUI command
+    reset() {
+        this.queueShowGraphic();
+        this.zoomFactor = 1;
+        this.translate = { dx: 0, dy: 0 };
+    }
+    zoom(factor /*: number */) {
+        this.queueShowGraphic();
+        this.zoomFactor = this.zoomFactor * factor;
+        this.move(this.translate.dx * (factor - 1), this.translate.dy * (factor - 1)); // keep model centered in canvas
+        return this;
+    }
+    // deltaX, deltaY are in screen coordinates
+    move(deltaX /*: float */, deltaY /*: float */) {
+        this.translate.dx += deltaX;
+        this.translate.dy += deltaY;
+        return this;
+    }
+    // given screen coordinates, returns element associated with node,
+    //   or 'undefined' if not within one radius
+    select(screenX /*: number */, screenY /*: number */) {
+        // compute cycleGraph coordinates from screen coordinates by inverting this.transform
+        const cg_coords = new THREE.Vector2(screenX, screenY).applyMatrix3(this.transform.clone().invert());
+        const index = this.positions.findIndex((pos) => {
+            return Math.sqrt(Math.pow(pos.x - cg_coords.x, 2) + Math.pow(pos.y - cg_coords.y, 2)) < this.radius;
+        });
+        return (index == -1) ? undefined : index;
+    }
+    // Be able to answer the question of where in the diagram any given element is drawn.
+    // We answer in normalized coordinates, [0,1]x[0,1].
+    unitSquarePosition(element /*: groupElement */) {
+        const virtualCoords = new THREE.Vector3(this.positions[element].x, this.positions[element].y, 0), 
+        // multiplying a transform by a vector does not translate it, unfortunately:
+        untranslatedCanvasCoords = virtualCoords.applyMatrix3(this.transform), 
+        // so we do the translation manually:
+        translatedCanvasCoords = {
+            x: this.transform.elements[6] + untranslatedCanvasCoords.x,
+            y: this.transform.elements[7] + untranslatedCanvasCoords.y
+        };
+        return { x: translatedCanvasCoords.x / this.canvas.width,
+            y: translatedCanvasCoords.y / this.canvas.height };
+    }
+    // Answer the question of where in the diagram each element is drawn.
+    // We answer in normalized coordinates, [0,1]x[0,1].
+    unitSquarePositions() {
+        if (this.positions == null) {
+            this.showGraphic();
+        }
+        const scaled_transform = new THREE.Matrix3()
+            .set(1 / this.canvas.width, 0, 0, 0, 1 / this.canvas.height, 0, 0, 0, 1)
+            .multiply(this.transform);
+        const unit_square_positions = this.group.elements.map((element) => {
+            const unscaledPositions = new THREE.Vector2(this.positions[element].x, this.positions[element].y);
+            return unscaledPositions.applyMatrix3(scaled_transform);
+        });
+        return unit_square_positions;
+    }
+    get group() {
+        return this.viewModel.group;
+    }
+    get highlightColors() {
+        return this.viewModel.highlightColors;
+    }
+    // orbit of an element in the group, but skipping the identity
+    orbitOf(g /*: groupElement */) {
+        let result = [0];
+        let next;
+        while (next = this.group.mult(result[result.length - 1], g))
+            result.push(next);
+        result.shift();
+        return result;
+    }
+    // element to a power
+    raiseToThe(h /*: groupElement */, n /*: number */) {
+        let result = 0;
+        for (let i = 0; i < n; i++)
+            result = this.group.mult(result, h);
+        return result;
+    }
+    // how soon does the orbit of g intersect the given list of elements?
+    // that is, consider the smallest power of g that appears in the array;
+    // at what index does it appear?
+    howSoonDoesOrbitIntersect(g /*: groupElement */, array /*: Array<groupElement> */) {
+        let orbit = this.orbitOf(g);
+        let power = 0;
+        for (let walk = g; walk != 0; walk = this.group.mult(walk, g)) {
+            ++power;
+            let index = array.indexOf(walk);
+            if (index > -1)
+                return index;
+        }
+        return -1;
+    }
+    // Given elements g,h in this.group, find the "best power of h relative
+    // to g," meaning the power t such that the orbit [e,h^t,h^2t,...]
+    // intersects the orbit [e,g,g^2,...] as early as possible (in the orbit
+    // of g).
+    bestPowerRelativeTo(h /*: groupElement */, g /*: groupElement */) {
+        let orbit_g = this.orbitOf(g);
+        let bestPower = 0;
+        let bestIndex = orbit_g.length;
+        let hToThePower = 0;
+        for (let t = 1; t < this.group.elementOrders[h]; t++) {
+            hToThePower = this.group.mult(hToThePower, h);
+            if (gcd(t, this.group.elementOrders[h]) == 1) {
+                let index = this.howSoonDoesOrbitIntersect(hToThePower, orbit_g);
+                if (index < bestIndex) {
+                    bestIndex = index;
+                    bestPower = t;
+                }
+            }
+        }
+        // return it
+        return bestPower;
+    }
+    layoutElementsAndPaths() {
+        // sort the elements by the length of their name, as text
+        let eltsByName = this.group.elements.slice();
+        if (this.group.representation) {
+            eltsByName.sort((a, b) => {
+                let aName = this.group.representation[a];
+                let bName = this.group.representation[b];
+                return aName.length < bName.length ? -1 : (aName.length > bName.length ? 1 : 0);
+            });
+        }
+        // for ( let i = 0 ; i < this.group.order ; i++ ) Log.debug( i, this.group.representations[this.group.representationIndex][i] );
+        // compute a list of cycles
+        let cycles /*: Array<Array<groupElement>> */ = [];
+        let notYetPlaced /*: Array<groupElement> */ = eltsByName.slice();
+        notYetPlaced.splice(notYetPlaced.indexOf(0), 1);
+        while (notYetPlaced.length > 0) {
+            // find the element with the maximum order
+            let eltWithMaxOrder = notYetPlaced[0];
+            notYetPlaced.forEach(unplaced => {
+                if (this.group.elementOrders[unplaced]
+                    > this.group.elementOrders[eltWithMaxOrder])
+                    eltWithMaxOrder = unplaced;
+            });
+            // add its orbit to the list of cycles
+            let nextCycle = this.orbitOf(eltWithMaxOrder);
+            cycles.push(nextCycle);
+            // remove all its members from the notYetPlaced array
+            let old = notYetPlaced.slice();
+            notYetPlaced = [];
+            old.forEach(maybeUnplaced => {
+                if (nextCycle.indexOf(maybeUnplaced) == -1)
+                    notYetPlaced.push(maybeUnplaced);
+            });
+            // continue iff there's stuff left in the notYetPlaced array
+        }
+        this.cycles = cycles;
+        // Log.debug( 'cycle', JSON.stringify( cycles ) );
+        // partition the cycles, forming a list of lists.
+        // begin with all cycles in their own part of the partition,
+        // and we will unite parts until we can no longer do so.
+        let partition /*: Array<Array<Array<groupElement>>> */ = cycles.map(cycle => [cycle]);
+        let that = this;
+        function uniteParts(partIndex1 /*: number */, partIndex2 /*: number */) {
+            partition[partIndex2].forEach(cycle => {
+                let cycleGen = cycle[0];
+                let partGen = partition[partIndex1][0][0];
+                let replacement = that.raiseToThe(cycleGen, that.bestPowerRelativeTo(cycleGen, partGen));
+                partition[partIndex1].push(that.orbitOf(replacement));
+            });
+            partition.splice(partIndex2, 1);
+        }
+        function flattenPart(part /*: Array<Array<groupElement>> */) {
+            return part.reduce((acc, cur) => acc.concat(cur));
+        }
+        function arraysIntersect(a1 /*: Array<groupElement> */, a2 /*: Array<groupElement> */) {
+            return a1.findIndex(elt => a2.indexOf(elt) > -1) > -1;
+        }
+        let keepChecking = true;
+        while (keepChecking) {
+            keepChecking = false;
+            for (let i = 0; !keepChecking && i < partition.length; i++) {
+                for (let j = 0; !keepChecking && j < i; j++) {
+                    if (arraysIntersect(flattenPart(partition[i]), flattenPart(partition[j]))) {
+                        uniteParts(i, j);
+                        keepChecking = true;
+                    }
+                }
+            }
+        }
+        // Log.debug( 'partition', JSON.stringify( partition ) );
+        // sanity check:
+        // partition.forEach( ( part, i ) => {
+        //    partition.forEach( ( otherPart, j ) => {
+        //       if ( i > j ) return;
+        //       part.forEach( ( cycle, ii ) => {
+        //          otherPart.forEach( ( otherCycle, jj ) => {
+        //             const inSamePart = ( i == j );
+        //             const commonElt = cycle.find( ( x ) => otherCycle.indexOf( x ) > -1 );
+        //             if ( !inSamePart && typeof( commonElt ) != 'undefined' ) {
+        //                Log.err( `Cycle ${ii} in part ${i} is ${cycle} `
+        //                       + `and cycle ${jj} in part ${j} is ${otherCycle} `
+        //                       + `and they share ${commonElt}.` );
+        //             }
+        //          } );
+        //       } );
+        //    } );
+        // } );
+        // assign arc sizes to parts of the partition
+        // (unless there is only one part, the degenerate case)
+        let cumsums /*: Array<number> */ = [];
+        if (partition.length > 1) {
+            // find the total sizes of all cycles in each part
+            let partSizes /*: Array<number> */ = [];
+            for (let i = 0; i < partition.length; i++) {
+                let size = 0;
+                for (let j = 0; j < partition[i].length; j++)
+                    size += partition[i][j].length;
+                partSizes.push(size);
+            }
+            // assign angles proportional to those sizes,
+            // but renormalize to cap the max at 180 degrees if needed
+            let total /*: number */ = 0;
+            partSizes.forEach(x => total += x);
+            let max = Math.max.apply(null, partSizes);
+            if (max > total / 2) {
+                let diff = max - total / 2;
+                partSizes = partSizes.map(x => Math.min(x, total / 2));
+                total -= diff;
+            }
+            let angles = partSizes.map(x => x * 2 * Math.PI / total);
+            cumsums.push(0);
+            for (let i = 0; i < angles.length; i++)
+                cumsums.push(cumsums[i] + angles[i]);
+        }
+        else { // handle degenerate case
+            cumsums.push(0, Math.PI);
+        }
+        // Log.debug( 'cumsums', cumsums );
+        // rotate things so that the largest partition is hanging
+        // straight downwards
+        let maxPartLength = 0;
+        let maxPartIndex = -1;
+        partition.forEach((part, idx) => {
+            if (part.length > maxPartLength) {
+                maxPartLength = part.length;
+                maxPartIndex = idx;
+            }
+        });
+        let maxPartCenter = (cumsums[maxPartIndex] + cumsums[maxPartIndex + 1]) / 2;
+        let diff = -1 / 2 * Math.PI - maxPartCenter;
+        cumsums = cumsums.map(angle => angle + diff);
+        // Log.debug( 'angle-ified', cumsums );
+        // assign locations in the plane to each element,
+        // plus create paths to be drawn to connect them
+        this.positions = Array(this.group.order).fill(null); // marker to show we haven't computed them yet
+        this.positions = [{ x: 0, y: 0 }]; // identity at origin
+        this.rings = Array(this.group.order).fill(0);
+        this.cyclePaths = [];
+        this.partIndices = [];
+        partition.forEach((part, partIndex) => {
+            // compute the peak of each part's "flower petal" curve
+            let r = part.length / maxPartLength;
+            let R = Math.sqrt(Math.max(r, 0.25));
+            part.forEach((cycle, cycleIndex) => {
+                let f = (ringNum /*: integer */, idx /*: integer */, t /*: integer */) => {
+                    let theta = 2 * Math.PI
+                        * ((idx + t) / (cycle.length + 1) - 0.25);
+                    return mutate(-R * Math.cos(theta), R * (1 + Math.sin(theta)), cumsums[partIndex], cumsums[partIndex + 1], ringNum / part.length);
+                };
+                for (let i = 0; i <= cycle.length; i++) {
+                    let prev = (i == 0) ? 0 : cycle[i - 1];
+                    let curr = (i == cycle.length) ? 0 : cycle[i];
+                    if (!this.positions[curr]) {
+                        this.partIndices[curr] = partIndex;
+                        this.rings[curr] = cycleIndex;
+                        // Log.debug( `rings[${curr}] := ${cycleIndex}` );
+                        this.positions[curr] = f(this.rings[curr], i, 1);
+                    }
+                    let path /*: Path */ = { pts: [] };
+                    const step = 0.02;
+                    // Log.debug( `connecting ${this.rings[prev]} to ${this.rings[curr]}` );
+                    // if ( prev && curr && this.partIndices[prev] != this.partIndices[curr] )
+                    //    Log.err( `index[${prev}]=${this.partIndices[prev]}!=${this.partIndices[curr]}=index[${curr}]` );
+                    for (let t = 0; t <= 1 + step / 2; t += step) {
+                        let ring1 = f(this.rings[prev], i, t);
+                        let ring2 = f(this.rings[curr], i, t);
+                        let et = easeUp(t);
+                        path.pts.push({
+                            x: interp(ring1.x, ring2.x, et),
+                            y: interp(ring1.y, ring2.y, et)
+                        });
+                    }
+                    path.partIndex = partIndex;
+                    path.part = part;
+                    path.cycleIndex = cycleIndex;
+                    path.cycle = cycle;
+                    path.pathIndex = i;
+                    this.cyclePaths.push(path);
+                }
+            });
+        });
+        // enable rescaling to a bounding box of [-1,1]^2
+        this.bbox = { left: 0, right: 0, top: 0, bottom: 0 };
+        this.cyclePaths.forEach(points => {
+            points.pts.forEach(pos => {
+                this.bbox.top = Math.max(this.bbox.top, pos.y);
+                this.bbox.bottom = Math.min(this.bbox.bottom, pos.y);
+                this.bbox.left = Math.min(this.bbox.left, pos.x);
+                this.bbox.right = Math.max(this.bbox.right, pos.x);
+            });
+        });
+    }
+    // Shortest distance between two vertices in the diagram
+    findClosestTwoPositions() {
+        this.closestTwoPositions = Infinity;
+        const order = this.group.order;
+        for (let i = 0; i < order - 1; i++) {
+            const pos1 = this.positions[i];
+            for (let j = i + 1; j < order; j++) {
+                const pos2 = this.positions[j];
+                this.closestTwoPositions = Math.min(this.closestTwoPositions, Math.sqrt((pos1.x - pos2.x) * (pos1.x - pos2.x)
+                    + (pos1.y - pos2.y) * (pos1.y - pos2.y)));
+            }
+        }
+    }
+}
+// gcd of two natural numbers
+function gcd(n /*: number */, m /*: number */) { return m ? gcd(m, n % m) : n; }
+// ease-in-out curves, one going uphill from (0,0) to (1,1)
+function easeUp(t /*: float */) {
+    return (Math.cos((1 - t) * Math.PI) + 1) / 2;
+}
+// and another going downhill, from (0,1) to (1,0)
+function easeDown(t /*: float */) { return 1 - easeUp(1 - t); }
+// generic linear interpolation function
+function interp(A /*: float */, B /*: float */, t /*: float */) { return (1 - t) * A + t * B; }
+// mutating a point in the upper half plane to sit within the arc
+// defined by two given angles alpha and beta, pulled toward the
+// center of that arc with a specific level of gravity, 0<=g<=1.
+function mutate(x /*: float */, y /*: float */, alpha /*: float */, beta /*: float */, g /*: float */) {
+    const r = Math.sqrt(x * x + y * y);
+    const theta = Math.atan2(y, x);
+    const theta2 = interp(alpha, beta, theta / Math.PI);
+    const x2 = r * Math.cos(theta2);
+    const y2 = r * Math.sin(theta2);
+    const cx = Math.cos((alpha + beta) / 2) / 2;
+    const cy = Math.sin((alpha + beta) / 2) / 2;
+    return {
+        x: interp(x2, cx, g),
+        y: interp(y2, cy, g)
+    };
+}
+//////////////////////////////   Factory methods   //////////////////////////////
+function createUnlabelledCycleGraphView(options /*: CycleGraphOptions */ = {}) {
+    const viewModel = new CycleGraphViewModel();
+    const view = new CycleGraphView(options);
+    view.displays_labels = false;
+    // assemble parts
+    view.viewModel = viewModel;
+    viewModel.view = view;
+    return viewModel;
+}
+function createLargeCycleGraphView(model /*: SubscriptionProxy<CycleGraphModel> */, options /*: CycleGraphOptions */ = {}) {
+    const viewModel = new CycleGraphViewModel();
+    const view = new CycleGraphView(options);
+    view.displays_labels = true;
+    // assemble parts
+    viewModel.model = model;
+    view.viewModel = viewModel;
+    viewModel.view = view;
+    return viewModel;
+}
+function createInteractiveCycleGraphView(model /*: SubscriptionProxy<CycleGraphModel> */, options /*: CycleGraphOptions */ = {}) {
+    const viewModel = createLargeCycleGraphView(model, options);
+    CycleGraphViewUI.addGestures(viewModel.view);
+    return viewModel;
+}
+//# sourceMappingURL=CycleGraphView.js.map

@@ -1,0 +1,12 @@
+export { equals, fromRainbow, isTouchDevice, measureHTML, htmlToContext, escapeHTML, generateElements, createActionHandler, createModelProxy, countBy, };
+export { version } from './AutoUpgrade.js';
+declare function equals(a: any, b: any): boolean;
+declare function fromRainbow(hue: any, saturation?: number, lightness?: number, offset?: number): string;
+declare function isTouchDevice(): boolean;
+declare function measureHTML(html: any, style?: {}): any;
+declare function htmlToContext(html: any, style: any, context: any, center: any): void;
+declare function escapeHTML(string: any): string | null;
+declare function generateElements(html: any): HTMLCollection;
+declare function createActionHandler(element: any, actionCallback: any): void;
+declare function createModelProxy(model: any): any;
+declare function countBy(valueArray: any, indexMap: any): any[];

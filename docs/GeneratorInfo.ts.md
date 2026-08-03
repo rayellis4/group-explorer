@@ -1,0 +1,1 @@
+../ts/GeneratorInfo.ts

@@ -1,0 +1,1 @@
+../ts/ClassEquationInfo.ts

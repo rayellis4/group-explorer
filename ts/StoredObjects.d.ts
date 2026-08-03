@@ -1,0 +1,15 @@
+export { getGroupLibrary, saveGroupLibrary, getSettings, saveSettings, getTableConfig, saveTableConfig, getStoredSheet, saveStoredSheet, removeStoredSheet, listStoredSheets, getPassedSheet, setPassedSheet, getPassedJSON, setPassedJSON, };
+declare function getGroupLibrary(): Promise<unknown>;
+declare function saveGroupLibrary(groupLibrary: any): Promise<unknown>;
+declare function getSettings(): Promise<{}>;
+declare function saveSettings(settings: any): Promise<unknown>;
+declare function getTableConfig(): Promise<{}>;
+declare function saveTableConfig(config: any): Promise<unknown>;
+declare function getStoredSheet(sheetName: any): Promise<any>;
+declare function saveStoredSheet(sheetName: any, sheet: any): Promise<unknown>;
+declare function removeStoredSheet(sheetName: any): Promise<unknown>;
+declare function listStoredSheets(): Promise<unknown>;
+declare function getPassedSheet(): Promise<unknown>;
+declare function setPassedSheet(passedSheet: any): Promise<unknown>;
+declare function getPassedJSON(): Promise<unknown>;
+declare function setPassedJSON(passedJSON: any): Promise<unknown>;
