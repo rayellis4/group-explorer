@@ -18,6 +18,7 @@ const registeredResets = [];
 function register(reset) {
     registeredResets.push(reset);
 }
+function unregister() { }
 function claim(myReset) {
     registeredResets.forEach((reset) => {
         if (reset !== myReset) {

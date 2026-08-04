@@ -189,7 +189,7 @@ export class CayleyDiagramViewModel {
                 break;
             }
             case 'layout':
-                if (value != null) {
+                if (value != null && JSON.stringify(value) != JSON.stringify(this.view.layout)) {
                     const { pov, nodes, arrows, chunks } = value;
                     this.view.drawFromModel(pov, nodes, arrows);
                     if (chunks != null) {
@@ -277,6 +277,13 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     deleteAllObjects() {
         this.deleteAllChunks();
         super.deleteAllObjects();
+    }
+    enableTrackballControl(container) {
+        super.enableTrackballControl(container);
+        const view = this;
+        this.control?.addEventListener('end', (_event) => {
+            view.viewModel.model.layout = view.layout;
+        });
     }
     ////////////////////////////   Sphere routines   ////////////////////////////////
     get sphere_scale_factor() {
@@ -722,6 +729,13 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     }
     get nodes() {
         return this.getGroup('spheres').children;
+    }
+    get layout() {
+        const pov = { position: this.camera.position, up: this.camera.up };
+        const arrows = this.arrows.map((arrow) => arrow.userData.arrow);
+        const nodes = this.nodes.map((node) => node.userData.node);
+        const chunks = this.chunks.map((chunk) => chunk.userData.chunk);
+        return { pov, arrows, nodes, chunks };
     }
 }
 // Factory for thumbnail generators (GroupTable, SubgroupInfo, ViewInfo).

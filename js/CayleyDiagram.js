@@ -51,7 +51,7 @@ export async function load() {
             return { elementId: elementId, json: cayleyDiagramModel.toJSON() };
         });
         SheetEditor.listenForSheetUpdates((json) => cayleyDiagramModel.fromJSON(json));
-        cayleyDiagramViewModel.resize(); // need to fix initial aspect ratio when editing
+        //      cayleyDiagramViewModel.resize()  // need to fix initial aspect ratio when editing
         window.setInterval(() => SheetEditor.broadcastChange(), 1000); // There's got to be a better way than polling...
     }
     // Create Control Panel
@@ -66,7 +66,6 @@ export async function load() {
     // Create diagram control
     const cayleyDiagramControlElement = document.getElementById('cayley-diagram-control');
     CayleyDiagramControl.addControl(cayleyDiagramControlElement, cayleyDiagramModel);
-    // Listen for window resize and resize visualizer
     window.addEventListener('resize', () => cayleyDiagramViewModel.resize());
 }
 function insertHTML() {

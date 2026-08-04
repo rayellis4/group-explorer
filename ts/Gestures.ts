@@ -23,6 +23,8 @@ function register (reset: resetFunction) {
    registeredResets.push(reset)
 }
 
+function unregister () {}
+
 function claim (myReset: resetFunction) {
    registeredResets.forEach((reset) => {
       if (reset !== myReset) {

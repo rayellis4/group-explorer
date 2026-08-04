@@ -132,6 +132,7 @@ class ViewModel {
             }
         }
         this.handlers.forEach((handler) => handler.update());
+        this.model.$touch('diagramControl');
     }
     toJSON() {
         const json = {

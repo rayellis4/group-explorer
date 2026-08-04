@@ -1,5 +1,5 @@
-import type { CayleyDiagramModel } from './CayleyDiagramModel.js';
-import type { StrategyParameters, ArrowGenerator } from './CayleyDiagramGenerator.js';
+import type { CayleyDiagramModel } from './CayleyDiagramModel.ts';
+import type { StrategyParameters, ArrowGenerator } from './CayleyDiagramGenerator.ts';
 export type CayleyDiagramControlJSON = {
     diagram_name: Maybe<string>;
     strategy_parameters: StrategyParameters[];

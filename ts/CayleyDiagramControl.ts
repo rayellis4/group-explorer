@@ -24,10 +24,10 @@ import {
 import * as Log from './Log.js'
 import { makeDetachedMenu, makeMockSelect } from './UIComponents.js'
 
-import type { Layout, Direction } from './CayleyDiagramGenerator.js';
-import type { CayleyDiagramModel } from './CayleyDiagramModel.js'
-
-import type {StrategyParameters, ArrowGenerator} from './CayleyDiagramGenerator.js'
+import type { Layout, Direction } from './CayleyDiagramGenerator.ts'
+import type { CayleyDiagramModel } from './CayleyDiagramModel.ts'
+import type { StrategyParameters, ArrowGenerator } from './CayleyDiagramGenerator.ts'
+import type { SubscriptionProxy } from './GEUtils.ts'
 
 export type CayleyDiagramControlJSON = {
    diagram_name: Maybe<string>,                 // null => generate diagram from strategy parameters
@@ -177,6 +177,7 @@ class ViewModel {
       }
 
       this.handlers.forEach((handler) => handler.update())
+      ;(this.model as SubscriptionProxy<CayleyDiagramModel>).$touch('diagramControl')
    }
 
    toJSON (): CayleyDiagramControlJSON {

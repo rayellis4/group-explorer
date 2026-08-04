@@ -164,6 +164,7 @@ export declare class CayleyDiagramView extends AbstractDiagramDisplay {
         up: THREE.Vector3;
     }, nodes: NodeData[], arrows: ArrowData[]): void;
     deleteAllObjects(): void;
+    enableTrackballControl(container?: Maybe<HTMLElement>): void;
     get sphere_scale_factor(): float;
     set sphere_scale_factor(new_scale_factor: float);
     createSpheres(sphere_data: NodeData[]): void;
@@ -203,6 +204,7 @@ export declare class CayleyDiagramView extends AbstractDiagramDisplay {
     get group(): Group;
     set group(group: Group);
     get nodes(): THREE.Mesh[];
+    get layout(): LayoutData;
 }
 export declare function createCayleyDiagramThumbnailView(options?: CayleyDiagramViewOptions): CayleyDiagramViewModel;
 export declare function createStaticCayleyDiagramView(model: SubscriptionProxy<CayleyDiagramModel>, options?: CayleyDiagramViewOptions): CayleyDiagramViewModel;

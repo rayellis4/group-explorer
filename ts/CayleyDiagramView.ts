@@ -337,7 +337,7 @@ export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterfa
          break
       }
       case 'layout':
-         if (value != null) {
+         if (value != null && JSON.stringify(value) != JSON.stringify(this.view.layout)) {
             const {pov, nodes, arrows, chunks} = value
             this.view.drawFromModel(pov, nodes, arrows)
             if (chunks != null) {
@@ -442,6 +442,14 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         this.deleteAllChunks();
         super.deleteAllObjects();
     }
+
+   enableTrackballControl (container?: Maybe<HTMLElement>) {
+      super.enableTrackballControl(container)
+      const view = this
+      ;(this.control as THREE.TrackballControls)?.addEventListener('end', (_event) => {
+         view.viewModel.model.layout = view.layout
+      })
+   }
 
     ////////////////////////////   Sphere routines   ////////////////////////////////
 
@@ -970,6 +978,14 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     get nodes (): THREE.Mesh[] {
        return this.getGroup('spheres').children as THREE.Mesh[]
     }
+
+   get layout (): LayoutData {
+      const pov: POV = {position: this.camera.position, up: this.camera.up}
+      const arrows: ArrowData[] = this.arrows.map((arrow) => arrow.userData.arrow)
+      const nodes: NodeData[] = this.nodes.map((node) => node.userData.node)
+      const chunks: ChunkData[] = this.chunks.map((chunk) => chunk.userData.chunk)
+      return { pov, arrows, nodes, chunks }
+   }
 }
 
 // Factory for thumbnail generators (GroupTable, SubgroupInfo, ViewInfo).
