@@ -150,7 +150,7 @@ class ViewModel {
         this.arrowGenerators = jsonObject.arrow_generators ?? null;
         this.rightMultiply = jsonObject.right_multiply ?? true;
         this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index ?? null;
-        //      this.updateLayout()
+        this.updateLayout();
         return this;
     }
     get group() {
@@ -168,6 +168,8 @@ class ViewModel {
             && this.strategyParameters.every((strategy, level) => strategy.nestingLevel == level);
     }
     getChunkingChoices() {
+        if (!this.chunkingIsPossible)
+            return [];
         const strategyParameters = this.strategyParameters;
         let choices = [];
         if (strategyParameters[0].nestingLevel == 0
@@ -279,7 +281,7 @@ class ViewModel {
         this.updateLayout();
     }
     setChunk(index) {
-        this.chunkSubgroupIndex = index;
+        this.chunkSubgroupIndex = (index == 0) ? null : index;
         this.updateLayout();
     }
     // Moved from Generator View class: validates and completes strategy params before feeding to generator
@@ -764,14 +766,6 @@ class Chunking extends View {
     get chunkingFog() {
         return document.getElementById('chunking-fog');
     }
-    displayChunkingChoice(chosenSubgroupIndex) {
-        const choice = this.viewModel.getChunkingChoices().find((choice) => choice.subgroupIndex == chosenSubgroupIndex);
-        if (choice != null) {
-            const chunkSelectElement = document.getElementById('chunk-select');
-            chunkSelectElement.innerHTML = this.formatChoice(choice);
-            chunkSelectElement.setAttribute('data-value', chosenSubgroupIndex.toString());
-        }
-    }
     displayChunkingOptions() {
         const choices = [
             { value: '0', label: '(no chunking)' }
@@ -783,7 +777,7 @@ class Chunking extends View {
             }));
         }
         makeMockSelect(this.chunkSelect, choices)
-            .then((choice) => this.viewModel.setChunk(choice === '0' ? null : parseInt(choice)), () => { });
+            .then((choice) => this.viewModel.setChunk(parseInt(choice)), () => { });
     }
     formatChoice({ subgroupIndex, allGenerators }) {
         const allGeneratorsRepresentation = allGenerators.map((element) => this.group.representation[element]);
@@ -796,13 +790,19 @@ class Chunking extends View {
     // This fires when another View resets chunkSubgroupIndex to null (e.g. switching to a named
     // diagram or reordering strategies).
     update() {
-        if (this.viewModel.chunkSubgroupIndex == null) {
+        const chosenSubgroupIndex = this.viewModel.chunkSubgroupIndex;
+        if (chosenSubgroupIndex == null) {
             this.chunkSelect.setAttribute('data-index', '0');
             this.chunkSelect.innerHTML = '(no chunking)';
             this.chunkingFog.style.display = this.viewModel.chunkingIsPossible ? 'none' : 'block';
         }
         else {
-            this.displayChunkingChoice(this.viewModel.chunkSubgroupIndex);
+            const choice = this.viewModel.getChunkingChoices().find((choice) => choice.subgroupIndex == chosenSubgroupIndex);
+            if (choice != null) {
+                const chunkSelectElement = document.getElementById('chunk-select');
+                chunkSelectElement.innerHTML = this.formatChoice(choice);
+                chunkSelectElement.setAttribute('data-value', chosenSubgroupIndex.toString());
+            }
             this.chunkingFog.style.display = 'none';
         }
     }

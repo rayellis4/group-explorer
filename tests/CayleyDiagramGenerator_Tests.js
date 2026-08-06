@@ -71,25 +71,25 @@ describe('CayleyDiagramGenerator', function () {
 
       it('node count equals group order', function () {
          const strategies = getDefaultStrategies(S3)
-         expect(layoutCayleyDiagram(S3, strategies).nodes.length).to.equal(S3.order)
+         expect(layoutCayleyDiagram(S3, undefined, strategies).nodes.length).to.equal(S3.order)
       })
 
       it('returns chunks field', function () {
          const strategies = getDefaultStrategies(S3)
-         expect(layoutCayleyDiagram(S3, strategies)).to.have.property('chunks')
+         expect(layoutCayleyDiagram(S3, undefined, strategies)).to.have.property('chunks')
       })
 
       it('left multiply produces the same node count as right', function () {
          const strategies = getDefaultStrategies(S3)
-         const right = layoutCayleyDiagram(S3, strategies, null, true)
-         const left  = layoutCayleyDiagram(S3, strategies, null, false)
+         const right = layoutCayleyDiagram(S3, undefined, strategies, null, true)
+         const left  = layoutCayleyDiagram(S3, undefined, strategies, null, false)
          expect(left.nodes.length).to.equal(right.nodes.length)
       })
 
       it('left and right multiply differ for non-abelian group (S3)', function () {
          const strategies = getDefaultStrategies(S3)
-         const right = layoutCayleyDiagram(S3, strategies, null, true)
-         const left  = layoutCayleyDiagram(S3, strategies, null, false)
+         const right = layoutCayleyDiagram(S3, undefined, strategies, null, true)
+         const left  = layoutCayleyDiagram(S3, undefined, strategies, null, false)
          // S3 is non-abelian — at least one arrow's start/end element pair should differ
          const rightPairs = right.arrows.map((a) => `${a.start_node.element}-${a.end_node.element}`).sort()
          const leftPairs  = left.arrows.map((a)  => `${a.start_node.element}-${a.end_node.element}`).sort()
@@ -99,7 +99,7 @@ describe('CayleyDiagramGenerator', function () {
       it('explicit arrowGenerators are used', function () {
          const strategies = getDefaultStrategies(S3)
          const gen = 1  // use element 1 as sole arrow generator
-         const layout = layoutCayleyDiagram(S3, strategies, [{generator: gen, color: '#ff0000'}])
+         const layout = layoutCayleyDiagram(S3, undefined, strategies, [{generator: gen, color: '#ff0000'}])
          layout.arrows.forEach((arrow) => expect(arrow.generator).to.equal(gen))
       })
 

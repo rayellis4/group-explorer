@@ -235,7 +235,7 @@ export function convertV1ToV2(v1Objects) {
                     strategy_parameters: strategyParameters,
                     arrow_generators: arrowGenerators,
                     right_multiply: v1Visualizer.right_multiply,
-                    chunk_subgroup_index: v1Visualizer.chunk
+                    chunk_subgroup_index: (v1Visualizer?.chunk == 0) ? null : v1Visualizer.chunk
                 };
                 const nodes = v1Visualizer.nodes.map(({ position, element, label }) => {
                     return { position: { ...position }, element, label, color: DEFAULT_NODE_COLOR };
@@ -295,7 +295,7 @@ export function convertV1ToV2(v1Objects) {
                     arrowhead_placement: v1Visualizer.arrowhead_placement,
                     label_scale_factor: v1Visualizer.label_scale_factor,
                     showing_axes: false,
-                    highlight_control: null, // not 
+                    highlight_control: null, // not
                     highlight_colors: highlights,
                     diagram_control: diagramControl,
                     view_state: layout,

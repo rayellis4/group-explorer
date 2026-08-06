@@ -531,7 +531,7 @@ export class CDView extends VisualizerView {
                strategy_parameters: generatedStrategyParameters,
                arrow_generators: arrowGenerators,
                right_multiply: true,
-               chunk_subgroup_index: 0
+               chunk_subgroup_index: null,
             }
          }
 

@@ -199,7 +199,7 @@ class ViewModel {
       this.rightMultiply = jsonObject.right_multiply ?? true
       this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index ?? null
 
-      //      this.updateLayout()
+      this.updateLayout()
 
       return this
    }
@@ -223,6 +223,9 @@ class ViewModel {
    }
 
    getChunkingChoices (): { subgroupIndex: number, allGenerators: groupElement[] }[] {
+      if (!this.chunkingIsPossible)
+         return []
+
       const strategyParameters = this.strategyParameters
       let choices = []
       if (  strategyParameters[0].nestingLevel == 0
@@ -353,8 +356,8 @@ class ViewModel {
       this.updateLayout()
    }
 
-   setChunk (index: Maybe<integer>) {
-      this.chunkSubgroupIndex = index
+   setChunk (index: integer) {
+      this.chunkSubgroupIndex = (index == 0) ? null : index
       this.updateLayout()
    }
 
@@ -932,15 +935,6 @@ class Chunking extends View {
       return document.getElementById('chunking-fog') as HTMLElement
    }
 
-   displayChunkingChoice (chosenSubgroupIndex: integer) {
-      const choice = this.viewModel.getChunkingChoices().find((choice) => choice.subgroupIndex == chosenSubgroupIndex)
-      if (choice != null) {
-         const chunkSelectElement = document.getElementById('chunk-select') as HTMLElement
-         chunkSelectElement.innerHTML = this.formatChoice(choice)
-         chunkSelectElement.setAttribute('data-value', chosenSubgroupIndex.toString())
-      }     
-   }
-
    displayChunkingOptions () {
       const choices: {value: string, label?: html}[] = [
          {value: '0', label: '(no chunking)'}
@@ -955,7 +949,7 @@ class Chunking extends View {
 
       makeMockSelect(this.chunkSelect, choices)
          .then(
-            (choice) => this.viewModel.setChunk(choice === '0' ? null : parseInt(choice)),
+            (choice) => this.viewModel.setChunk(parseInt(choice)),
             () => {}
          )
    }
@@ -973,12 +967,18 @@ class Chunking extends View {
    // This fires when another View resets chunkSubgroupIndex to null (e.g. switching to a named
    // diagram or reordering strategies).
    update () {
-      if (this.viewModel.chunkSubgroupIndex == null) {
+      const chosenSubgroupIndex = this.viewModel.chunkSubgroupIndex
+      if (chosenSubgroupIndex == null) {
          this.chunkSelect.setAttribute('data-index', '0')
          this.chunkSelect.innerHTML = '(no chunking)'
          this.chunkingFog.style.display = this.viewModel.chunkingIsPossible ? 'none' : 'block'
       } else {
-         this.displayChunkingChoice(this.viewModel.chunkSubgroupIndex)
+         const choice = this.viewModel.getChunkingChoices().find((choice) => choice.subgroupIndex == chosenSubgroupIndex)
+         if (choice != null) {
+            const chunkSelectElement = document.getElementById('chunk-select') as HTMLElement
+            chunkSelectElement.innerHTML = this.formatChoice(choice)
+            chunkSelectElement.setAttribute('data-value', chosenSubgroupIndex.toString())
+         }
          this.chunkingFog.style.display = 'none'
       }
    }

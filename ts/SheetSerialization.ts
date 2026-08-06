@@ -139,7 +139,7 @@ type v0SheetType = {
    label_scale_factor: unknown,
    line_width: unknown,
    nodes?: ({label: string})[],
-   right_multiply: unknown, 
+   right_multiply: unknown,
    ring_highlights: unknown,
    sphere_base_radius: unknown,
    sphere_scale_factor: unknown,
@@ -306,13 +306,13 @@ type v1SheetType = {
    // Visualizer
    groupURL?: string,
    isClean?: boolean,  // Cayley diagram only
-   visualizer?: v1CDVisualizer | v1CGVisualizer | v1MTVisualizer 
+   visualizer?: v1CDVisualizer | v1CGVisualizer | v1MTVisualizer
    _visualizer?: any,
 
    // Link
    destinationId?: string,
    sourceId?: string,
-   
+
    // Connection
    // color?: Maybe<color>,
    hasArrowhead?: boolean,
@@ -387,7 +387,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
          className: v1Object.className,
          id: v1Object.id,
       } as SheetJSON
-         
+
       // create visualizers for each VisualizerElement
       // create source_id, destination_id fields for LinkElemnts
       switch (v1Object.className) {
@@ -420,13 +420,13 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                strategy_parameters: strategyParameters,
                arrow_generators: arrowGenerators,
                right_multiply: v1Visualizer.right_multiply,
-               chunk_subgroup_index: v1Visualizer.chunk
+               chunk_subgroup_index: (v1Visualizer?.chunk == 0) ? null : v1Visualizer.chunk
             }
 
             const nodes = v1Visualizer.nodes.map(({position, element, label}) => {
                return {position: {...position}, element, label, color: DEFAULT_NODE_COLOR}
             })
-            
+
             // convert camera: extract position from column-major matrix[12,13,14], use cameraUp for up
             const matrix: Matrix4JSON = v1Visualizer.cameraJSON?.object?.matrix
             const position: Vector3JSON = matrix
@@ -437,13 +437,13 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
 
             const maybePOV: POV = getPOV(
                nodes.map(({position}) => { return {position: new THREE.Vector3(position.x, position.y, position.z)} }),
-               v1Visualizer.diagram_name == null) 
+               v1Visualizer.diagram_name == null)
             if (  maybePOV.position.equals(new THREE.Vector3(position.x, position.y, position.z))
                && new THREE.Vector3(up.x, up.y, up.z).negate().equals(maybePOV.up)
             ) {
                Object.assign(up, {x: -up.x, y: -up.y, z: -up.z})
             }
-            
+
             const arrows: ArrowDataJSON[] = v1Visualizer.arrows.map((arrow) => {
                const {start_element, end_element, generator, thirdPoint, offset, color} = arrow
                const bidirectional = group.mult(end_element, generator) === start_element
@@ -500,7 +500,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                arrowhead_placement: v1Visualizer.arrowhead_placement,
                label_scale_factor: v1Visualizer.label_scale_factor,
                showing_axes: false,
-               highlight_control: null,  // not 
+               highlight_control: null,  // not
                highlight_colors: highlights,
                diagram_control: diagramControl,
                view_state: layout,
@@ -544,7 +544,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                elements: v1Visualizer.elements
             }
             ;(v2Object as VisualizerElementJSON).visualizerJSON = v2Visualizer
-            
+
             break
          }
 
@@ -587,7 +587,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                }
             }
          }
-      
+
          case 'TextElement': {
             (['alignment', 'color', 'fontColor', 'fontSize', 'isPlainText', 'opacity', 'text'] as (keyof v1SheetType)[])
                .forEach((field) => {

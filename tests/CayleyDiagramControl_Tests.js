@@ -1,4 +1,5 @@
 import {addControl} from '../js/CayleyDiagramControl.js'
+import {createModelProxy} from '../js/GEUtils.js'
 import * as Library from '../js/Library.js'
 
 // ---- fixtures ---------------------------------------------------------------
@@ -14,7 +15,7 @@ before(async function () {
 // ---- helpers ----------------------------------------------------------------
 
 function makeModel (group) {
-   return {group, layout: null, diagramControl: null}
+   return createModelProxy({group, layout: null, diagramControl: null})
 }
 
 // ---- tests ------------------------------------------------------------------
