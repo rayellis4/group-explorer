@@ -5,5 +5,4 @@
 node_modules/
 package-lock.json
 .claude
-AI/
-tests/dev/
+tsconfig.tsbuildinfo
