@@ -7,7 +7,7 @@ Finds isomorphic group from group library
  */
 import { BitSet } from './BitSet.js';
 import * as GEUtils from './GEUtils.js';
-import * as Library from './Library.js';
+import * as GroupRegistry from './GroupRegistry.js';
 export function find(G) {
     // we have all groups of order <= 20 in group library, and all non-abelian group <= 40
     // if we're down to one candidate group then it's guaranteed to be the one
@@ -15,7 +15,7 @@ export function find(G) {
         return (candidates.length == 1 && (G.order <= 20 || (!G.isAbelian && G.order <= 40)));
     }
     // filter by candidate group properties
-    let candidates = Library.getGroupsByOrder(G.order)
+    let candidates = GroupRegistry.getGroupsByOrder(G.order)
         .filter(H => G.isAbelian == H.isAbelian)
         .filter(H => GEUtils.equals(G.orderClassSizes, H.orderClassSizes));
     if (testCandidates(candidates)) {

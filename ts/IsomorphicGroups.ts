@@ -8,7 +8,7 @@ Finds isomorphic group from group library
 
 import { BitSet } from './BitSet.js';
 import * as GEUtils from './GEUtils.js';
-import * as Library from './Library.js';
+import * as GroupRegistry from './GroupRegistry.js';
 
 import type { Group } from './Group.js'
 
@@ -20,7 +20,7 @@ export function find (G: Group): Maybe<Group> {
       }
 
       // filter by candidate group properties
-      let candidates = Library.getGroupsByOrder(G.order)
+      let candidates = GroupRegistry.getGroupsByOrder(G.order)
          .filter(H => G.isAbelian == H.isAbelian)
          .filter(H => GEUtils.equals(G.orderClassSizes, H.orderClassSizes))
 

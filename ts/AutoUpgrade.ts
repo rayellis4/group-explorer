@@ -64,6 +64,7 @@ const codeFiles = [
    'js/Group.js',
    'js/GroupExplorer.js',
    'js/GroupInfo.js',
+   'js/GroupRegistry.js',
    'js/GroupTable.js',
    'js/GroupTableUI.js',
    'js/Heading.js',

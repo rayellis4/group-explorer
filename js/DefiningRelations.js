@@ -12,18 +12,17 @@ Generally convert group presentation to/from a multiplication table
  * Used in Sheet to check that a set mapping is a homomorphism
  */
 import { BitSet } from './BitSet.js';
-import { Group } from './Group.js';
-import * as Library from './Library.js';
 import * as Log from './Log.js';
-export { findRelations, makePresentation, generateGroupFromPresentation, parseFormattedPresentation, GENERATED_GROUP_PREFIX, };
-export { EXTENDED_GROUP_PREFIX } from './AutoUpgrade.js';
-const GENERATED_GROUP_PREFIX = "data:,//GE3/generated";
+// Todd-Coxeter coset enumeration adds at most one coset per iteration; a presentation that
+// hasn't converged by this point is treated as malformed (or describing an infinite group)
+// rather than run indefinitely
+const MAX_COSET_ENUMERATION_ITERATIONS = 1000;
 // Returns an array of relationships as a groupElement[][], in which, for example,
 //   [[1,1], [2,2,2], [1,2,1,2]] means
 //     1) el[1]*el[1] = e
 //     2) el[2]*el[2]*el[2] = e
 //     3) el[1]*el[2]*el[1]*el[2] = e
-function findRelations(group, generators = group.generators) {
+export function findRelations(group, generators = group.generators) {
     const relators = findRawRelations(group, generators);
     relators.forEach((relator, inx) => relators[inx] = relator.map((el) => (el < 0) ? group.inverses[-el] : el));
     return relators;
@@ -92,7 +91,7 @@ function findRawRelations(group, generators = group.generators) {
     }
     return relators;
 }
-function makePresentation(group) {
+export function makePresentation(group) {
     const relations = findRawRelations(group);
     const characterMap = relations.reduce((characterMap, relator) => {
         relator.forEach((char) => {
@@ -114,28 +113,38 @@ function makePresentation(group) {
         .join(',');
     return generatorString + ':' + relatorString;
 }
-function generateGroupFromPresentation(presentation) {
+/*
+```
+### generateGroupFromPresentation
+
+Returns the multiplication table generated from `presentation`, along with the multtable
+element corresponding to each of its declared generators -- or `null` if the Todd-Coxeter
+coset enumeration doesn't converge (presentation is malformed, or describes a group too
+large or infinite to enumerate within `MAX_COSET_ENUMERATION_ITERATIONS`).
+
+No separate "this group is large, proceed anyway?" gate: a user who deliberately asks for
+a group this big is welcome to it -- she can always delete it from the library afterward.
+`MAX_COSET_ENUMERATION_ITERATIONS` already does double duty as a size guard in practice,
+since filling out the coset table takes at least `|G|` iterations (usually more), so a group
+large enough to be a real problem tends to blow the iteration cap and return `null` here
+before the caller ever sees it.
+
+```javascript
+ */
+export function generateGroupFromPresentation(presentation) {
     // parse presentation
     const [generators, relators] = parseFormattedPresentation(presentation);
     // create, fill cosetTable
     const [relationTable, cosetTable] = generateCosetTable(generators, relators);
     // check results
-    checkCosetTable(presentation, relationTable, cosetTable);
+    if (!checkCosetTable(presentation, relationTable, cosetTable)) {
+        return null;
+    }
     // create multtable from cosetTable
     const multtable = createMulttable(generators, cosetTable);
-    // create, decorate group
-    const group = generateGroup(generators, relators, multtable, cosetTable);
-    // check to see whether the group is extraordinarily large
-    if (group.order > 200 || group.subgroups.length > 1000) {
-        const warning = `The 'data:,//GE3/generated...' URL generates a group of order ${group.order} with ` +
-            `${group.subgroups.length} subgroups: visualizing a group this large and complex ` +
-            `may take a while.\n` +
-            `Click OK to proceed, Cancel to abort.`;
-        if (!window.confirm(warning)) {
-            return null; // or throw exception
-        }
-    }
-    return group;
+    // multtable element that each declared generator maps to
+    const generatorElements = generators.map((_, inx) => cosetTable[0][2 * inx]);
+    return { multtable, generators: generatorElements };
 }
 function generateCosetTable(generators, relators) {
     /*
@@ -331,7 +340,7 @@ function generateCosetTable(generators, relators) {
             cosetTable.pop();
         }
     };
-    for (var iteration = 1; iteration < 1000; iteration++) {
+    for (var iteration = 1; iteration < MAX_COSET_ENUMERATION_ITERATIONS; iteration++) {
         // find next null in relationTable; exit loop if there isn't one
         const relation = relationTable.find((relation) => !relation.isFilled);
         if (relation == null) {
@@ -360,6 +369,11 @@ function isUpperCase(char) {
 function inverseIndex(index) {
     return index + ((index % 2 == 0) ? 1 : -1);
 }
+// Returns true if the coset table fully converged. Returns false (rather than throwing) if
+// enumeration simply ran out of iterations -- that's an expected outcome for a malformed or
+// overly large presentation, and the caller decides how to report it. A coset table
+// inconsistency, on the other hand, indicates a bug in the enumeration algorithm itself, so
+// that case still throws.
 function checkCosetTable(presentation, relationTable, cosetTable) {
     if (relationTable.some((relation) => !relation.isFilled)) {
         for (let inx = 0; inx < cosetTable.length; inx++) {
@@ -371,8 +385,9 @@ function checkCosetTable(presentation, relationTable, cosetTable) {
                 }
             }
         }
-        throw new Error(`DefiningRelations.generateGroupFromPresentation failed on ${presentation}`);
+        return false;
     }
+    return true;
 }
 function createMulttable(generators, cosetTable) {
     const order = cosetTable.length;
@@ -402,53 +417,8 @@ function createMulttable(generators, cosetTable) {
     }
     return multtable;
 }
-function generateGroup(generators, relators, multtable, cosetTable) {
-    const group = Group.fromMulttable(multtable);
-    const namePrefix = `A Generated Group of Order ${group.order}`;
-    const nameSuffix = Math.max(...Library.getGroupsByOrder(group.order)
-        .filter((G) => G.name.startsWith(namePrefix))
-        .map((G) => G.name.slice(namePrefix.length).match(/\d/))
-        .map((match) => parseInt(match[0])), -1);
-    group.names = [namePrefix + ` (${nameSuffix + 1})`];
-    group.shortName = `Generated_${group.order}`;
-    group.library = 'generated';
-    group.definition = `⟨${formatGenerators(generators)} : ${formatRelators(relators)}⟩`;
-    group.notes = 'Generated from definition';
-    group.URL = `${GENERATED_GROUP_PREFIX}?${generators.join(',')}:${relators.join(',')}`;
-    group.representations = [Array.from({ length: group.order }, (_, inx) => '' + inx)];
-    group.cayleyDiagrams = [];
-    group.symmetryObjects = [];
-    group.declaredGenerators = [];
-    // put generators from group.subgroups first if it's shorter
-    const groupAsSubgroup = group.subgroups.at(-1);
-    if (groupAsSubgroup.generators.popcount() < generators.length) {
-        group.declaredGenerators.push(groupAsSubgroup.generators.toArray());
-    }
-    group.declaredGenerators.push(generators.map((_, inx) => cosetTable[0][2 * inx]));
-    // generate element representations that match the presentation
-    const reps = Array(group.order);
-    reps[0] = generators.includes('e') // 'e' if it's not a generator; else 0 if group is Abelian, or 1 if not
-        ? (group.isAbelian ? '0' : '1')
-        : 'e';
-    const queue = [[0, '']];
-    const todo = new BitSet(group.order).setAll();
-    todo.clear(0);
-    while (todo.popcount() != 0) {
-        const [el, rep] = queue.shift();
-        for (let genIndex = 0; genIndex < generators.length; genIndex++) {
-            const el_x_gen = cosetTable[el][2 * genIndex];
-            if (reps[el_x_gen] == null) {
-                todo.clear(el_x_gen);
-                reps[el_x_gen] = rep + generators[genIndex];
-                queue.push([el_x_gen, reps[el_x_gen]]);
-            }
-        }
-    }
-    group.representations = [reps.map((rep) => formatRelator(rep))];
-    return group;
-}
 // reads 'a,b | a3=b2=1, bab=a-1', returns [generators, relators] as [['a','b'],['aaa','bb','baba']]
-function parseFormattedPresentation(presentation) {
+export function parseFormattedPresentation(presentation) {
     presentation = presentation.replaceAll(/%20/g, '').replaceAll(/\|/g, ':'); // cut-and-paste from groupnames.org
     const [generatorString, relatorString] = presentation.split(':');
     const generators = generatorString.split(',').sort();
@@ -502,40 +472,5 @@ function parseFormattedRelator(relator) {
         results.push(result);
     }
     return results.join('');
-}
-function formatGenerators(generators) {
-    const formattedGenerators = generators
-        .map((gen) => `<i>${gen}</i>`)
-        .join(', ');
-    return formattedGenerators;
-}
-function formatRelators(relators) {
-    const formattedRelators = relators
-        .map((relator) => formatRelator(relator) + '=<wbr>')
-        .join('') + '1';
-    return formattedRelators;
-}
-function formatRelator(relator) {
-    const translatedRelator = [];
-    let currentChar = relator.charAt(0);
-    let currentCount = 1;
-    for (let inx = 1; inx <= relator.length; inx++) {
-        const char = relator.charAt(inx);
-        if (char == currentChar) {
-            currentCount++;
-        }
-        else {
-            translatedRelator.push(`<i>${currentChar.toLowerCase()}</i>`);
-            if (currentChar == currentChar.toUpperCase()) {
-                translatedRelator.push(`<sup>-${currentCount}</sup>`);
-            }
-            else if (currentCount > 1) {
-                translatedRelator.push(`<sup>${currentCount}</sup>`);
-            }
-            currentChar = char;
-            currentCount = 1;
-        }
-    }
-    return translatedRelator.join('');
 }
 //# sourceMappingURL=DefiningRelations.js.map

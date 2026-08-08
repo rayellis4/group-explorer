@@ -12,7 +12,7 @@ The factory method [addControl](#addcontrol) is the only object exported.
 
 ```javascript
  */
-import * as Library from './Library.js'
+import * as GroupRegistry from './GroupRegistry.js'
 import * as Settings from './Settings.js'
 import * as GEUtils from './GEUtils.js'
 import * as Heading from './Heading.js'
@@ -138,7 +138,7 @@ class View {
 
       // setup initial group selection
       const mockSelectGroup = rootElement.querySelector('#visualizer-select-group') as HTMLElement
-      const trivialGroup = Library.getGroupsByOrder(1)[0]
+      const trivialGroup = GroupRegistry.getGroupsByOrder(1)[0]
       mockSelectGroup.setAttribute('data-value', trivialGroup.URL)
       mockSelectGroup.innerHTML = trivialGroup.name
 
@@ -162,7 +162,7 @@ class View {
    }
 
    showGroupSelect () {
-      const sortedGroups = Library.allVisibleGroups(Settings.getFilterConfig()).sort((g, h) => g.order - h.order)
+      const sortedGroups = GroupRegistry.getVisibleGroups(Settings.getFilterConfig()).sort((g, h) => g.order - h.order)
 
       const byOrder: Map<integer, Group[]> = new Map()
       sortedGroups.forEach((g) => {

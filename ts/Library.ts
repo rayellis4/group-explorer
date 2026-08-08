@@ -3,55 +3,55 @@
 
 Class manages group definitions stored in localStorage
 
+It is the sole writer of the registry; GroupRegistry is a leaf module
+so [DefiningRelations](./DefiningRelations.ts.md) and
+[IsomorphicGroups](./IsomorphicGroups.ts.md) can read it without a dependency cycle.
+
 Group definitions are stored as JSON strings, keyed by the URL from which the
 group was fetched, or the URN from which the group was generated.
 The group objects created from these JSON strings are cached as key-value pairs
 in library.
 
-Method overview:
+Method overview (* are exported):
  * absoluteURL -- get absolute URL from relative
  * dataToGroup -- make group object from JSON string, XML string
- * deleteGroups -- remove groups from Library
- * getAllGroups -- return array of groups from Library
- * getGroupByURL -- return group from Library
+ * deleteGroups* -- remove groups from Library
+ * decorateGeneratedGroup -- add some basic properties to generated group
+ * formatGenerators -- format array of generators for use in generated group definition
+ * formatRelators -- format array of relators for use in generated group definition
+ * formatRelator -- format single relator for use in generated group definition
+ * getGroupByURL* -- return group from library by URL, generating it is needed
  * getStoredGroups -- get group library from local store
- * isEmpty -- true if Library contains no groups
- * loadFromPageURL -- get groupURL from window.location.href and return Promise to load it
- * saveGroup -- store group in Library
- * saveLibrary -- save library to local store
- * updateAllGroups -- refresh remote groups from server
+ * loadFromPageURL* -- get groupURL from window.location.href and return Promise to load it
+ * loadFromStoredGroups* -- populate in-memory library from object
+ * loadLibrary* -- load library from object store
+ * saveGroup* -- store group in Library
+ * updateAllGroups* -- refresh remote groups from server
 
 ```js
 */
 
+import { EXTENDED_GROUP_PREFIX } from './AutoUpgrade.js'
+import { BitSet } from './BitSet.js'
 import * as DefiningRelations from './DefiningRelations.js'
 import { Group } from './Group.js'
+import * as GroupRegistry from './GroupRegistry.js'
 import * as IsomorphicGroups from './IsomorphicGroups.js'
 import * as Log from './Log.js'
 import * as StoredObjects from './StoredObjects.js'
 import * as XMLGroup from './XMLGroup.js'
 
 import type { GroupFileJSON } from './Group.js'
+import type { Subgroup } from './Subgroup.js'
 
-export {
-   allVisibleGroups,
-   deleteGroups,
-   getAllGroups,
-   getGroupsByOrder,
-   getGroupByURL,
-   isEmpty,
-   loadFromPageURL,
-   loadFromStoredGroups,
-   loadLibrary,
-   saveGroup,
-   updateAllGroups
-}
+export { getAllGroups, getGroupsByOrder } from './GroupRegistry.js'
 
-type libraryType = {[key: string]: Group}
+export const GENERATED_GROUP_PREFIX = "data:,//GE3/generated"
+export {EXTENDED_GROUP_PREFIX} from './AutoUpgrade.js'
 
-const library: libraryType = {}
+const library = GroupRegistry.groups
 
-async function loadLibrary () {
+export async function loadLibrary () {
    const storedGroups = await getStoredGroups()
    Object.keys(library).forEach((key) => delete library[key])  // clear library
    Object.assign(library, storedGroups)
@@ -59,7 +59,7 @@ async function loadLibrary () {
 
 // Populate the in-memory library from a raw stored-groups object (used during DB migration,
 // when the DB connection isn't available for a normal loadLibrary() call)
-function loadFromStoredGroups (storedGroups: {[key: string]: GroupFileJSON}) {
+export function loadFromStoredGroups (storedGroups: {[key: string]: GroupFileJSON}) {
    Object.entries(storedGroups).forEach(([key, value]) => {
       library[key] = Group.fromLocalCopyJSON(value)
    })
@@ -88,7 +88,7 @@ function dataToGroup (data: any, contentType: string = ''): Group {
 }
 
 // delete array of groups from library and update local store
-function deleteGroups (groups: Group[]) {
+export function deleteGroups (groups: Group[]) {
    for (const group of groups) {
       delete library[group.URL]
       deletedGroupURLs.push(group.URL)
@@ -96,47 +96,130 @@ function deleteGroups (groups: Group[]) {
    scheduleLocalStoreUpdate()
 }
 
-// return array of groups from library
-function getAllGroups (): Group[] {
-   return Object.values(library)
+// Fill in name, definition, declared generators, and presentation-matching element
+// representations for a freshly-generated group that has no isomorph already in the registry.
+function decorateGeneratedGroup (
+   group: Group,
+   generatorNames: string[],
+   relators: string[],
+   generatorElements: groupElement[]
+): void {
+   const namePrefix = `A Generated Group of Order ${group.order}`
+   const nameSuffix = Math.max(
+      ...GroupRegistry.getGroupsByOrder(group.order)
+         .filter((G) => G.name.startsWith(namePrefix))
+         .map((G) => G.name.slice(namePrefix.length).match(/\d/))
+         .map((match) => parseInt((match as RegExpMatchArray)[0])),
+      -1)
+   group.names = [namePrefix + ` (${nameSuffix + 1})`]
+   group.shortName = `Generated_${group.order}`
+   group.definition = `⟨${formatGenerators(generatorNames)} : ${formatRelators(relators)}⟩`
+   group.notes = 'Generated from definition'
+   group.declaredGenerators = []
+
+   // put generators from group.subgroups first if it's shorter
+   const groupAsSubgroup = group.subgroups.at(-1) as Subgroup
+   if (groupAsSubgroup.generators.popcount() < generatorElements.length) {
+      group.declaredGenerators.push(groupAsSubgroup.generators.toArray())
+   }
+   group.declaredGenerators.push(generatorElements)
+
+   // generate element representations that match the presentation
+   const reps = Array(group.order)
+   reps[0] = generatorNames.includes('e')  // 'e' if it's not a generator; else 0 if group is Abelian, or 1 if not
+      ? (group.isAbelian ? '0' : '1')
+      : 'e'
+   const queue: [groupElement, string][] = [[0, '']]
+   const todo = new BitSet(group.order).setAll()
+   todo.clear(0)
+   while (todo.popcount() != 0) {
+      const [el, rep]: [groupElement, string] = queue.shift() as [groupElement, string]
+      for (let genIndex = 0; genIndex < generatorElements.length; genIndex++) {
+         const el_x_gen = group.multtable[el][generatorElements[genIndex]]
+         if (reps[el_x_gen] == null) {
+            todo.clear(el_x_gen)
+            reps[el_x_gen] = rep + generatorNames[genIndex]
+            queue.push([el_x_gen, reps[el_x_gen]])
+         }
+      }
+   }
+   group.representations = [reps.map((rep) => formatRelator(rep))]
 }
 
-// return groups visible under the given filter config (from Settings.getFilterConfig())
-function allVisibleGroups (filterConfig: {[key: string]: any}): Group[] {
-   const groupVisibility = filterConfig.groupVisibility ?? {}
-   return getAllGroups().filter((group) => {
-      const override = groupVisibility[group.URL]
-      if (override != null) return override === 'shown'
-      const lib = group.library
-      if (lib == null)                         return true
-      if (lib === 'extended') return group.order < 32 ? filterConfig.showExtendedLt32 : filterConfig.showExtendedGe32
-      if (lib === 'notable')                   return filterConfig.showNotable
-      if (lib === 'generated')                 return filterConfig.showGenerated
-      return true
-   })
+function formatGenerators (generators: string[]) {
+   const formattedGenerators = generators
+      .map((gen) => `<i>${gen}</i>`)
+      .join(', ')
+
+   return formattedGenerators
 }
 
-function getGroupsByOrder (order: integer): Group[] {
-   return Object.values(library).filter((group) => group.order == order)
+function formatRelators (relators: string[]) {
+   const formattedRelators = relators
+      .map((relator) => formatRelator(relator) + '=<wbr>')
+      .join('') + '1'
+
+   return formattedRelators
+}
+
+function formatRelator (relator: string) {
+   const translatedRelator = []
+   let currentChar = relator.charAt(0)
+   let currentCount = 1
+   for (let inx = 1; inx <= relator.length; inx++) {
+      const char = relator.charAt(inx)
+      if (char == currentChar) {
+         currentCount++
+      } else {
+         translatedRelator.push(`<i>${currentChar.toLowerCase()}</i>`)
+         if (currentChar == currentChar.toUpperCase()) {
+            translatedRelator.push(`<sup>-${currentCount}</sup>`)
+         } else if (currentCount > 1) {
+            translatedRelator.push(`<sup>${currentCount}</sup>`)
+         }
+         currentChar = char
+         currentCount = 1
+      }
+   }
+
+   return translatedRelator.join('')
 }
 
 // returns group from library by URL, generating it if needed
-function getGroupByURL (url: string): Maybe<Group> {
+export function getGroupByURL (url: string): Maybe<Group> {
    let group: Maybe<Group> = library[absoluteURL(url)]
    if (group == null) {
       const presentation = new URL(url).search.slice(1)
-      if (url.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
-         group = DefiningRelations.generateGroupFromPresentation(presentation)
-         if (group != null) {
-            group.URL = url
-            saveGroup(group)
+      if (url.startsWith(GENERATED_GROUP_PREFIX)) {
+         const result = DefiningRelations.generateGroupFromPresentation(presentation)
+         if (result != null) {
+            const candidate = Group.fromMulttable(result.multtable)
+            // library invariant: groups are unique up to isomorphism -- prefer an existing
+            // match over decorating and saving a redundant generated duplicate
+            const isomorphicGroup = IsomorphicGroups.find(candidate)
+            if (isomorphicGroup != null) {
+               group = isomorphicGroup
+            } else {
+               const [generatorNames, relators] = DefiningRelations.parseFormattedPresentation(presentation)
+               decorateGeneratedGroup(candidate, generatorNames, relators, result.generators)
+               candidate.library = 'generated'
+               candidate.URL = url
+               saveGroup(candidate)
+               group = candidate
+            }
          }
-      } else if (url.startsWith(DefiningRelations.EXTENDED_GROUP_PREFIX)) {
-         group = DefiningRelations.generateGroupFromPresentation(presentation)
-         if (group != null) {
-            group.library = 'extended'
-            group.URL = url
-            saveGroup(group)
+      } else if (url.startsWith(EXTENDED_GROUP_PREFIX)) {
+         // extended-library groups are curated by presentation, not deduplicated against
+         // isomorphic library entries -- each carries its own manifest metadata (GAP id, etc.)
+         const result = DefiningRelations.generateGroupFromPresentation(presentation)
+         if (result != null) {
+            const candidate = Group.fromMulttable(result.multtable)
+            const [generatorNames, relators] = DefiningRelations.parseFormattedPresentation(presentation)
+            decorateGeneratedGroup(candidate, generatorNames, relators, result.generators)
+            candidate.library = 'extended'
+            candidate.URL = url
+            saveGroup(candidate)
+            group = candidate
          }
       }
    }
@@ -145,47 +228,39 @@ function getGroupByURL (url: string): Maybe<Group> {
 }
 
 // Read group library from local store
-async function getStoredGroups (): Promise<libraryType> {
-   const storedGroups = ((await StoredObjects.getGroupLibrary()) || {}) as libraryType
+async function getStoredGroups (): Promise<GroupRegistry.GroupRegistryType> {
+   const storedGroups = ((await StoredObjects.getGroupLibrary()) || {}) as GroupRegistry.GroupRegistryType
    Object.entries(storedGroups).forEach(([key, value]) => storedGroups[key] = Group.fromLocalCopyJSON(value))
 
    return storedGroups
 }
 
-// return 'true' if library is empty
-function isEmpty (): boolean {
-   return Object.keys(library).length === 0
-}
-
 // get groupURL from page invocation and return promise for resolution from cache or download
-async function loadFromPageURL (): Promise<Group> {
-   const hrefURL = new URL(window.location.href)
-   const groupURL = hrefURL.searchParams.get('groupURL')
-   let result
-   if (groupURL != null) {
-      const group = getGroupByURL(groupURL)
-      if (group == null) {
-         result = downloadGroup(groupURL)
-      } else if (groupURL.startsWith(DefiningRelations.GENERATED_GROUP_PREFIX)) {
-         const maybeIsomorphicGroup = IsomorphicGroups.find(group)
-         if (maybeIsomorphicGroup == null) {
-            result = group
-         } else {
-            deleteGroups([group])  // getGroupByURL will generate non-null group
-            result = maybeIsomorphicGroup
+export async function loadFromPageURL (): Promise<Group> {
+   try {
+      const hrefURL = new URL(window.location.href)
+      const groupURL = hrefURL.searchParams.get('groupURL')
+      let result: Maybe<Group> = null
+      if (groupURL != null) {
+         result = getGroupByURL(groupURL)
+         if (result == null) {
+            if (groupURL.startsWith(GENERATED_GROUP_PREFIX) || groupURL.startsWith(EXTENDED_GROUP_PREFIX)) {
+               throw new Error(`Failed to generate group from URN "${groupURL}"`)
+            } else {
+               result = await downloadGroup(groupURL)
+            }
          }
-      } else {
-         result = group
+      } else if (hrefURL.searchParams.get('waitForMessage') != null) {
+         result = await waitForGroupInMessage()
+      } else {  // no groupURL, no waitForMessage
+         throw new Error("error in URL: can't find groupURL query parameter")
       }
-   } else if (hrefURL.searchParams.get('waitForMessage') !== null) {
-      result = waitForGroupInMessage()
-   }
 
-   if (result == null) {
-      throw new Error("error in URL: can't find groupURL query parameter")
+      return result as Group
+   } catch (error: unknown) {
+      Log.err(`Unable to load page from URL ${window.location.href}:\n${(error as Error).message}`)
+      throw(error)
    }
-
-   return result
 
    async function downloadGroup (url: string): Promise<Group> {
       const groupURL = absoluteURL(url)
@@ -265,7 +340,7 @@ async function loadFromPageURL (): Promise<Group> {
 }
 
 // updates library group definitions and schedules local store update
-function saveGroup (group: Maybe<Group>) {
+export function saveGroup (group: Maybe<Group>) {
    if (group != null) {
       if (library[group.URL] == null) {
          createdGroupURLs.push(group.URL)
@@ -310,7 +385,7 @@ function scheduleLocalStoreUpdate () {
 }
 
 // Update all groups in library and from the provided manifest URL list
-async function updateAllGroups (manifestURLs: string[]) {
+export async function updateAllGroups (manifestURLs: string[]) {
    // replace latest group definitions from server in library
    await loadLibrary()
    const updateGroup = async (groupURL: string): Promise<void> => {

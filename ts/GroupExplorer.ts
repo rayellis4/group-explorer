@@ -6,6 +6,7 @@ Displays group library in table format
 ```js
  */
 
+import * as GroupRegistry from './GroupRegistry.js'
 import * as GroupTable from './GroupTable.js'
 import * as GroupTableUI from './GroupTableUI.js'
 import * as Heading from './Heading.js'
@@ -57,7 +58,7 @@ export async function load () {
       const message = messageEvent.data
       if (message.source === 'library') {
          await Library.loadLibrary()
-         const visibleGroups = Library.allVisibleGroups(Settings.getFilterConfig()).map((G) => G.URL)
+         const visibleGroups = GroupRegistry.getVisibleGroups(Settings.getFilterConfig()).map((G) => G.URL)
          if (  message.created.some((groupURL: string) => visibleGroups.includes(groupURL))
             || (message.created.length == 0 && message.updated.length == 0 && message.deleted.length == 0)
          ) {
@@ -92,7 +93,7 @@ function makeMenu () {
 }
 
 function displayGroups () {
-   const groupsToDisplay = Library.allVisibleGroups(Settings.getFilterConfig())
+   const groupsToDisplay = GroupRegistry.getVisibleGroups(Settings.getFilterConfig())
 
    // sort by definition length to minimize re-layout jink during incremental load
    groupsToDisplay.sort((G, H) => (H.definition?.length ?? 0) - (G.definition?.length ?? 0))

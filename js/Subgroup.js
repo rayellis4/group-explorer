@@ -100,7 +100,7 @@ export class Subgroup {
         let libraryGroup = IsomorphicGroups.find(G);
         if (libraryGroup == null) {
             const presentation = DefiningRelations.makePresentation(G);
-            const presentationURL = DefiningRelations.GENERATED_GROUP_PREFIX + '?' + presentation;
+            const presentationURL = Library.GENERATED_GROUP_PREFIX + '?' + presentation;
             libraryGroup = Library.getGroupByURL(presentationURL);
         }
         return libraryGroup;
