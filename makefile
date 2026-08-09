@@ -7,12 +7,19 @@
 all : setVersion
 	npx tsc
 
+# The PAGES below (GroupExplorer.html, GroupInfo.html, etc.) are generated from PAGE_TEMPLATE
+# and get overwritten every time this runs. Don't hand-edit a PAGE.html file directly -- edit
+# html/PageTemplate.html (or the page-specific sed substitutions below) instead, or your change
+# will be silently clobbered by the next `make`.
 PAGES = GroupExplorer GroupInfo Multtable CayleyDiagram CycleGraph SymmetryObject Sheet
 PAGE_TEMPLATE = html/PageTemplate.html
 
+# Version lives in three places (README.md, index.html, package.json) and this target is what
+# keeps them consistent. Don't hand-edit the version in any of the three -- always go through
+# `make VERSION=x.y.z`, or they'll drift out of sync with each other.
 setVersion : $(PAGES)
 	sed -i --follow-symlinks '/^# Group Explorer 3.*/ c\# Group Explorer $(VERSION)' README.md
-	sed -i 's/"GE3-GITVersion" content=".*"/"GE3-GITVersion" content="${VERSION}"/g' index.html 
+	sed -i 's/"GE3-GITVersion" content=".*"/"GE3-GITVersion" content="${VERSION}"/g' index.html
 	sed -i 's/"version": ".*",/"version": "$(VERSION)",/g' package.json
 
 GroupExplorer :

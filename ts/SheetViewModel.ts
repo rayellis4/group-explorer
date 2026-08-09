@@ -3,6 +3,11 @@
 
 Manages logic of displaying sheet model elements independent of the mechanics of viewing them
 
+Note that when handling notifications from the `SheetModel` proxy in the `update` method,
+`view.clear()` is called *before* clearing the model's `sheetElements` map — the subscription
+notification fires only after the map is already empty, too late for the view to know what to tear
+down.
+
 ```js
  */
 

@@ -8,7 +8,7 @@ so [DefiningRelations](./DefiningRelations.ts.md) and
 [IsomorphicGroups](./IsomorphicGroups.ts.md) can read it without a dependency cycle.
 
 Group definitions are stored as JSON strings, keyed by the URL from which the
-group was fetched, or the URN from which the group was generated.
+group was fetched, or the URI from which the group was generated.
 The group objects created from these JSON strings are cached as key-value pairs
 in library.
 
@@ -245,7 +245,7 @@ export async function loadFromPageURL (): Promise<Group> {
          result = getGroupByURL(groupURL)
          if (result == null) {
             if (groupURL.startsWith(GENERATED_GROUP_PREFIX) || groupURL.startsWith(EXTENDED_GROUP_PREFIX)) {
-               throw new Error(`Failed to generate group from URN "${groupURL}"`)
+               throw new Error(`Failed to generate group from URI "${groupURL}"`)
             } else {
                result = await downloadGroup(groupURL)
             }
