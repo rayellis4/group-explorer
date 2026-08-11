@@ -4,8 +4,12 @@
 # compiles ts/*.ts, sets version
 #    make VERSION=3.7.0
 
+SHELL := /bin/bash
+.PHONY : checkCodeFiles clean
+
 all : setVersion
 	npx tsc
+	$(MAKE) checkCodeFiles
 
 # The PAGES below (GroupExplorer.html, GroupInfo.html, etc.) are generated from PAGE_TEMPLATE
 # and get overwritten every time this runs. Don't hand-edit a PAGE.html file directly -- edit
@@ -17,10 +21,15 @@ PAGE_TEMPLATE = html/PageTemplate.html
 # Version lives in three places (README.md, index.html, package.json) and this target is what
 # keeps them consistent. Don't hand-edit the version in any of the three -- always go through
 # `make VERSION=x.y.z`, or they'll drift out of sync with each other.
+# `sed -i.bak ... && rm -f *.bak` (rather than a bare `sed -i`) is deliberate: BSD/macOS sed
+# requires a backup-suffix argument to -i where GNU sed doesn't, and this spelling is accepted
+# by both. Likewise the README.md line is rewritten with a portable `s///` instead of the `c\`
+# change command, whose one-line form (no literal newline before the replacement text) is a GNU
+# extension that BSD/macOS sed rejects.
 setVersion : $(PAGES)
-	sed -i --follow-symlinks '/^# Group Explorer 3.*/ c\# Group Explorer $(VERSION)' README.md
-	sed -i 's/"GE3-GITVersion" content=".*"/"GE3-GITVersion" content="${VERSION}"/g' index.html
-	sed -i 's/"version": ".*",/"version": "$(VERSION)",/g' package.json
+	sed -i.bak 's/^# Group Explorer 3.*/# Group Explorer $(VERSION)/' README.md && rm -f README.md.bak
+	sed -i.bak 's/"GE3-GITVersion" content=".*"/"GE3-GITVersion" content="${VERSION}"/g' index.html && rm -f index.html.bak
+	sed -i.bak 's/"version": ".*",/"version": "$(VERSION)",/g' package.json && rm -f package.json.bak
 
 GroupExplorer :
 	sed -e 's/\*\*TITLE\*\*/Group Explorer Library/g' -e 's/\*\*PAGE\*\*/GroupExplorer/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > GroupExplorer.html
@@ -43,6 +52,24 @@ SymmetryObject :
 Sheet :
 	sed -e 's/\*\*TITLE\*\*/Sheet/g' -e 's/\*\*PAGE\*\*/Sheet/g' -e 's/\*\*VERSION\*\*/$(VERSION)/g' $(PAGE_TEMPLATE) > Sheet.html
 
+
+# Every compiled js/*.js file must be listed in AutoUpgrade.ts's codeFiles array, or a returning
+# user's browser can keep serving a stale cached copy of a forgotten module after a version
+# upgrade (this has bitten us more than once). Runs automatically at the end of `make`/
+# `make VERSION=x.y.z`, after tsc has produced current output; run `make checkCodeFiles` directly
+# any time to check without a full build.
+checkCodeFiles :
+	@if diff -q <(cd js && ls *.js | grep -v '\.map$$' | sed 's,^,js/,' | sort) \
+	            <(grep -oE "'js/[A-Za-z0-9_]+\.js'" ts/AutoUpgrade.ts | tr -d "'" | sort) \
+	            > /dev/null; then \
+		echo "checkCodeFiles: OK -- js/*.js matches AutoUpgrade.ts's codeFiles"; \
+	else \
+		echo "checkCodeFiles: js/*.js and AutoUpgrade.ts's codeFiles have diverged:"; \
+		diff <(cd js && ls *.js | grep -v '\.map$$' | sed 's,^,js/,' | sort) \
+		     <(grep -oE "'js/[A-Za-z0-9_]+\.js'" ts/AutoUpgrade.ts | tr -d "'" | sort) \
+		     | sed -e 's/^</  missing from codeFiles:/' -e 's/^>/  listed but not in js\/:/'; \
+		exit 1; \
+	fi
 
 clean :
 	rm -f *~ */*~

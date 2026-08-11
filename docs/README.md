@@ -49,10 +49,13 @@ fit together, and a catalog of every module with a link to its source.
 
 - **`make VERSION=x.y.z`** — the full build: regenerates all seven `PAGE.html` files from
   `html/PageTemplate.html`, stamps the version into `README.md`/`index.html`/`package.json`
-  consistently, and compiles TypeScript (`npx tsc`). Run without `VERSION=` to build/compile
-  without touching the version. See the comments in [`makefile`](../makefile) before hand-editing a `PAGE.html`
-  file or a version string directly — both are generated/kept-in-sync by this target and will be
-  overwritten or drift out of sync otherwise.
+  consistently, compiles TypeScript (`npx tsc`), then runs `checkCodeFiles` (see [Things That Must
+  Stay In Sync](#things-that-must-stay-in-sync)). Run without `VERSION=` to build/compile without
+  touching the version. See the comments in [`makefile`](../makefile) before hand-editing a
+  `PAGE.html` file or a version string directly — both are generated/kept-in-sync by this target
+  and will be overwritten or drift out of sync otherwise.
+- **`make checkCodeFiles`** — on its own, checks `js/*.js` against `AutoUpgrade`'s `codeFiles`
+  list without doing a full build.
 - **`make clean`** — remove editor backup files (`*~`).
 - **`npx tsc -p .`** — compile TypeScript only, once.
 - **`npx tsc --watch`** — incremental compile on save; the practical edit-debug loop day to day.
@@ -71,6 +74,12 @@ fit together, and a catalog of every module with a link to its source.
   site (`help-src/` → `help/`; config in `mkdocs.yml` at the project root). `mkdocs serve` watches
   for changes at `127.0.0.1:8989`.
 
+Primary development happens on Linux, but the `makefile` also needs to run unmodified on macOS —
+some contributors build and test there. Its shell commands stick to a GNU/BSD-portable subset
+(notably `sed`, where the two implementations disagree on in-place editing and multi-line-command
+syntax); see the comments above `setVersion` in [`makefile`](../makefile) for the specific idiom.
+Keep that in mind before adding a GNU-only convenience to a `make` recipe.
+
 ## Things That Must Stay In Sync
 
 A handful of couplings between files aren't visible from reading any single one of them — miss
@@ -79,7 +88,10 @@ these and a change can look complete while silently breaking something later:
 - **Adding a compiled module** → add its `js/*.js` path to the `codeFiles` list in
   [AutoUpgrade](./AutoUpgrade.ts.md). That list drives the cache-busting refetch on a version
   bump; leave a module out and a returning user's browser can keep serving a stale cached copy of
-  it after upgrading everything else.
+  it after upgrading everything else. This one's now caught automatically — `make`/
+  `make VERSION=x.y.z` runs `checkCodeFiles` and fails the build if `js/*.js` and `codeFiles`
+  have diverged — but it's listed here because it's exactly the couplings this section exists
+  for, and the check only runs if you remember to build through `make`.
 - **Adding a new application page** → add it to the `PAGES` list in [`makefile`](../makefile), or
   `make VERSION=x.y.z` won't generate or version-stamp its `PAGE.html`.
 - **Adding a new node-element visualizer type to Sheet** → add it to

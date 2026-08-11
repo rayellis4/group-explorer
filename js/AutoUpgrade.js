@@ -73,6 +73,7 @@ const codeFiles = [
     'js/MulttableViewUI.js',
     'js/NamingSchemeInfo.js',
     'js/OrderClassInfo.js',
+    'js/Settings.js',
     'js/Sheet.js',
     'js/SheetControl.js',
     'js/SheetEditor.js',
