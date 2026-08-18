@@ -1,5 +1,5 @@
 
-# Group Explorer 3.7rc25
+# Group Explorer 3.7rc26
 
 *Group Explorer* is interactive visualization software for abstract algebra — specifically finite group theory. It runs entirely in the browser, requires no installation, and is designed for students and instructors building intuition about groups and their structure.
 
@@ -17,16 +17,18 @@
 
 ## Running locally
 
-No build step required. Serve the repository root over HTTP:
+A cloned copy of the repository can simply be served over HTTP, no build step required.
 
 ```bash
 python3 -m http.server 8080
 # then open http://localhost:8080/GroupExplorer.html
 ```
+If you modify the typescript source code you must recompile it.
 
 ## Release notes
 
 **3.7.0**
+- Rewritten in typescript
 - User-defined groups: define a group by generators and relations; stored locally and usable everywhere a library group can be used
 - Extended library: all non-abelian groups of order 22–40 and selected notable large groups, controlled via the Settings dialog; extended groups generated on the fly from a built-in URN manifest (no separate files required)
 - Settings dialog: control which groups appear in the library (extended, notable, generated); accessible from the menu on every page
@@ -62,9 +64,9 @@ python3 -m http.server 8080
 
 ## Contributing
 
-The app is pure JavaScript (ES6 modules, no build step). If you'd like to contribute or report a bug, open an issue or pull request on GitHub.
+The app is written in typescript and compiled into javascript. The [`README`](./docs/README.md) in `docs` directory provides a developer-oriented overview. If you'd like to contribute or report a bug, open an issue or pull request on GitHub.
 
-If you'd like a specific group added to the library, it's straightforward to export from GAP — get in touch.
+You can easily add a specific group to your copy of the library using its presentation, as described in the [help pages](./help/rf-geterms#generated-groups). If you think the default library should be extended (maybe you have a more interesting Cayley diagram?) that's straightforward too — get in touch.
 
 ## Contributors
 
