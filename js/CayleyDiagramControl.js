@@ -80,15 +80,17 @@ class ViewModel {
         this.#model = model;
         this.rootElement = rootElement;
         // get diagram name from sheet editor JSON or URL
-        if (model.diagramControl?.strategy_parameters != null) {
-            this.strategyParameters = model.diagramControl.strategy_parameters;
-            this.arrowGenerators = model.diagramControl.arrow_generators;
-        }
-        else if (model.diagramControl?.diagram_name != null) {
+        if (model.diagramControl?.diagram_name != null) {
             this.diagramName = model.diagramControl.diagram_name;
+        }
+        else if (model.diagramControl?.strategy_parameters != null) {
+            this.strategyParameters = model.diagramControl.strategy_parameters;
         }
         else {
             this.diagramName = new URL(window.location.href).searchParams.get('diagram');
+        }
+        if (model.diagramControl?.arrow_generators != null) {
+            this.arrowGenerators = model.diagramControl.arrow_generators;
         }
         if (this.diagramName != null
             && this.group.cayleyDiagrams.findIndex((cayleyDiagram) => cayleyDiagram.name == this.diagramName) < 0) {
@@ -98,7 +100,8 @@ class ViewModel {
         if (model.diagramControl?.chunk_subgroup_index != null) {
             this.chunkSubgroupIndex = model.diagramControl.chunk_subgroup_index;
         }
-        if (!window.location.href.includes('SheetEditor')) { // don't overwrite info from Sheet
+        // don't overwrite layout if it exists
+        if (model.layout == null) {
             this.updateLayout();
         }
     }
@@ -136,11 +139,11 @@ class ViewModel {
     }
     toJSON() {
         const json = {
-            diagram_name: this.diagramName,
-            strategy_parameters: this.strategyParameters,
-            arrow_generators: this.arrowGenerators,
-            right_multiply: this.rightMultiply,
-            chunk_subgroup_index: this.chunkSubgroupIndex,
+            ...(this.diagramName != null && { diagram_name: this.diagramName }),
+            ...(this.strategyParameters.length != 0 && { strategy_parameters: this.strategyParameters }),
+            ...(this.arrowGenerators != null && { arrow_generators: this.arrowGenerators }),
+            ...(this.rightMultiply == false && { right_multiply: false }),
+            ...(this.chunkSubgroupIndex != null && { chunk_subgroup_index: this.chunkSubgroupIndex })
         };
         return json;
     }

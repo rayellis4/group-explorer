@@ -31,7 +31,7 @@ export type ConcreteSheetTypes = {
 export type SheetTypes = {
    VisualizerElement: SheetTypes['CDElement'] | SheetTypes['CGElement'] | SheetTypes['MTElement'],
    NodeElement: SheetTypes['TextElement'] | SheetTypes['VisualizerElement'],
-   LinkElement: SheetTypes['ConnectingElement'] | SheetTypes['MorphismElement'] 
+   LinkElement: SheetTypes['ConnectingElement'] | SheetTypes['MorphismElement']
 } & ConcreteSheetTypes
 export type SheetJSON = SheetTypes[keyof SheetTypes]
 
@@ -248,12 +248,12 @@ export class SheetModel {
          ? destinationElementOrId
          : this.sheetElements.get(destinationElementOrId)
       const canConnect =
-         linkElementOrType != null && source != null && destination != null && source != destination 
+         linkElementOrType != null && source != null && destination != null && source != destination
       && (  (linkType == 'ConnectingElement' && 'isNode' in source && 'isNode' in destination)
          || (linkType == 'MorphismElement' && 'isVisualizer' in source && 'isVisualizer' in destination))
       && (Array.from(this.sheetElements.values())
          .filter((element) => 'isLink' in element && element != linkElement) as LinkElement[])
-         .every((element) => 
+         .every((element) =>
                ((element as LinkElement).source != source && (element as LinkElement).destination != source)
             || ((element as LinkElement).source != destination && (element as LinkElement).destination != destination))
 
@@ -378,7 +378,7 @@ export class TextElement extends NodeElement {
       this.fontColor = jsonObject.fontColor ?? 'black'
       this.alignment = jsonObject.alignment ?? 'left'
       this.isPlainText = jsonObject.isPlainText ?? false
-      
+
       return this
    }
 }
@@ -528,7 +528,7 @@ export class ConnectingElement extends LinkElement {
 export class MorphismElement extends LinkElement {
    declare source: VisualizerElement
    declare destination: VisualizerElement
-   
+
    readonly className: keyof ConcreteSheetTypes = 'MorphismElement'
    morphismName!: string
    showDomainAndCodomain!: boolean
@@ -688,13 +688,13 @@ function translateRequest (requests: SheetElementRequest[]): SheetJSON[] {
 
          switch (request.className) {
             case 'CDElement':
-               if (['arrow_generators', 'diagram_name', 'strategy_parameters'].some((field) => field in request)) {
+               if (['arrow_generators', 'diagram_name', 'strategy_parameters'].some((field) => request[field as keyof SheetElementRequest] != null)) {
                   result.visualizerJSON.diagram_control = {}
-                  if ('diagram_name' in request) {
+                  if (request?.diagram_name != null) {
                      result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name']
-                  } else if ('strategy_parameters' in request) {
+                  } else if (request?.strategy_parameters != null) {
                      result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters']
-                     if ('arrow_generators' in request) {
+                     if (request?.arrow_generators != null) {
                         result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators']
                      }
                   }
@@ -705,13 +705,13 @@ function translateRequest (requests: SheetElementRequest[]): SheetJSON[] {
                if ('organizing_subgroup' in request) {
                   result.visualizerJSON['organizing_subgroup'] = request['organizing_subgroup']
                }
-               break         
+               break
          }
       }
 
       return result as SheetJSON
    })
-   
+
    return results
 }
 

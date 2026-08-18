@@ -50,29 +50,29 @@ import type { LineType, AbstractDiagramDisplayOptions } from './AbstractDiagramD
 export type { LineType } from './AbstractDiagramDisplay.ts';
 
 export type SphereUserData = {
-    node: NodeData,
+    node: NodeType,
     ring_highlight?: THREE.Sprite,
     square_highlight?: THREE.Sprite,
     label?: THREE.Sprite,
 };
 
 export type LineUserData = {
-   arrow: ArrowData,
+   arrow: ArrowType,
    arrowhead?: THREE.ArrowHelper,
 };
 
 export type POV = { position: THREE.Vector3, up: THREE.Vector3 }
 
-export type NodeData = {
+export type NodeType = {
    position: THREE.Vector3,
    element: groupElement,
    label: html,
    color: color
 }
 
-export type ArrowData = {
-   start_node: NodeData,
-   end_node: NodeData,
+export type ArrowType = {
+   start_node: NodeType,
+   end_node: NodeType,
    generator: groupElement,
    bidirectional: boolean,
    thirdPoint: THREE.Vector3,
@@ -81,18 +81,18 @@ export type ArrowData = {
    color: color
 }
 
-export type ChunkData = {
+export type ChunkType = {
    box: THREE.Matrix4,
    name: html,
    widths: THREE.Vector3,
-   nodes: NodeData[]
+   nodes: NodeType[]
 }
 
-export type LayoutData = {
+export type LayoutType = {
    pov: POV,
-   nodes: NodeData[],
-   arrows: ArrowData[],
-   chunks: ChunkData[]
+   nodes: NodeType[],
+   arrows: ArrowType[],
+   chunks: ChunkType[]
 }
 
 export type Vector3JSON = { x: number, y: number, z: number }
@@ -100,14 +100,14 @@ export type Matrix4JSON = number[]
 
 export type POVJSON = { position: Vector3JSON, up: Vector3JSON }
 
-export type NodeDataJSON = {
+export type NodeJSON = {
     position: Vector3JSON,
     element: groupElement,
     label: html,
     color: color,
 }
 
-export type ArrowDataJSON = {
+export type ArrowJSON = {
     start_element: groupElement,
     end_element: groupElement,
     generator: groupElement,
@@ -118,18 +118,18 @@ export type ArrowDataJSON = {
     color: color
 }
 
-export type ChunkDataJSON = {
+export type ChunkJSON = {
    box: Matrix4JSON,
    name: html,
    widths: Vector3JSON,
    nodes: groupElement[],
 }
 
-export type LayoutDataJSON = {
+export type LayoutJSON = {
    pov: POVJSON,
-   nodes: NodeDataJSON[],
-   arrows: ArrowDataJSON[],
-   chunks: ChunkDataJSON[],
+   nodes: NodeJSON[],
+   arrows: ArrowJSON[],
+   chunks: ChunkJSON[],
 }
 
 export type CayleyDiagramJSON = {
@@ -145,8 +145,8 @@ export type CayleyDiagramJSON = {
     label_scale_factor: float,
     groupURL: string,
     right_multiply: boolean,
-    arrows: ArrowDataJSON[],
-    nodes: NodeDataJSON[],
+    arrows: ArrowJSON[],
+    nodes: NodeJSON[],
     chunk?: integer,
     diagram_name?: string,
     strategy_parameters?: StrategyParameters[],
@@ -171,6 +171,84 @@ const highlightNames = {
    HIGHLIGHT_NODE: 'node color',
    HIGHLIGHT_RING: 'a ring around the node',
    HIGHLIGHT_SQUARE: 'a square around the node'
+}
+
+export function layoutToJSON (layout: LayoutType): Maybe<LayoutJSON>  {
+   const toXYZ: (vector3: THREE.Vector3) => {x: number, y: number, z: number} =
+      (vector3) => JSON.parse(JSON.stringify(vector3))
+   const toNodeDataJSON: (arg0: NodeType) => NodeJSON =
+      ({position, element, label, color})=> {
+         return { position: toXYZ(position), element, label, color }
+      }
+   const toArrowDataJSON: (arg0: ArrowType) => ArrowJSON =
+      ({start_node, end_node, generator, bidirectional, thirdPoint, keepCurved, offset, color}) => {
+         return {
+            start_element: start_node.element,
+            end_element: end_node.element,
+            generator,
+            bidirectional,
+            thirdPoint: toXYZ(thirdPoint),
+            keepCurved,
+            offset,
+            color
+         }
+      }
+   const toChunkDataJSON: (arg0: ChunkType) => ChunkJSON =
+      ({box, name, widths, nodes}) => {
+         return {
+            box: JSON.parse(JSON.stringify(box)).elements as Matrix4JSON,
+            name,
+            nodes: nodes.map((node) => node.element),
+            widths: toXYZ(widths)
+         }
+      }
+
+   const json = (layout == null)
+      ? null
+      : {
+         pov: { position: toXYZ(layout.pov.position), up: toXYZ(layout.pov.up) },
+         nodes: layout.nodes.map((node) => toNodeDataJSON(node)),
+         arrows: layout.arrows.map((arrow) => toArrowDataJSON(arrow)),
+         chunks: layout.chunks.map((chunk) => toChunkDataJSON(chunk))
+      }
+
+   return json
+}
+
+export function layoutFromJSON (json: LayoutJSON): LayoutType {
+   const fromXYZ: (arg0: Vector3JSON) => THREE.Vector3 =
+      ({x, y, z}) => { return new THREE.Vector3().set(x, y, z) }
+   const pov: POV = {
+      position: fromXYZ(json.pov.position),
+      up: fromXYZ(json.pov.up)
+   }
+   const nodes: NodeType[] = json.nodes.map(({position, element, label, color}) => {
+      return { position: fromXYZ(position), element, label, color }
+   })
+   const nodeMap: Map<groupElement, NodeType> = new Map(nodes.map((node) => [node.element, node]))
+   const arrows: ArrowType[] = json.arrows.map(
+      ({start_element, end_element, generator, bidirectional, thirdPoint, keepCurved, offset, color}) => {
+         return {
+            start_node: nodeMap.get(start_element) as NodeType,
+            end_node: nodeMap.get(end_element) as NodeType,
+            generator,
+            bidirectional,
+            thirdPoint: fromXYZ(thirdPoint),
+            keepCurved,
+            offset,
+            color
+         }
+      })
+   const chunks: ChunkType[] = json.chunks.map(({box, name, widths, nodes}) => {
+      return {
+         box: new THREE.Matrix4().fromArray(box),
+         name,
+         widths: fromXYZ(widths),
+         nodes: nodes.map((node) => nodeMap.get(node) as NodeType)
+      }
+   })
+
+   return { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks }
 }
 
 export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterface<CayleyDiagramModelJSON> {
@@ -222,82 +300,6 @@ export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterfa
       this.#modelFields.forEach((field) => model.$subscribe(this, field))
       if (this.view != null) {
          this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
-      }
-      this.#model.viewState = {
-         toJSON: (): LayoutDataJSON => {
-            const toXYZ: (vector3: THREE.Vector3) => {x: number, y: number, z: number} =
-               (vector3) => JSON.parse(JSON.stringify(vector3))
-
-            const toNodeDataJSON: (arg0: NodeData) => NodeDataJSON =
-               ({position, element, label, color})=> {
-                  return { position: toXYZ(position), element, label, color }
-               }
-               
-            const toArrowDataJSON: (arg0: ArrowData) => ArrowDataJSON =
-               ({start_node, end_node, generator, bidirectional, thirdPoint, keepCurved, offset, color}) => {
-                  return {
-                     start_element: start_node.element,
-                     end_element: end_node.element,
-                     generator,
-                     bidirectional,
-                     thirdPoint: toXYZ(thirdPoint),
-                     keepCurved,
-                     offset,
-                     color
-                  }
-               }
-
-            const toChunkDataJSON: (arg0: ChunkData) => ChunkDataJSON =
-               ({box, name, widths, nodes}) => {
-                  return {
-                     box: JSON.parse(JSON.stringify(box)).elements as Matrix4JSON,
-                     name,
-                     nodes: nodes.map((node) => node.element),
-                     widths: toXYZ(widths)
-                  }
-               }
-               
-            return {
-               pov: { position: toXYZ(this.view.camera.position), up: toXYZ(this.view.camera.up) },
-               nodes: this.view.nodes.map((object3D) => toNodeDataJSON(object3D.userData.node)),
-               arrows: this.view.lines.map((object3D) => toArrowDataJSON(object3D.userData.arrow)),
-               chunks: this.view.chunks.map((object3D) => toChunkDataJSON(object3D.userData.chunk))
-            }
-         },
-         fromJSON: (json: LayoutDataJSON) => {
-            const fromXYZ: (arg0: Vector3JSON) => THREE.Vector3 =
-               ({x, y, z}) => { return new THREE.Vector3().set(x, y, z) }
-            const pov: POV = {
-               position: fromXYZ(json.pov.position),
-               up: fromXYZ(json.pov.up)
-            }
-            const nodes: NodeData[] = json.nodes.map(({position, element, label, color}) => {
-               return { position: fromXYZ(position), element, label, color }
-            })
-            const nodeMap: Map<groupElement, NodeData> = new Map(nodes.map((node) => [node.element, node]))
-            const arrows: ArrowData[] = json.arrows.map(
-               ({start_element, end_element, generator, bidirectional, thirdPoint, keepCurved, offset, color}) => {
-                  return {
-                     start_node: nodeMap.get(start_element) as NodeData,
-                     end_node: nodeMap.get(end_element) as NodeData,
-                     generator,
-                     bidirectional,
-                     thirdPoint: fromXYZ(thirdPoint),
-                     keepCurved,
-                     offset,
-                     color
-                  }
-               })
-            const chunks: ChunkData[] = json.chunks.map(({box, name, widths, nodes}) => {
-               return {
-                  box: new THREE.Matrix4().fromArray(box),
-                  name,
-                  widths: fromXYZ(widths),
-                  nodes: nodes.map((node) => nodeMap.get(node) as NodeData)
-               }
-            })
-            this.updateModel('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks })
-         }
       }
    }
 
@@ -399,7 +401,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
 
     constructor (options: CayleyDiagramViewOptions = {}) {
         super(options);
- 
+
        // Add new Groups to Scene
         CAYLEY_DIAGRAM_DISPLAY_GROUP_NAMES.forEach( (name) => {
             const group = new THREE.Group();
@@ -427,7 +429,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         return intersects.map( (intersect) => intersect.object );
     }
 
-   drawFromModel ({position, up}: {position: THREE.Vector3, up: THREE.Vector3}, nodes: NodeData[], arrows: ArrowData[]) {
+   drawFromModel ({position, up}: {position: THREE.Vector3, up: THREE.Vector3}, nodes: NodeType[], arrows: ArrowType[]) {
         this.setCameraPosition(position, up)
         this.deleteAllObjects();
         this.createSpheres(nodes);
@@ -467,7 +469,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         this.updateLabelRadius(old_sphere_radius, new_sphere_radius);
     }
 
-    createSpheres (sphere_data: NodeData[]) {
+    createSpheres (sphere_data: NodeType[]) {
         // sorting sphere data ensures that nodes are indexed by element number:
         //   this.nodes[element].userData.node.element == element
         const sortedSphereData = [...sphere_data].sort((a, b) => a.element - b.element)
@@ -508,9 +510,9 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
             const chunk = this.chunks
                 .find((chunk) => chunk.userData.chunk.nodes.includes(sphere.userData.node))
             if (chunk != null) {
-               const centroid = (chunk.userData.chunk as ChunkData).nodes
+               const centroid = (chunk.userData.chunk as ChunkType).nodes
                   .reduce<THREE.Vector3>(
-                     (centroid: THREE.Vector3, node: NodeData) => centroid.add(node.position), new THREE.Vector3())
+                     (centroid: THREE.Vector3, node: NodeType) => centroid.add(node.position), new THREE.Vector3())
                   .multiplyScalar(1/chunk.userData.chunk.nodes.length)
                 chunk.position.copy(centroid)
             }
@@ -754,7 +756,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     }
 
     // Create arrows between start and end nodes
-    createLines (line_data: ArrowData[]) {
+    createLines (line_data: ArrowType[]) {
         line_data.forEach( (line_datum) => {
             // Curve straight lines to avoid spheres
             if (line_datum.offset == null) {
@@ -783,7 +785,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         } );
     }
 
-    createStraightLine (line_datum: ArrowData) {
+    createStraightLine (line_datum: ArrowType) {
         const vertices = [line_datum.start_node.position, line_datum.end_node.position];
         const new_line = this.createLine(vertices)
         ;(new_line.material as THREE.LineMaterial).color.set(line_datum.color)
@@ -800,7 +802,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         }
     }
 
-    createCurvedLine (line_datum: ArrowData) {
+    createCurvedLine (line_datum: ArrowType) {
         const start = line_datum.start_node.position;
         const end = line_datum.end_node.position;
         const middle = start.clone().add(end).multiplyScalar(1/2);
@@ -824,7 +826,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         }
     }
 
-    createArrowhead (line_datum: ArrowData, curve: THREE.Curve<THREE.Vector3>, curve_length: float): THREE.ArrowHelper {
+    createArrowhead (line_datum: ArrowType, curve: THREE.Curve<THREE.Vector3>, curve_length: float): THREE.ArrowHelper {
         const sphere_radius = this.sphere_radius;
         const head_length = Math.min(sphere_radius, (curve_length/2 - sphere_radius));
         const head_width = 0.6 * head_length;
@@ -856,7 +858,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
      *   "between them" <=> (start-node)⋅(node-end) > 0
      * if so, calculate offset to miss node from node radius
      */
-    offsetAroundSpheres (line_datum: ArrowData): Maybe<float> {
+    offsetAroundSpheres (line_datum: ArrowType): Maybe<float> {
         const start_node = line_datum.start_node;
         const end_node = line_datum.end_node;
         const sphere = this.nodes.find( (sphere) => {
@@ -868,7 +870,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
             const v2 = node.position.clone().sub(end_node.position);
             return v1.dot(v2) > 0 && new THREE.Vector3().crossVectors(v1, v2).lengthSq() < 1.0e-6;
         } );
-        const offset = (sphere == undefined) ? undefined : 1.4 * sphere.scale.x;  // Heuristic value
+        const offset = (sphere == undefined) ? null : 1.4 * sphere.scale.x;  // Heuristic value
 
         return offset;
     }
@@ -902,7 +904,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
        return this.getGroup('chunks').children
     }
 
-    createChunks (chunk_data: ChunkData[]) {
+    createChunks (chunk_data: ChunkType[]) {
         this.deleteAllChunks();
 
         const chunk_group = this.getGroup('chunks');
@@ -951,7 +953,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     moveChunkTo (chunk: THREE.Mesh, position: THREE.Vector3) {
         const movement = position.clone().sub(chunk.position)
         chunk.position.copy(position)
-        chunk.userData.chunk.nodes.forEach((node: NodeData) => {
+        chunk.userData.chunk.nodes.forEach((node: NodeType) => {
             const sphere = this.nodes[node.element]
             this.moveSphere(sphere, sphere.position.clone().add(movement), false)  // don't let moveSphere try to move chunk :-)
         })
@@ -979,11 +981,11 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
        return this.getGroup('spheres').children as THREE.Mesh[]
     }
 
-   get layout (): LayoutData {
+   get layout (): LayoutType {
       const pov: POV = {position: this.camera.position, up: this.camera.up}
-      const arrows: ArrowData[] = this.arrows.map((arrow) => arrow.userData.arrow)
-      const nodes: NodeData[] = this.nodes.map((node) => node.userData.node)
-      const chunks: ChunkData[] = this.chunks.map((chunk) => chunk.userData.chunk)
+      const arrows: ArrowType[] = this.arrows.map((arrow) => arrow.userData.arrow)
+      const nodes: NodeType[] = this.nodes.map((node) => node.userData.node)
+      const chunks: ChunkType[] = this.chunks.map((chunk) => chunk.userData.chunk)
       return { pov, arrows, nodes, chunks }
    }
 }
@@ -991,7 +993,9 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
 // Factory for thumbnail generators (GroupTable, SubgroupInfo, ViewInfo).
 // Returns a CayleyDiagramViewModel with no model
 // call .draw(group, ?diagramName), and .getImage() to get the rendered result.
-export function createCayleyDiagramThumbnailView (options: CayleyDiagramViewOptions = {}): CayleyDiagramViewModel {
+export function createCayleyDiagramThumbnailView (
+   options: CayleyDiagramViewOptions = {}
+): CayleyDiagramViewModel {
    const viewModel = new CayleyDiagramViewModel()
    const view = new CayleyDiagramView(options)
    view.display_labels = false

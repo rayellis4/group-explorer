@@ -99,6 +99,7 @@ export declare class CDView extends VisualizerView {
     };
     private _highlightModelProxy;
     constructor(view: View, modelElement: CDElement);
+    initializeLayout(): void;
     get visualizer(): CayleyDiagramViewModel;
     get highlightModelProxy(): SubscriptionProxy<CayleyDiagramModel>;
     updateFromJSON(json: CayleyDiagramModelJSON): void;

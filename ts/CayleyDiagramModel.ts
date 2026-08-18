@@ -27,28 +27,19 @@ Model for the Cayley diagram visualizer. Holds all serializable state:
 ```javascript
  */
 import * as Library from './Library.js'
+import { layoutToJSON, layoutFromJSON } from './CayleyDiagramView.js'
 
 import type { CayleyDiagramControlJSON } from './CayleyDiagramControl.ts'
-import type { LayoutData as LayoutType } from './CayleyDiagramView.ts'
+import type { LayoutType, LayoutJSON } from './CayleyDiagramView.ts'
 import type { Group } from './Group.ts'
 import type { HighlightControlModelInterface } from './HighlightControl.ts'
 
 export { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js'
-export type {
-   POV,
-   NodeData as NodeType,
-   ArrowData as ArrowType,
-   ChunkData as ChunkType,
-   LayoutData as LayoutType,
-   POVJSON,
-   NodeDataJSON,
-   ArrowDataJSON,
-   ChunkDataJSON,
-   LayoutDataJSON,
- } from './CayleyDiagramView.ts'
+export type { POV, NodeType, ArrowType, ChunkType, LayoutType } from './CayleyDiagramView.ts'
 
 export type CayleyDiagramModelJSON = {
    group_url: string,
+   layout: Maybe<LayoutJSON>,
    background: CayleyDiagramModel['background'],
    fog_level: CayleyDiagramModel['fog_level'],
    line_width: CayleyDiagramModel['line_width'],
@@ -60,15 +51,10 @@ export type CayleyDiagramModelJSON = {
    highlight_colors: CayleyDiagramModel['highlightColors'],
    highlight_control: CayleyDiagramModel['highlightControl'],
    diagram_control: CayleyDiagramControlJSON,
-   view_state: CayleyDiagramModel['viewState'],
 }
 
 export class CayleyDiagramModel implements HighlightControlModelInterface {
    group: Group
-
-   // Write-only request: CayleyDiagramGenerator writes this to trigger a scene rebuild;
-   // CayleyDiagramViewModel consumes it. Not persisted — viewState owns serialization.
-   layout!: Maybe<LayoutType>
 
    // Highlight configuration — visualizer-specific parameters for HighlightControl
    highlightConfiguration = {
@@ -79,6 +65,7 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
    }
 
    // View parameters — manipulated by CayleyViewControl sliders
+   layout!: LayoutType
    background!: color
    fog_level!: float
    line_width!: number
@@ -94,7 +81,6 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
    // Opaque plugin slots (carried opaquely through serialization)
    highlightControl: any // owned by HighlightControl
    diagramControl: any   // owned by CayleyDiagramControl
-   viewState: any        // owned by CayleyDiagramView
 
    // Request fields — transient commands; set by CayleyViewControl, cleared by CayleyDiagramView
    snap_to_axis_request!: boolean
@@ -105,7 +91,6 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
    }
 
    reset () {
-      this.layout = null
       this.background = '#E8C8C8'  // Cayley-diagram specific
       this.fog_level = 0
       this.line_width = 4
@@ -121,6 +106,7 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
    toJSON (): CayleyDiagramModelJSON {
       const json = {
          group_url: this.group.URL,
+         layout: layoutToJSON(this.layout),
          background: this.background,
          fog_level: this.fog_level,
          line_width: this.line_width,
@@ -132,7 +118,6 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
          highlight_colors: this.highlightColors,
          highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
          diagram_control: this.diagramControl?.toJSON?.() ?? this.diagramControl,
-         view_state: this.viewState?.toJSON?.() ?? this.viewState
       }
 
       return json
@@ -145,6 +130,8 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
          this.group = Library.getGroupByURL(json.group_url) as Group
       }
 
+      if (json.layout != null)
+         this.layout = layoutFromJSON(json.layout)
       this.background = json.background ?? this.background
       this.fog_level = json.fog_level ?? this.fog_level
       this.line_width = json.line_width ?? this.line_width
@@ -165,12 +152,6 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
          this.diagramControl = json.diagram_control
       } else if (json.diagram_control != null) {
          this.diagramControl.fromJSON(json.diagram_control)
-      }
-
-      if (this.viewState?.fromJSON == null) {
-         this.viewState = json.view_state
-      } else if (json.view_state != null) {
-         this.viewState.fromJSON(json.view_state)
       }
 
       // don't want to do this before the nodes are laid down setting view_state

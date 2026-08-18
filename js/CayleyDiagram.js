@@ -16,6 +16,17 @@ import * as HighlightControl from './HighlightControl.js';
 import * as Library from './Library.js';
 import * as Log from './Log.js';
 import * as SheetEditor from './SheetEditor.js';
+const SHEET_UPDATE_FIELDS = [
+    'highlightColors',
+    'highlightControl',
+    'layout',
+    'fog_level',
+    'line_width',
+    'sphere_scale_factor',
+    'zoom_level',
+    'arrowhead_placement',
+    'label_scale_factor'
+];
 export async function load() {
     insertHTML();
     document.body.addEventListener('contextmenu', (ev) => ev.preventDefault());
@@ -36,9 +47,6 @@ export async function load() {
         { label: 'Cayley Diagram Help', action: () => window.open('help/rf-um-cd-options/index.html') }
     ]);
     const cayleyDiagramModel = createModelProxy(new CayleyDiagramModel(group));
-    const cayleyDiagramViewModel = createInteractiveCayleyDiagramView(cayleyDiagramModel, {
-        container: document.getElementById('graphic')
-    });
     // Set up change broadcast (if this page is an editor for a sheet)
     if (window.location.href.includes('SheetEditor')) {
         if (initialJSON != null) {
@@ -47,12 +55,8 @@ export async function load() {
         else {
             Log.warn('CayleyDiagram: SheetEditor mode but no initial JSON passed in IndexedDB');
         }
-        SheetEditor.enableChangeBroadcast(() => {
-            return { elementId: elementId, json: cayleyDiagramModel.toJSON() };
-        });
+        SheetEditor.enableModelChangeBroadcast(elementId, cayleyDiagramModel, SHEET_UPDATE_FIELDS);
         SheetEditor.listenForSheetUpdates((json) => cayleyDiagramModel.fromJSON(json));
-        //      cayleyDiagramViewModel.resize()  // need to fix initial aspect ratio when editing
-        window.setInterval(() => SheetEditor.broadcastChange(), 1000); // There's got to be a better way than polling...
     }
     // Create Control Panel
     const controlPanelElement = document.getElementById('control-panel');
@@ -66,6 +70,9 @@ export async function load() {
     // Create diagram control
     const cayleyDiagramControlElement = document.getElementById('cayley-diagram-control');
     CayleyDiagramControl.addControl(cayleyDiagramControlElement, cayleyDiagramModel);
+    const cayleyDiagramViewModel = createInteractiveCayleyDiagramView(cayleyDiagramModel, {
+        container: document.getElementById('graphic')
+    });
     window.addEventListener('resize', () => cayleyDiagramViewModel.resize());
 }
 function insertHTML() {

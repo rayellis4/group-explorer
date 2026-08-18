@@ -21,7 +21,7 @@ import * as SheetView from './SheetView.js'
 import type { ArrowGenerator, StrategyParameters } from './CayleyDiagramGenerator.ts'
 import type { CayleyDiagramControlJSON } from './CayleyDiagramControl.ts'
 import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.ts'
-import type { POV, Vector3JSON, Matrix4JSON, POVJSON, NodeDataJSON, ArrowDataJSON, ChunkDataJSON, LayoutDataJSON} from './CayleyDiagramView.ts'
+import type { POV, Vector3JSON, Matrix4JSON, POVJSON, ArrowJSON, ChunkJSON, LayoutJSON} from './CayleyDiagramView.ts'
 import type { CycleGraphJSON } from './CycleGraphModel.ts'
 import type { Group } from './Group.ts'
 import type { MulttableJSON } from './MulttableModel.ts'
@@ -416,11 +416,11 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                .map((arrow) => ({generator: arrow.generator, color: arrow.color}))
 
             const diagramControl: CayleyDiagramControlJSON = {
-               diagram_name: v1Visualizer.diagram_name,
-               strategy_parameters: strategyParameters,
-               arrow_generators: arrowGenerators,
-               right_multiply: v1Visualizer.right_multiply,
-               chunk_subgroup_index: (v1Visualizer?.chunk == 0) ? null : v1Visualizer.chunk
+               ...(v1Visualizer.diagram_name != null && {diagram_name: v1Visualizer.diagram_name}),
+               ...(strategyParameters.length != 0 && {strategy_parameters: strategyParameters}),
+               ...(arrowGenerators != null && {arrow_generators: arrowGenerators}),
+               ...(v1Visualizer.right_multiply == false && {right_multiply: false}),
+               ...(v1Visualizer?.chunk && {chunk_subgroup_index: v1Visualizer.chunk})
             }
 
             const nodes = v1Visualizer.nodes.map(({position, element, label}) => {
@@ -444,7 +444,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                Object.assign(up, {x: -up.x, y: -up.y, z: -up.z})
             }
 
-            const arrows: ArrowDataJSON[] = v1Visualizer.arrows.map((arrow) => {
+            const arrows: ArrowJSON[] = v1Visualizer.arrows.map((arrow) => {
                const {start_element, end_element, generator, thirdPoint, offset, color} = arrow
                const bidirectional = group.mult(end_element, generator) === start_element
                const result = {
@@ -460,7 +460,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                return result
             })
 
-            const chunks: ChunkDataJSON[] = []
+            const chunks: ChunkJSON[] = []
             if (v1Visualizer?.chunk != null && v1Visualizer.chunk !== 0) {
                const maybeLayout =
                   layoutCayleyDiagram(
@@ -482,7 +482,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                }))
             }
 
-            const layout: LayoutDataJSON = { pov, nodes, arrows, chunks }
+            const layout: LayoutJSON = { pov, nodes, arrows, chunks }
 
             const highlights = [
                [...(v1Visualizer?.color_highlights ?? [])],
@@ -500,10 +500,10 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                arrowhead_placement: v1Visualizer.arrowhead_placement,
                label_scale_factor: v1Visualizer.label_scale_factor,
                showing_axes: false,
-               highlight_control: null,  // not
+               highlight_control: null,  // not implemented in v1
                highlight_colors: highlights,
                diagram_control: diagramControl,
-               view_state: layout,
+               layout: layout,
             }
 
             ;(v2Object as VisualizerElementJSON).visualizerJSON = v2Visualizer

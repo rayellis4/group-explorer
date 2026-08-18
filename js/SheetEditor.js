@@ -8,8 +8,6 @@
  */
 import * as StoredObjects from './StoredObjects.js';
 import * as Log from './Log.js';
-export let broadcastChange = () => { };
-let lastJsonString; // module-level so listenForSheetUpdates can set it to suppress echo-back
 export async function getInitialData() {
     const { elementId, json } = await StoredObjects.getPassedJSON();
     if (Log.isActive('debug')) {
@@ -22,27 +20,46 @@ export async function getInitialData() {
 ## Change broadcast
 When a Sheet spawns an editor to modify one of the visualizers being displayed, the
 changes in the editor are broadcast back to the Sheet using the `window.postMessage()`
-function. Since ability to function as an editor is common across the visualizers, it
+function. Since the ability to function as an editor is common across the visualizers, it
 has been abstracted here.
 
-`enableChangeBroadcast` is passed a function that takes no arguments and generates JSON.
-`changeBroadcaster` compares current JSON with the previous broadcast and posts if changed.
+Change broadcast is enabled from the main visualizer load routine,
+e.g., [`CayleyDiagram`](./CayleyDiagram.ts.md), by calling `enableModelChangeBroadcast` with
+ * the sheet element id of the visualizer we're editing
+ * the model for the visualizer page, e.g., [`CayleyDiagramModel`](./CayleyDiagramModel.ts.md)
+ * an array of strings, changes to which will cause an update broadcast
+
+Changes are accumulated and broadcast the next time the main thread is available.
+The current model is compared to the previous broadcast and if no changes are present, no broadcast
+is made.
 
 `listenForSheetUpdates` sets up the reverse path: Sheet→Editor updates. It calls `fromJSONCallback`
 when the Sheet posts a change, and updates `lastJsonString` to prevent the editor echoing it back.
 ```javascript
 */
-export function enableChangeBroadcast(jsonGenerator) {
-    broadcastChange = function changeBroadcaster() {
-        const { elementId, json: currentJson } = jsonGenerator();
-        const currentJsonString = JSON.stringify(currentJson);
-        if (currentJsonString != lastJsonString) {
-            lastJsonString = currentJsonString;
-            const msg = { source: 'editor', elementId, json: currentJson };
-            Log.debug(`message posted for ${elementId}: ${currentJsonString}`);
-            window.opener?.postMessage(msg, new URL(window.location.href).origin);
+const modelChangeBroadcaster = {
+    update: () => { },
+    timeoutId: null,
+    lastJsonString: null
+};
+export function enableModelChangeBroadcast(elementId, model, fields) {
+    function updater() {
+        if (modelChangeBroadcaster.timeoutId == null) {
+            modelChangeBroadcaster.timeoutId = window.setTimeout(() => {
+                modelChangeBroadcaster.timeoutId = null;
+                const currentJson = model.toJSON();
+                const currentJsonString = JSON.stringify(currentJson);
+                if (currentJsonString != modelChangeBroadcaster.lastJsonString) {
+                    modelChangeBroadcaster.lastJsonString = currentJsonString;
+                    const msg = { source: 'editor', elementId, json: currentJson };
+                    Log.debug(`message posted for ${elementId}: ${currentJsonString}`);
+                    window.opener?.postMessage(msg, new URL(window.location.href).origin);
+                }
+            }, 0);
         }
-    };
+    }
+    modelChangeBroadcaster.update = updater;
+    fields.forEach((field) => model.$subscribe(modelChangeBroadcaster, field));
 }
 export function listenForSheetUpdates(fromJSONCallback) {
     window.addEventListener('message', (event) => {
@@ -50,7 +67,7 @@ export function listenForSheetUpdates(fromJSONCallback) {
             return;
         const { json } = event.data;
         fromJSONCallback(json);
-        lastJsonString = JSON.stringify(json); // prevent echo-back on next broadcastChange()
+        modelChangeBroadcaster.lastJsonString = JSON.stringify(json); // prevent echo-back on next broadcastChange()
     });
 }
 //# sourceMappingURL=SheetEditor.js.map

@@ -14,6 +14,10 @@ import * as HighlightControl from './HighlightControl.js';
 import * as Library from './Library.js';
 import * as SheetEditor from './SheetEditor.js';
 import * as Log from './Log.js';
+const SHEET_UPDATE_FIELDS = [
+    'highlightColors',
+    'highlightControl'
+];
 export async function load() {
     // Add top level HTML
     insertHTML();
@@ -36,10 +40,6 @@ export async function load() {
     ]);
     // Create CycleGraph model
     const cycleGraphModel = createModelProxy(new CycleGraphModel(group));
-    // Create cycleGraphView in graphic div and attach to cycleGraphModel
-    const cycleGraphViewModel = createInteractiveCycleGraphView(cycleGraphModel, {
-        container: document.getElementById('graphic')
-    });
     // Initialize CycleGraph model, change broadcast if editing a sheet
     if (window.location.href.includes('SheetEditor')) {
         if (initialJSON != null) {
@@ -48,17 +48,18 @@ export async function load() {
         else {
             Log.warn('CycleGraph: SheetEditor mode but no initial JSON in IndexedDB');
         }
-        SheetEditor.enableChangeBroadcast(() => {
-            return { elementId: elementId, json: cycleGraphModel.toJSON() };
-        });
+        SheetEditor.enableModelChangeBroadcast(elementId, cycleGraphModel, SHEET_UPDATE_FIELDS);
         SheetEditor.listenForSheetUpdates((json) => cycleGraphModel.fromJSON(json));
-        window.setInterval(() => SheetEditor.broadcastChange(), 1000);
     }
     // Create Control Panel
     ControlPanel.addPanel(document.getElementById('control-panel'));
     // Initialize HighlightControl
     const highlightControlElement = document.getElementById('highlight-control');
     HighlightControl.addControl(highlightControlElement, cycleGraphModel);
+    // Create cycleGraphView in graphic div and attach to cycleGraphModel
+    const cycleGraphViewModel = createInteractiveCycleGraphView(cycleGraphModel, {
+        container: document.getElementById('graphic')
+    });
     // Register window resize handler
     window.addEventListener('resize', () => cycleGraphViewModel.resize());
 }

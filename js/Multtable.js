@@ -15,6 +15,15 @@ import { MulttableModel } from './MulttableModel.js';
 import { createInteractiveMulttableView } from './MulttableView.js';
 import * as SheetEditor from './SheetEditor.js';
 import * as Log from './Log.js';
+const SHEET_UPDATE_FIELDS = [
+    'highlightColors',
+    'highlightControl',
+    'orgainzingSubgroup',
+    'separation',
+    'coloration',
+    'colorReordering',
+    'elements'
+];
 // Load group from invocation URL and complete setup
 export async function load() {
     insertHTML();
@@ -37,10 +46,6 @@ export async function load() {
     ]);
     // Create Multtable model
     const multtableModel = createModelProxy(new MulttableModel(group));
-    // Create multtableView in graphic div and attach to multtableModel
-    const multtableViewModel = createInteractiveMulttableView(multtableModel, {
-        container: document.getElementById('graphic')
-    });
     // Initialize Multtable model, change broadcast if editing a sheet
     if (window.location.href.includes('SheetEditor')) {
         if (initialJSON != null) {
@@ -49,11 +54,8 @@ export async function load() {
         else {
             Log.warn('Multtable: SheetEditor mode but no initial JSON in IndexedDB');
         }
-        SheetEditor.enableChangeBroadcast(() => {
-            return { elementId: elementId, json: multtableModel.toJSON() };
-        });
+        SheetEditor.enableModelChangeBroadcast(elementId, multtableModel, SHEET_UPDATE_FIELDS);
         SheetEditor.listenForSheetUpdates((json) => multtableModel.fromJSON(json));
-        window.setInterval(() => SheetEditor.broadcastChange(), 1000);
     }
     // Create Control Panel
     ControlPanel.addPanel(document.getElementById('control-panel'));
@@ -63,6 +65,10 @@ export async function load() {
     // Add Multtable Control panel
     const tableControlElement = document.getElementById('table-control');
     MulttableControl.addControl(tableControlElement, multtableModel); // Initializes Multtable Controller directly
+    // Create multtableView in graphic div and attach to multtableModel
+    const multtableViewModel = createInteractiveMulttableView(multtableModel, {
+        container: document.getElementById('graphic')
+    });
     // Register window resize handler
     window.addEventListener('resize', () => multtableViewModel.resize());
 }

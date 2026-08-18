@@ -97,6 +97,9 @@ these and a change can look complete while silently breaking something later:
 - **Adding a new node-element visualizer type to Sheet** → add it to
   `RemoteEditor.#editPageURLs` in [SheetModelEditors](./SheetModelEditors.ts.md), which maps each
   element type to the standalone page that edits it (e.g. `CDElement` → `CayleyDiagram.html`).
+- **Adding a new field to a visualizer model** → add it to the `SHEET_UPDATE_FIELDS` array in
+  the visualizer factory (e.g., [`CayleyDiagram.ts`](./CayleyDiagram.ts.md)) to make an update
+  to that field trigger a change broadcast.
 
 This list is what's turned up in practice, not the result of a deliberate audit — treat it as a
 starting point, not a complete one, and add to it when another one surfaces.
@@ -223,13 +226,7 @@ element (`modelElement.visualizerJSON`) before the shared view model is repointe
 requesting element. This constraint lives in the View layer and must be preserved by any future
 refactor.
 
-**What's left**: the split described above is essentially in place — the live visualizer always
-lives in SheetView, never in the model. One known holdover: [CayleyDiagram](./CayleyDiagram.ts.md)'s
-Sheet-editor broadcast still polls (`window.setInterval`, comparing serialized JSON once a second)
-rather than pushing on change. `CayleyDiagramModel.layout` is now the golden copy of displayed
-layout state, updated on drag/drop release, which removes the original obstacle to an
-event-driven push — eliminating the poll is a known, not-yet-done follow-up, not a structural
-limitation. Separately, a new element's `z` is just an insertion-order artifact
+**What's left**: A new element's `z` is just an insertion-order artifact
 (`z = 2 * (sheetElements.size + 1)` in `SheetModel.ts`) — don't read stored `z` values as
 meaningful ordering intent.
 

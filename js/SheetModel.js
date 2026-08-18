@@ -456,14 +456,14 @@ function translateRequest(requests) {
             result.visualizerJSON.highlight_colors = request.highlight_colors ?? [[], [], []];
             switch (request.className) {
                 case 'CDElement':
-                    if (['arrow_generators', 'diagram_name', 'strategy_parameters'].some((field) => field in request)) {
+                    if (['arrow_generators', 'diagram_name', 'strategy_parameters'].some((field) => request[field] != null)) {
                         result.visualizerJSON.diagram_control = {};
-                        if ('diagram_name' in request) {
+                        if (request?.diagram_name != null) {
                             result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name'];
                         }
-                        else if ('strategy_parameters' in request) {
+                        else if (request?.strategy_parameters != null) {
                             result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters'];
-                            if ('arrow_generators' in request) {
+                            if (request?.arrow_generators != null) {
                                 result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators'];
                             }
                         }

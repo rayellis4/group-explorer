@@ -10,22 +10,21 @@ The View part of the Sheet Model-View-Controller structure.
 
 import * as THREE from '../lib/externals.js'
 import { CayleyDiagramModel, CayleyDiagramModelJSON } from './CayleyDiagramModel.js'
-import { layoutCayleyDiagram, getDefaultStrategies } from './CayleyDiagramGenerator.js'
-import { createStaticCayleyDiagramView } from './CayleyDiagramView.js'
+import { layoutCayleyDiagram } from './CayleyDiagramGenerator.js'
+import { createStaticCayleyDiagramView, layoutToJSON } from './CayleyDiagramView.js'
 import { CycleGraphJSON, CycleGraphModel } from './CycleGraphModel.js'
 import { createLargeCycleGraphView } from './CycleGraphView.js'
 import { createModelProxy } from './GEUtils.js'
 import { MulttableJSON, MulttableModel } from './MulttableModel.js'
 import { createLargeMulttableView } from './MulttableView.js'
 
-import type { CayleyDiagramControlJSON } from './CayleyDiagramControl.ts'
 import type { CayleyDiagramViewModel } from './CayleyDiagramView.ts'
 import type { CycleGraphViewModel } from './CycleGraphView.ts'
 import type { SubscriptionProxy } from './GEUtils.ts'
 import type { HighlightControlModelInterface } from './HighlightControl.ts'
 import type { MulttableViewModel } from './MulttableView.ts'
 import type * as SheetModel from './SheetModel.ts'
-import type { SheetViewModel, SheetElement, NodeElement, TextElement, VisualizerElement, CDElement, 
+import type { SheetViewModel, SheetElement, NodeElement, TextElement, VisualizerElement, CDElement,
    CGElement, MTElement, LinkElement, ConnectingElement, MorphismElement } from './SheetViewModel.ts'
 
 let Graphic: HTMLElement
@@ -391,7 +390,8 @@ export abstract class VisualizerView extends NodeView {
       this.domElement.classList.add('VisualizerElement')
    }
 
-   abstract get visualizer (): CayleyDiagramViewModel | CycleGraphViewModel | MulttableViewModel  // FIXME: what interface do we need from visualizer?
+   // FIXME: what interface do we need from visualizer?
+   abstract get visualizer (): CayleyDiagramViewModel | CycleGraphViewModel | MulttableViewModel
 
    abstract updateFromJSON (json: unknown): void
 
@@ -504,48 +504,24 @@ export class CDView extends VisualizerView {
 
    constructor (view: View, modelElement: CDElement) {
       super(view, modelElement, document.createElement('canvas'))
+
+      this.initializeLayout()
       this.redraw()
    }
 
-   // Initialize cdViewModel from this element's stored visualizer (or generate a fresh layout).
-   #initFromVisualizerJSON (cdViewModel: CayleyDiagramViewModel) {
+   initializeLayout () {
       const group = this.modelElement.group
       const visualizerJSON = this.modelElement.visualizerJSON
+      const diagram_control = visualizerJSON.diagram_control
 
-      if (visualizerJSON.view_state != null) {  // restore stored layout
-         cdViewModel.model.fromJSON(visualizerJSON)
-      } else {  // passed sheet, SheetControl panel
-         cdViewModel.model.highlightColors = visualizerJSON?.highlight_colors ?? [[], [], []]
-
-         // create diagramControl with default values, if needed
-         if (visualizerJSON.diagram_control == null)  {
-            const generatedStrategyParameters = getDefaultStrategies(group)
-            const layout = layoutCayleyDiagram(group, undefined, generatedStrategyParameters)
-            const arrowGeneratorMap = new Map()
-            layout.arrows.forEach((arrow) => {
-               arrowGeneratorMap.set(arrow.generator, {generator: arrow.generator, color: arrow.color})
-            })
-            const arrowGenerators = Array.from(arrowGeneratorMap.values())
-            visualizerJSON.diagram_control = {
-               diagram_name: null,
-               strategy_parameters: generatedStrategyParameters,
-               arrow_generators: arrowGenerators,
-               right_multiply: true,
-               chunk_subgroup_index: null,
-            }
-         }
-
-         // create cdViewModel layout from diagramControl parameters
-         const diagramControl: CayleyDiagramControlJSON = cdViewModel.model.diagramControl =
-            visualizerJSON.diagram_control
-         cdViewModel.draw(
-            group,
-            diagramControl.diagram_name ?? undefined,
-            diagramControl.strategy_parameters,
-            diagramControl.arrow_generators ?? undefined)
-      }
-
-      return cdViewModel.toJSON()
+      visualizerJSON.layout ??= layoutToJSON(layoutCayleyDiagram(
+         group,
+         diagram_control?.diagram_name,
+         diagram_control?.strategy_parameters,
+         diagram_control?.arrow_generators,
+         diagram_control?.right_multiply,
+         diagram_control?.chunk_subgroup_index
+      ))
    }
 
    // swap our json into shared visualizer and use it to draw diagram
@@ -557,42 +533,14 @@ export class CDView extends VisualizerView {
 
       if (CDView.#sharedViewModel == null) {  // no shared view model -- create one from this.modelElement
          const cdModel = createModelProxy(new CayleyDiagramModel(this.modelElement.group))
-         const cdViewModel = createStaticCayleyDiagramView(cdModel)
-         this.modelElement.visualizerJSON = this.#initFromVisualizerJSON(cdViewModel)
-         CDView.#sharedViewModel = cdViewModel
-      } else {  // shared view model already made
+            .fromJSON(this.modelElement.visualizerJSON)
+         CDView.#sharedViewModel = createStaticCayleyDiagramView(cdModel)
+      } else {  // shared view model already made -- roll out #activeView, roll in this
          if (CDView.#activeView != null) {
             CDView.#activeView.modelElement.visualizerJSON = CDView.#sharedViewModel.toJSON()
          }
-         if (this.modelElement.visualizerJSON.view_state == null) { // first time through?
-            // visualizer is JSON object -- remove after use? it's no longer golden
-            const visualizerJSON= this.modelElement.visualizerJSON as CayleyDiagramModelJSON
-            // FIXME: fast path if JSON for activeView = JSON for this, not counting highlight_colors
-            if (  CDView.#sharedViewModel.group == this.modelElement.group
-               && (visualizerJSON == null || visualizerJSON?.view_state == null)
-               && visualizerJSON.diagram_control?.strategy_parameters == null
-               && visualizerJSON?.highlight_colors != null
-            ) {  // fast path: same group, no stored layout — just apply highlights
-               CDView.#sharedViewModel.model.highlightColors = visualizerJSON.highlight_colors
-               this.modelElement.visualizerJSON = CDView.#sharedViewModel.toJSON()
-            } else {  // clear shared visualizer set new parameters
-               const cdViewModel = CDView.#sharedViewModel
-               const cdModel = cdViewModel.model
-               cdModel.reset()
-               cdModel.highlightControl = null
-               cdModel.diagramControl = null  // copy from this.modelElement.diagramControl?
-               cdModel.group = this.modelElement.group
-               this.modelElement.visualizerJSON = this.#initFromVisualizerJSON(cdViewModel)
-            }
-         } else if (  CDView.#sharedViewModel.group == this.modelElement.group
-                   && (  this.modelElement.visualizerJSON == null
-                      || this.modelElement.visualizerJSON?.view_state == null)
-                   && this.modelElement.visualizerJSON.diagram_control?.strategy_parameters == null
-                   && (  CDView.#activeView?.modelElement.visualizerJSON == null
-                      || CDView.#activeView.modelElement.visualizerJSON?.view_state == null)
-                   && CDView.#activeView?.modelElement.visualizerJSON?.diagram_control?.strategy_parameters == null
-           ) {  // fast path: same group, both elements clean — only update highlights
-             CDView.#sharedViewModel.model.highlightColors = this.modelElement.visualizerJSON.highlight_colors
+         if (this.#canFastTrack()) {
+            CDView.#sharedViewModel.model.highlightColors = [...this.modelElement.visualizerJSON.highlight_colors]
          } else {
             CDView.#sharedViewModel.fromJSON(this.modelElement.visualizerJSON)
          }
@@ -600,6 +548,22 @@ export class CDView extends VisualizerView {
 
       CDView.#activeView = this
       return CDView.#sharedViewModel
+   }
+
+   #canFastTrack (): boolean {
+      const sharedModel = CDView.#sharedViewModel?.model
+      const thisModel = this.modelElement.visualizerJSON
+      const REQUIRED_MATCHING_FIELDS = ['background', 'fog_level', 'line_width', 'sphere_scale_factor', 'zoom_level', 'arrowhead_placement', 'label_scale_factor']
+
+      const canFastTrack = sharedModel?.group.URL == thisModel.group_url
+         && JSON.stringify(layoutToJSON(sharedModel.layout)) == JSON.stringify(thisModel.layout)
+         && (  thisModel.background == null  // => this has never been live
+            || (  sharedModel.highlightControl == null  // live but never edited
+               && thisModel.highlight_control == null  // live but never edited
+               && REQUIRED_MATCHING_FIELDS.every((field) =>
+                  sharedModel[field as keyof CayleyDiagramModel] == thisModel[field as keyof CayleyDiagramModelJSON])))
+
+      return canFastTrack
    }
 
    get highlightModelProxy () {
@@ -625,7 +589,7 @@ export class CDView extends VisualizerView {
                   this.visualizer.model.highlightControl = (value as Record<string, any>).toJSON()
                   this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.())
                } else if (field === 'highlightControl') {
-                  // debugger  // FIXME -- why should this ever occur? see HighlightControlViewModel set model 
+                  // debugger  // FIXME -- why should this ever occur? see HighlightControlViewModel set model
                }
             }
          }
@@ -900,7 +864,7 @@ export class ConnectingView extends LinkView {
  */
 export class MorphismView extends LinkView {
    declare modelElement: MorphismElement
-   
+
    label: HTMLElement
    arrows!: Arrow[]
    position!: THREE.Vector2

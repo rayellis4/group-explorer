@@ -40,7 +40,6 @@ import { BitSet } from './BitSet.js'
 import * as GEUtils from './GEUtils.js'
 import * as Log from './Log.js'
 import * as MulttableViewUI from './MulttableViewUI.js'
-import * as SheetEditor from './SheetEditor.js'
 import * as THREE from '../lib/externals.js'
 
 import type { Updatable, SubscriptionProxy } from './GEUtils.ts'
@@ -342,8 +341,6 @@ export class MulttableView /*: implements VizDisplay<MulttableJSON> */ {
         } else {
             this.drawFullView();
         }
-
-        SheetEditor.broadcastChange()
     }
 
     queueShowGraphic () {

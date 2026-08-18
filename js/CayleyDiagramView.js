@@ -43,6 +43,73 @@ const highlightNames = {
     HIGHLIGHT_RING: 'a ring around the node',
     HIGHLIGHT_SQUARE: 'a square around the node'
 };
+export function layoutToJSON(layout) {
+    const toXYZ = (vector3) => JSON.parse(JSON.stringify(vector3));
+    const toNodeDataJSON = ({ position, element, label, color }) => {
+        return { position: toXYZ(position), element, label, color };
+    };
+    const toArrowDataJSON = ({ start_node, end_node, generator, bidirectional, thirdPoint, keepCurved, offset, color }) => {
+        return {
+            start_element: start_node.element,
+            end_element: end_node.element,
+            generator,
+            bidirectional,
+            thirdPoint: toXYZ(thirdPoint),
+            keepCurved,
+            offset,
+            color
+        };
+    };
+    const toChunkDataJSON = ({ box, name, widths, nodes }) => {
+        return {
+            box: JSON.parse(JSON.stringify(box)).elements,
+            name,
+            nodes: nodes.map((node) => node.element),
+            widths: toXYZ(widths)
+        };
+    };
+    const json = (layout == null)
+        ? null
+        : {
+            pov: { position: toXYZ(layout.pov.position), up: toXYZ(layout.pov.up) },
+            nodes: layout.nodes.map((node) => toNodeDataJSON(node)),
+            arrows: layout.arrows.map((arrow) => toArrowDataJSON(arrow)),
+            chunks: layout.chunks.map((chunk) => toChunkDataJSON(chunk))
+        };
+    return json;
+}
+export function layoutFromJSON(json) {
+    const fromXYZ = ({ x, y, z }) => { return new THREE.Vector3().set(x, y, z); };
+    const pov = {
+        position: fromXYZ(json.pov.position),
+        up: fromXYZ(json.pov.up)
+    };
+    const nodes = json.nodes.map(({ position, element, label, color }) => {
+        return { position: fromXYZ(position), element, label, color };
+    });
+    const nodeMap = new Map(nodes.map((node) => [node.element, node]));
+    const arrows = json.arrows.map(({ start_element, end_element, generator, bidirectional, thirdPoint, keepCurved, offset, color }) => {
+        return {
+            start_node: nodeMap.get(start_element),
+            end_node: nodeMap.get(end_element),
+            generator,
+            bidirectional,
+            thirdPoint: fromXYZ(thirdPoint),
+            keepCurved,
+            offset,
+            color
+        };
+    });
+    const chunks = json.chunks.map(({ box, name, widths, nodes }) => {
+        return {
+            box: new THREE.Matrix4().fromArray(box),
+            name,
+            widths: fromXYZ(widths),
+            nodes: nodes.map((node) => nodeMap.get(node))
+        };
+    });
+    return { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks };
+}
 export class CayleyDiagramViewModel {
     #model;
     #view;
@@ -86,72 +153,6 @@ export class CayleyDiagramViewModel {
         if (this.view != null) {
             this.#modelFields.forEach((field) => this.update(field, this.#model[field]));
         }
-        this.#model.viewState = {
-            toJSON: () => {
-                const toXYZ = (vector3) => JSON.parse(JSON.stringify(vector3));
-                const toNodeDataJSON = ({ position, element, label, color }) => {
-                    return { position: toXYZ(position), element, label, color };
-                };
-                const toArrowDataJSON = ({ start_node, end_node, generator, bidirectional, thirdPoint, keepCurved, offset, color }) => {
-                    return {
-                        start_element: start_node.element,
-                        end_element: end_node.element,
-                        generator,
-                        bidirectional,
-                        thirdPoint: toXYZ(thirdPoint),
-                        keepCurved,
-                        offset,
-                        color
-                    };
-                };
-                const toChunkDataJSON = ({ box, name, widths, nodes }) => {
-                    return {
-                        box: JSON.parse(JSON.stringify(box)).elements,
-                        name,
-                        nodes: nodes.map((node) => node.element),
-                        widths: toXYZ(widths)
-                    };
-                };
-                return {
-                    pov: { position: toXYZ(this.view.camera.position), up: toXYZ(this.view.camera.up) },
-                    nodes: this.view.nodes.map((object3D) => toNodeDataJSON(object3D.userData.node)),
-                    arrows: this.view.lines.map((object3D) => toArrowDataJSON(object3D.userData.arrow)),
-                    chunks: this.view.chunks.map((object3D) => toChunkDataJSON(object3D.userData.chunk))
-                };
-            },
-            fromJSON: (json) => {
-                const fromXYZ = ({ x, y, z }) => { return new THREE.Vector3().set(x, y, z); };
-                const pov = {
-                    position: fromXYZ(json.pov.position),
-                    up: fromXYZ(json.pov.up)
-                };
-                const nodes = json.nodes.map(({ position, element, label, color }) => {
-                    return { position: fromXYZ(position), element, label, color };
-                });
-                const nodeMap = new Map(nodes.map((node) => [node.element, node]));
-                const arrows = json.arrows.map(({ start_element, end_element, generator, bidirectional, thirdPoint, keepCurved, offset, color }) => {
-                    return {
-                        start_node: nodeMap.get(start_element),
-                        end_node: nodeMap.get(end_element),
-                        generator,
-                        bidirectional,
-                        thirdPoint: fromXYZ(thirdPoint),
-                        keepCurved,
-                        offset,
-                        color
-                    };
-                });
-                const chunks = json.chunks.map(({ box, name, widths, nodes }) => {
-                    return {
-                        box: new THREE.Matrix4().fromArray(box),
-                        name,
-                        widths: fromXYZ(widths),
-                        nodes: nodes.map((node) => nodeMap.get(node))
-                    };
-                });
-                this.updateModel('layout', { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks });
-            }
-        };
     }
     setView(view) {
         this.#view = view;
@@ -640,7 +641,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
             const v2 = node.position.clone().sub(end_node.position);
             return v1.dot(v2) > 0 && new THREE.Vector3().crossVectors(v1, v2).lengthSq() < 1.0e-6;
         });
-        const offset = (sphere == undefined) ? undefined : 1.4 * sphere.scale.x; // Heuristic value
+        const offset = (sphere == undefined) ? null : 1.4 * sphere.scale.x; // Heuristic value
         return offset;
     }
     redrawAllLines() {

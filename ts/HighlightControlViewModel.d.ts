@@ -36,9 +36,7 @@ export declare class HighlightControlViewModel implements Updatable {
     get highlightTypes(): string[];
     get view(): HighlightControlView;
     set view(view: HighlightControlView);
-    get model(): SubscriptionProxy<HighlightControlModelInterface>;
-    set model(model: SubscriptionProxy<HighlightControlModelInterface>);
-    reset(): void;
+    get model(): HighlightControlModelInterface;
     toJSON(): HighlightControlJSON;
     fromJSON(jsonObject: HighlightControlJSON): void;
     createAndConfirmSubset(elements: BitSet, explanation: html): Promise<Maybe<Subset>>;

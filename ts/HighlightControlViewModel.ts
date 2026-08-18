@@ -68,13 +68,52 @@ type displayItemJSON = {
 export class HighlightControlViewModel implements Updatable {
    #model!: SubscriptionProxy<HighlightControlModelInterface>
    #view!: HighlightControlView
-   nextId!: number
-   nextSubsetIndex!: number
-   highlightedItems!: Maybe<DisplayItem>[]
+   nextId: number = 0
+   nextSubsetIndex: number = 0
+   highlightedItems: Maybe<DisplayItem>[] = [null, null, null]
    displayMap: Map<number, DisplayItem> = new Map()
 
    constructor (model: SubscriptionProxy<HighlightControlModelInterface>) {
-      this.model = model
+      this.#model = model
+
+      model.$subscribe(this, 'highlightColors')
+
+      if (model.highlightControl == null) {
+         // initialize displayMap with model.group's subgroups
+         this.group.subgroups.forEach((_H, inx) => {
+            const newSubgroop = new Subgroop(this, inx)
+            newSubgroop.id = this.nextId++
+            this.displayMap.set(newSubgroop.id, newSubgroop)
+         })
+
+         // If model.highlightColors is set, determine which subgroups are highlighted
+         // (For now, only consider highlights of a single color that highlight a subgroup:
+         // this covers editing an element of a subgroup lattice display, for example.)
+         // ToDo: recognize other highlight patterns (conjugacy classes, cosets)
+         if (model.highlightColors.some((colors) => colors.some((item) => item != null))) {
+            model.highlightColors.forEach((highlightColors, inx) => {
+               const oneColor = highlightColors.find((color) => color != null && color != '')
+               if (highlightColors.every((color) => color == oneColor || color == null || color == '')) {
+                  const highlightedElements = new BitSet(this.group.order)
+                  highlightColors.forEach((color, inx) => {
+                     if (color == oneColor) {
+                        highlightedElements.set(inx)
+                     }
+                  })
+                  const subgroupIndex = this.group.subgroups.findIndex((H) => highlightedElements.equals(H.members))
+                  const highlightedItem = Array.from(this.displayMap)
+                     .find(([_inx, subgroop]) => 'subgroupIndex' in subgroop && subgroop.subgroupIndex == subgroupIndex)?.[1]
+                  this.highlightedItems[inx] = highlightedItem
+               }
+            })
+         }
+
+         this.fromJSON(this.toJSON())
+      } else {
+         this.fromJSON(model.highlightControl)
+      }
+
+      model.highlightControl = this
    }
 
    get group (): Group {
@@ -103,68 +142,8 @@ export class HighlightControlViewModel implements Updatable {
       }
    }
 
-   get model (): SubscriptionProxy<HighlightControlModelInterface> {
+   get model (): HighlightControlModelInterface {
       return this.#model
-   }
-
-   set model (model: SubscriptionProxy<HighlightControlModelInterface>) {
-      this.#model = model
-      // normalize: if model.highlightControl is already a live ViewModel (e.g. morphism editor reopened),
-      // convert to JSON so fromJSON receives the expected plain-object format
-      const rawHighlightControl = model.highlightControl
-      const inputHighlightControl = rawHighlightControl instanceof HighlightControlViewModel
-         ? rawHighlightControl.toJSON()
-         : rawHighlightControl
-      const inputHighlightColors = model.highlightColors
-
-      this.model.highlightControl = this  // enter a reference to us in the model
-      this.model.$subscribe(this, 'group')  // subscribe to change in 'group'
-      this.model.$subscribe(this, 'highlightColors')  // subscribe to changes in 'highlightColors' field
-
-      this.reset()
-      if (inputHighlightControl != null) {
-         this.fromJSON(inputHighlightControl)
-      }
-
-      // be sure to preserve highlightColors in case highlightControl is just getting created
-      this.updateModel('highlightColors', inputHighlightColors)
-
-      // If some highlight colors are set but this doesn't have any items highlighted, this is just
-      // getting started editing a sheet visualizer: try to determine what elements are highlighted.
-      // (Only consider highlights of a single color that highlight a subgroup,
-      // as this covers all internally generated sheets.)
-      if (  inputHighlightColors.some((colors) => colors.some((item) => item != null))
-         && this.highlightedItems.every((item) => item == null)
-      ) {
-         inputHighlightColors.forEach((highlightColors, inx) => {
-            const oneColor = highlightColors.find((color) => color != null && color != '')
-            if (highlightColors.every((color) => color == oneColor || color == null || color == '')) {
-               const highlightedElements = new BitSet(this.group.order)
-               highlightColors.forEach((color, inx) => {
-                  if (color == oneColor) {
-                     highlightedElements.set(inx)
-                  }
-               })
-               const subgroupIndex = this.group.subgroups.findIndex((H) => highlightedElements.equals(H.members))
-               const highlightedItem = Array.from(this.displayMap)
-                  .find(([_inx, subgroop]) => 'subgroupIndex' in subgroop && subgroop.subgroupIndex == subgroupIndex)?.[1]
-               this.highlightedItems[inx] = highlightedItem
-            }
-         })
-      }
-   }
-
-   reset ()  {
-      this.nextId = 0
-      const initialJSON: HighlightControlJSON = {
-         next_id: this.group.subgroups.length,
-         next_subset_index: 0,
-         highlighted_items: [null, null, null],
-         display_map:
-            this.group.subgroups.map((_subgroup, inx) => this.#createItem(new Subgroop(this, inx)).toJSON())
-      }
-
-      this.fromJSON(initialJSON)
    }
 
    toJSON (): HighlightControlJSON {
@@ -198,10 +177,7 @@ export class HighlightControlViewModel implements Updatable {
          const displayItem = new (classMap[displayItemJSON.class_name])(this).fromJSON(displayItemJSON)
          this.displayMap.set(displayItemJSON.id, displayItem)
       })
-
       this.highlightedItems = jsonObject.highlighted_items.map((item) => item ? this.displayMap.get(item) : null)
-
-      this.#updateHighlightColors()
 
       if (this.view != null) {
          this.view.clearAll()
@@ -398,17 +374,14 @@ export class HighlightControlViewModel implements Updatable {
 
    // notify highlightControl subscribers (e.g. SheetEditor broadcast) that structural state changed
    #triggerModelUpdate () {
-      this.model.$touch('highlightControl')
+      this.#model.$touch('highlightControl')
    }
 
    update (field: string, value: any) {
       switch (field) {
-      case 'group':
-         this.reset()
-         break
-      case 'highlightColors':
-         this.view?.updateHighlightMark()
-         break
+         case 'highlightColors':
+            this.view?.updateHighlightMark()
+            break
       }
    }
 }

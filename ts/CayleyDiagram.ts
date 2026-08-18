@@ -22,6 +22,18 @@ import type { CayleyDiagramModelJSON } from './CayleyDiagramModel.ts'
 import type { Group } from './Group.ts'
 import type { SubscriptionProxy } from './GEUtils.ts'
 
+const SHEET_UPDATE_FIELDS = [
+   'highlightColors',
+   'highlightControl',
+   'layout',
+   'fog_level',
+   'line_width',
+   'sphere_scale_factor',
+   'zoom_level',
+   'arrowhead_placement',
+   'label_scale_factor'
+]
+
 export async function load () {
    insertHTML()
 
@@ -52,10 +64,6 @@ export async function load () {
 
    const cayleyDiagramModel : SubscriptionProxy<CayleyDiagramModel> = createModelProxy(new CayleyDiagramModel(group))
 
-   const cayleyDiagramViewModel = createInteractiveCayleyDiagramView(cayleyDiagramModel, {
-      container: document.getElementById('graphic') as HTMLElement
-   })
-
    // Set up change broadcast (if this page is an editor for a sheet)
    if (window.location.href.includes('SheetEditor')) {
       if (initialJSON != null) {
@@ -64,13 +72,9 @@ export async function load () {
          Log.warn('CayleyDiagram: SheetEditor mode but no initial JSON passed in IndexedDB')
       }
 
-      SheetEditor.enableChangeBroadcast(() => {
-         return { elementId: elementId as string, json: cayleyDiagramModel.toJSON() }
-      })
-      SheetEditor.listenForSheetUpdates((json: CayleyDiagramModelJSON) => cayleyDiagramModel.fromJSON(json))
+      SheetEditor.enableModelChangeBroadcast(elementId as string, cayleyDiagramModel, SHEET_UPDATE_FIELDS)
 
-      //      cayleyDiagramViewModel.resize()  // need to fix initial aspect ratio when editing
-      window.setInterval(() => SheetEditor.broadcastChange(), 1000)  // There's got to be a better way than polling...
+      SheetEditor.listenForSheetUpdates((json: CayleyDiagramModelJSON) => cayleyDiagramModel.fromJSON(json))
    }
 
    // Create Control Panel
@@ -88,6 +92,10 @@ export async function load () {
    // Create diagram control
    const cayleyDiagramControlElement = document.getElementById('cayley-diagram-control') as HTMLElement
    CayleyDiagramControl.addControl(cayleyDiagramControlElement, cayleyDiagramModel)
+
+   const cayleyDiagramViewModel = createInteractiveCayleyDiagramView(cayleyDiagramModel, {
+      container: document.getElementById('graphic') as HTMLElement
+   })
 
    window.addEventListener('resize', () => cayleyDiagramViewModel.resize())
 }

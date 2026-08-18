@@ -30,11 +30,11 @@ import type { StrategyParameters, ArrowGenerator } from './CayleyDiagramGenerato
 import type { SubscriptionProxy } from './GEUtils.ts'
 
 export type CayleyDiagramControlJSON = {
-   diagram_name: Maybe<string>,                 // null => generate diagram from strategy parameters
-   strategy_parameters: StrategyParameters[],   // null => generate default diagram
-   arrow_generators: Maybe<ArrowGenerator[]>,   // null => use default arrows; [] => use no arrows
-   right_multiply: boolean,
-   chunk_subgroup_index: Maybe<integer>         // null => no chunking
+   diagram_name?: string,                       // undefined => generate diagram from strategy parameters
+   strategy_parameters?: StrategyParameters[],  // undefined => generate default diagram
+   arrow_generators?: ArrowGenerator[],         // undefined => use default arrows; [] => use no arrows
+   right_multiply?: boolean,                    // undefined => right multiply
+   chunk_subgroup_index?: integer               // null => no chunking
 }
 
 // layout choices (linear/circular/rotated), direction (X/Y/Z)
@@ -109,13 +109,16 @@ class ViewModel {
       this.rootElement = rootElement
 
       // get diagram name from sheet editor JSON or URL
-      if (model.diagramControl?.strategy_parameters != null) {
-         this.strategyParameters = model.diagramControl.strategy_parameters
-         this.arrowGenerators = model.diagramControl.arrow_generators
-      } else if (model.diagramControl?.diagram_name != null) {
+      if (model.diagramControl?.diagram_name != null) {
          this.diagramName = model.diagramControl.diagram_name
+      } else if (model.diagramControl?.strategy_parameters != null) {
+         this.strategyParameters = model.diagramControl.strategy_parameters
       } else {
          this.diagramName = new URL(window.location.href).searchParams.get('diagram')
+      }
+
+      if (model.diagramControl?.arrow_generators != null) {
+         this.arrowGenerators = model.diagramControl.arrow_generators
       }
 
       if (  this.diagramName != null
@@ -129,7 +132,8 @@ class ViewModel {
          this.chunkSubgroupIndex = model.diagramControl.chunk_subgroup_index
       }
 
-      if (!window.location.href.includes('SheetEditor')) {  // don't overwrite info from Sheet
+      // don't overwrite layout if it exists
+      if (model.layout == null) {
          this.updateLayout()
       }
    }
@@ -182,11 +186,11 @@ class ViewModel {
 
    toJSON (): CayleyDiagramControlJSON {
       const json = {
-         diagram_name: this.diagramName,
-         strategy_parameters: this.strategyParameters,
-         arrow_generators: this.arrowGenerators,
-         right_multiply: this.rightMultiply,
-         chunk_subgroup_index: this.chunkSubgroupIndex,
+         ...(this.diagramName != null && {diagram_name: this.diagramName}),
+         ...(this.strategyParameters.length != 0 && {strategy_parameters: this.strategyParameters}),
+         ...(this.arrowGenerators != null && {arrow_generators: this.arrowGenerators}),
+         ...(this.rightMultiply == false && {right_multiply: false}),
+         ...(this.chunkSubgroupIndex != null && {chunk_subgroup_index: this.chunkSubgroupIndex})
       }
 
       return json

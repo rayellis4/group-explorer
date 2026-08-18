@@ -27,12 +27,10 @@ Model for the Cayley diagram visualizer. Holds all serializable state:
 ```javascript
  */
 import * as Library from './Library.js';
+import { layoutToJSON, layoutFromJSON } from './CayleyDiagramView.js';
 export { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js';
 export class CayleyDiagramModel {
     group;
-    // Write-only request: CayleyDiagramGenerator writes this to trigger a scene rebuild;
-    // CayleyDiagramViewModel consumes it. Not persisted — viewState owns serialization.
-    layout;
     // Highlight configuration — visualizer-specific parameters for HighlightControl
     highlightConfiguration = {
         highlightTypes: ['node color', 'a ring around the node', 'a square around the node'],
@@ -41,6 +39,7 @@ export class CayleyDiagramModel {
         hueOffset: [0, 0, 0]
     };
     // View parameters — manipulated by CayleyViewControl sliders
+    layout;
     background;
     fog_level;
     line_width;
@@ -54,7 +53,6 @@ export class CayleyDiagramModel {
     // Opaque plugin slots (carried opaquely through serialization)
     highlightControl; // owned by HighlightControl
     diagramControl; // owned by CayleyDiagramControl
-    viewState; // owned by CayleyDiagramView
     // Request fields — transient commands; set by CayleyViewControl, cleared by CayleyDiagramView
     snap_to_axis_request;
     constructor(group) {
@@ -62,7 +60,6 @@ export class CayleyDiagramModel {
         this.reset();
     }
     reset() {
-        this.layout = null;
         this.background = '#E8C8C8'; // Cayley-diagram specific
         this.fog_level = 0;
         this.line_width = 4;
@@ -77,6 +74,7 @@ export class CayleyDiagramModel {
     toJSON() {
         const json = {
             group_url: this.group.URL,
+            layout: layoutToJSON(this.layout),
             background: this.background,
             fog_level: this.fog_level,
             line_width: this.line_width,
@@ -88,7 +86,6 @@ export class CayleyDiagramModel {
             highlight_colors: this.highlightColors,
             highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
             diagram_control: this.diagramControl?.toJSON?.() ?? this.diagramControl,
-            view_state: this.viewState?.toJSON?.() ?? this.viewState
         };
         return json;
     }
@@ -97,6 +94,8 @@ export class CayleyDiagramModel {
         if (json.group_url != null && this.group.URL != json.group_url) {
             this.group = Library.getGroupByURL(json.group_url);
         }
+        if (json.layout != null)
+            this.layout = layoutFromJSON(json.layout);
         this.background = json.background ?? this.background;
         this.fog_level = json.fog_level ?? this.fog_level;
         this.line_width = json.line_width ?? this.line_width;
@@ -117,12 +116,6 @@ export class CayleyDiagramModel {
         }
         else if (json.diagram_control != null) {
             this.diagramControl.fromJSON(json.diagram_control);
-        }
-        if (this.viewState?.fromJSON == null) {
-            this.viewState = json.view_state;
-        }
-        else if (json.view_state != null) {
-            this.viewState.fromJSON(json.view_state);
         }
         // don't want to do this before the nodes are laid down setting view_state
         this.highlightColors = json.highlight_colors ?? this.highlightColors;

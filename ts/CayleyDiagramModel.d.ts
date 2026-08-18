@@ -1,11 +1,12 @@
 import type { CayleyDiagramControlJSON } from './CayleyDiagramControl.ts';
-import type { LayoutData as LayoutType } from './CayleyDiagramView.ts';
+import type { LayoutType, LayoutJSON } from './CayleyDiagramView.ts';
 import type { Group } from './Group.ts';
 import type { HighlightControlModelInterface } from './HighlightControl.ts';
 export { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js';
-export type { POV, NodeData as NodeType, ArrowData as ArrowType, ChunkData as ChunkType, LayoutData as LayoutType, POVJSON, NodeDataJSON, ArrowDataJSON, ChunkDataJSON, LayoutDataJSON, } from './CayleyDiagramView.ts';
+export type { POV, NodeType, ArrowType, ChunkType, LayoutType } from './CayleyDiagramView.ts';
 export type CayleyDiagramModelJSON = {
     group_url: string;
+    layout: Maybe<LayoutJSON>;
     background: CayleyDiagramModel['background'];
     fog_level: CayleyDiagramModel['fog_level'];
     line_width: CayleyDiagramModel['line_width'];
@@ -17,17 +18,16 @@ export type CayleyDiagramModelJSON = {
     highlight_colors: CayleyDiagramModel['highlightColors'];
     highlight_control: CayleyDiagramModel['highlightControl'];
     diagram_control: CayleyDiagramControlJSON;
-    view_state: CayleyDiagramModel['viewState'];
 };
 export declare class CayleyDiagramModel implements HighlightControlModelInterface {
     group: Group;
-    layout: Maybe<LayoutType>;
     highlightConfiguration: {
         highlightTypes: string[];
         saturation: number[];
         lightness: number[];
         hueOffset: number[];
     };
+    layout: LayoutType;
     background: color;
     fog_level: float;
     line_width: number;
@@ -39,7 +39,6 @@ export declare class CayleyDiagramModel implements HighlightControlModelInterfac
     highlightColors: Maybe<color>[][];
     highlightControl: any;
     diagramControl: any;
-    viewState: any;
     snap_to_axis_request: boolean;
     constructor(group: Group);
     reset(): void;

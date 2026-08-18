@@ -47,9 +47,7 @@ export class CycleGraphModel implements HighlightControlModelInterface {
       const json = {
          group_url: this.group.URL,
          highlight_colors: this.highlightColors,
-         highlight_control: (this.highlightControl?.toJSON == null)
-            ? this.highlightControl
-            : this.highlightControl.toJSON()
+         highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl
       }
 
       return json

@@ -231,11 +231,11 @@ export function convertV1ToV2(v1Objects) {
                     .filter((arrow) => arrow.start_element == 0)
                     .map((arrow) => ({ generator: arrow.generator, color: arrow.color }));
                 const diagramControl = {
-                    diagram_name: v1Visualizer.diagram_name,
-                    strategy_parameters: strategyParameters,
-                    arrow_generators: arrowGenerators,
-                    right_multiply: v1Visualizer.right_multiply,
-                    chunk_subgroup_index: (v1Visualizer?.chunk == 0) ? null : v1Visualizer.chunk
+                    ...(v1Visualizer.diagram_name != null && { diagram_name: v1Visualizer.diagram_name }),
+                    ...(strategyParameters.length != 0 && { strategy_parameters: strategyParameters }),
+                    ...(arrowGenerators != null && { arrow_generators: arrowGenerators }),
+                    ...(v1Visualizer.right_multiply == false && { right_multiply: false }),
+                    ...(v1Visualizer?.chunk && { chunk_subgroup_index: v1Visualizer.chunk })
                 };
                 const nodes = v1Visualizer.nodes.map(({ position, element, label }) => {
                     return { position: { ...position }, element, label, color: DEFAULT_NODE_COLOR };
@@ -295,10 +295,10 @@ export function convertV1ToV2(v1Objects) {
                     arrowhead_placement: v1Visualizer.arrowhead_placement,
                     label_scale_factor: v1Visualizer.label_scale_factor,
                     showing_axes: false,
-                    highlight_control: null, // not
+                    highlight_control: null, // not implemented in v1
                     highlight_colors: highlights,
                     diagram_control: diagramControl,
-                    view_state: layout,
+                    layout: layout,
                 };
                 v2Object.visualizerJSON = v2Visualizer;
                 break;
