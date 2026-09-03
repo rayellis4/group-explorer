@@ -7,7 +7,7 @@ Persists various objects in local IndexedDB database
  */
 import * as Library from './Library.js';
 import * as Log from './Log.js';
-import { wrapSheet, deserializeSheet } from './SheetSerialization.js';
+import { deserializeSheet } from './SheetSerialization.js';
 export { 
 // Group library routines
 getGroupLibrary, saveGroupLibrary, 
@@ -287,15 +287,15 @@ async function migrateSheetsToV2(openRequest) {
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
     });
-    const storedGroups = (await idbRequest(transaction.objectStore(GENERAL_STORE).get(GROUP_LIBRARY_KEY))) ?? {};
+    const storedGroups = (await idbRequest(transaction.objectStore(GENERAL_STORE).get(GROUP_LIBRARY_KEY)));
     Library.loadFromStoredGroups(storedGroups);
     const sheetNames = await idbRequest(sheetStore.getAllKeys());
     for (const sheetName of sheetNames) {
         const v1SheetJSONString = await idbRequest(sheetStore.get(sheetName));
         await idbRequest(backupStore.put(v1SheetJSONString, sheetName)); // back up V1 before converting
         try {
-            const v2SheetJSON = deserializeSheet(v1SheetJSONString); // CHECKME
-            await idbRequest(sheetStore.put(wrapSheet(v2SheetJSON), sheetName));
+            const v2SheetJSON = deserializeSheet(v1SheetJSONString); // CHECKME?
+            await idbRequest(sheetStore.put(v2SheetJSON, sheetName));
         }
         catch (err) {
             Log.err(`migrateSheetsToV2: failed to migrate '${sheetName}', left unchanged: ${err}`);

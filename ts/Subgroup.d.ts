@@ -7,7 +7,6 @@ export type SubgroupJSON = {
     members: BitSetJSON;
 };
 export declare class Subgroup {
-    #private;
     group: Group;
     generators: BitSet;
     members: BitSet;
@@ -26,6 +25,14 @@ export declare class Subgroup {
     get leftCosets(): BitSet[];
     get rightCosets(): BitSet[];
     get subgroupIndex(): number;
+    private getCosets;
+    private getLibraryGroup;
+    private getQuotientGroup;
+    private getSubgroupAsGroup;
+    private setProperty;
+    private setIsomorphicGroupAndEmbedding;
+    private setQuotientGroupAndMap;
+    private subgroupIsNormal;
     getPSubgroupInfo(): Maybe<{
         p: number;
         isSylow?: boolean;

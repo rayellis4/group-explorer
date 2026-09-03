@@ -33,42 +33,42 @@ ViewModel
 View
  */
 class CycleGraphViewModel {
-    #model;
-    #view;
-    #group;
-    #modelFields = [
+    _model;
+    _view;
+    _group;
+    static modelFields = [
         'group',
         'highlightColors'
     ];
     get view() {
-        return this.#view;
+        return this._view;
     }
     set view(view) {
-        this.#view = view;
+        this._view = view;
         if (this.model != null) {
-            this.#modelFields.forEach((field) => this.update(field, this.model[field]));
+            CycleGraphViewModel.modelFields.forEach((field) => this.update(field, this.model[field]));
         }
     }
     get model() {
-        return this.#model;
+        return this._model;
     }
     get modelProxy() {
-        return this.#model;
+        return this._model;
     }
     set model(cycleGraphModel) {
-        this.#model = cycleGraphModel;
-        this.#modelFields.forEach((field) => {
-            this.#model.$subscribe(this, field);
+        this._model = cycleGraphModel;
+        CycleGraphViewModel.modelFields.forEach((field) => {
+            this._model.$subscribe(this, field);
             this.update(field, this.model[field]);
         });
     }
     get group() {
-        return this.model?.group ?? this.#group;
+        return this.model?.group ?? this._group;
     }
     get highlightColors() {
         return this.model?.highlightColors ?? [[], [], []];
     }
-    update(field, value) {
+    update(field, _value) {
         if (this.view == null) {
             return;
         }
@@ -91,7 +91,7 @@ class CycleGraphViewModel {
     get canvas() { return this.view.canvas; }
     toJSON() { return this.model.toJSON(); }
     fromJSON(jsonObject) { this.model.fromJSON(jsonObject); }
-    draw(group) { this.#group = group; }
+    draw(group) { this._group = group; }
 }
 class CycleGraphView {
     viewModel;

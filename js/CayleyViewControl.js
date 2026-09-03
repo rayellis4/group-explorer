@@ -24,14 +24,14 @@ before any values are pushed to it.
 import * as Log from './Log.js';
 // create ViewModel and View, wire to the CayleyDiagramModel proxy
 export function addControl(cayleyViewControlElement, cayleyDiagramModel) {
-    const viewModel = new ViewModel();
-    viewModel.setModel(cayleyDiagramModel);
-    viewModel.setView(new View(cayleyViewControlElement));
+    const viewModel = new ViewModel(cayleyDiagramModel);
+    viewModel.view = new View(cayleyViewControlElement, viewModel);
 }
 // ViewModel converts CayleyDiagramModel properties <=> View slider values
 class ViewModel {
-    model;
-    modelFields = [
+    _model;
+    _view;
+    static modelFields = [
         'zoom_level',
         'line_width',
         'sphere_scale_factor',
@@ -39,71 +39,76 @@ class ViewModel {
         'label_scale_factor',
         'arrowhead_placement',
     ];
-    view;
-    setModel(model) {
+    constructor(model) {
         this.model = model;
-        this.modelFields.forEach((field) => model.$subscribe(this, field));
     }
-    setView(view) {
-        this.view = view;
-        view.viewModel = this;
-        this.modelFields.forEach((field) => this.update(field, this.model[field]));
+    get model() {
+        return this._model;
     }
-    getFromView(field) {
-        return this.view.getFieldValue(field);
+    set model(model) {
+        this._model = model;
+        ViewModel.modelFields.forEach((field) => model.$subscribe(this, field));
     }
-    // handles input events from View, updates Model
-    updateModel(field, value) {
-        switch (field) {
-            case 'zoom_level':
-                this.model.zoom_level = Math.exp(value / 10);
-                break;
-            case 'line_width':
-                this.model.line_width = 1 + 0.75 * (value - 1);
-                break;
-            case 'sphere_scale_factor':
-                this.model.sphere_scale_factor = Math.exp(value / 10);
-                break;
-            case 'use_fog':
-            case 'fog_level':
-                this.model.fog_level = this.getFromView('use_fog') ? (this.getFromView('fog_level') / 10) : 0;
-                break;
-            case 'show_labels':
-            case 'label_size':
-                this.model.label_scale_factor =
-                    this.getFromView('show_labels') ? Math.exp(this.getFromView('label_size') / 10) : 0;
-                break;
-            case 'arrowhead_placement':
-                this.model.arrowhead_placement = value / 20;
-                break;
-        }
+    get view() {
+        return this._view;
+    }
+    set view(view) {
+        this._view = view;
+        ViewModel.modelFields.forEach((field) => this.update(field, this.model[field]));
     }
     // field update callbacks from Model — convert to slider values and push to View directly
     update(field, value) {
+        if (this.view == null)
+            return;
         switch (field) {
             case 'zoom_level':
-                this.view.update('zoom_level', 10 * Math.log(value));
+                this.view.zoom_level = 10 * Math.log(value);
                 break;
             case 'line_width':
-                this.view.update('line_width', 1 + (value - 1) / 0.75);
+                this.view.line_width = 1 + (value - 1) / 0.75;
                 break;
             case 'sphere_scale_factor':
-                this.view.update('sphere_scale_factor', 10 * Math.log(value));
+                this.view.sphere_scale_factor = 10 * Math.log(value);
                 break;
             case 'fog_level':
-                this.view.update('use_fog', value != 0);
-                if (value != 0) {
-                    this.view.update('fog_level', 10 * value);
+                this.view.use_fog = value != 0;
+                if (this.view.use_fog) {
+                    this.view.fog_level = 10 * value;
                 }
                 break;
             case 'label_scale_factor':
-                this.view.update('show_labels', value != 0);
-                if (value != 0) {
-                    this.view.update('label_size', 10 * Math.log(value));
+                this.view.show_labels = value != 0;
+                if (this.view.show_labels) {
+                    this.view.label_size = 10 * Math.log(value);
                 }
                 break;
             case 'arrowhead_placement':
-                this.view.update('arrowhead_placement', 20 * value);
+                this.view.arrowhead_placement = 20 * value;
+                break;
+        }
+    }
+    // handles input events from View, updates Model
+    updateModel(field) {
+        switch (field) {
+            case 'zoom_level':
+                this.model.zoom_level = Math.exp(this.view.zoom_level / 10);
+                break;
+            case 'line_width':
+                this.model.line_width = 1 + 0.75 * (this.view.line_width - 1);
+                break;
+            case 'sphere_scale_factor':
+                this.model.sphere_scale_factor = Math.exp(this.view.sphere_scale_factor / 10);
+                break;
+            case 'use_fog':
+            case 'fog_level':
+                this.model.fog_level = this.view.use_fog ? (this.view.fog_level / 10) : 0;
+                break;
+            case 'show_labels':
+            case 'label_size':
+                this.model.label_scale_factor = this.view.show_labels ? Math.exp(this.view.label_size / 10) : 0;
+                break;
+            case 'arrowhead_placement':
+                this.model.arrowhead_placement = (this.view.arrowhead_placement) / 20;
                 break;
         }
     }
@@ -116,16 +121,79 @@ class ViewModel {
 // View has html to display values on sliders, field events from input elements
 class View {
     rootElement;
-    viewModel; // set by ViewModel.setView
-    constructor(rootElement) {
+    viewModel;
+    constructor(rootElement, viewModel) {
         this.rootElement = rootElement;
-        this.addHTML();
+        this.viewModel = viewModel;
+        this.rootElement.innerHTML = View.getViewHTML();
         this.rootElement.addEventListener('input', (ev) => this.handleInputEvent(ev));
         this.rootElement.addEventListener('click', (ev) => this.handleButtonEvent(ev));
     }
-    addHTML() {
-        this.rootElement.innerHTML =
-            `<div>
+    get zoom_level() { return this.getField('zoom_level'); }
+    set zoom_level(zoom_level) { this.updateField('zoom_level', zoom_level); }
+    get line_width() { return this.getField('line_width'); }
+    set line_width(line_width) { this.updateField('line_width', line_width); }
+    get sphere_scale_factor() { return this.getField('sphere_scale_factor'); }
+    set sphere_scale_factor(sphere_scale_factor) { this.updateField('sphere_scale_factor', sphere_scale_factor); }
+    get use_fog() { return this.getField('use_fog'); }
+    set use_fog(use_fog) { this.updateField('use_fog', use_fog); }
+    get fog_level() { return this.getField('fog_level'); }
+    set fog_level(fog_level) { this.updateField('fog_level', fog_level); }
+    get show_labels() { return this.getField('show_labels'); }
+    set show_labels(show_labels) { this.updateField('show_labels', show_labels); }
+    get label_size() { return this.getField('label_size'); }
+    set label_size(label_size) { this.updateField('label_size', label_size); }
+    get arrowhead_placement() { return this.getField('arrowhead_placement'); }
+    set arrowhead_placement(arrowhead_placement) { this.updateField('arrowhead_placement', arrowhead_placement); }
+    getDisplayElement(field) {
+        const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`);
+        if (displayElement == null) {
+            Log.warn(`unable to find element with data binding = ${field}`);
+        }
+        return displayElement;
+    }
+    getField(field) {
+        let result;
+        const displayElement = this.getDisplayElement(field);
+        if (displayElement instanceof HTMLInputElement) {
+            if (displayElement.type.toLowerCase() == 'range') {
+                result = displayElement.valueAsNumber;
+            }
+            else if (displayElement.type.toLowerCase() == 'checkbox') {
+                result = displayElement.checked;
+            }
+        }
+        return result;
+    }
+    updateField(field, value) {
+        const displayElement = this.getDisplayElement(field);
+        if (displayElement instanceof HTMLInputElement) {
+            if (displayElement.type.toLowerCase() == 'range') {
+                displayElement.valueAsNumber = value;
+            }
+            else if (displayElement.type.toLowerCase() == 'checkbox') {
+                displayElement.checked = value;
+            }
+        }
+    }
+    // generic input event handler, forwards to ViewModel
+    handleInputEvent(inputEvent) {
+        const field = inputEvent.target?.getAttribute('data-bind');
+        if (field != null) {
+            inputEvent.stopPropagation();
+            this.viewModel.updateModel(field);
+        }
+    }
+    handleButtonEvent(clickEvent) {
+        const action = clickEvent.target?.closest('[data-action]')?.getAttribute('data-action');
+        if (action != null) {
+            clickEvent.stopPropagation();
+            this.viewModel.executeCommand(action);
+        }
+    }
+    static getViewHTML() {
+        return `
+          <div>
              Zoom level:
              <input data-bind="zoom_level" type="range" min="-10" max="10">
           </div>
@@ -164,53 +232,6 @@ class View {
                    >Snap to axis</button>
              </details>
           </div>`;
-    }
-    getDisplayElement(field) {
-        const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`);
-        if (displayElement == null) {
-            Log.warn(`unable to find element with data binding = ${field}`);
-            return null;
-        }
-        return displayElement;
-    }
-    getFieldValue(field) {
-        let result;
-        const displayElement = this.getDisplayElement(field);
-        if (displayElement instanceof HTMLInputElement) {
-            if (displayElement.type.toLowerCase() == 'range') {
-                result = displayElement.value;
-            }
-            else if (displayElement.type.toLowerCase() == 'checkbox') {
-                result = displayElement.checked;
-            }
-        }
-        return result;
-    }
-    update(field, value) {
-        const displayElement = this.getDisplayElement(field);
-        if (displayElement instanceof HTMLInputElement) {
-            if (displayElement.type.toLowerCase() == 'range') {
-                displayElement.value = value;
-            }
-            else if (displayElement.type.toLowerCase() == 'checkbox') {
-                displayElement.checked = value;
-            }
-        }
-    }
-    // generic input event handler, forwards to ViewModel
-    handleInputEvent(inputEvent) {
-        const field = inputEvent.target?.getAttribute('data-bind');
-        if (field != null) {
-            inputEvent.stopPropagation();
-            this.viewModel.updateModel(field, this.getFieldValue(field));
-        }
-    }
-    handleButtonEvent(clickEvent) {
-        const action = clickEvent.target?.closest('[data-action]')?.getAttribute('data-action');
-        if (action != null) {
-            clickEvent.stopPropagation();
-            this.viewModel.executeCommand(action);
-        }
     }
 }
 //# sourceMappingURL=CayleyViewControl.js.map

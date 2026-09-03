@@ -28,40 +28,48 @@ import type { MulttableJSON } from './MulttableModel.ts'
 import type { SheetJSON, NodeElementJSON, VisualizerElementJSON, LinkElementJSON, TextElementJSON,
    ConnectingElementJSON, MorphismElementJSON } from './SheetModel.ts'
 
-const CURRENT_FORMAT = 2 as const
-export type WrappedSheet = {
-   version: typeof CURRENT_FORMAT,
-   sheet: SheetJSON[]
+export const CURRENT_FORMAT_VERSION = 2 as const
+
+function isNonNullPojo (obj: unknown): obj is Record<string, unknown> {
+   return obj != null && typeof obj === 'object' && !Array.isArray(obj)
 }
 
-// want: as stored, and as object
-type v0Sheet = v0SheetType[]
-type v1Sheet = v1SheetType[]
-type v2Sheet = v2SheetType[]
+type nonEmptyPojoArray = Record<string, unknown>[]
+function isNonEmptyPojoArray (obj: unknown): obj is nonEmptyPojoArray {
+   return Array.isArray(obj) && isNonNullPojo(obj[0])
+}
+
+type VersionMap = {
+   0: v0SheetType[],
+   1: v1SheetType[],
+   2: v2SheetType[],
+}
 type v2SheetType = SheetJSON
-
-type v0StoredSheet = string  // on localStore
-type v1StoredSheet = string
-type v2StoredSheet = {
-   version: typeof CURRENT_FORMAT,
-   sheet: v2Sheet
+export type VersionedSheet<T extends keyof VersionMap = typeof CURRENT_FORMAT_VERSION> = {
+   version: T,
+   sheet: VersionMap[T],
 }
-type anySheet = v0Sheet | v1Sheet | v2Sheet
-type anyStoredSheet = v0StoredSheet | v1StoredSheet | v2StoredSheet
-
-// separate wrapping/unwrapping sheet with version (and possibly other metadata) from serializing/deserializing
-export function wrapSheet (sheet: v2Sheet): v2StoredSheet {
-   return {
-      version: CURRENT_FORMAT,
-      sheet: sheet
-   }
+export function isVersionedSheet (obj: unknown): obj is VersionedSheet {
+   return isNonNullPojo(obj) && 'version' in obj && typeof obj.version === 'number'
 }
 
-export function unwrapSheet (wrappedSheet: WrappedSheet): v2Sheet {
-   return wrappedSheet.sheet
+export type NamedSheet = {
+   sheetName: string,
+   sheetJSON: VersionedSheet
+}
+export type SheetBackup = NamedSheet[]
+export function isSheetBackup (obj: unknown): obj is SheetBackup {
+   return isNonEmptyPojoArray(obj) && 'sheetName' in obj[0]
+}
+
+export type RawSheet = unknown[]
+export function isRawSheet (obj: unknown): obj is RawSheet {
+   return isNonEmptyPojoArray(obj) && !('sheetName' in obj[0])
 }
 
 /*
+use cases
+
 normal:
 import from textarea (could be left over from old export!)
 restore v2 export string from clipboard (version, no SheetName => ExportedSheet; deserialized as ExportedSheet object)
@@ -73,25 +81,15 @@ migrateToV1: create 'storedSheets' in indexedDB;  if 'sheets' exist in localStor
 migrateToV2: deserialize v1 sheet string and store object in indexeddb
  */
 
-// given object for v0, v1, or v2 sheet, return SheetModel object
-export function deserializeSheet (json: string | anyStoredSheet): SheetJSON[] {
-   let sheet
-   if (typeof json === 'object' && json?.version != null) { // version >= 2
-      sheet = convertSheetFromVersion((json satisfies v2StoredSheet).sheet, json.version )
-   } else if (typeof json == 'string') {  // might be text input or v1 stored sheet
-      const parsedString = JSON.parse(json) as any
-      if (typeof parsedString?.version === 'number') {  // v2 export or later
-         sheet = convertSheetFromVersion((parsedString satisfies v2StoredSheet).sheet, parsedString.version)
-      } else if (Array.isArray(parsedString) && typeof parsedString[0] === 'object') {
-         sheet = convertSheetFromVersion(parsedString as anySheet, 1)
-      } else {
-         const errorMessage = `SheetSerialization.deserializeSheet: unrecognized string argument: ${json}`
-         Log.err(errorMessage)
-         throw new TypeError(errorMessage)
-      }
+export function deserializeSheet (json: string): VersionedSheet<typeof CURRENT_FORMAT_VERSION> {
+   let sheet: VersionedSheet<typeof CURRENT_FORMAT_VERSION>
+   const jsonObject = JSON.parse(json) as unknown
+   if (isVersionedSheet(jsonObject)) {
+      sheet = convertSheetFromVersion(jsonObject)
+   } else if (isRawSheet(jsonObject)) {
+      sheet = convertSheetFromVersion({version: 1, sheet: jsonObject as VersionMap[1]} as VersionedSheet<1>)
    } else {
-      const jsonString = (json instanceof Object) ? JSON.stringify(json) : json
-      const errorMessage = `SheetSerialization.deserializeSheet: unrecognized object argument: ${jsonString}`
+      const errorMessage = `SheetSerialization.deserializeSheet: unrecognized argument: ${json}`
       Log.err(errorMessage)
       throw new TypeError(errorMessage)
    }
@@ -99,13 +97,15 @@ export function deserializeSheet (json: string | anyStoredSheet): SheetJSON[] {
    return sheet
 }
 
-function convertSheetFromVersion (json: anySheet, version: number): v2Sheet {
-   switch (version)  {
-   case 0: json = convertV0ToV1(json as v0Sheet)
-   case 1: json = convertV1ToV2(json as v1Sheet)
+function convertSheetFromVersion (input: VersionedSheet<keyof VersionMap>): VersionedSheet<typeof CURRENT_FORMAT_VERSION> {
+   let json: unknown = input.sheet
+   switch (input.version)  {
+   case 0: json = convertV0ToV1(json as VersionMap[0])
+   case 1: json = convertV1ToV2(json as VersionMap[1])
+   case CURRENT_FORMAT_VERSION:
    }
 
-   return json as v2Sheet
+   return { version: CURRENT_FORMAT_VERSION, sheet: json as VersionMap[typeof CURRENT_FORMAT_VERSION]}
 }
 
 type v0SheetType = {
@@ -146,10 +146,10 @@ type v0SheetType = {
    square_highlights: unknown,
    strategy_parameters: unknown,
    zoom_level: unknown,
-   visualizer: any,
+   visualizer: unknown,
 }
 // given JSON for v0 sheet, return JSON for v1 sheet
-export function convertV0ToV1 (oldJSONArray: v0Sheet): v1Sheet {
+export function convertV0ToV1 (oldJSONArray: v0SheetType[]): v1SheetType[] {
    /*
     * Convert from original Sheet JSON to current version
     *    Link:
@@ -279,7 +279,7 @@ export function convertV0ToV1 (oldJSONArray: v0Sheet): v1Sheet {
       }
    }
 
-   return (oldJSONArray as unknown) as v1Sheet
+   return (oldJSONArray as unknown) as v1SheetType[]
 }
 
 type v1SheetType = {
@@ -297,7 +297,7 @@ type v1SheetType = {
 
    // Text
    alignment?: 'left' | 'center' | 'right',
-   fontColor?: color,
+   fontColor?:color,
    fontSize?: string,
    isPlainText?: boolean,
    opacity?: number,
@@ -307,7 +307,7 @@ type v1SheetType = {
    groupURL?: string,
    isClean?: boolean,  // Cayley diagram only
    visualizer?: v1CDVisualizer | v1CGVisualizer | v1MTVisualizer
-   _visualizer?: any,
+   _visualizer?: unknown,
 
    // Link
    destinationId?: string,
@@ -337,7 +337,7 @@ type v1CDVisualizer = {  // Cayley diagram
       offset: float,
       color: color}[],
    background: color,
-   cameraJSON: any,
+   cameraJSON: { object: { matrix: number[] } },  // simple array, not THREE.Matrix4.toJSON
    cameraUp: THREE.Vector3,
    chunk?: integer,
    color_highlights?: Maybe<color>[],
@@ -346,7 +346,7 @@ type v1CDVisualizer = {  // Cayley diagram
    groupURL: string,
    label_scale_factor: float,
    line_width: float,
-   nodes: any[],  // {position: {x: float, y: float, z: float} , element: groupElement, label: html}[]
+   nodes: { position: {x: float, y: float, z: float} , element: groupElement, label: html }[],
    right_multiply: boolean,
    ring_highlights?: Maybe<color>[],
    sphere_base_radius: float,
@@ -370,7 +370,7 @@ type v1MTVisualizer = {  // MTElement
 }
 
 // given JSON object for v1 sheet, return JSON object for v2 sheet
-export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
+export function convertV1ToV2 (v1Objects: v1SheetType[]): v2SheetType[] {
    const formatHighlights = (
       highlights: Maybe<Maybe<color>[]>[],
       nullish: Maybe<color>[] = []
@@ -379,6 +379,17 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
          (colorList == null) ? [] : colorList.map((color) => (color == nullish[inx]) ? null : color))
 
       return result
+   }
+
+   function copyCompatibleField<
+      T1 extends object, T2 extends object, K extends keyof T1 & keyof T2
+   >(
+      v1: T1, v2: T2, field: K
+   ) {
+      if (field in v1) {      // Guard against missing runtime fields in the old object
+         const value = v1[field]
+         v2[field] = value as unknown as T2[K];  // check that types are compatible at compile time
+      }
    }
 
    const v2Objects = v1Objects.map((v1Object) => {
@@ -428,7 +439,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
             })
 
             // convert camera: extract position from column-major matrix[12,13,14], use cameraUp for up
-            const matrix: Matrix4JSON = v1Visualizer.cameraJSON?.object?.matrix
+            const matrix = v1Visualizer.cameraJSON?.object?.matrix
             const position: Vector3JSON = matrix
                ? {x: matrix[12], y: matrix[13], z: matrix[14]}
                : {x: 0, y: 0, z: 3}
@@ -474,7 +485,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
 
                chunks.push(...maybeLayout.chunks.map((chunk) => {
                     return {
-                       box: JSON.parse(JSON.stringify(chunk.box)).elements,
+                       box: JSON.parse(JSON.stringify(chunk.box)) as Matrix4JSON,
                        name: chunk.name,
                        nodes: chunk.nodes.map((node) => node.element),
                        widths: JSON.parse(JSON.stringify(chunk.widths)) as Vector3JSON,
@@ -500,7 +511,7 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
                arrowhead_placement: v1Visualizer.arrowhead_placement,
                label_scale_factor: v1Visualizer.label_scale_factor,
                showing_axes: false,
-               highlight_control: null,  // not implemented in v1
+               // highlight_control:   // not implemented in v1
                highlight_colors: highlights,
                diagram_control: diagramControl,
                layout: layout,
@@ -563,9 +574,9 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
          case 'CGElement':
          case 'MTElement':
          case 'TextElement': {
-            (['x', 'y', 'w', 'h', 'z'] as (keyof v1SheetType)[]).forEach((field) => {
-               if (field in v1Object) {
-                  (v2Object as Partial<NodeElementJSON>)[field as (keyof NodeElementJSON)] = v1Object[field]
+            (['x', 'y', 'w', 'h', 'z'] as const).forEach((field) => {
+               if (field in v1Object && v1Object[field] != null) {
+                  copyCompatibleField(v1Object, v2Object as NodeElementJSON, field)
                }
             })
          }
@@ -583,26 +594,25 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
             if ('visualizer' in v2Object && (v2Object as VisualizerElementJSON).visualizerJSON != null) {
                const v2Visualizer = (v2Object as VisualizerElementJSON).visualizerJSON as Record<string, unknown>
                if (v2Visualizer != null && 'highlight_colors' in v2Visualizer && v2Visualizer.highlight_colors != null ) {
-                  (v2Object as VisualizerElementJSON).visualizerJSON.highlight_colors = v2Visualizer.highlight_colors as Maybe<string>[][]
+                  (v2Object as VisualizerElementJSON).visualizerJSON.highlight_colors =
+                     v2Visualizer.highlight_colors as Maybe<string>[][]
                }
             }
          }
 
          case 'TextElement': {
-            (['alignment', 'color', 'fontColor', 'fontSize', 'isPlainText', 'opacity', 'text'] as (keyof v1SheetType)[])
+            (['alignment', 'color', 'fontColor', 'fontSize', 'isPlainText', 'opacity', 'text'] as const)
                .forEach((field) => {
-                  if (field in v1Object) {
-                     ;(v2Object as Partial<TextElementJSON>)[field as (keyof TextElementJSON)] = v1Object[field]
-                  }
+                   copyCompatibleField(v1Object, v2Object as TextElementJSON, field)
             })
 
             break
          }
 
          case 'ConnectingElement': {
-            (['color', 'hasArrowhead', 'thickness'] as (keyof v1SheetType)[]).forEach((field) => {
+            (['color', 'hasArrowhead', 'thickness'] as const).forEach((field) => {
                if (field in v1Object) {
-                  (v2Object as Partial<ConnectingElementJSON>)[field as (keyof ConnectingElementJSON)] = v1Object[field]
+                  copyCompatibleField(v1Object, v2Object as ConnectingElementJSON, field)
                }
             })
 
@@ -611,13 +621,13 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
 
          case 'MorphismElement': {
             (['arrowMargin', 'definingPairs', 'showDefiningPairs', 'showDomainAndCodomain', 'showInjectionSurjection',
-              'showManyArrows'] as (keyof v1SheetType)[]).forEach((field) => {
+              'showManyArrows'] as const).forEach((field) => {
                if (field in v1Object) {
-                  (v2Object as Partial<MorphismElementJSON>)[field as (keyof MorphismElementJSON)] = v1Object[field]
+                  copyCompatibleField(v1Object, v2Object as MorphismElementJSON, field)
                }
             })
             if (v1Object.name != null) {
-               (v2Object as Partial<MorphismElementJSON>).morphismName = v1Object.name
+               (v2Object as MorphismElementJSON).morphismName = v1Object.name
             }
 
             break
@@ -627,5 +637,5 @@ export function convertV1ToV2 (v1Objects: v1Sheet): v2Sheet {
       return v2Object
    })
 
-   return v2Objects as v2Sheet
+   return v2Objects as v2SheetType[]
 }

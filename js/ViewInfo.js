@@ -92,22 +92,22 @@ function makeViews(group, viewElementId) {
 // Display rows of visualizer thumbnails
 function getImages(group) {
     const THUMBNAIL_SIZE = { height: IMAGE_SIZE, width: IMAGE_SIZE };
-    let cayleyDiagramGenerator;
+    let cayleyDiagramThumbnailView;
     let cycleGraphView;
     let multtableView;
     let symmetryObjectView;
     const images = Array.from({ length: Math.max(1, group.cayleyDiagrams.length + 1, group.symmetryObjects.length) }, () => Array.from({ length: 4 }));
     // Create cayley diagram thumbnails
     for (let inx = 0; inx < group.cayleyDiagrams.length + 1; inx++) {
-        if (cayleyDiagramGenerator == null) {
-            cayleyDiagramGenerator = createCayleyDiagramThumbnailView(THUMBNAIL_SIZE);
+        if (cayleyDiagramThumbnailView == null) {
+            cayleyDiagramThumbnailView = createCayleyDiagramThumbnailView(THUMBNAIL_SIZE);
         }
         const diagramName = group.cayleyDiagrams[inx]?.name;
-        cayleyDiagramGenerator.draw(group, diagramName);
+        cayleyDiagramThumbnailView.draw(group, diagramName);
         images[inx][0] = {
             name: diagramName,
             link: `CayleyDiagram.html?groupURL=${group.URL}` + ((diagramName == null) ? '' : `&diagram=${diagramName}`),
-            src: cayleyDiagramGenerator.getImage().src,
+            src: cayleyDiagramThumbnailView.getImage().src,
         };
     }
     // Create cycle graph thumbnail

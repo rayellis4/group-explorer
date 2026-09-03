@@ -11,24 +11,24 @@ down.
 ```js
  */
 export class SheetViewModel {
-    #model;
-    #view;
+    _model;
+    _view;
     constructor(model) {
         this.model = model;
     }
     get model() {
-        return this.#model;
+        return this._model;
     }
     set model(model) {
-        this.#model = model;
+        this._model = model;
         model.$subscribe(this, 'sheetElements'); // won't this leak?
     }
     get view() {
-        return this.#view;
+        return this._view;
     }
     set view(view) {
         this.modelElements.forEach((element) => view.addElement(element));
-        this.#view = view;
+        this._view = view;
     }
     get modelElements() {
         return this.model.sheetElements;
@@ -59,7 +59,7 @@ export class SheetViewModel {
             this.modelElements.set(element.id, element);
         }
         Object.defineProperty(element, 'viewElement', {
-            get: () => this.#view?.viewElements.get(element.id),
+            get: () => this._view?.viewElements.get(element.id),
             configurable: true,
         });
         if ('isNode' in element) {
@@ -99,18 +99,18 @@ export class SheetViewModel {
         this.view?.addElement(element);
     }
     viewportOrigin() {
-        return this.#view.viewportOrigin();
+        return this._view.viewportOrigin();
     }
     viewportScale() {
-        return this.#view.viewportScale();
+        return this._view.viewportScale();
     }
     move(id, dx, dy) {
         const element = this.modelElements.get(id);
         if (element == null || !('isNode' in element))
             return;
-        element.x += dx / this.#view.zoomFactor;
-        element.y += dy / this.#view.zoomFactor;
-        this.#view.moveElement(element);
+        element.x += dx / this._view.zoomFactor;
+        element.y += dy / this._view.zoomFactor;
+        this._view.moveElement(element);
         this.modelElements.forEach((el) => {
             if ('isNode' in el && 'anchor_id' in el && el.anchor_id === id)
                 this.move(el.id, dx, dy);
@@ -120,9 +120,9 @@ export class SheetViewModel {
         const element = this.modelElements.get(id);
         if (element == null || !('isNode' in element))
             return;
-        element.w += dw / this.#view.zoomFactor;
-        element.h += dh / this.#view.zoomFactor;
-        this.#view.resizeElement(element);
+        element.w += dw / this._view.zoomFactor;
+        element.h += dh / this._view.zoomFactor;
+        this._view.resizeElement(element);
         // reposition anchored elements to stay flush with the bottom edge
         this.modelElements.forEach((el) => {
             if ('isNode' in el && 'anchor_id' in el && el.anchor_id === id) {
@@ -130,12 +130,12 @@ export class SheetViewModel {
                 el.x = element.x;
                 el.y = element.y + element.h;
                 el.w = element.w;
-                this.#view.resizeElement(el);
+                this._view.resizeElement(el);
             }
         });
     }
     addObjectAsElement(plainObject, className) {
-        return this.#model.addObjectAsElement(plainObject, className);
+        return this._model.addObjectAsElement(plainObject, className);
     }
     removeElement(element) {
         // if element is the source or destination of a link, remove the link also
@@ -154,14 +154,14 @@ export class SheetViewModel {
         const element = this.modelElements.get(id);
         if (element == null || !('isVisualizer' in element))
             return null;
-        return this.#view.getVisualizerJSON(element);
+        return this._view.getVisualizerJSON(element);
     }
     updateVisualizer(id, json) {
         const element = this.modelElements.get(id);
         if (element == null || !('isVisualizer' in element))
             return;
         element.visualizerJSON = json; // FIXME
-        this.#view.updateVisualizer(element, json);
+        this._view.updateVisualizer(element, json);
     }
 }
 //# sourceMappingURL=SheetViewModel.js.map

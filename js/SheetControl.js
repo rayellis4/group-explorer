@@ -16,7 +16,7 @@ import * as GroupRegistry from './GroupRegistry.js';
 import * as Settings from './Settings.js';
 import * as GEUtils from './GEUtils.js';
 import * as Heading from './Heading.js';
-import { deserializeSheet, wrapSheet, unwrapSheet } from './SheetSerialization.js';
+import { CURRENT_FORMAT_VERSION, deserializeSheet, isVersionedSheet, isSheetBackup, isRawSheet } from './SheetSerialization.js';
 import { getStoredSheet, saveStoredSheet, removeStoredSheet, listStoredSheets } from './StoredObjects.js';
 import { makeFixedMenu, makeDetachedMenu, makeMockSelect, makeDialog } from './UIComponents.js';
 import * as SheetView from './SheetView.js';
@@ -88,11 +88,11 @@ class ViewModel {
         this.#model.sheetElements.clear();
     }
     async loadSheet(sheetName) {
-        const jsonObject = unwrapSheet((await getStoredSheet(sheetName)));
+        const jsonObject = (await getStoredSheet(sheetName)).sheet;
         this.#model.fromJSON(jsonObject);
     }
     saveSheet(sheetName) {
-        saveStoredSheet(sheetName, wrapSheet(this.#model.toJSON()));
+        saveStoredSheet(sheetName, { version: CURRENT_FORMAT_VERSION, sheet: this.#model.toJSON() });
     }
     async deleteSheet(sheetName) {
         await removeStoredSheet(sheetName);
@@ -212,7 +212,7 @@ class View {
         this.showStoredSheets();
     }
     async renameSheet(sheetName, location) {
-        const sheetContent = unwrapSheet((await getStoredSheet(sheetName)));
+        const sheetContent = (await getStoredSheet(sheetName)).sheet;
         const newName = await this.showNameSheetDialog(location, sheetName, sheetContent);
         if (newName != null) {
             await this.viewModel.deleteSheet(sheetName);
@@ -268,7 +268,7 @@ class View {
                     alert(`A stored sheet named "${newSheetName}" already exists`);
                 }
                 else {
-                    saveStoredSheet(newSheetName, wrapSheet(sheetContent))
+                    saveStoredSheet(newSheetName, { version: CURRENT_FORMAT_VERSION, sheet: sheetContent })
                         .then(() => {
                         this.showStoredSheets();
                         this.displaySheetName(newSheetName);
@@ -280,7 +280,7 @@ class View {
         return await newName;
     }
     showExportSheetDialog(location) {
-        const modelJSON = JSON.stringify(wrapSheet(this.viewModel.toJSON()));
+        const modelJSON = JSON.stringify({ version: CURRENT_FORMAT_VERSION, sheet: this.viewModel.toJSON() });
         const exportSheetDialogHTML = `<div id="export-sheet-dialog" class="flex-v" style="min-height: 15em; min-width: 60ch; overflow: hidden">
             <style>
                #export-sheet-dialog button {
@@ -314,7 +314,7 @@ class View {
         const importFromTextarea = () => {
             const jsonString = document.getElementById('import-sheet-value').value;
             if (jsonString !== '') {
-                this.viewModel.fromJSON(deserializeSheet(jsonString));
+                this.viewModel.fromJSON(deserializeSheet(jsonString).sheet);
             }
             dialog.remove();
         };
@@ -481,18 +481,17 @@ class View {
         };
         const storeJSON = async (restoredJSONString) => {
             if (restoredJSONString !== '') {
-                let restoredJSONObject = JSON.parse(restoredJSONString);
-                if (!Array.isArray(restoredJSONObject)
-                    && restoredJSONObject.version != null
-                    && restoredJSONObject.sheet.sheetName == null) {
+                const restoredJSONObject = JSON.parse(restoredJSONString);
+                if (isVersionedSheet(restoredJSONObject)) { // from current export
                     saveStoredSheet('unnamed sheet', restoredJSONObject);
                     closeDialog();
                 }
-                else if (restoredJSONObject.length > 0 && restoredJSONObject[0].sheetName == null) {
-                    saveStoredSheet('unnamed sheet', wrapSheet(deserializeSheet(restoredJSONString)));
+                else if (isRawSheet(restoredJSONObject)) { // from old export
+                    const restoredSheet = deserializeSheet(restoredJSONString);
+                    saveStoredSheet('unnamed sheet', restoredSheet);
                     closeDialog();
                 }
-                else if (Array.isArray(restoredJSONObject) && 'sheetName' in restoredJSONObject[0]) {
+                else if (isSheetBackup(restoredJSONObject)) { // from backup
                     const restoreSheetsChoices = restoredJSONObject
                         .map(({ sheetName }) => `<input type="checkbox" name="${GEUtils.escapeHTML(sheetName)}" checked>
                          <label for="${GEUtils.escapeHTML(sheetName)}">${sheetName}</label><br>`)

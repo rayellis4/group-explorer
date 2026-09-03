@@ -48,13 +48,13 @@ declare class AbstractLayoutStrategy {
     layoutNodes(_chunk: Chunk): void;
 }
 declare class Chunk {
-    #private;
     chunks: Chunk[];
     leaves: NodeType[];
     position: THREE.Vector3;
     strategy: AbstractLayoutStrategy;
     transformedChunkBox: THREE.Matrix4;
     originalChunkSize: THREE.Vector3;
+    private _allChildNodes;
     constructor(children: Chunk[] | NodeType[], strategy?: AbstractLayoutStrategy);
     get children(): Chunk[] | NodeType[];
     get isLeaf(): boolean;

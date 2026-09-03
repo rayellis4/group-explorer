@@ -1,10 +1,11 @@
 import { Group } from './Group.js';
+import { HighlightControlJSON } from './HighlightControl.js';
 export type MulttableColoration = 'rainbow' | 'grayscale' | 'none';
 export type MulttableColorReordering = 'topRowFixed' | 'elementColorsFixed';
 export type MulttableJSON = {
     group_url: string;
     highlight_colors?: Maybe<color>[][];
-    highlight_control?: any;
+    highlight_control?: HighlightControlJSON;
     organizing_subgroup?: number;
     separation?: number;
     coloration?: MulttableColoration;
@@ -25,7 +26,7 @@ export declare class MulttableModel {
     coloration: 'rainbow' | 'grayscale' | 'none';
     colorReordering: 'topRowFixed' | 'elementColorsFixed';
     elements: groupElement[];
-    highlightControl: any;
+    highlightControl: HighlightControlJSON | (object & Serializable<HighlightControlJSON>);
     constructor(group: Group);
     reset(): void;
     toJSON(): MulttableJSON;

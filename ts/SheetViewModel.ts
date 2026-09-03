@@ -55,29 +55,29 @@ export interface MorphismElement extends SheetModel_.MorphismElement, SheetViewE
 }
 
 export class SheetViewModel implements Updatable {
-   #model!: SheetModel
-   #view!: SheetView.View
+   private _model!: SheetModel
+   private _view!: SheetView.View
 
    constructor (model: SubscriptionProxy<SheetModel>) {
       this.model = model
    }
 
    get model (): SheetModel {
-      return this.#model
+      return this._model
    }
 
    set model (model: SubscriptionProxy<SheetModel>) {
-      this.#model = model
+      this._model = model
       model.$subscribe(this, 'sheetElements')  // won't this leak?
    }
 
    get view (): SheetView.View {
-      return this.#view
+      return this._view
    }
 
    set view (view: SheetView.View) {
       this.modelElements.forEach((element) => view.addElement(element))
-      this.#view = view
+      this._view = view
    }
 
    get modelElements (): Map<string, SheetElement> {
@@ -107,7 +107,7 @@ export class SheetViewModel implements Updatable {
          this.modelElements.set(element.id, element)
       }
       Object.defineProperty(element, 'viewElement', {
-         get: () => this.#view?.viewElements.get(element.id),
+         get: () => this._view?.viewElements.get(element.id),
          configurable: true,
       })
       if ('isNode' in element) {
@@ -148,20 +148,20 @@ export class SheetViewModel implements Updatable {
    }
 
    viewportOrigin (): THREE.Vector2 {
-      return this.#view.viewportOrigin()
+      return this._view.viewportOrigin()
    }
 
    viewportScale (): float {
-      return this.#view.viewportScale()
+      return this._view.viewportScale()
    }
 
    move (id: string, dx: number, dy: number) {
       const element = this.modelElements.get(id) as NodeElement
       if (element == null || !('isNode' in element))
          return
-      element.x += dx / this.#view.zoomFactor
-      element.y += dy / this.#view.zoomFactor
-      this.#view.moveElement(element)
+      element.x += dx / this._view.zoomFactor
+      element.y += dy / this._view.zoomFactor
+      this._view.moveElement(element)
       this.modelElements.forEach((el) => {
          if ('isNode' in el && 'anchor_id' in el && el.anchor_id === id)
             this.move(el.id, dx, dy)
@@ -172,22 +172,22 @@ export class SheetViewModel implements Updatable {
       const element = this.modelElements.get(id) as NodeElement
       if (element == null || !('isNode' in element))
          return
-      element.w += dw / this.#view.zoomFactor
-      element.h += dh / this.#view.zoomFactor
-      this.#view.resizeElement(element)
+      element.w += dw / this._view.zoomFactor
+      element.h += dh / this._view.zoomFactor
+      this._view.resizeElement(element)
       // reposition anchored elements to stay flush with the bottom edge
       this.modelElements.forEach((el) => {
          if ('isNode' in el && 'anchor_id' in el && el.anchor_id === id) {
             ;(el as NodeElement).x = element.x
             ;(el as NodeElement).y = element.y + element.h
             ;(el as NodeElement).w = element.w
-            this.#view.resizeElement(el as NodeElement)
+            this._view.resizeElement(el as NodeElement)
          }
       })
    }
 
    addObjectAsElement (plainObject: SheetJSON, className: keyof SheetModel_.ConcreteSheetTypes): SheetElement {
-      return this.#model.addObjectAsElement(plainObject, className) as SheetElement
+      return this._model.addObjectAsElement(plainObject, className) as SheetElement
    }
 
    removeElement (element: SheetElement) {
@@ -209,7 +209,7 @@ export class SheetViewModel implements Updatable {
       const element = this.modelElements.get(id)
       if (element == null || !('isVisualizer' in element))
          return null
-      return this.#view.getVisualizerJSON(element as VisualizerElement)      
+      return this._view.getVisualizerJSON(element as VisualizerElement)      
    }
 
    updateVisualizer (id: string, json: unknown) {
@@ -217,6 +217,6 @@ export class SheetViewModel implements Updatable {
       if (element == null || !('isVisualizer' in element))
          return
       element.visualizerJSON = json as CayleyDiagramModelJSON | CycleGraphJSON | MulttableJSON  // FIXME
-      this.#view.updateVisualizer(element, json)      
+      this._view.updateVisualizer(element, json)      
    }
 }

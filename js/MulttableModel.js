@@ -9,6 +9,7 @@ Model for the multtable visualizer. Holds all serializable state:
 
 ```javascript
  */
+import { isSerializable } from './GEUtils.js';
 import * as Library from './Library.js';
 export class MulttableModel {
     group;
@@ -25,7 +26,7 @@ export class MulttableModel {
     colorReordering;
     elements;
     // Opaque plugin slots (carried opaquely through serialization)
-    highlightControl = null;
+    highlightControl;
     constructor(group) {
         this.group = group;
         this.reset();
@@ -42,7 +43,9 @@ export class MulttableModel {
         const json = {
             group_url: this.group.URL,
             highlight_colors: this.highlightColors,
-            highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
+            highlight_control: isSerializable(this.highlightControl)
+                ? this.highlightControl.toJSON()
+                : this.highlightControl,
             organizing_subgroup: this.organizingSubgroup,
             separation: this.separation,
             coloration: this.coloration,
@@ -63,11 +66,13 @@ export class MulttableModel {
         this.colorReordering = json.color_reordering ?? this.colorReordering;
         this.elements = json.elements ?? this.elements;
         // let owners deserialize opaque slots
-        if (this.highlightControl?.fromJSON == null) {
-            this.highlightControl = json.highlight_control;
-        }
-        else if (json.highlight_control != null) {
-            this.highlightControl.fromJSON(json.highlight_control);
+        if (json.highlight_control != null) {
+            if (this.highlightControl == null || !('fromJSON' in this.highlightControl)) {
+                this.highlightControl = json.highlight_control;
+            }
+            else if (json.highlight_control != null) {
+                this.highlightControl.fromJSON(json.highlight_control);
+            }
         }
         return this;
     }

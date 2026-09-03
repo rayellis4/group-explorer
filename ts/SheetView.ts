@@ -14,18 +14,19 @@ import { layoutCayleyDiagram } from './CayleyDiagramGenerator.js'
 import { createStaticCayleyDiagramView, layoutToJSON } from './CayleyDiagramView.js'
 import { CycleGraphJSON, CycleGraphModel } from './CycleGraphModel.js'
 import { createLargeCycleGraphView } from './CycleGraphView.js'
-import { createModelProxy } from './GEUtils.js'
+import { Updatable, createModelProxy, isSerializable } from './GEUtils.js'
 import { MulttableJSON, MulttableModel } from './MulttableModel.js'
 import { createLargeMulttableView } from './MulttableView.js'
 
 import type { CayleyDiagramViewModel } from './CayleyDiagramView.ts'
 import type { CycleGraphViewModel } from './CycleGraphView.ts'
 import type { SubscriptionProxy } from './GEUtils.ts'
-import type { HighlightControlModelInterface } from './HighlightControl.ts'
+import type { HighlightControlModelInterface, HighlightControlJSON } from './HighlightControl.ts'
 import type { MulttableViewModel } from './MulttableView.ts'
 import type * as SheetModel from './SheetModel.ts'
 import type { SheetViewModel, SheetElement, NodeElement, TextElement, VisualizerElement, CDElement,
    CGElement, MTElement, LinkElement, ConnectingElement, MorphismElement } from './SheetViewModel.ts'
+import { HighlightControlView } from './HighlightControlView.js';
 
 let Graphic: HTMLElement
 export let graphicRect: DOMRect = new DOMRect(0, 0, 0, 0)
@@ -170,7 +171,7 @@ export class View {
    }
 
    addElement (modelElement: SheetElement) {
-      let newElement
+      let newElement: SheetView
       switch (modelElement.className) {
       case 'TextElement':        newElement = new TextView(this, modelElement as TextElement);             break
       case 'CDElement':          newElement = new CDView(this, modelElement as CDElement);                 break
@@ -199,12 +200,12 @@ export class View {
 
    moveElement (modelElement: NodeElement) {
       this.viewElements.get(modelElement.id)?.updateTransform()
-      this.#redrawLinks(modelElement)
+      this.redrawLinks(modelElement)
    }
 
    resizeElement (modelElement: NodeElement) {
       this.viewElements.get(modelElement.id)?.redraw()
-      this.#redrawLinks(modelElement)
+      this.redrawLinks(modelElement)
    }
 
    getVisualizerJSON (modelElement: VisualizerElement): unknown {
@@ -215,10 +216,10 @@ export class View {
    updateVisualizer (modelElement: VisualizerElement, json: unknown) {
       const viewElement = this.viewElements.get(modelElement.id) as Maybe<VisualizerView>
       viewElement?.updateFromJSON(json)
-      this.#redrawLinks(modelElement)
+      this.redrawLinks(modelElement)
    }
 
-   #redrawLinks (modelElement: NodeElement) {
+   private redrawLinks (modelElement: NodeElement) {
       this.viewElements.forEach((viewEl) => {
          if (  'isLink' in viewEl.modelElement
             && (  (viewEl.modelElement as LinkElement).source.id === modelElement.id
@@ -377,12 +378,13 @@ export class TextView extends NodeView {
 }
 
 export abstract class VisualizerView extends NodeView {
+   // Remote editor updates propagated to Sheet through onVisualizerChange call in SheetModelEditors
    declare modelElement: VisualizerElement & {onVisualizerChange?: (json: unknown) => void}
    declare domElement: HTMLCanvasElement
 
    unitSquarePositions!: Array<THREE.Vector2>
    lastZoom!: float
-   protected _highlightSubscriber!: { update: (field: string, value: unknown) => void }
+   protected _highlightSubscriber!: Updatable
 
    constructor (view: View, modelElement: VisualizerElement, domElement?: HTMLElement) {
       super(view, modelElement, domElement)
@@ -422,9 +424,10 @@ export abstract class VisualizerView extends NodeView {
       let debounceTimer: number | undefined
       this._highlightSubscriber = {
         update: (field: string, value: unknown) => {
+           console.log(isSerializable<HighlightControlJSON>(value) == ((value as Record<string, any>)?.nextId != null))
           if (  value != null
              && (   field === 'highlightColors'
-                || (field === 'highlightControl' && (value as Record<string, any>)?.nextId != null))
+                || (field === 'highlightControl' && isSerializable<HighlightControlJSON>(value)))
           ) {
             clearTimeout(debounceTimer)
             debounceTimer = setTimeout(() => {
@@ -499,8 +502,8 @@ export class CDView extends VisualizerView {
 
    private _highlightModelProxy!: SubscriptionProxy<CayleyDiagramModel>
 
-   static #sharedViewModel: Maybe<CayleyDiagramViewModel> = null
-   static #activeView: Maybe<CDView> = null
+   private static sharedViewModel: Maybe<CayleyDiagramViewModel> = null
+   private static activeView: Maybe<CDView> = null
 
    constructor (view: View, modelElement: CDElement) {
       super(view, modelElement, document.createElement('canvas'))
@@ -527,39 +530,43 @@ export class CDView extends VisualizerView {
    // swap our json into shared visualizer and use it to draw diagram
    // check the case where we delete the element holding the shared view model
    get visualizer (): CayleyDiagramViewModel {
-      if (CDView.#activeView == this) {
-         return CDView.#sharedViewModel as CayleyDiagramViewModel
+      if (CDView.activeView == this) {
+         return CDView.sharedViewModel as CayleyDiagramViewModel
       }
 
-      if (CDView.#sharedViewModel == null) {  // no shared view model -- create one from this.modelElement
+      if (CDView.sharedViewModel == null) {  // no shared view model -- create one from this.modelElement
          const cdModel = createModelProxy(new CayleyDiagramModel(this.modelElement.group))
             .fromJSON(this.modelElement.visualizerJSON)
-         CDView.#sharedViewModel = createStaticCayleyDiagramView(cdModel)
-      } else {  // shared view model already made -- roll out #activeView, roll in this
-         if (CDView.#activeView != null) {
-            CDView.#activeView.modelElement.visualizerJSON = CDView.#sharedViewModel.toJSON()
+         CDView.sharedViewModel = createStaticCayleyDiagramView(cdModel)
+      } else {  // shared view model already made -- roll out activeView, roll in this
+         if (CDView.activeView != null) {
+            CDView.activeView.modelElement.visualizerJSON = CDView.sharedViewModel.toJSON()
          }
-         if (this.#canFastTrack()) {
-            CDView.#sharedViewModel.model.highlightColors = [...this.modelElement.visualizerJSON.highlight_colors]
+         if (this.canFastTrack()) {
+            CDView.sharedViewModel.model.highlightColors =
+                         [...(this.modelElement.visualizerJSON.highlight_colors ?? [[], [], []])]
          } else {
-            CDView.#sharedViewModel.fromJSON(this.modelElement.visualizerJSON)
+            CDView.sharedViewModel.fromJSON(this.modelElement.visualizerJSON)
          }
       }
 
-      CDView.#activeView = this
-      return CDView.#sharedViewModel
+      CDView.activeView = this
+      return CDView.sharedViewModel
    }
 
-   #canFastTrack (): boolean {
-      const sharedModel = CDView.#sharedViewModel?.model
+   private canFastTrack (): boolean {
+      const sharedModel = CDView.sharedViewModel?.model
       const thisModel = this.modelElement.visualizerJSON
-      const REQUIRED_MATCHING_FIELDS = ['background', 'fog_level', 'line_width', 'sphere_scale_factor', 'zoom_level', 'arrowhead_placement', 'label_scale_factor']
+      const REQUIRED_MATCHING_FIELDS = [
+         'background', 'fog_level', 'line_width', 'sphere_scale_factor',
+         'zoom_level', 'arrowhead_placement', 'label_scale_factor'
+      ]
 
       const canFastTrack = sharedModel?.group.URL == thisModel.group_url
          && JSON.stringify(layoutToJSON(sharedModel.layout)) == JSON.stringify(thisModel.layout)
-         && (  thisModel.background == null  // => this has never been live
-            || (  sharedModel.highlightControl == null  // live but never edited
-               && thisModel.highlight_control == null  // live but never edited
+         && (  thisModel.background == null  // => thisModel has never been live
+            || (  sharedModel.highlightControl == null  // has been live, but never edited
+               && thisModel.highlight_control == null  // has been live, but never edited
                && REQUIRED_MATCHING_FIELDS.every((field) =>
                   sharedModel[field as keyof CayleyDiagramModel] == thisModel[field as keyof CayleyDiagramModelJSON])))
 
@@ -571,16 +578,17 @@ export class CDView extends VisualizerView {
          const visualizer = this.visualizer
          const model = createModelProxy(new CayleyDiagramModel(this.modelElement.group))
          model.highlightColors = [...visualizer.model.highlightColors]
-         model.highlightControl = (visualizer.model.highlightControl?.toJSON == null)
-            ? visualizer.model.highlightControl
-            : visualizer.model.highlightControl.toJSON()
+         model.highlightControl = (isSerializable<HighlightControlJSON>(visualizer.model.highlightControl))
+            ? visualizer.model.highlightControl.toJSON()
+            : visualizer.model.highlightControl
          // store subscriber on instance — WeakRef in createModelProxy would otherwise GC it
          this._highlightSubscriber = {
             update: (field, value) => {
                if (field === 'highlightColors') {
                   const visualizer = this.visualizer
                   visualizer.model.highlightColors = [...(value as Maybe<color>[][])]
-                  visualizer.model.highlightControl = model.highlightControl.toJSON()
+                  visualizer.model.highlightControl =
+                               (model.highlightControl as Serializable<HighlightControlJSON>).toJSON()
                   this.redraw()
                   redrawLinksFor(this.modelElement)
                   this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.())
@@ -603,8 +611,9 @@ export class CDView extends VisualizerView {
    updateFromJSON (json: CayleyDiagramModelJSON) {
       this.visualizer.fromJSON(json)
       if (this._highlightModelProxy != null) {
-         const hc = this.visualizer.model.highlightControl
-         this._highlightModelProxy.highlightControl.fromJSON(hc?.toJSON == null ? hc : hc.toJSON())
+         const highlightControl = this.visualizer.model.highlightControl
+         ;(this._highlightModelProxy.highlightControl as Serializable<HighlightControlJSON>)
+            .fromJSON(isSerializable<HighlightControlJSON>(highlightControl) ? highlightControl.toJSON() : highlightControl)
          this._highlightModelProxy.highlightColors = [...this.visualizer.model.highlightColors]
          // subscriber handles redraw
       } else {
@@ -613,8 +622,8 @@ export class CDView extends VisualizerView {
    }
 
    destroy () {
-      if (CDView.#activeView == this) {
-         CDView.#activeView = null
+      if (CDView.activeView == this) {
+         CDView.activeView = null
       }
       super.destroy()
    }
@@ -634,14 +643,14 @@ export class CDView extends VisualizerView {
       const context = this.domElement.getContext('2d') as CanvasRenderingContext2D
       context.drawImage(this.visualizer.view.canvas, 0, 0)
 
-      this.unitSquarePositions = (CDView.#sharedViewModel as CayleyDiagramViewModel).unitSquarePositions()
+      this.unitSquarePositions = (CDView.sharedViewModel as CayleyDiagramViewModel).unitSquarePositions()
    }
 
    restoreHighlights (
       snapshot: NonNullable<SheetModel.VisualizerElementJSON['visualizerJSON']['highlight_colors']>[number]
    ) {
-      if (CDView.#activeView === this && CDView.#sharedViewModel != null) {
-         CDView.#sharedViewModel.model.highlightColors = this.modelElement.visualizerJSON.highlight_colors
+      if (CDView.activeView === this && CDView.sharedViewModel != null) {
+         CDView.sharedViewModel.model.highlightColors = this.modelElement.visualizerJSON.highlight_colors
       } else {
          this.modelElement.visualizerJSON.highlight_colors[0] = snapshot
       }
@@ -652,7 +661,7 @@ export class CDView extends VisualizerView {
 
 const LINE_LEN = 40
 
-class Arrow {
+export class Arrow {
    static PIXELS_PER_INCH: number
    line: HTMLCanvasElement
    head: HTMLCanvasElement
@@ -1088,9 +1097,9 @@ export class MorphismView extends LinkView {
       }
 
       // color arrows as needed
-      let arrowColor
+      let arrowColor!: color
       if (this.modelElement.arrowColor != 'none') {
-         let highlightColor
+         let highlightColor: Maybe<color>
          if (this.modelElement.arrowColor == 'source') {
             highlightColor = this.modelElement.source.viewElement.visualizer.model.highlightColors[0]?.[inx]
          } else {

@@ -96,7 +96,7 @@ class SheetEventUI {
                this.resizeElement(modelElement as SheetViewModel.NodeElement)
             } else if ('isLink' in modelElement) {
                const viewElement = modelElement.viewElement as SheetView.LinkView
-               let arrow
+               let arrow: Maybe<SheetView.Arrow>
                if ('arrows' in viewElement) {
                   arrow = (viewElement as SheetView.MorphismView).arrows
                      .find((arrow) => arrow.line == clickedElement || arrow.head == clickedElement)
@@ -240,7 +240,7 @@ class SheetEventUI {
          (dx, dy, _dw, _dh, _isDrop, domElement) => {
             if (domElement != null && redrawTimerId == null) {
                const element = this.viewModel.modelElements.get(domElement.getAttribute('id') as string)
-               const id = (element as Record<string, any>)?.anchor_id ?? element?.id
+               const id: Maybe<string> = (element as Maybe<SheetViewModel.NodeElement>)?.anchor_id ?? element?.id
                if (id != null) {
                   redrawTimerId = window.setTimeout(() => {
                      if (dx != 0 || dy != 0) {

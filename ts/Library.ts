@@ -59,8 +59,9 @@ export async function loadLibrary () {
 
 // Populate the in-memory library from a raw stored-groups object (used during DB migration,
 // when the DB connection isn't available for a normal loadLibrary() call)
-export function loadFromStoredGroups (storedGroups: {[key: string]: GroupFileJSON}) {
-   Object.entries(storedGroups).forEach(([key, value]) => {
+export function loadFromStoredGroups (storedGroups: unknown) {
+   // FIXME: check for valid input -- it's coming from conversion
+   Object.entries(storedGroups as Record<string, GroupFileJSON>).forEach(([key, value]) => {
       library[key] = Group.fromLocalCopyJSON(value)
    })
 }
@@ -70,16 +71,16 @@ function absoluteURL (url: string): string {
    return new URL(url, window.location.href).href
 }
 
-function dataToGroup (data: any, contentType: string = ''): Group {
+function dataToGroup (data: unknown, contentType: string = ''): Group {
   let group: Group
   if (typeof data === 'string' && data.startsWith('{')) {
      group = Group.fromGroupFileJSON(JSON.parse(data))
   } else if (typeof data === 'string' && data.startsWith('<!DOCTYPE groupexplorerml>')) {
      group = XMLGroup.fromGroupFileXML(data)
   } else if (contentType.includes('xml')) {
-     group = XMLGroup.fromGroupFileXML(data)
+     group = XMLGroup.fromGroupFileXML(data as string)
   } else if (contentType.includes('json')) {
-     group = Group.fromGroupFileJSON(JSON.parse(data))
+     group = Group.fromGroupFileJSON(data as GroupFileJSON)
   } else {
      throw (new Error('Unrecognizable data in Library:dataToGroup'))
   }
@@ -125,7 +126,7 @@ function decorateGeneratedGroup (
    group.declaredGenerators.push(generatorElements)
 
    // generate element representations that match the presentation
-   const reps = Array(group.order)
+   const reps: string[] = Array(group.order)
    reps[0] = generatorNames.includes('e')  // 'e' if it's not a generator; else 0 if group is Abelian, or 1 if not
       ? (group.isAbelian ? '0' : '1')
       : 'e'
@@ -229,8 +230,9 @@ export function getGroupByURL (url: string): Maybe<Group> {
 
 // Read group library from local store
 async function getStoredGroups (): Promise<GroupRegistry.GroupRegistryType> {
-   const storedGroups = ((await StoredObjects.getGroupLibrary()) || {}) as GroupRegistry.GroupRegistryType
-   Object.entries(storedGroups).forEach(([key, value]) => storedGroups[key] = Group.fromLocalCopyJSON(value))
+   const storedGroupsJSON = ((await StoredObjects.getGroupLibrary()) || {}) as Record<string, GroupFileJSON>
+   const storedGroups = {} as GroupRegistry.GroupRegistryType
+   Object.entries(storedGroupsJSON).forEach(([key, value]) => storedGroups[key] = Group.fromLocalCopyJSON(value))
 
    return storedGroups
 }
@@ -292,7 +294,7 @@ export async function loadFromPageURL (): Promise<Group> {
                   reject(new Error(`Error parsing ${groupURL}`, {cause: parseError}))
                }
             })
-            .catch((error) => {
+            .catch((error: Error) => {
                throw new Error(`${error.name} on fetch from ${groupURL}`, {cause: error})
             })
       })
@@ -300,6 +302,7 @@ export async function loadFromPageURL (): Promise<Group> {
       return result
    }
 
+   // FIXME: remove this function or test it
    function waitForGroupInMessage (): Promise<Group> {
       return new Promise((resolve, reject) => {
          /*
@@ -309,8 +312,8 @@ export async function loadFromPageURL (): Promise<Group> {
           * window, with the format { type: 'load group', group: G },
           * where G is the JSON data in question.
           */
-         window.addEventListener('message', function (event: MessageEvent) {
-            const eventData: unknown = event.data
+         window.addEventListener('message', function (event: MessageEvent<unknown>) {
+            const eventData = event.data
             if (eventData == null) {
                Log.err('empty message received in Library.js:')
                Log.err(eventData)
@@ -319,7 +322,8 @@ export async function loadFromPageURL (): Promise<Group> {
                const loadGroupMessage = eventData
                try {
                   if ('group' in loadGroupMessage && typeof loadGroupMessage.group === 'object') {
-                     const group = dataToGroup(loadGroupMessage.group, 'json')
+                     // FIXME: this does *NOT* work, it just keeps the compiler happy
+                     const group = dataToGroup(loadGroupMessage.group as GroupFileJSON, 'json')
                      if (group != null) {
                         library[group.shortName] = group
                         resolve(group)
@@ -352,6 +356,23 @@ export function saveGroup (group: Maybe<Group>) {
    scheduleLocalStoreUpdate()
 }
 
+type LibraryUpdate = {
+   source: 'library',
+   created: string[],
+   updated: string[],
+   deleted: string[]
+}
+
+export function isLibraryUpdate(message: unknown): message is LibraryUpdate {
+   return message != null
+      && typeof message === 'object'
+      && 'source' in message
+      && message.source === 'library'
+      && Array.isArray((message as Record<string, unknown>).created)
+      && Array.isArray((message as Record<string, unknown>).updated)
+      && Array.isArray((message as Record<string, unknown>).deleted)
+}
+
 // schedule local store group library update
 let savedTimeoutID: Maybe<number> = null
 const createdGroupURLs: string[] = []
@@ -363,9 +384,9 @@ function scheduleLocalStoreUpdate () {
    }
    savedTimeoutID = window.setTimeout(async () => {
       savedTimeoutID = null
-      let message = null
+      let maybeMessage: Maybe<LibraryUpdate> = null
       if (createdGroupURLs.length != 0 || updatedGroupURLs.length != 0 || deletedGroupURLs.length != 0) {
-         message = {
+         maybeMessage = {
             source: 'library',
             created: [...createdGroupURLs],
             updated: [...updatedGroupURLs],
@@ -376,9 +397,9 @@ function scheduleLocalStoreUpdate () {
          deletedGroupURLs.length = 0
       }
       await StoredObjects.saveGroupLibrary(library)  // wait for store to complete before exiting
-      if (message != null) {
+      if (maybeMessage != null) {
          const channel = new BroadcastChannel('GE3-channel')
-         channel.postMessage(message)
+         channel.postMessage(maybeMessage)
          channel.close()
       }
    })

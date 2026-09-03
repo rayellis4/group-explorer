@@ -20,7 +20,7 @@ import { CycleGraphModel } from './CycleGraphModel.js'
 import { MulttableModel } from './MulttableModel.js'
 import * as THREE from '../lib/externals.js'
 
-import type { Group  } from './Group.js'
+import type { Group } from './Group.js'
 import type { Subgroup } from './Subgroup.js'
 
 /*::
@@ -153,7 +153,7 @@ function formatSubgroupInfoHeader (group: Group) {
    return htmlFragments
 }
 
-function formatSubgroupListElement (subgroup: Subgroup) {
+function formatSubgroupListElement (subgroup: Subgroup): html {
    const subgroupIndex = subgroup.group.subgroups.indexOf(subgroup)
    const txtName = () => `H_${subgroupIndex}`
    const htmlName = () => `<i>H</i><sub>${subgroupIndex}</sub>`
@@ -162,7 +162,7 @@ function formatSubgroupListElement (subgroup: Subgroup) {
       .map( el => subgroup.group.representation[el] );
 
    const ifCenter = (subgroup == subgroup.group.center) ? '= <i>Z</i>' : ''
-   let line;
+   let line: html;
    switch (subgroup.order) {
    case 0:
       line =
@@ -215,17 +215,14 @@ function formatSubgroupListContent (
    const isomorphicGroup = subgroup.isomorphicGroup
 
    // create thumbnail if it doesn't exist already
-   if (isomorphicGroup.thumbnails?.cayleyDiagram == null) {
-      cayleyDiagramThumbnailView.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name)
-      const imageSource = cayleyDiagramThumbnailView.getImage().src
-      isomorphicGroup.thumbnails = isomorphicGroup.thumbnails || {}
-      isomorphicGroup.thumbnails.cayleyDiagram = imageSource
-      Library.saveGroup(isomorphicGroup)
-   }
+   const cayleyDiagramThumbnail = (isomorphicGroup.thumbnails?.cayleyDiagram != null)
+      ? isomorphicGroup.thumbnails.cayleyDiagram
+      : (cayleyDiagramThumbnailView.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name),
+         cayleyDiagramThumbnailView.getImage().src)
 
    const contentHTML = [
       '<div class="flex-h">',
-      `<div><img src="${isomorphicGroup.thumbnails.cayleyDiagram}" style="width: 48px; height: 48px"></div>`,
+      `<div><img src="${cayleyDiagramThumbnail}" style="width: 48px; height: 48px"></div>`,
       '<div class="stack-03em" style="margin-left: 1ch">',
          `<div><i>H</i><sub>${subgroupIndex}</sub>${shortDescription(group, subgroup)} is
              <a href="./help/rf-groupterms/index.html#isomorphism-isomorphic">isomorphic</a> to
@@ -288,10 +285,11 @@ function shortDescription (group: Group, subgroup: Subgroup) {
    return rslt;
 }
 
-function highlightSubgroup (group: Group, H: Subgroup, type: SheetModel.VisualizerType ) {
+function highlightSubgroup (group: Group, H: Subgroup, type: SheetModel.VisualizerType ): color[] {
    const highlightColor = (type == 'CDElement') ? 'hsl(0, 50%, 30%)' : 'hsl(0, 100%, 80%)'
-   return Array( group.order ).fill( '' ).map( ( e /*: color */, i ) =>
-      H.members.isSet( i ) ? highlightColor : e );
+   return Array(group.order)
+      .fill('')
+      .map((e: color, i) => H.members.isSet(i) ? highlightColor : e)
 }
 
 function getHighlightColors (group: Group, count: integer, type: SheetModel.VisualizerType) {
@@ -418,7 +416,7 @@ function showSubgroupLattice (
          const conjugacyClassSubgroups = classSubgroupsBitSet.toArray()
          const highlightColors = getHighlightColors(group, conjugacyClassSubgroups.length, type)
          const highlights: Maybe<color>[][] = [[], [], []]
-         const membershipCount = new Array(group.order).fill(0)
+         const membershipCount: integer[] = new Array(group.order).fill(0)
          conjugacyClassSubgroups.forEach((subgroupIndex, inx) => {
             group.subgroups[subgroupIndex].members.toArray().forEach((el) => {
                highlights[0][el] = '#' + highlightColors[inx].getHexString()
@@ -587,7 +585,7 @@ function showEmbeddingSheet (group: Group, indexOfH: number, type: SheetModel.Vi
       {
          className : type, groupURL : group.URL, id: '2',
          x : L + W + gap, y : vizY, w : W, h : Hv,
-         highlight_colors : [Array( group.order ).fill( '' )
+         highlight_colors : [(Array( group.order ).fill( '' ) as color[])
             .map( ( _, elt ) => embedding.indexOf( elt ) > -1 ? 'hsl(0, 100%, 80%)' : '' ), [], []]
       },
       {

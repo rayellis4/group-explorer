@@ -178,7 +178,7 @@ function showNoZmnIsomorphismSheet (group: Group, m: groupElement, n: groupEleme
     const L = (window.innerWidth - panelWidth - totalW) / 2
     const vizY = 0.4 * (window.innerHeight - H)  // center visualizers just above midline
     // build the group Z_m x Z_n and find it in the group library.
-    const groupElems = Array.from( {length: m * n}, ( _ : any, i: number ) => i );
+    const groupElems = Array.from( {length: m * n}, ( _ : unknown, i: number ) => i );
     const multtable = groupElems.map( (row: number) => {
         const a1 = Math.floor( row / n );
         const b1 = row % n;

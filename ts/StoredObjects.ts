@@ -7,7 +7,8 @@ Persists various objects in local IndexedDB database
  */
 import * as Library from './Library.js'
 import * as Log from './Log.js'
-import { wrapSheet, unwrapSheet, deserializeSheet } from './SheetSerialization.js'
+import { deserializeSheet } from './SheetSerialization.js'
+import type { VersionedSheet } from './SheetSerialization.js'
 
 export {
    // Group library routines
@@ -80,8 +81,8 @@ async function openDatabase (): Promise<IDBDatabase> {
    })
 }
 
-function completeRequest (request: IDBRequest): Promise<unknown> {
-   const result = new Promise((resolve, reject) => {
+function completeRequest<T> (request: IDBRequest<T>): Promise<T> {
+   const result = new Promise<T>((resolve, reject) => {
       const transaction = request.transaction
       if (transaction != null) {
          transaction.oncomplete = () => resolve(request.result)
@@ -100,7 +101,7 @@ function completeRequest (request: IDBRequest): Promise<unknown> {
 
 async function get (objectStoreName: string, key: string) {
    const request = (await getObjectStore(objectStoreName, 'readonly')).get(key)
-   return completeRequest(request)
+   return completeRequest<unknown>(request)
 }
 
 async function put (objectStoreName: string, key: string, value: unknown) {
@@ -162,7 +163,7 @@ async function getStoredSheet (sheetName: string) {
    return get(SHEET_STORE, sheetName)
 }
 
-async function saveStoredSheet (sheetName: string, sheet: unknown) {
+async function saveStoredSheet (sheetName: string, sheet: VersionedSheet<2>) {
    return put(SHEET_STORE, sheetName, sheet)
 }
 
@@ -212,7 +213,7 @@ async function migrateToV1 (openRequest: IDBOpenDBRequest) {
    // convert each stored sheet and save it to IndexedDB
    const oldSheetStore = localStorage.getItem('sheets')
    if (oldSheetStore != null) {
-      const oldSheets = JSON.parse(oldSheetStore)
+      const oldSheets: string[] = JSON.parse(oldSheetStore)
       if (Object.keys(oldSheets).length === 0) {
          localStorage.removeItem('sheets')
       } else {
@@ -345,20 +346,20 @@ async function migrateSheetsToV2 (openRequest: IDBOpenDBRequest) {
    // The normal loadLibrary() path can't be used here (it would open a new DB connection).
    // Groups were just moved to GENERAL_STORE by migrateGroupsToV2 — read them directly
    // from the upgrade transaction and populate the in-memory library.
-   const idbRequest = (request: IDBRequest) => new Promise((resolve, reject) => {
+   const idbRequest = <T>(request: IDBRequest<T>) => new Promise<T>((resolve, reject) => {
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
    })
-   const storedGroups = (await idbRequest(transaction.objectStore(GENERAL_STORE).get(GROUP_LIBRARY_KEY))) ?? {}
+   const storedGroups = (await idbRequest<unknown>(transaction.objectStore(GENERAL_STORE).get(GROUP_LIBRARY_KEY)))
    Library.loadFromStoredGroups(storedGroups)
 
-   const sheetNames = await idbRequest(sheetStore.getAllKeys()) as string[]
+   const sheetNames = await idbRequest<IDBValidKey[]>(sheetStore.getAllKeys()) as string[]
    for (const sheetName of sheetNames) {
-      const v1SheetJSONString = await idbRequest(sheetStore.get(sheetName))
+      const v1SheetJSONString = await idbRequest<string>(sheetStore.get(sheetName))
       await idbRequest(backupStore.put(v1SheetJSONString, sheetName))  // back up V1 before converting
       try {
-         const v2SheetJSON = deserializeSheet(v1SheetJSONString as string)  // CHECKME
-         await idbRequest(sheetStore.put(wrapSheet(v2SheetJSON), sheetName))
+         const v2SheetJSON = deserializeSheet(v1SheetJSONString)  // CHECKME?
+         await idbRequest(sheetStore.put(v2SheetJSON, sheetName))
       } catch (err) {
          Log.err(`migrateSheetsToV2: failed to migrate '${sheetName}', left unchanged: ${err}`)
       }

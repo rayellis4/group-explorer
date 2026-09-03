@@ -165,7 +165,7 @@ export function makeMockSelect (rootElement: HTMLElement, choices: mockSelectCho
       makeMoveResizable(choiceElement)
       setActionHandler(choiceElement,
          (action) => {
-            const newValue = eval(action)
+            const newValue: string = eval(action)
             modalElement.remove()
             if (newValue == null) {
                reject()

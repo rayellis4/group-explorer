@@ -54,12 +54,12 @@ export async function load () {
 
    // listen for library or settings update
    const channel = new BroadcastChannel('GE3-channel')
-   channel.addEventListener('message', async (messageEvent) => {
-      const message = messageEvent.data
-      if (message.source === 'library') {
+   channel.addEventListener('message', async (messageEvent: MessageEvent<unknown>) => {
+      const message: unknown = messageEvent.data
+      if (Library.isLibraryUpdate(message)) {
          await Library.loadLibrary()
          const visibleGroups = GroupRegistry.getVisibleGroups(Settings.getFilterConfig()).map((G) => G.URL)
-         if (  message.created.some((groupURL: string) => visibleGroups.includes(groupURL))
+         if (message.created.some((groupURL: string) => visibleGroups.includes(groupURL))
             || (message.created.length == 0 && message.updated.length == 0 && message.deleted.length == 0)
          ) {
             displayGroups()
@@ -78,7 +78,7 @@ export async function load () {
                }
             })
          }
-      } else if (message.source === 'settings') {
+      } else if (Settings.isSettingsUpdate(message)) {
          displayGroups()  // changed options, update entire page
       }
    })

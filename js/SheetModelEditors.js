@@ -670,7 +670,7 @@ export class MorphismEditor extends SheetElementEditor {
         const destinationHighlightConfig = this.modelElement.destination.viewElement.visualizer.model.highlightConfiguration;
         const destinationSaturation = destinationHighlightConfig.saturation[0];
         const destinationLightness = destinationHighlightConfig.lightness[0];
-        colorMap.forEach((color) => color.set(GEUtils.fromRainbow(color.getHSL({}).h, destinationSaturation, destinationLightness)));
+        colorMap.forEach((color) => color.set(GEUtils.fromRainbow(color.getHSL({ h: 0, s: 0, l: 0 }).h, destinationSaturation, destinationLightness)));
         // highlight image in destination
         const destinationHighlights = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0];
         this.modelElement.destination.viewElement.visualizer.model.group.elements
@@ -713,7 +713,7 @@ export class MorphismEditor extends SheetElementEditor {
         const sourceHighlightConfig = this.modelElement.source.viewElement.visualizer.model.highlightConfiguration;
         const sourceSaturation = sourceHighlightConfig.saturation[0];
         const sourceLightness = sourceHighlightConfig.lightness[0];
-        colorMap.forEach((color) => color.set(GEUtils.fromRainbow(color.getHSL({}).h, sourceSaturation, sourceLightness)));
+        colorMap.forEach((color) => color.set(GEUtils.fromRainbow(color.getHSL({ h: 0, s: 0, l: 0 }).h, sourceSaturation, sourceLightness)));
         // highlight pre-image in source
         const sourceHighlights = this.modelElement.source.viewElement.visualizer.model.highlightColors[0];
         this.modelElement.source.viewElement.visualizer.model.group.elements.forEach((inx) => {
@@ -724,37 +724,32 @@ export class MorphismEditor extends SheetElementEditor {
         redrawLinksFor(this.modelElement.source);
     }
 }
-/*
-```
-### RemoteEditor
-```javascript
- */
 export class RemoteEditor {
-    static #messageHandler; // singleton message handler to update visualizers
-    static #editorWindows = new Map(); // elementId → editor window reference
-    static #editPageURLs = {
+    static messageHandler; // singleton message handler to update visualizers
+    static editorWindows = new Map(); // elementId → editor window reference
+    static editPageURLs = {
         MTElement: './Multtable.html',
         CGElement: './CycleGraph.html',
         CDElement: './CayleyDiagram.html'
     };
     static editElement(modelElement) {
         // create listener instance, if needed; holds reference to Model instance
-        if (RemoteEditor.#messageHandler == null) {
+        if (RemoteEditor.messageHandler == null) {
             const model = modelElement.model;
-            RemoteEditor.#messageHandler = (messageEvent) => {
+            RemoteEditor.messageHandler = (messageEvent) => {
                 if (messageEvent.data?.source != 'editor')
                     return;
                 const { elementId, json } = messageEvent.data;
                 Log.debug(`RemoteEditor received msg for modelElement ${elementId}`, json);
                 model.sheetElements.get(elementId)?.updateVisualizer?.(json);
             };
-            window.addEventListener('message', RemoteEditor.#messageHandler);
+            window.addEventListener('message', RemoteEditor.messageHandler);
         }
         // open visualizer/editor window; store reference for Sheet→Editor push
-        const editPageURL = `${RemoteEditor.#editPageURLs[modelElement.className]}?SheetEditor` +
+        const editPageURL = `${RemoteEditor.editPageURLs[modelElement.className]}?SheetEditor` +
             (window.location.href.includes('log=debug') ? '&log=debug' : ''); // open in debug if we're in debug
-        const editorWindow = window.open(editPageURL);
-        RemoteEditor.#editorWindows.set(modelElement.id, editorWindow);
+        const editorWindow = window.open(editPageURL); // FIXME: check this, it could fail
+        RemoteEditor.editorWindows.set(modelElement.id, editorWindow);
         // register push callback on modelElement so CDView's subscriber can trigger it
         modelElement.onVisualizerChange = (json) => RemoteEditor.pushToEditor(modelElement.id, json);
         // store initial message
@@ -766,9 +761,9 @@ export class RemoteEditor {
     }
     // push updated JSON to an open editor tab for this element, if one exists
     static pushToEditor(elementId, json) {
-        const editorWindow = RemoteEditor.#editorWindows.get(elementId);
+        const editorWindow = RemoteEditor.editorWindows.get(elementId);
         if (editorWindow == null || editorWindow.closed) {
-            RemoteEditor.#editorWindows.delete(elementId);
+            RemoteEditor.editorWindows.delete(elementId);
             return;
         }
         editorWindow.postMessage({ source: 'sheet', elementId: elementId, json: json }, '*');

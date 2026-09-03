@@ -62,7 +62,7 @@ export function layoutToJSON(layout) {
     };
     const toChunkDataJSON = ({ box, name, widths, nodes }) => {
         return {
-            box: JSON.parse(JSON.stringify(box)).elements,
+            box: JSON.parse(JSON.stringify(box)),
             name,
             nodes: nodes.map((node) => node.element),
             widths: toXYZ(widths)
@@ -102,7 +102,7 @@ export function layoutFromJSON(json) {
     });
     const chunks = json.chunks.map(({ box, name, widths, nodes }) => {
         return {
-            box: new THREE.Matrix4().fromArray(box),
+            box: new THREE.Matrix4().fromArray(box.elements),
             name,
             widths: fromXYZ(widths),
             nodes: nodes.map((node) => nodeMap.get(node))
@@ -111,9 +111,9 @@ export function layoutFromJSON(json) {
     return { pov: pov, nodes: nodes, arrows: arrows, chunks: chunks };
 }
 export class CayleyDiagramViewModel {
-    #model;
-    #view;
-    #modelFields = [
+    _model;
+    _view;
+    static modelFields = [
         'group',
         'layout',
         'background',
@@ -139,46 +139,56 @@ export class CayleyDiagramViewModel {
         this.view.square_highlights = [...highlightColors[HIGHLIGHT_SQUARE]];
     }
     get view() {
-        return this.#view;
+        return this._view;
     }
     get model() {
-        return this.#model;
+        return this._model;
     }
     get modelProxy() {
-        return this.#model;
+        return this._model;
     }
     setModel(model) {
-        this.#model = model;
-        this.#modelFields.forEach((field) => model.$subscribe(this, field));
+        this._model = model;
+        CayleyDiagramViewModel.modelFields.forEach((field) => model.$subscribe(this, field));
         if (this.view != null) {
-            this.#modelFields.forEach((field) => this.update(field, this.#model[field]));
+            CayleyDiagramViewModel.modelFields.forEach((field) => this.update(field, this._model[field]));
         }
     }
     setView(view) {
-        this.#view = view;
+        this._view = view;
         view.viewModel = this;
-        if (this.#model != null) {
-            this.#modelFields.forEach((field) => this.update(field, this.#model[field]));
+        if (this._model != null) {
+            CayleyDiagramViewModel.modelFields.forEach((field) => this.update(field, this._model[field]));
         }
-    }
-    updateModel(field, value) {
-        this.model[field] = value;
     }
     update(field, value) {
-        if (this.view == null) {
+        if (this.view == null)
             return;
-        }
         switch (field) {
             case 'group':
+                this.view.group = value;
+                break;
             case 'background':
+                this.view.background = value;
+                break;
             case 'fog_level':
+                this.view.fog_level = value;
+                break;
             case 'line_width':
+                this.view.line_width = value;
+                break;
             case 'sphere_scale_factor':
+                this.view._sphere_scale_factor = value;
+                break;
             case 'zoom_level':
+                this.view.zoom_level = value;
+                break;
             case 'arrowhead_placement':
+                this.view.arrowhead_placement = value;
+                break;
             case 'label_scale_factor':
                 if (value != null) {
-                    this.view[field] = value;
+                    this.view.label_scale_factor = value;
                 }
                 break;
             case 'showingAxes': {
@@ -208,7 +218,7 @@ export class CayleyDiagramViewModel {
             case 'snap_to_axis_request':
                 if (value == true) {
                     this.view.snapToAxis();
-                    this.updateModel(field, false);
+                    this.model.snap_to_axis_request = false;
                 }
                 break;
             default:

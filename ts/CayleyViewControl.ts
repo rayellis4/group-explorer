@@ -31,15 +31,16 @@ export function addControl (
    cayleyViewControlElement: HTMLElement,
    cayleyDiagramModel: SubscriptionProxy<CayleyDiagramModel>
 ) {
-   const viewModel = new ViewModel()
-   viewModel.setModel(cayleyDiagramModel)
-   viewModel.setView(new View(cayleyViewControlElement))
+   const viewModel = new ViewModel(cayleyDiagramModel)
+   viewModel.view = new View(cayleyViewControlElement, viewModel)
 }
 
 // ViewModel converts CayleyDiagramModel properties <=> View slider values
 class ViewModel implements Updatable {
-   model!: CayleyDiagramModel
-   modelFields: (keyof CayleyDiagramModel)[] = [
+   private _model!: CayleyDiagramModel
+   private _view!: View
+
+   private static modelFields: (keyof CayleyDiagramModel)[] = [
       'zoom_level',
       'line_width',
       'sphere_scale_factor',
@@ -47,76 +48,82 @@ class ViewModel implements Updatable {
       'label_scale_factor',
       'arrowhead_placement',
    ]
-   view!: View
 
-   setModel (model: SubscriptionProxy<CayleyDiagramModel>) {
+   constructor (model: SubscriptionProxy<CayleyDiagramModel>) {
       this.model = model
-      this.modelFields.forEach((field) => model.$subscribe(this, field))
    }
 
-   setView (view: View) {
-      this.view = view
-      view.viewModel = this
-      this.modelFields.forEach((field) => this.update(field, this.model[field]))
+   get model (): CayleyDiagramModel {
+      return this._model
+   }
+   set model (model: SubscriptionProxy<CayleyDiagramModel>) {
+      this._model = model
+      ViewModel.modelFields.forEach((field) => model.$subscribe(this, field))
    }
 
-   getFromView (field: string): any {
-      return this.view.getFieldValue(field)
+   get view(): View {
+      return this._view
+   }
+   set view (view: View) {
+      this._view = view
+      ViewModel.modelFields.forEach((field) => this.update(field, this.model[field]))
    }
 
-   // handles input events from View, updates Model
-   updateModel (field: string, value: any) {
+   // field update callbacks from Model — convert to slider values and push to View directly
+   update (field: string, value: unknown) {
+      if (this.view == null)
+         return
+
       switch (field) {
       case 'zoom_level':
-         this.model.zoom_level = Math.exp(value / 10)
+         this.view.zoom_level = 10 * Math.log(value as typeof this.model.zoom_level)
          break
       case 'line_width':
-         this.model.line_width = 1 + 0.75 * (value - 1)
+         this.view.line_width = 1 + (value as typeof this.model.line_width - 1) / 0.75
          break
       case 'sphere_scale_factor':
-         this.model.sphere_scale_factor = Math.exp(value / 10)
+         this.view.sphere_scale_factor = 10 * Math.log(value as typeof this.model.sphere_scale_factor)
          break
-      case 'use_fog':
       case 'fog_level':
-         this.model.fog_level = this.getFromView('use_fog') ? (this.getFromView('fog_level') / 10) : 0
+         this.view.use_fog = (value as typeof this.model.fog_level) != 0
+         if (this.view.use_fog) {
+            this.view.fog_level = 10 * (value as typeof this.model.fog_level)
+         }
          break
-      case 'show_labels':
-      case 'label_size':
-         this.model.label_scale_factor =
-            this.getFromView('show_labels') ? Math.exp(this.getFromView('label_size') / 10) : 0
+      case 'label_scale_factor':
+         this.view.show_labels = (value as typeof this.model.label_scale_factor) != 0
+         if (this.view.show_labels) {
+            this.view.label_size = 10 * Math.log(value as typeof this.model.label_scale_factor)
+         }
          break
       case 'arrowhead_placement':
-         this.model.arrowhead_placement = value / 20
+         this.view.arrowhead_placement = 20 * (value as typeof this.model.arrowhead_placement)
          break
       }
    }
 
-   // field update callbacks from Model — convert to slider values and push to View directly
-   update (field: string, value: any) {
+   // handles input events from View, updates Model
+   updateModel (field: string) {
       switch (field) {
       case 'zoom_level':
-         this.view.update('zoom_level', 10 * Math.log(value))
+         this.model.zoom_level = Math.exp(this.view.zoom_level / 10)
          break
       case 'line_width':
-         this.view.update('line_width', 1 + (value - 1) / 0.75)
+         this.model.line_width = 1 + 0.75 * (this.view.line_width - 1)
          break
       case 'sphere_scale_factor':
-         this.view.update('sphere_scale_factor', 10 * Math.log(value))
+         this.model.sphere_scale_factor = Math.exp(this.view.sphere_scale_factor / 10)
          break
+      case 'use_fog':
       case 'fog_level':
-         this.view.update('use_fog', value != 0)
-         if (value != 0) {
-            this.view.update('fog_level', 10 * value)
-         }
+         this.model.fog_level = this.view.use_fog ? (this.view.fog_level / 10) : 0
          break
-      case 'label_scale_factor':
-         this.view.update('show_labels', value != 0)
-         if (value != 0) {
-            this.view.update('label_size', 10 * Math.log(value))
-         }
+      case 'show_labels':
+      case 'label_size':
+         this.model.label_scale_factor = this.view.show_labels ? Math.exp(this.view.label_size / 10) : 0
          break
       case 'arrowhead_placement':
-         this.view.update('arrowhead_placement', 20 * value)
+         this.model.arrowhead_placement = (this.view.arrowhead_placement) / 20
          break
       }
    }
@@ -130,19 +137,94 @@ class ViewModel implements Updatable {
 
 // View has html to display values on sliders, field events from input elements
 class View {
-   rootElement: HTMLElement
-   viewModel!: ViewModel  // set by ViewModel.setView
+   private rootElement: HTMLElement
+   private viewModel: ViewModel
 
-   constructor (rootElement: HTMLElement) {
+   constructor (rootElement: HTMLElement, viewModel: ViewModel) {
       this.rootElement = rootElement
-      this.addHTML()
+      this.viewModel = viewModel
+      this.rootElement.innerHTML = View.getViewHTML()
       this.rootElement.addEventListener('input', (ev) => this.handleInputEvent(ev))
       this.rootElement.addEventListener('click', (ev) => this.handleButtonEvent(ev))
    }
 
-   addHTML () {
-      this.rootElement.innerHTML =
-         `<div>
+   get zoom_level (): number { return this.getField('zoom_level') as typeof this['zoom_level'] }
+   set zoom_level (zoom_level: number) { this.updateField('zoom_level', zoom_level) }
+
+   get line_width (): number { return this.getField('line_width') as this['line_width'] }
+   set line_width (line_width: number) { this.updateField('line_width', line_width) }
+
+   get sphere_scale_factor (): number { return this.getField('sphere_scale_factor') as this['sphere_scale_factor'] }
+   set sphere_scale_factor (sphere_scale_factor: number) { this.updateField('sphere_scale_factor', sphere_scale_factor) }
+
+   get use_fog (): boolean { return this.getField('use_fog') as this['use_fog'] }
+   set use_fog (use_fog: boolean) { this.updateField('use_fog', use_fog) }
+
+   get fog_level (): number { return this.getField('fog_level') as this['fog_level'] }
+   set fog_level (fog_level: number) { this.updateField('fog_level', fog_level) }
+
+   get show_labels (): boolean { return this.getField('show_labels') as this['show_labels'] }
+   set show_labels (show_labels: boolean) { this.updateField('show_labels', show_labels) }
+
+   get label_size (): number { return this.getField('label_size') as this['label_size'] }
+   set label_size (label_size: number) { this.updateField('label_size', label_size) }
+
+   get arrowhead_placement (): number { return this.getField('arrowhead_placement') as this['arrowhead_placement'] }
+   set arrowhead_placement (arrowhead_placement: number) { this.updateField('arrowhead_placement', arrowhead_placement) }
+
+   private getDisplayElement (field: string): Maybe<HTMLElement> {
+      const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`) as Maybe<HTMLElement>
+      if (displayElement == null) {
+         Log.warn(`unable to find element with data binding = ${field}`)
+      }
+
+      return displayElement
+   }
+
+   private getField (field: string): unknown {
+      let result: unknown
+      const displayElement = this.getDisplayElement(field)
+      if (displayElement instanceof HTMLInputElement) {
+         if (displayElement.type.toLowerCase() == 'range') {
+            result = displayElement.valueAsNumber
+         } else if (displayElement.type.toLowerCase() == 'checkbox') {
+            result = displayElement.checked
+         }
+      }
+      return result
+   }
+
+   private updateField (field: string, value: unknown) {
+      const displayElement = this.getDisplayElement(field)
+      if (displayElement instanceof HTMLInputElement) {
+         if (displayElement.type.toLowerCase() == 'range') {
+            displayElement.valueAsNumber = value as number
+         } else if (displayElement.type.toLowerCase() == 'checkbox') {
+            displayElement.checked = value as boolean
+         }
+      }
+   }
+
+   // generic input event handler, forwards to ViewModel
+   private handleInputEvent (inputEvent: InputEvent) {
+      const field = (inputEvent.target as HTMLElement)?.getAttribute('data-bind')
+      if (field != null) {
+         inputEvent.stopPropagation()
+         this.viewModel.updateModel(field)
+      }
+   }
+
+   private handleButtonEvent (clickEvent: MouseEvent) {
+      const action = (clickEvent.target as HTMLElement)?.closest('[data-action]')?.getAttribute('data-action')
+      if (action != null) {
+         clickEvent.stopPropagation()
+         this.viewModel.executeCommand(action)
+      }
+   }
+
+   private static getViewHTML () {
+      return `
+          <div>
              Zoom level:
              <input data-bind="zoom_level" type="range" min="-10" max="10">
           </div>
@@ -181,56 +263,5 @@ class View {
                    >Snap to axis</button>
              </details>
           </div>`
-   }
-
-   getDisplayElement (field: string): Maybe<HTMLElement> {
-      const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`)
-      if (displayElement == null) {
-         Log.warn(`unable to find element with data binding = ${field}`)
-         return null
-      }
-
-      return displayElement as HTMLElement
-   }
-
-   getFieldValue (field: string): any {
-      let result
-      const displayElement = this.getDisplayElement(field)
-      if (displayElement instanceof HTMLInputElement) {
-         if (displayElement.type.toLowerCase() == 'range') {
-            result = displayElement.value
-         } else if (displayElement.type.toLowerCase() == 'checkbox') {
-            result = displayElement.checked
-         }
-      }
-      return result
-   }
-
-   update (field: string, value: any) {
-      const displayElement = this.getDisplayElement(field)
-      if (displayElement instanceof HTMLInputElement) {
-         if (displayElement.type.toLowerCase() == 'range') {
-            displayElement.value = value
-         } else if (displayElement.type.toLowerCase() == 'checkbox') {
-            displayElement.checked = value
-         }
-      }
-   }
-
-   // generic input event handler, forwards to ViewModel
-   handleInputEvent (inputEvent: InputEvent) {
-      const field = (inputEvent.target as HTMLElement)?.getAttribute('data-bind')
-      if (field != null) {
-         inputEvent.stopPropagation()
-         this.viewModel.updateModel(field, this.getFieldValue(field))
-      }
-   }
-
-   handleButtonEvent (clickEvent: MouseEvent) {
-      const action = (clickEvent.target as HTMLElement)?.closest('[data-action]')?.getAttribute('data-action')
-      if (action != null) {
-         clickEvent.stopPropagation()
-         this.viewModel.executeCommand(action)
-      }
    }
 }

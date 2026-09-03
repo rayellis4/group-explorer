@@ -167,7 +167,10 @@ function dragStart (
    const cellSize = multtableViewModel.view.transform.elements[0];  // [0] is the scale in the transform matrix
    const tableSize = multtableViewModel.view.table_size * cellSize;
 
-   let width, height, swapping, start;
+   let width: number
+   let height: number
+   let swapping: 'row' | 'col'
+   let start: integer
    if (rowXcol.row == 0 && rowXcol.col != 0) {  // dragging column?
       [swapping, start, width, height] = ['col', rowXcol.col, cellSize, tableSize];
    } else if (rowXcol.col == 0 && rowXcol.row != 0) {  // dragging row?

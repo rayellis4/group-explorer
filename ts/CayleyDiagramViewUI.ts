@@ -35,7 +35,7 @@ import { recognizeSelect, recognizeContextMenu, recognizeDragAndDrop } from './G
 import { makeTooltip } from './UIComponents.js'
 import * as THREE from '../lib/externals.js'
 
-import type { CayleyDiagramView, LineUserData, LineType } from './CayleyDiagramView.ts'
+import type { CayleyDiagramView, SphereUserData, LineUserData, LineType } from './CayleyDiagramView.ts'
 import type { CayleyDiagramModel, POV, ArrowType, LayoutType } from './CayleyDiagramModel.ts'
 import type { SubscriptionProxy } from './GEUtils.ts'
 
@@ -113,7 +113,7 @@ function showTooltipOrReset (cayleyDiagramView: CayleyDiagramView) {
 
    function formatTooltip (objects: Array<THREE.Object3D>) {
       const objectNames = objects.map((obj) => obj.name)
-      let tooltip
+      let tooltip: html
       switch (objectNames.length) {
          case 1:
             tooltip =
@@ -414,7 +414,7 @@ class Arrow extends Customizable {
    }
 
    redraw (currentLocation: THREE.Vector2, _isDragStart: boolean) {
-      const arrow: ArrowType = this.object3D.userData.arrow
+      const arrow: ArrowType = (this.object3D.userData as LineUserData).arrow
       const line = this.cayleyDiagramView.arrows
          .find((line) => (line.userData as LineUserData).arrow == arrow) as LineType
 
@@ -463,7 +463,7 @@ class Arrow extends Customizable {
 
    equals (other: Maybe<Customizable>): boolean {
       const areEqual = other instanceof Arrow
-         && this.object3D.userData.arrow === other.object3D.userData.arrow
+         && (this.object3D.userData as LineUserData).arrow === (other.object3D.userData as LineUserData).arrow
 
       return areEqual
    }
@@ -573,13 +573,13 @@ class Node extends Movable {
    }
 
    get color (): color {
-      const sphereIndex = this.object3D.userData.node.element
+      const sphereIndex = (this.object3D.userData as SphereUserData).node.element
       const currentColor = this.cayleyDiagramView.color_highlights[sphereIndex] as string
       return currentColor
    }
 
    set color (color: color) {
-      const sphereIndex = this.object3D.userData.node.element
+      const sphereIndex = (this.object3D.userData as SphereUserData).node.element
       this.cayleyDiagramView.color_highlights[sphereIndex] = color
       this.cayleyDiagramView.drawAllHighlights()
    }

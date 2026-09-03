@@ -43,7 +43,7 @@ export async function load() {
     const channel = new BroadcastChannel('GE3-channel');
     channel.addEventListener('message', async (messageEvent) => {
         const message = messageEvent.data;
-        if (message.source === 'library') {
+        if (Library.isLibraryUpdate(message)) {
             await Library.loadLibrary();
             const visibleGroups = GroupRegistry.getVisibleGroups(Settings.getFilterConfig()).map((G) => G.URL);
             if (message.created.some((groupURL) => visibleGroups.includes(groupURL))
@@ -66,7 +66,7 @@ export async function load() {
                 });
             }
         }
-        else if (message.source === 'settings') {
+        else if (Settings.isSettingsUpdate(message)) {
             displayGroups(); // changed options, update entire page
         }
     });

@@ -44,7 +44,9 @@ export declare class MorphismEditor extends SheetElementEditor {
     pullTargetThroughMorphism(): void;
 }
 export declare class RemoteEditor {
-    #private;
+    private static messageHandler;
+    private static editorWindows;
+    private static editPageURLs;
     static editElement(modelElement: VisualizerElement & {
         onVisualizerChange?: (json: unknown) => void;
     }): void;

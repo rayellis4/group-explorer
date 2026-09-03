@@ -51,6 +51,7 @@ export async function loadLibrary() {
 // Populate the in-memory library from a raw stored-groups object (used during DB migration,
 // when the DB connection isn't available for a normal loadLibrary() call)
 export function loadFromStoredGroups(storedGroups) {
+    // FIXME: check for valid input -- it's coming from conversion
     Object.entries(storedGroups).forEach(([key, value]) => {
         library[key] = Group.fromLocalCopyJSON(value);
     });
@@ -71,7 +72,7 @@ function dataToGroup(data, contentType = '') {
         group = XMLGroup.fromGroupFileXML(data);
     }
     else if (contentType.includes('json')) {
-        group = Group.fromGroupFileJSON(JSON.parse(data));
+        group = Group.fromGroupFileJSON(data);
     }
     else {
         throw (new Error('Unrecognizable data in Library:dataToGroup'));
@@ -205,8 +206,9 @@ export function getGroupByURL(url) {
 }
 // Read group library from local store
 async function getStoredGroups() {
-    const storedGroups = ((await StoredObjects.getGroupLibrary()) || {});
-    Object.entries(storedGroups).forEach(([key, value]) => storedGroups[key] = Group.fromLocalCopyJSON(value));
+    const storedGroupsJSON = ((await StoredObjects.getGroupLibrary()) || {});
+    const storedGroups = {};
+    Object.entries(storedGroupsJSON).forEach(([key, value]) => storedGroups[key] = Group.fromLocalCopyJSON(value));
     return storedGroups;
 }
 // get groupURL from page invocation and return promise for resolution from cache or download
@@ -275,6 +277,7 @@ export async function loadFromPageURL() {
         });
         return result;
     }
+    // FIXME: remove this function or test it
     function waitForGroupInMessage() {
         return new Promise((resolve, reject) => {
             /*
@@ -295,6 +298,7 @@ export async function loadFromPageURL() {
                     const loadGroupMessage = eventData;
                     try {
                         if ('group' in loadGroupMessage && typeof loadGroupMessage.group === 'object') {
+                            // FIXME: this does *NOT* work, it just keeps the compiler happy
                             const group = dataToGroup(loadGroupMessage.group, 'json');
                             if (group != null) {
                                 library[group.shortName] = group;
@@ -329,6 +333,15 @@ export function saveGroup(group) {
     }
     scheduleLocalStoreUpdate();
 }
+export function isLibraryUpdate(message) {
+    return message != null
+        && typeof message === 'object'
+        && 'source' in message
+        && message.source === 'library'
+        && Array.isArray(message.created)
+        && Array.isArray(message.updated)
+        && Array.isArray(message.deleted);
+}
 // schedule local store group library update
 let savedTimeoutID = null;
 const createdGroupURLs = [];
@@ -340,9 +353,9 @@ function scheduleLocalStoreUpdate() {
     }
     savedTimeoutID = window.setTimeout(async () => {
         savedTimeoutID = null;
-        let message = null;
+        let maybeMessage = null;
         if (createdGroupURLs.length != 0 || updatedGroupURLs.length != 0 || deletedGroupURLs.length != 0) {
-            message = {
+            maybeMessage = {
                 source: 'library',
                 created: [...createdGroupURLs],
                 updated: [...updatedGroupURLs],
@@ -353,9 +366,9 @@ function scheduleLocalStoreUpdate() {
             deletedGroupURLs.length = 0;
         }
         await StoredObjects.saveGroupLibrary(library); // wait for store to complete before exiting
-        if (message != null) {
+        if (maybeMessage != null) {
             const channel = new BroadcastChannel('GE3-channel');
-            channel.postMessage(message);
+            channel.postMessage(maybeMessage);
             channel.close();
         }
     });

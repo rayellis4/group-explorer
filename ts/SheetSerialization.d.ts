@@ -12,25 +12,27 @@ Sheet serialization history:
 import * as THREE from '../lib/externals.js';
 import type { StrategyParameters } from './CayleyDiagramGenerator.ts';
 import type { SheetJSON } from './SheetModel.ts';
-declare const CURRENT_FORMAT: 2;
-export type WrappedSheet = {
-    version: typeof CURRENT_FORMAT;
-    sheet: SheetJSON[];
+export declare const CURRENT_FORMAT_VERSION: 2;
+type VersionMap = {
+    0: v0SheetType[];
+    1: v1SheetType[];
+    2: v2SheetType[];
 };
-type v0Sheet = v0SheetType[];
-type v1Sheet = v1SheetType[];
-type v2Sheet = v2SheetType[];
 type v2SheetType = SheetJSON;
-type v0StoredSheet = string;
-type v1StoredSheet = string;
-type v2StoredSheet = {
-    version: typeof CURRENT_FORMAT;
-    sheet: v2Sheet;
+export type VersionedSheet<T extends keyof VersionMap = typeof CURRENT_FORMAT_VERSION> = {
+    version: T;
+    sheet: VersionMap[T];
 };
-type anyStoredSheet = v0StoredSheet | v1StoredSheet | v2StoredSheet;
-export declare function wrapSheet(sheet: v2Sheet): v2StoredSheet;
-export declare function unwrapSheet(wrappedSheet: WrappedSheet): v2Sheet;
-export declare function deserializeSheet(json: string | anyStoredSheet): SheetJSON[];
+export declare function isVersionedSheet(obj: unknown): obj is VersionedSheet;
+export type NamedSheet = {
+    sheetName: string;
+    sheetJSON: VersionedSheet;
+};
+export type SheetBackup = NamedSheet[];
+export declare function isSheetBackup(obj: unknown): obj is SheetBackup;
+export type RawSheet = unknown[];
+export declare function isRawSheet(obj: unknown): obj is RawSheet;
+export declare function deserializeSheet(json: string): VersionedSheet<typeof CURRENT_FORMAT_VERSION>;
 type v0SheetType = {
     className: string;
     x: number;
@@ -70,9 +72,9 @@ type v0SheetType = {
     square_highlights: unknown;
     strategy_parameters: unknown;
     zoom_level: unknown;
-    visualizer: any;
+    visualizer: unknown;
 };
-export declare function convertV0ToV1(oldJSONArray: v0Sheet): v1Sheet;
+export declare function convertV0ToV1(oldJSONArray: v0SheetType[]): v1SheetType[];
 type v1SheetType = {
     className: string;
     id: string;
@@ -91,7 +93,7 @@ type v1SheetType = {
     groupURL?: string;
     isClean?: boolean;
     visualizer?: v1CDVisualizer | v1CGVisualizer | v1MTVisualizer;
-    _visualizer?: any;
+    _visualizer?: unknown;
     destinationId?: string;
     sourceId?: string;
     hasArrowhead?: boolean;
@@ -119,7 +121,11 @@ type v1CDVisualizer = {
         color: color;
     }[];
     background: color;
-    cameraJSON: any;
+    cameraJSON: {
+        object: {
+            matrix: number[];
+        };
+    };
     cameraUp: THREE.Vector3;
     chunk?: integer;
     color_highlights?: Maybe<color>[];
@@ -128,7 +134,15 @@ type v1CDVisualizer = {
     groupURL: string;
     label_scale_factor: float;
     line_width: float;
-    nodes: any[];
+    nodes: {
+        position: {
+            x: float;
+            y: float;
+            z: float;
+        };
+        element: groupElement;
+        label: html;
+    }[];
     right_multiply: boolean;
     ring_highlights?: Maybe<color>[];
     sphere_base_radius: float;
@@ -158,5 +172,5 @@ type v1MTVisualizer = {
     organizingSubgroup?: integer;
     separation?: number;
 };
-export declare function convertV1ToV2(v1Objects: v1Sheet): v2Sheet;
+export declare function convertV1ToV2(v1Objects: v1SheetType[]): v2SheetType[];
 export {};

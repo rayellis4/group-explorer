@@ -11,7 +11,6 @@ import { BitSet } from './BitSet.js';
 import { createCayleyDiagramThumbnailView } from './CayleyDiagramView.js';
 import * as GEUtils from './GEUtils.js';
 import { IMAGE_SIZE } from './GroupTable.js';
-import * as Library from './Library.js';
 import * as MathUtils from './MathUtils.js';
 import * as SheetModel from './SheetModel.js';
 import { CayleyDiagramModel } from './CayleyDiagramModel.js';
@@ -190,16 +189,13 @@ function formatSubgroupListContent(group, subgroupIndex, cayleyDiagramThumbnailV
     const elementRepresentations = subgroup.members.toArray().map(el => group.representation[el]);
     const isomorphicGroup = subgroup.isomorphicGroup;
     // create thumbnail if it doesn't exist already
-    if (isomorphicGroup.thumbnails?.cayleyDiagram == null) {
-        cayleyDiagramThumbnailView.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name);
-        const imageSource = cayleyDiagramThumbnailView.getImage().src;
-        isomorphicGroup.thumbnails = isomorphicGroup.thumbnails || {};
-        isomorphicGroup.thumbnails.cayleyDiagram = imageSource;
-        Library.saveGroup(isomorphicGroup);
-    }
+    const cayleyDiagramThumbnail = (isomorphicGroup.thumbnails?.cayleyDiagram != null)
+        ? isomorphicGroup.thumbnails.cayleyDiagram
+        : (cayleyDiagramThumbnailView.draw(isomorphicGroup, isomorphicGroup.cayleyDiagrams[0]?.name),
+            cayleyDiagramThumbnailView.getImage().src);
     const contentHTML = [
         '<div class="flex-h">',
-        `<div><img src="${isomorphicGroup.thumbnails.cayleyDiagram}" style="width: 48px; height: 48px"></div>`,
+        `<div><img src="${cayleyDiagramThumbnail}" style="width: 48px; height: 48px"></div>`,
         '<div class="stack-03em" style="margin-left: 1ch">',
         `<div><i>H</i><sub>${subgroupIndex}</sub>${shortDescription(group, subgroup)} is
              <a href="./help/rf-groupterms/index.html#isomorphism-isomorphic">isomorphic</a> to
@@ -263,7 +259,9 @@ function shortDescription(group, subgroup) {
 }
 function highlightSubgroup(group, H, type) {
     const highlightColor = (type == 'CDElement') ? 'hsl(0, 50%, 30%)' : 'hsl(0, 100%, 80%)';
-    return Array(group.order).fill('').map((e /*: color */, i) => H.members.isSet(i) ? highlightColor : e);
+    return Array(group.order)
+        .fill('')
+        .map((e, i) => H.members.isSet(i) ? highlightColor : e);
 }
 function getHighlightColors(group, count, type) {
     const highlightConfiguration = (type == 'CDElement')

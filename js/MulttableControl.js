@@ -1,24 +1,13 @@
-/*
-
-# MulttableControl
-
-Display input elements that configure the MulttableView:
- * organize multtable by subgroup
- * separate cosets and adjust gutter
- * set default element coloration
- * set element coloration when elements are re-organized (e.g., on column drag)
-
-```javascript
- */
+import * as Log from './Log.js';
 import { makeMockSelect } from './UIComponents.js';
 export function addControl(multtableControlElement, modelProxy) {
     const viewModel = new ViewModel(modelProxy);
-    new View(viewModel, multtableControlElement);
+    viewModel.view = new View(multtableControlElement, viewModel);
 }
-class ViewModel /*: implements Updatable */ {
-    #model;
-    #view;
-    #modelFields = [
+class ViewModel {
+    _model;
+    _view;
+    static modelFields = [
         'organizingSubgroup',
         'separation',
         'coloration',
@@ -30,55 +19,53 @@ class ViewModel /*: implements Updatable */ {
     get group() {
         return this.model.group;
     }
+    get model() {
+        return this._model;
+    }
+    set model(model) {
+        this._model = model;
+        ViewModel.modelFields.forEach((field) => model.$subscribe(this, field));
+    }
     get view() {
-        return this.#view;
+        return this._view;
     }
     set view(view) {
-        this.#view = view;
-        this.#modelFields.forEach((field) => this.update(field, this.model[field]));
+        this._view = view;
+        ViewModel.modelFields.forEach((field) => this.update(field, this.model[field]));
     }
-    get model() {
-        return this.#model;
-    }
-    set model(multtableModel) {
-        this.#model = multtableModel;
-        this.#modelFields.forEach((field) => {
-            multtableModel.$subscribe(this, field);
-            this.update(field, this.model[field]);
-        });
-    }
+    // field update callbacks from Model — convert to slider values and push to View directly
     update(field, value) {
-        if (this.view == null) {
+        if (this.view == null)
             return;
-        }
         switch (field) {
             case 'organizingSubgroup':
-                this.view['subgroupIndex'] = value ?? 0;
+                this.view.subgroupIndex = value ?? 0;
                 break;
             case 'coloration':
-                this.view[field] = value;
+                this.view.coloration = value;
                 break;
             case 'colorReordering':
-                this.view[field] = value;
+                this.view.colorReordering = value;
                 break;
             case 'separation':
-                this.view[field] = 100 * value;
+                this.view.separation = 100 * value;
                 break;
         }
     }
-    updateFromView(field, value) {
+    // handles input events from View, updates Model
+    updateModel(field) {
         switch (field) {
             case 'subgroupIndex':
-                this.model['organizingSubgroup'] = parseInt(value);
+                this.model.organizingSubgroup = this.view.subgroupIndex;
                 break;
             case 'coloration':
-                this.model[field] = value;
+                this.model.coloration = this.view.coloration;
                 break;
             case 'colorReordering':
-                this.model[field] = value;
+                this.model.colorReordering = this.view.colorReordering;
                 break;
             case 'separation':
-                this.model[field] = value / 100;
+                this.model.separation = this.view.separation / 100;
                 break;
         }
     }
@@ -86,19 +73,46 @@ class ViewModel /*: implements Updatable */ {
 class View {
     viewModel;
     rootElement;
-    constructor(viewModel, rootElement) {
+    constructor(rootElement, viewModel) {
         this.viewModel = viewModel;
         this.rootElement = rootElement;
-        rootElement.innerHTML = View.getViewHTML(rootElement.getAttribute('id'));
+        rootElement.innerHTML = View.getHTML(rootElement);
         rootElement.querySelector('#organization-select')
-            .addEventListener('click', (clickEvent) => this.displayOrganizationChoices(clickEvent.target));
-        rootElement.addEventListener('change', (changeEvent) => this.handleChangeEvent(changeEvent));
+            .addEventListener('click', (ev) => this.handleClickEvent(ev));
+        rootElement.addEventListener('input', (ev) => this.handleInputEvent(ev));
     }
-    displayOrganizationChoices(target) {
-        const choices = this.viewModel.group.subgroups.slice(0, -1)
-            .map((_subgroup, index) => { return { value: `${index}`, label: this.formatSubgroupChoice(index) }; });
-        makeMockSelect(target, choices)
-            .then((choice) => this.updateViewModel('subgroupIndex', choice), () => { });
+    get subgroupIndex() {
+        return parseInt(this.getFieldValue('subgroupIndex'));
+    }
+    set subgroupIndex(subgroupIndex) {
+        const organizationSelectElement = this.getDisplayElements('subgroupIndex')[0];
+        organizationSelectElement.setAttribute('data-value', subgroupIndex.toString());
+        organizationSelectElement.innerHTML = this.formatSubgroupChoice(subgroupIndex);
+    }
+    get separation() {
+        return parseInt(this.getFieldValue('separation'));
+    }
+    set separation(separation) {
+        this.rootElement.querySelector('#separation-slider')
+            .setAttribute('value', separation.toString());
+    }
+    get coloration() {
+        return this.getFieldValue('coloration');
+    }
+    set coloration(coloration) {
+        this.rootElement.querySelectorAll('input[name="coloration"]')
+            .forEach((radioButton) => radioButton.checked = false);
+        this.rootElement.querySelector(`[value="${coloration}"]`)
+            .checked = true;
+    }
+    get colorReordering() {
+        return this.getFieldValue('colorReordering');
+    }
+    set colorReordering(colorReordering) {
+        this.rootElement.querySelectorAll('[name="color-order"]')
+            .forEach((radioButton) => radioButton.checked = false);
+        this.rootElement.querySelector(`[value="${colorReordering}"]`)
+            .checked = true;
     }
     formatSubgroupChoice(subgroupIndex) {
         const subgroup = this.viewModel.group.subgroups[subgroupIndex];
@@ -107,39 +121,49 @@ class View {
             : `<span style="color: ${subgroup.isNormal ? 'blue' : 'black'}"><i>H</i><sub>${subgroupIndex}</sub>,
                a subgroup of order ${subgroup.order}</span>`;
     }
-    handleChangeEvent(changeEvent) {
-        const inputElement = changeEvent.target;
-        if (inputElement != null) {
-            const field = inputElement.getAttribute('data-bind');
-            const value = inputElement.value;
-            this.updateViewModel(field, value);
+    getDisplayElements(field) {
+        const displayElements = Array.from(this.rootElement.querySelectorAll(`[data-bind="${field}"]`));
+        if (displayElements.length == 0) {
+            Log.warn(`unable to find element with data binding = ${field}`);
+        }
+        return displayElements;
+    }
+    getFieldValue(field) {
+        let result = null;
+        const displayElements = this.getDisplayElements(field);
+        const displayElement = displayElements[0];
+        if (displayElement != null) {
+            if (displayElement instanceof HTMLInputElement) {
+                if (displayElement.type.toLowerCase() == 'range') {
+                    result = displayElement.value;
+                }
+                else if (displayElement.type.toLowerCase() == 'radio') {
+                    result = displayElements.find((radio) => radio.checked).value;
+                }
+            }
+            else if (displayElement instanceof HTMLDivElement) { // .mock-select
+                result = displayElement.getAttribute("data-value");
+            }
+        }
+        return result;
+    }
+    handleClickEvent(clickEvent) {
+        const target = clickEvent.target;
+        const choices = this.viewModel.group.subgroups
+            .slice(0, -1) // include all but last subgroup, the whole group
+            .map((_subgroup, index) => { return { value: `${index}`, label: this.formatSubgroupChoice(index) }; });
+        makeMockSelect(target, choices)
+            .then((_choice) => this.viewModel.updateModel('subgroupIndex'), () => { });
+    }
+    handleInputEvent(inputEvent) {
+        const field = inputEvent.target?.getAttribute('data-bind');
+        if (field != null) {
+            inputEvent.stopPropagation();
+            this.viewModel.updateModel(field);
         }
     }
-    updateViewModel(field, value) {
-        this.viewModel.updateFromView(field, value);
-    }
-    set subgroupIndex(subgroupIndex) {
-        const organizationSelectElement = this.rootElement.querySelector('#organization-select');
-        organizationSelectElement.setAttribute('data-index', subgroupIndex.toString());
-        organizationSelectElement.innerHTML = this.formatSubgroupChoice(subgroupIndex);
-    }
-    set separation(separation) {
-        this.rootElement.querySelector('#separation-slider')
-            .setAttribute('value', separation.toString());
-    }
-    set coloration(coloration) {
-        this.rootElement.querySelectorAll('[name="coloration"]')
-            .forEach((radioButton) => radioButton.setAttribute('checked', false.toString()));
-        this.rootElement.querySelector(`[value="${coloration}"]`)
-            .setAttribute('checked', true.toString());
-    }
-    set colorReordering(colorReordering) {
-        this.rootElement.querySelectorAll('[name="color-order"]')
-            .forEach((radioButton) => radioButton.setAttribute('checked', false.toString()));
-        this.rootElement.querySelector(`[value="${colorReordering}"]`)
-            .setAttribute('checked', true.toString());
-    }
-    static getViewHTML(rootId) {
+    static getHTML(rootElement) {
+        const rootId = rootElement.getAttribute('id');
         return `
           <style>
              #${rootId} > *:first-child {
@@ -149,7 +173,7 @@ class View {
 
           <div>
              Organize by subgroup:
-             <div id="organization-select" class="mock-select" data-bind="subgroupIndex">none</div>
+             <div id="organization-select" class="mock-select" data-bind="subgroupIndex" data-value="0">none</div>
           </div>
 
           <div>

@@ -19,7 +19,7 @@ import { createMinimalMulttableView, MulttableViewModel } from './MulttableView.
 import { createSymmetryObjectThumbnailView, SymmetryObjectViewModel } from './SymmetryObjectView.js'
 import * as Library from './Library.js'
 
-import type { Group } from './Group.ts'
+import type { Group, ThumbnailsType } from './Group.ts'
 
 export const IMAGE_SIZE = 96
 
@@ -33,7 +33,7 @@ type ColumnDef = {
    headerClass?: string,
    defaultVisible: boolean,
    sortComparator?: sortComparator
-   cellHTML: (group: any, aux: Aux) => string,
+   cellHTML: (group: Group, aux: Aux) => string,
 }
 
 export const COLUMNS: ColumnDef[] = [
@@ -136,7 +136,7 @@ export const COLUMNS: ColumnDef[] = [
          const selector = cayleyTitle != null ? `&diagram=${encodeURIComponent(cayleyTitle)}` : ''
          return `<td class="cayley-diagram center" data-tooltip="Open Cayley Diagram visualizer">
              <a href="CayleyDiagram.html?groupURL=${group.URL}${selector}" target="_blank">
-                <img src="${group.thumbnails.cayleyDiagram}" width="100px" height="100px">
+                <img src="${group.thumbnails!.cayleyDiagram}" width="100px" height="100px">
              </a>
           </td>`
       },
@@ -150,7 +150,7 @@ export const COLUMNS: ColumnDef[] = [
       cellHTML: (group: Group) =>
          `<td class="multiplication-table center" data-tooltip="Open Multiplication Table visualizer">
              <a href="Multtable.html?groupURL=${group.URL}" target="_blank">
-                <img src="${group.thumbnails.multtable}" width="100px" height="100px">
+                <img src="${group.thumbnails!.multtable}" width="100px" height="100px">
              </a>
           </td>`,
    },
@@ -161,11 +161,11 @@ export const COLUMNS: ColumnDef[] = [
       headerClass: 'diagram-header',
       defaultVisible: true,
       cellHTML: (group: Group) =>
-         group.thumbnails.symmetryObject == null
+         group.thumbnails!.symmetryObject == null
             ? `<td class="no-diagram center"><div>none</div></td>`
             : `<td class="symmetry-object center" data-tooltip="Open Symmetry Object visualizer">
                   <a href="SymmetryObject.html?groupURL=${group.URL}" target="_blank">
-                     <img src="${group.thumbnails.symmetryObject}" width="100px" height="100px">
+                     <img src="${group.thumbnails!.symmetryObject}" width="100px" height="100px">
                   </a>
                </td>`,
    },
@@ -178,7 +178,7 @@ export const COLUMNS: ColumnDef[] = [
       cellHTML: (group: Group) =>
          `<td class="cycle-graph center" data-tooltip="Open Cycle Graph visualizer">
              <a href="CycleGraph.html?groupURL=${group.URL}" target="_blank">
-                <img src="${group.thumbnails.cycleGraph}" width="100px" height="100px">
+                <img src="${group.thumbnails!.cycleGraph}" width="100px" height="100px">
              </a>
           </td>`,
    },
@@ -350,7 +350,7 @@ group in the library.
 ```javascript
 */
 function generateThumbnails (generators: imageGenerators, group: Group, cayleyTitle: string, symmetryTitle: string) {
-   const thumbnails = group.thumbnails = group.thumbnails || {}
+   const thumbnails = group.thumbnails = group.thumbnails ?? {} as ThumbnailsType
 
    if (thumbnails.cayleyDiagram == null) {
       generators.cayleyDiagramView.draw(group, cayleyTitle)
@@ -369,7 +369,7 @@ function generateThumbnails (generators: imageGenerators, group: Group, cayleyTi
 
    if (thumbnails.symmetryObject == null) {
       if (symmetryTitle == null) {
-         group.thumbnails.symmetryObject = null
+         delete group.thumbnails.symmetryObject
       } else {
          generators.symmetryObjectView.draw(group, group.symmetryObjects[0].name)
          group.thumbnails.symmetryObject = generators.symmetryObjectView.getImage().src

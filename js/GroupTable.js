@@ -298,7 +298,7 @@ group in the library.
 ```javascript
 */
 function generateThumbnails(generators, group, cayleyTitle, symmetryTitle) {
-    const thumbnails = group.thumbnails = group.thumbnails || {};
+    const thumbnails = group.thumbnails = group.thumbnails ?? {};
     if (thumbnails.cayleyDiagram == null) {
         generators.cayleyDiagramView.draw(group, cayleyTitle);
         group.thumbnails.cayleyDiagram = generators.cayleyDiagramView.getImage().src;
@@ -313,7 +313,7 @@ function generateThumbnails(generators, group, cayleyTitle, symmetryTitle) {
     }
     if (thumbnails.symmetryObject == null) {
         if (symmetryTitle == null) {
-            group.thumbnails.symmetryObject = null;
+            delete group.thumbnails.symmetryObject;
         }
         else {
             generators.symmetryObjectView.draw(group, group.symmetryObjects[0].name);

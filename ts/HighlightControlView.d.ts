@@ -1,7 +1,6 @@
 import { BitSet } from './BitSet.js';
 import { HighlightControlViewModel, DisplayItem, AbstractSubset, Subgroop, Subset } from './HighlightControlViewModel.js';
 export declare class HighlightControlView {
-    #private;
     viewModel: HighlightControlViewModel;
     rootElement: HTMLElement;
     itemMap: Maybe<DisplayItemView>[];
@@ -11,6 +10,7 @@ export declare class HighlightControlView {
     allOrderClassesHTML(): html;
     makeLongList(subsetView: DisplayItemView, htmlGenerator: (subsetView: DisplayItemView, otherSubsetView: DisplayItemView) => html): html;
     removeElement(displayItem: DisplayItem): void;
+    private showHeaderMenu;
     showItemMenu(event: MouseEvent, subsetId: number): void;
     intersectionItemHTML(subsetView: DisplayItemView, otherSubsetView: DisplayItemView): html;
     unionItemHTML(subsetView: DisplayItemView, otherSubsetView: DisplayItemView): html;
@@ -24,7 +24,6 @@ export declare class HighlightControlView {
     static highlightControlHTML: html;
 }
 declare class DisplayItemView {
-    #private;
     item: DisplayItem;
     view: HighlightControlView;
     viewModel: HighlightControlViewModel;
@@ -50,5 +49,16 @@ declare class DisplayItemView {
     elementwiseProductExplanation(otherView: DisplayItemView): html;
     get elementRepresentations(): html[];
     get elementString(): string;
+    private buildScheme;
+    private appendToSection;
+    private mountPartition;
+    private subgroopDisplayLine;
+    private subsetDisplayLine;
+    private conjugacyClassDisplayLine;
+    private orderClassDisplayLine;
+    private cosetDisplayLine;
+    private subgroopMenu;
+    private subsetMenu;
+    private partitionMenu;
 }
 export {};

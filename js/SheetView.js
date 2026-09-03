@@ -7,14 +7,13 @@ The View part of the Sheet Model-View-Controller structure.
 ```javascript
  */
 /* global DOMRect MouseEvent ResizeObserver TouchEvent Touch */
-var _a;
 import * as THREE from '../lib/externals.js';
 import { CayleyDiagramModel } from './CayleyDiagramModel.js';
 import { layoutCayleyDiagram } from './CayleyDiagramGenerator.js';
 import { createStaticCayleyDiagramView, layoutToJSON } from './CayleyDiagramView.js';
 import { CycleGraphModel } from './CycleGraphModel.js';
 import { createLargeCycleGraphView } from './CycleGraphView.js';
-import { createModelProxy } from './GEUtils.js';
+import { createModelProxy, isSerializable } from './GEUtils.js';
 import { MulttableModel } from './MulttableModel.js';
 import { createLargeMulttableView } from './MulttableView.js';
 let Graphic;
@@ -176,11 +175,11 @@ export class View {
     }
     moveElement(modelElement) {
         this.viewElements.get(modelElement.id)?.updateTransform();
-        this.#redrawLinks(modelElement);
+        this.redrawLinks(modelElement);
     }
     resizeElement(modelElement) {
         this.viewElements.get(modelElement.id)?.redraw();
-        this.#redrawLinks(modelElement);
+        this.redrawLinks(modelElement);
     }
     getVisualizerJSON(modelElement) {
         const viewElement = this.viewElements.get(modelElement.id);
@@ -189,9 +188,9 @@ export class View {
     updateVisualizer(modelElement, json) {
         const viewElement = this.viewElements.get(modelElement.id);
         viewElement?.updateFromJSON(json);
-        this.#redrawLinks(modelElement);
+        this.redrawLinks(modelElement);
     }
-    #redrawLinks(modelElement) {
+    redrawLinks(modelElement) {
         this.viewElements.forEach((viewEl) => {
             if ('isLink' in viewEl.modelElement
                 && (viewEl.modelElement.source.id === modelElement.id
@@ -342,9 +341,10 @@ export class VisualizerView extends NodeView {
             let debounceTimer;
             this._highlightSubscriber = {
                 update: (field, value) => {
+                    console.log(isSerializable(value) == (value?.nextId != null));
                     if (value != null
                         && (field === 'highlightColors'
-                            || (field === 'highlightControl' && value?.nextId != null))) {
+                            || (field === 'highlightControl' && isSerializable(value)))) {
                         clearTimeout(debounceTimer);
                         debounceTimer = setTimeout(() => {
                             this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.());
@@ -399,8 +399,8 @@ export class MTView extends VisualizerView {
 }
 export class CDView extends VisualizerView {
     _highlightModelProxy;
-    static #sharedViewModel = null;
-    static #activeView = null;
+    static sharedViewModel = null;
+    static activeView = null;
     constructor(view, modelElement) {
         super(view, modelElement, document.createElement('canvas'));
         this.initializeLayout();
@@ -415,37 +415,41 @@ export class CDView extends VisualizerView {
     // swap our json into shared visualizer and use it to draw diagram
     // check the case where we delete the element holding the shared view model
     get visualizer() {
-        if (_a.#activeView == this) {
-            return _a.#sharedViewModel;
+        if (CDView.activeView == this) {
+            return CDView.sharedViewModel;
         }
-        if (_a.#sharedViewModel == null) { // no shared view model -- create one from this.modelElement
+        if (CDView.sharedViewModel == null) { // no shared view model -- create one from this.modelElement
             const cdModel = createModelProxy(new CayleyDiagramModel(this.modelElement.group))
                 .fromJSON(this.modelElement.visualizerJSON);
-            _a.#sharedViewModel = createStaticCayleyDiagramView(cdModel);
+            CDView.sharedViewModel = createStaticCayleyDiagramView(cdModel);
         }
-        else { // shared view model already made -- roll out #activeView, roll in this
-            if (_a.#activeView != null) {
-                _a.#activeView.modelElement.visualizerJSON = _a.#sharedViewModel.toJSON();
+        else { // shared view model already made -- roll out activeView, roll in this
+            if (CDView.activeView != null) {
+                CDView.activeView.modelElement.visualizerJSON = CDView.sharedViewModel.toJSON();
             }
-            if (this.#canFastTrack()) {
-                _a.#sharedViewModel.model.highlightColors = [...this.modelElement.visualizerJSON.highlight_colors];
+            if (this.canFastTrack()) {
+                CDView.sharedViewModel.model.highlightColors =
+                    [...(this.modelElement.visualizerJSON.highlight_colors ?? [[], [], []])];
             }
             else {
-                _a.#sharedViewModel.fromJSON(this.modelElement.visualizerJSON);
+                CDView.sharedViewModel.fromJSON(this.modelElement.visualizerJSON);
             }
         }
-        _a.#activeView = this;
-        return _a.#sharedViewModel;
+        CDView.activeView = this;
+        return CDView.sharedViewModel;
     }
-    #canFastTrack() {
-        const sharedModel = _a.#sharedViewModel?.model;
+    canFastTrack() {
+        const sharedModel = CDView.sharedViewModel?.model;
         const thisModel = this.modelElement.visualizerJSON;
-        const REQUIRED_MATCHING_FIELDS = ['background', 'fog_level', 'line_width', 'sphere_scale_factor', 'zoom_level', 'arrowhead_placement', 'label_scale_factor'];
+        const REQUIRED_MATCHING_FIELDS = [
+            'background', 'fog_level', 'line_width', 'sphere_scale_factor',
+            'zoom_level', 'arrowhead_placement', 'label_scale_factor'
+        ];
         const canFastTrack = sharedModel?.group.URL == thisModel.group_url
             && JSON.stringify(layoutToJSON(sharedModel.layout)) == JSON.stringify(thisModel.layout)
-            && (thisModel.background == null // => this has never been live
-                || (sharedModel.highlightControl == null // live but never edited
-                    && thisModel.highlight_control == null // live but never edited
+            && (thisModel.background == null // => thisModel has never been live
+                || (sharedModel.highlightControl == null // has been live, but never edited
+                    && thisModel.highlight_control == null // has been live, but never edited
                     && REQUIRED_MATCHING_FIELDS.every((field) => sharedModel[field] == thisModel[field])));
         return canFastTrack;
     }
@@ -454,16 +458,17 @@ export class CDView extends VisualizerView {
             const visualizer = this.visualizer;
             const model = createModelProxy(new CayleyDiagramModel(this.modelElement.group));
             model.highlightColors = [...visualizer.model.highlightColors];
-            model.highlightControl = (visualizer.model.highlightControl?.toJSON == null)
-                ? visualizer.model.highlightControl
-                : visualizer.model.highlightControl.toJSON();
+            model.highlightControl = (isSerializable(visualizer.model.highlightControl))
+                ? visualizer.model.highlightControl.toJSON()
+                : visualizer.model.highlightControl;
             // store subscriber on instance — WeakRef in createModelProxy would otherwise GC it
             this._highlightSubscriber = {
                 update: (field, value) => {
                     if (field === 'highlightColors') {
                         const visualizer = this.visualizer;
                         visualizer.model.highlightColors = [...value];
-                        visualizer.model.highlightControl = model.highlightControl.toJSON();
+                        visualizer.model.highlightControl =
+                            model.highlightControl.toJSON();
                         this.redraw();
                         redrawLinksFor(this.modelElement);
                         this.modelElement.onVisualizerChange?.(this.modelElement.getVisualizerJSON?.());
@@ -487,8 +492,9 @@ export class CDView extends VisualizerView {
     updateFromJSON(json) {
         this.visualizer.fromJSON(json);
         if (this._highlightModelProxy != null) {
-            const hc = this.visualizer.model.highlightControl;
-            this._highlightModelProxy.highlightControl.fromJSON(hc?.toJSON == null ? hc : hc.toJSON());
+            const highlightControl = this.visualizer.model.highlightControl;
+            this._highlightModelProxy.highlightControl
+                .fromJSON(isSerializable(highlightControl) ? highlightControl.toJSON() : highlightControl);
             this._highlightModelProxy.highlightColors = [...this.visualizer.model.highlightColors];
             // subscriber handles redraw
         }
@@ -497,8 +503,8 @@ export class CDView extends VisualizerView {
         }
     }
     destroy() {
-        if (_a.#activeView == this) {
-            _a.#activeView = null;
+        if (CDView.activeView == this) {
+            CDView.activeView = null;
         }
         super.destroy();
     }
@@ -513,11 +519,11 @@ export class CDView extends VisualizerView {
         this.domElement.setAttribute('height', size.y.toString());
         const context = this.domElement.getContext('2d');
         context.drawImage(this.visualizer.view.canvas, 0, 0);
-        this.unitSquarePositions = _a.#sharedViewModel.unitSquarePositions();
+        this.unitSquarePositions = CDView.sharedViewModel.unitSquarePositions();
     }
     restoreHighlights(snapshot) {
-        if (_a.#activeView === this && _a.#sharedViewModel != null) {
-            _a.#sharedViewModel.model.highlightColors = this.modelElement.visualizerJSON.highlight_colors;
+        if (CDView.activeView === this && CDView.sharedViewModel != null) {
+            CDView.sharedViewModel.model.highlightColors = this.modelElement.visualizerJSON.highlight_colors;
         }
         else {
             this.modelElement.visualizerJSON.highlight_colors[0] = snapshot;
@@ -525,9 +531,8 @@ export class CDView extends VisualizerView {
         this.redraw();
     }
 }
-_a = CDView;
 const LINE_LEN = 40;
-class Arrow {
+export class Arrow {
     static PIXELS_PER_INCH;
     line;
     head;

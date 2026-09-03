@@ -7,10 +7,10 @@ with links to their larger visualizers.
 
 ```javascript
  */
-import { createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
-import { createUnlabelledCycleGraphView } from './CycleGraphView.js'
-import { createMinimalMulttableView } from './MulttableView.js'
-import { createSymmetryObjectThumbnailView } from './SymmetryObjectView.js'
+import { CayleyDiagramViewModel, createCayleyDiagramThumbnailView} from './CayleyDiagramView.js'
+import { createUnlabelledCycleGraphView, CycleGraphViewModel } from './CycleGraphView.js'
+import { createMinimalMulttableView, MulttableViewModel } from './MulttableView.js'
+import { createSymmetryObjectThumbnailView, SymmetryObjectViewModel } from './SymmetryObjectView.js'
 import * as GEUtils from './GEUtils.js'
 import { IMAGE_SIZE } from './GroupTable.js'
 import * as SheetModel from './SheetModel.js'
@@ -109,10 +109,10 @@ function makeViews (group: Group, viewElementId: string) {
 // Display rows of visualizer thumbnails
 function getImages (group: Group): Maybe<imageType>[][] {
    const THUMBNAIL_SIZE = {height: IMAGE_SIZE, width: IMAGE_SIZE}
-   let cayleyDiagramGenerator
-   let cycleGraphView
-   let multtableView
-   let symmetryObjectView
+   let cayleyDiagramThumbnailView!: CayleyDiagramViewModel
+   let cycleGraphView: CycleGraphViewModel
+   let multtableView: MulttableViewModel
+   let symmetryObjectView!: SymmetryObjectViewModel
 
    const images: Maybe<imageType>[][] =  Array.from(
       {length: Math.max(1, group.cayleyDiagrams.length + 1, group.symmetryObjects.length)},
@@ -120,21 +120,21 @@ function getImages (group: Group): Maybe<imageType>[][] {
 
    // Create cayley diagram thumbnails
    for (let inx = 0; inx < group.cayleyDiagrams.length + 1; inx++) {
-      if (cayleyDiagramGenerator == null) {
-         cayleyDiagramGenerator = createCayleyDiagramThumbnailView(THUMBNAIL_SIZE)
+      if (cayleyDiagramThumbnailView == null) {
+         cayleyDiagramThumbnailView = createCayleyDiagramThumbnailView(THUMBNAIL_SIZE)
       }
       const diagramName = group.cayleyDiagrams[inx]?.name
-      cayleyDiagramGenerator.draw(group, diagramName)
+      cayleyDiagramThumbnailView.draw(group, diagramName)
       images[inx][0]= {
          name: diagramName,
          link: `CayleyDiagram.html?groupURL=${group.URL}` + ((diagramName == null) ? '' : `&diagram=${diagramName}`),
-         src: cayleyDiagramGenerator.getImage().src,
+         src: cayleyDiagramThumbnailView.getImage().src,
       }
    }
 
    // Create cycle graph thumbnail
    {
-      let imageSource
+      let imageSource: string
       if (group.thumbnails?.cycleGraph != null) {
          imageSource = group.thumbnails.cycleGraph
       } else {
@@ -150,7 +150,7 @@ function getImages (group: Group): Maybe<imageType>[][] {
 
    // Create multtable thumbnail
    {
-      let imageSource
+      let imageSource: string
       if (group.thumbnails?.multtable != null) {
          imageSource = group.thumbnails.multtable
       } else {
@@ -167,7 +167,7 @@ function getImages (group: Group): Maybe<imageType>[][] {
    // Maybe create symmetry object thumbnails
    for (let inx = 0; inx < group.symmetryObjects.length; inx++) {
       const symmetryObjectName = group.symmetryObjects[inx].name
-      let imageSource
+      let imageSource: string
       if (inx == 0 && group.thumbnails?.symmetryObject != null) {
          imageSource = group.thumbnails.symmetryObject
       } else {
@@ -201,7 +201,6 @@ function showAllVisualizersSheet (group: Group) {
     const totalW = 3 * W + 2 * gap
     const L = (window.innerWidth - panelWidth - totalW) / 2
     const vizY = 0.4 * (window.innerHeight - H)   // center visualizers just above midline
-
     const allVisualizersSheet: SheetModel.SheetElementRequest[] = [
         {
             className : 'CDElement', id : 'cd',

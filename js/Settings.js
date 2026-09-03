@@ -14,6 +14,14 @@ const DEFAULTS = {
     showNotable: false,
     showGenerated: false,
 };
+export function isSettingsUpdate(message) {
+    return message != null
+        && typeof message === 'object'
+        && 'source' in message
+        && message.source === 'settings'
+        && 'values' in message
+        && message.values != null;
+}
 // in-memory cache — authoritative source for this tab
 const cache = Object.assign({}, DEFAULTS);
 // populate cache from IndexedDB.Settings; called from AutoUpgrade.initialize
@@ -22,12 +30,9 @@ export async function loadSettings() {
     Object.assign(cache, storedSettings);
 }
 // listen for settings changes from other tabs and update cache from message
-new BroadcastChannel('GE3-channel').addEventListener('message', (ev) => {
-    if (ev.data.source !== 'settings')
-        return;
-    const values = ev.data.values;
-    if (values != null)
-        Object.assign(cache, values);
+new BroadcastChannel('GE3-channel').addEventListener('message', (messageEvent) => {
+    if (isSettingsUpdate(messageEvent.data))
+        Object.assign(cache, messageEvent.data.values);
 });
 export function getFilterConfig() {
     return { ...cache };
