@@ -22,14 +22,15 @@ type SymmetryObjectLayout = {
     paths: PathType[];
 };
 export declare class SymmetryObjectViewModel implements Updatable {
-    #private;
+    private _model;
+    private _view;
+    private static modelFields;
     get group(): Group;
     get view(): AbstractDiagramDisplay;
     get model(): CayleyDiagramModel;
     setModel(model: SubscriptionProxy<CayleyDiagramModel>): void;
     setView(view: AbstractDiagramDisplay): void;
-    updateModel(field: string, value: any): void;
-    update(field: string, value: any): void;
+    update(field: string, value: unknown): void;
     resize(): void;
     showGraphic(): void;
     getImage(): HTMLImageElement;

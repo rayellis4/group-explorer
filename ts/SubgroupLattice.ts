@@ -175,7 +175,7 @@ export class SubgroupLattice {
       // 1) find an element that will generate what extension and an existing generator do now
       const generators = subgroup.generators.toArray();
       for (let i = 0; i < generators.length; i++) {
-         const closure = this.#closure([extension, generators[i]]);
+         const closure = this.closure([extension, generators[i]]);
          const order_classes = this.group.orderClasses[closure.popcount()];
          if (order_classes !== undefined) {
             const cyclic_generator =
@@ -194,7 +194,7 @@ export class SubgroupLattice {
       for (let i = 0; i < generators.length - 1; i++) {
          const gens = generators.slice();
          gens.splice(i,1);
-         const closure = this.#closure(gens);
+         const closure = this.closure(gens);
          if (closure.equals(subgroup.members)) {
             subgroup.generators
                     .clear(generators[i])
@@ -209,7 +209,7 @@ export class SubgroupLattice {
 
    // takes bitset or array of generators; return bitset
    // note that it does not rely on already knowing the group subgroups
-   #closure (generators: BitSet | groupElement[]): BitSet {
+   private closure (generators: BitSet | groupElement[]): BitSet {
       const mult = (a: groupElement, b: groupElement) => this.group.multtable[a][b];
       const gens = Array.isArray(generators) ? [...generators]  : generators.toArray();
       const rslt = new BitSet(this.group.order).set(0);

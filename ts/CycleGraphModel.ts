@@ -10,15 +10,16 @@ Model for the cycle graph visualizer. Holds all serializable state:
 ```javascript
  */
 
+import { isSerializable } from './GEUtils.js'
 import * as Library from './Library.js'
 
 import type { Group } from './Group.js'
-import type { HighlightControlModelInterface } from './HighlightControl.js'
+import type { HighlightControlModelInterface, HighlightControlJSON } from './HighlightControl.js'
 
 export type CycleGraphJSON = {
    group_url: string,
    highlight_colors?: Maybe<color>[][],
-   highlight_control?: any
+   highlight_control?: HighlightControlJSON
 }
 
 export class CycleGraphModel implements HighlightControlModelInterface {
@@ -32,7 +33,7 @@ export class CycleGraphModel implements HighlightControlModelInterface {
    }
 
    // Opaque plugin slots (carried opaquely through serialization)
-   highlightControl: any = null
+   highlightControl!: HighlightControlJSON | (object & Serializable<HighlightControlJSON>)
 
    constructor (group: Group) {
       this.group = group
@@ -47,7 +48,9 @@ export class CycleGraphModel implements HighlightControlModelInterface {
       const json = {
          group_url: this.group.URL,
          highlight_colors: this.highlightColors,
-         highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl
+         highlight_control: isSerializable<HighlightControlJSON>(this.highlightControl)
+            ? this.highlightControl.toJSON()
+            : this.highlightControl
       }
 
       return json
@@ -61,10 +64,10 @@ export class CycleGraphModel implements HighlightControlModelInterface {
       }
       this.highlightColors = json.highlight_colors ?? this.highlightColors
       if (json.highlight_control != null) {
-         if (this.highlightControl != null && 'fromJSON' in this.highlightControl) {
-            this.highlightControl.fromJSON(json.highlight_control)
-         } else {
+         if (this.highlightControl == null || !('fromJSON' in this.highlightControl)) {
             this.highlightControl = json.highlight_control
+         } else if (json.highlight_control != null) {
+            this.highlightControl.fromJSON(json.highlight_control)
          }
       }
 

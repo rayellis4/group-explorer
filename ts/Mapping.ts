@@ -132,7 +132,7 @@ export class Mapping {
   }
 
   validSources (codomainElement: groupElement): groupElement[] {
-    let validSources
+    let validSources: groupElement[]
     const unmappedSources = this.domain.elements.filter((g) => this.image[g] === undefined)
     if (codomainElement === undefined) {
       validSources = unmappedSources

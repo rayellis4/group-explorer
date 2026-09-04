@@ -43,7 +43,8 @@ export interface MorphismElement extends SheetModel_.MorphismElement, SheetViewE
     destination: VisualizerElement;
 }
 export declare class SheetViewModel implements Updatable {
-    #private;
+    private _model;
+    private _view;
     constructor(model: SubscriptionProxy<SheetModel>);
     get model(): SheetModel;
     set model(model: SubscriptionProxy<SheetModel>);

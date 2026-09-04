@@ -266,7 +266,7 @@ function loadExtendedGroups(Library) {
             group.gapname = entry.gapname;
             group.names = entry.names;
             if (entry.link != null)
-                group.link = entry.link;
+                group.links = [entry.link];
             if (entry.phrase != null)
                 group.phrase = entry.phrase;
             Library.saveGroup(group);

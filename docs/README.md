@@ -189,16 +189,14 @@ incoming array (topologically sorted so anchors precede their captions) — used
 replacement: control panel Import, IndexedDB Load, and the external generators that build sheets
 programmatically (SolvableInfo, GroupInfo, etc.).
 
-The live visualizer for a node element always lives in its [SheetView](./SheetView.ts.md) element,
-never in the model — no exceptions. The model element holds only the JSON the visualizer was last
-built from (`visualizerJSON`). What SheetView needs from a visualizer has always been an implicit
-contract; the `SheetVisualizerInterface<JSONType>` defined in [SheetModel](./SheetModel.ts.md)
-makes it explicit for the first time, and each visualizer's ViewModel
-(`CayleyDiagramViewModel`, `CycleGraphViewModel`, `MulttableViewModel`) declares
-`implements SheetVisualizerInterface<...>` against it — by design, so the compiler holds them to
-it going forward. The interface: `group`, `highlightColors`, `canvas`,
-`getSize`/`setSize`/`resize`, `showGraphic`, `unitSquarePositions` (used to compute morphism-arrow
-endpoints), `getImage`, and `toJSON`/`fromJSON`.
+The live visualizer for a node element lives in its [SheetView](./SheetView.ts.md) element; the
+model element holds only the JSON the visualizer was last built from (`visualizerJSON`). What
+SheetView needs from a visualizer is specified in `SheetVisualizerInterface<JSONType>` defined in
+[SheetModel](./SheetModel.ts.md). Each visualizer's ViewModel (`CayleyDiagramViewModel`,
+`CycleGraphViewModel`, `MulttableViewModel`) declares `implements SheetVisualizerInterface<...>`
+against it — by design, so the compiler holds them to it going forward. The interface: `group`,
+`highlightColors`, `canvas`, `getSize`/`setSize`/`resize`, `showGraphic`, `unitSquarePositions`
+(used to compute morphism-arrow endpoints), `getImage`, and `toJSON`/`fromJSON`.
 
 Two element families live on a sheet: NodeElements and LinkElements. Node elements can display a
 cycle graph (`CGElement`), a multiplication table (`MTElement`), a Cayley diagram (`CDElement`), or
@@ -287,10 +285,19 @@ editing through the symlink with a tool that resolves it, or edit the real path 
   HTML attribute values `kebab-case`; less uniformly, JSON object field names are `snake_case`
 - **Functions**: space between name and `(` in declarations (`function doThing (arg) {`), not in
   invocation (`doThing(arg)`)
-- **Private class members**: ES2022 `#field`/`#method()`; use a `_field` prefix instead when the
-  field needs to participate in serialization (`#` fields are inaccessible outside the class).
-  (NB: the use of javascript private members is being evaluated and may be changed in favor of
-  using typescript `private` identifiers.)
+- **Private class members**: use typescript `private` instead of ES2022 `#field`/`#method()`;
+  `private _foo` is conventionally the hidden backing store for `foo` getter/setter methods.
+- **Typing**: take advantage of typescript features. Don't just declare a type `any` or leave it to
+  be inferred, use `unknown` instead and test for the correct type; but don't introduce tests where
+  the code itself makes them unneeded, this clutters the code and makes the core logic harder to
+  follow. For example, if the code creates a div with the id `foo`, assert that
+  `document.getElementById('foo')` is non-null by `document.getElementById('foo')!` or
+  `document.getElementById('foo') as HTMLDivElement`. Typing large pojo's is particularly
+  encouraged, especially those underlying external interfaces or passed between sheets.
+  <br>Type coverage is measured with nodejs-based `type-coverage`. The Go rewrite in typescript7
+  does not provide the programmatic compiler interface type-coverage uses, so typescript6 is
+  installed locally, while the makefile target that sets the release version runs the
+  globally-installed typescript7. This should change in the future.
 - **No jQuery** in production code — DOM APIs directly
 - Model layer stays OO (persistent identity, pub/sub, `toJSON`/`fromJSON` serialization suit
   objects); View/ViewUI layers lean functional as they're touched (closures for handler state,

@@ -1,10 +1,41 @@
 import { BitSet } from './BitSet.js';
 import type { Subgroup } from './Subgroup.js';
 import type { XMLCayleyDiagram, XMLSymmetryObject } from './XMLGroup.js';
-type GroupJSON = any;
-export type GroupFileJSON = any;
+export type ThumbnailsType = {
+    cayleyDiagram: string;
+    multtable: string;
+    cycleGraph: string;
+    symmetryObject?: string;
+};
+export type CustomType = {
+    name?: html;
+    representations?: html[][];
+    representationIndex?: integer;
+    notes?: html;
+};
+type GroupJSON = {
+    URL: string;
+    author: string;
+    cayleyDiagrams: XMLCayleyDiagram[];
+    custom: CustomType;
+    declaredGenerators: Maybe<groupElement[][]>;
+    definition: Maybe<html>;
+    gapid?: string;
+    gapname?: string;
+    lastModifiedOnServer?: Maybe<string>;
+    library?: void | 'extended' | 'notable' | 'generated';
+    links: Maybe<string[]>;
+    multtable: groupElement[][];
+    names: html[];
+    notes: string;
+    phrase: html;
+    representations: html[][];
+    shortName: string;
+    symmetryObjects: XMLSymmetryObject[];
+    thumbnails?: ThumbnailsType;
+};
+export type GroupFileJSON = GroupJSON;
 export declare class Group {
-    #private;
     multtable: groupElement[][];
     representations: html[][];
     names: html[];
@@ -18,20 +49,17 @@ export declare class Group {
     author: string;
     cayleyDiagrams: XMLCayleyDiagram[];
     symmetryObjects: XMLSymmetryObject[];
-    custom: {
-        [key: string]: any;
-    };
+    custom: CustomType;
     library?: void | 'extended' | 'notable' | 'generated';
     lastModifiedOnServer?: Maybe<string>;
-    thumbnails?: any;
+    thumbnails?: ThumbnailsType;
     URL: string;
-    _gapid_lock?: string;
     constructor(multtable: groupElement[][]);
     static fromMulttable(multtable: groupElement[][]): Group;
     static fromGroupFileJSON(json: GroupJSON): Group;
     static fromLocalCopyJSON(json: GroupFileJSON): Group;
     get name(): html;
-    get customName(): html;
+    get customName(): html | undefined;
     set customName(customName: html);
     get gapid(): string;
     set gapid(gapid: string);
@@ -71,6 +99,14 @@ export declare class Group {
     get relations(): groupElement[][];
     get subgroups(): Subgroup[];
     get subgroupOrders(): number[];
+    private setProperty;
+    private setElementPowersAndPrimePowers;
+    private setSubgroupsAndSolvable;
+    private getCenter;
+    private getConjugacyClasses;
+    private getConjugateSubgroupClasses;
+    private getElementPowers;
+    private getOrderClasses;
     mult(a: groupElement, b: groupElement): groupElement;
     conjugate(h: groupElement, g: groupElement): groupElement;
     closure(generators: BitSet | groupElement[]): BitSet;

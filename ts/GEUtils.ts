@@ -28,6 +28,7 @@ export {
    createActionHandler,
    createModelProxy,
    countBy,
+   isSerializable,
 }
 
 export {version} from './AutoUpgrade.js'
@@ -165,8 +166,8 @@ function htmlToContext (
 Uses the browser to escape special HTML characters, so '>' becomes '&gt;'
 ```javascript
  */
-function escapeHTML (string: string) {
-   let escapedString = null
+function escapeHTML (string: string): Maybe<html> {
+   let escapedString: Maybe<html> = null
    if (string != null) {
       const div = document.createElement('div')
       div.textContent = string
@@ -213,7 +214,7 @@ function createActionHandler (element: Element, actionCallback: (arg: string) =>
  */
 
 export interface Updatable {
-   update(field: string, value: any): void,
+   update(field: string, value: unknown): void,
 }
 
 export type SubscriptionProxy<T> = T & {
@@ -234,7 +235,7 @@ function createModelProxy <T extends object> (model: T): SubscriptionProxy<T> {
    const proxyCache: Map<string, Map<any, any>> = new Map()
 
    const handler: ProxyHandler<T> = {
-      get(model: T, property: string, _receiver: any) {
+      get(model: T, property: string, _receiver: unknown) {
          if (property == '$subscribe') {
             return (subscriber: Updatable, field: string) => {
                // should you be able to subscribe to a field that doesn't exist yet? not wrong, but no use case yet
@@ -260,7 +261,7 @@ function createModelProxy <T extends object> (model: T): SubscriptionProxy<T> {
 
          return value
       },
-      set(model: T, property: string, value: any, receiver: any) {
+      set(model: T, property: string, value: unknown, receiver: unknown) {
          if (Object.getOwnPropertyNames(model).includes(property)) {
             Reflect.set(model, property, value)
             if (value instanceof Map) {
@@ -275,15 +276,15 @@ function createModelProxy <T extends object> (model: T): SubscriptionProxy<T> {
 
    return (new Proxy(model, handler) as SubscriptionProxy<T>)
 
-   function createMapProxy (map: Map<any,any>, fieldName: string): Map<any,any> {
+   function createMapProxy (map: Map<unknown, unknown>, fieldName: string): Map<unknown, unknown> {
       const MAP_MUTATING_METHODS = ['set', 'delete', 'clear']
       return new Proxy(map, {
-         get (target: Map<any,any>, method: string) {
-            const value = Reflect.get(target, method)
+         get (target: Map<unknown, unknown>, method: string) {
+            const value: unknown = Reflect.get(target, method)
             if (typeof value === 'function') {
                if (MAP_MUTATING_METHODS.includes(method)) {
-                  return (...args: Array<any>) => {
-                     const result = value.apply(target, args)
+                  return (...args: Array<unknown>) => {
+                     const result: unknown = value.apply(target, args)
                      notifySubscribers(subscriptionMap, fieldName, {map: target, key: args[0]})
                      return result
                   }
@@ -315,7 +316,7 @@ function createModelProxy <T extends object> (model: T): SubscriptionProxy<T> {
       }
    }
 
-   function notifySubscribers (subscriptionMap: SubscriptionMap, property: string, value: any) {
+   function notifySubscribers (subscriptionMap: SubscriptionMap, property: string, value: unknown) {
       const subscriptions = subscriptionMap.get(property)
       if (subscriptions?.length) {
          for (let inx = subscriptions.length - 1; inx >= 0; inx--) {
@@ -336,7 +337,7 @@ Utility function returns an array of the counts of values of indexMap(value)
 For example, `countBy([{v: 4}, {v: 1}, {v: 2}, {v: 0}, {v: 1}], (val) => val.v) == [1,2,1,0,1]`
 ```javascript
 */
-function countBy (valueArray: any[], indexMap: (el: any) => number ): number[] {
+function countBy<T> (valueArray: T[], indexMap: (el: T) => number ): number[] {
    const countArray = valueArray.reduce<integer[]>((countArray, value) => {
       const bin = indexMap(value)
       if (countArray[bin] == null) {
@@ -348,3 +349,19 @@ function countBy (valueArray: any[], indexMap: (el: any) => number ): number[] {
 
    return [...countArray].map((el) => el ?? 0)
 }
+/*
+```
+### isSerializable
+Type guard for Serializable<T>
+
+```javascript
+ */
+function isSerializable<T>(value: unknown): value is Serializable<T> {
+   return value != null
+      && typeof value === 'object'
+      && 'toJSON' in value
+      && typeof value.toJSON === 'function'
+}
+/*
+```
+ */

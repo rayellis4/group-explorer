@@ -16,7 +16,7 @@ import * as GroupRegistry from './GroupRegistry.js'
 import * as Settings from './Settings.js'
 import * as GEUtils from './GEUtils.js'
 import * as Heading from './Heading.js'
-import { deserializeSheet, WrappedSheet, wrapSheet, unwrapSheet } from './SheetSerialization.js'
+import { CURRENT_FORMAT_VERSION, deserializeSheet, isVersionedSheet, isRawSheet } from './SheetSerialization.js'
 import { getStoredSheet, saveStoredSheet, removeStoredSheet, listStoredSheets } from './StoredObjects.js'
 import { makeFixedMenu, makeDetachedMenu, makeMockSelect, makeDialog } from './UIComponents.js'
 import { SheetModel } from './SheetModel.js'
@@ -24,9 +24,15 @@ import * as SheetView from './SheetView.js'
 
 import type { Group } from './Group.ts'
 import type { SheetJSON, ConcreteSheetTypes } from './SheetModel.ts'
+import type { VersionedSheet } from './SheetSerialization.js'
 import type { SheetViewModel } from './SheetViewModel.ts'
 
-type NamedSheet = { sheetName: string, sheetJSON: WrappedSheet }
+type NamedSheet = VersionedSheet & {sheetName: string}
+type SheetBackup = NamedSheet[]
+function isSheetBackup (obj: unknown): obj is SheetBackup {
+   return Array.isArray(obj) && obj[0] != null && typeof obj[0] === 'object'
+      && 'sheetName' in obj[0]
+}
 /*
 ```
 ### addControl
@@ -109,12 +115,12 @@ class ViewModel {
    }
 
    async loadSheet (sheetName: string) {
-      const jsonObject = unwrapSheet((await getStoredSheet(sheetName)) as WrappedSheet)
+      const jsonObject = ((await getStoredSheet(sheetName)) as VersionedSheet).sheet
       this.#model.fromJSON(jsonObject)
    }
 
    saveSheet (sheetName: string) {
-      saveStoredSheet(sheetName, wrapSheet(this.#model.toJSON()))
+      saveStoredSheet(sheetName, {version: CURRENT_FORMAT_VERSION, sheet: this.#model.toJSON()})
    }
 
    async deleteSheet (sheetName: string) {
@@ -253,7 +259,7 @@ class View {
    }
 
    async renameSheet (sheetName: string, location: NumberLocation) {
-      const sheetContent = unwrapSheet((await getStoredSheet(sheetName)) as WrappedSheet)
+      const sheetContent = ((await getStoredSheet(sheetName)) as VersionedSheet).sheet
       const newName = await this.showNameSheetDialog(location, sheetName, sheetContent)
       if (newName != null) {
          await this.viewModel.deleteSheet(sheetName)
@@ -320,7 +326,7 @@ class View {
             } else if (allNames.includes(newSheetName)) {
                alert(`A stored sheet named "${newSheetName}" already exists`)
             } else {
-               saveStoredSheet(newSheetName, wrapSheet(sheetContent))
+               saveStoredSheet(newSheetName, {version: CURRENT_FORMAT_VERSION, sheet: sheetContent})
                   .then(() => {
                      this.showStoredSheets()
                      this.displaySheetName(newSheetName)
@@ -334,7 +340,7 @@ class View {
    }
 
    showExportSheetDialog (location: NumberLocation) {
-      const modelJSON = JSON.stringify(wrapSheet(this.viewModel.toJSON()))
+      const modelJSON = JSON.stringify({version: CURRENT_FORMAT_VERSION, sheet: this.viewModel.toJSON()})
       const exportSheetDialogHTML =
          `<div id="export-sheet-dialog" class="flex-v" style="min-height: 15em; min-width: 60ch; overflow: hidden">
             <style>
@@ -374,7 +380,7 @@ class View {
       const importFromTextarea = () => {
          const jsonString = (document.getElementById('import-sheet-value') as HTMLInputElement).value
          if (jsonString !== '') {
-            this.viewModel.fromJSON(deserializeSheet(jsonString))
+            this.viewModel.fromJSON(deserializeSheet(jsonString).sheet)
          }
          dialog.remove()
       }
@@ -477,14 +483,13 @@ class View {
             .from(document.querySelectorAll('#backup-sheets-choices input:checked')) as HTMLInputElement[])
             .map((checkbox) => checkbox.name)
          const checkedSheetsJSON = await Promise
-            .allSettled(checkedSheetNames.map((name) => getStoredSheet(name) as Promise<WrappedSheet>))
+            .allSettled(checkedSheetNames.map((name) => getStoredSheet(name) as Promise<VersionedSheet>))
 
          const result = []
          for (const inx in checkedSheetNames) {
             if (checkedSheetsJSON[inx].status === 'fulfilled') {
-               const namedSheet = 
-                  {sheetName: checkedSheetNames[inx], sheetJSON: checkedSheetsJSON[inx].value}
-               result.push(namedSheet)
+               (checkedSheetsJSON[inx].value as NamedSheet).sheetName = checkedSheetNames[inx]
+               result.push(checkedSheetsJSON[inx].value)
             }
          }
 
@@ -568,18 +573,9 @@ class View {
 
       const storeJSON = async (restoredJSONString: string) => {
          if (restoredJSONString !== '') {
-            let restoredJSONObject = JSON.parse(restoredJSONString)
-            if (  !Array.isArray(restoredJSONObject)
-               && restoredJSONObject.version != null
-               && restoredJSONObject.sheet.sheetName == null
-            ) {
-               saveStoredSheet('unnamed sheet', restoredJSONObject)
-               closeDialog()
-            } else if (restoredJSONObject.length > 0 && restoredJSONObject[0].sheetName == null) {
-               saveStoredSheet('unnamed sheet', wrapSheet(deserializeSheet(restoredJSONString)))
-               closeDialog()
-            } else if (Array.isArray(restoredJSONObject) && 'sheetName' in restoredJSONObject[0]) {
-               const restoreSheetsChoices = (restoredJSONObject as NamedSheet[])
+            const restoredJSONObject: unknown = JSON.parse(restoredJSONString)
+            if (isSheetBackup(restoredJSONObject)) {  // from backup
+               const restoreSheetsChoices = restoredJSONObject
                   .map(({sheetName}) =>
                      `<input type="checkbox" name="${GEUtils.escapeHTML(sheetName)}" checked>
                          <label for="${GEUtils.escapeHTML(sheetName)}">${sheetName}</label><br>`)
@@ -598,11 +594,19 @@ class View {
                      .map((checkbox) => checkbox.name)
                   Promise
                      .allSettled(sheetNamesToRestore.map((name) => {
-                        const sheetJSON = restoredJSONObject.find(({sheetName}) => sheetName == name).sheetJSON
-                        return saveStoredSheet(name, sheetJSON)
+                        const namedSheet = restoredJSONObject.find(({sheetName}) => sheetName == name)!
+                        delete (namedSheet as Partial<NamedSheet>).sheetName
+                        return saveStoredSheet(name, namedSheet)
                      }))
                      .then(() => closeDialog())
                })
+            } else if (isVersionedSheet(restoredJSONObject)) {  // from current export
+               saveStoredSheet('unnamed sheet', restoredJSONObject)
+               closeDialog()
+            } else if (isRawSheet(restoredJSONObject)) {  // from old export
+               const restoredSheet = deserializeSheet(restoredJSONString)
+               saveStoredSheet('unnamed sheet', restoredSheet)
+               closeDialog()
             }
          }
       }

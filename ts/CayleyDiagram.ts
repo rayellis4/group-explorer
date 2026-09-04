@@ -74,7 +74,7 @@ export async function load () {
 
       SheetEditor.enableModelChangeBroadcast(elementId as string, cayleyDiagramModel, SHEET_UPDATE_FIELDS)
 
-      SheetEditor.listenForSheetUpdates((json: CayleyDiagramModelJSON) => cayleyDiagramModel.fromJSON(json))
+      SheetEditor.listenForSheetUpdates<CayleyDiagramModelJSON>((json) => cayleyDiagramModel.fromJSON(json))
    }
 
    // Create Control Panel

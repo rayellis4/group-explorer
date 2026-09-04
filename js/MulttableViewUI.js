@@ -142,7 +142,10 @@ function dragStart(event, multtableViewModel, dragImage) {
     // make these the width and height of the img, bounded by canvas size
     const cellSize = multtableViewModel.view.transform.elements[0]; // [0] is the scale in the transform matrix
     const tableSize = multtableViewModel.view.table_size * cellSize;
-    let width, height, swapping, start;
+    let width;
+    let height;
+    let swapping;
+    let start;
     if (rowXcol.row == 0 && rowXcol.col != 0) { // dragging column?
         [swapping, start, width, height] = ['col', rowXcol.col, cellSize, tableSize];
     }

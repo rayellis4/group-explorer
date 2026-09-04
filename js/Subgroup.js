@@ -34,51 +34,51 @@ export class Subgroup {
             `members: ${this.members.toString()}`;
     }
     get order() {
-        this.#setProperty('order', this.members.popcount());
+        this.setProperty('order', this.members.popcount());
         return this.order;
     }
     get index() {
-        this.#setProperty('index', this.group.order / this.order);
+        this.setProperty('index', this.group.order / this.order);
         return this.index;
     }
     get isCyclic() {
-        this.#setProperty('isCyclic', this.generators.popcount() == 1);
+        this.setProperty('isCyclic', this.generators.popcount() === 1);
         return this.isCyclic;
     }
     get isNormal() {
-        this.#setProperty('isNormal', this.#subgroupIsNormal());
+        this.setProperty('isNormal', this.subgroupIsNormal());
         return this.isNormal;
     }
     get isomorphicGroup() {
-        this.#setIsomorphicGroupAndEmbedding();
+        this.setIsomorphicGroupAndEmbedding();
         return this.isomorphicGroup;
     }
     get isomorphicGroupEmbedding() {
-        this.#setIsomorphicGroupAndEmbedding();
+        this.setIsomorphicGroupAndEmbedding();
         return this.isomorphicGroupEmbedding;
     }
     get isomorphicQuotientGroup() {
-        this.#setQuotientGroupAndMap();
+        this.setQuotientGroupAndMap();
         return this.isomorphicQuotientGroup;
     }
     get isomorphicQuotientMap() {
-        this.#setQuotientGroupAndMap();
+        this.setQuotientGroupAndMap();
         return this.isomorphicQuotientMap;
     }
     get leftCosets() {
-        this.#setProperty('leftCosets', this.#getCosets('left'));
+        this.setProperty('leftCosets', this.getCosets('left'));
         return this.leftCosets;
     }
     get rightCosets() {
-        this.#setProperty('rightCosets', this.#getCosets('right'));
+        this.setProperty('rightCosets', this.getCosets('right'));
         return this.rightCosets;
     }
     get subgroupIndex() {
-        this.#setProperty('subgroupIndex', this.group.subgroups.findIndex((H) => H.members.equals(this.members)));
+        this.setProperty('subgroupIndex', this.group.subgroups.findIndex((H) => H.members.equals(this.members)));
         return this.subgroupIndex;
     }
     ////////////////////////// Private helper functions
-    #getCosets(side) {
+    getCosets(side) {
         const mult = (side == 'left')
             ? (a, b) => this.group.multtable[a][b]
             : (a, b) => this.group.multtable[b][a];
@@ -96,7 +96,7 @@ export class Subgroup {
         }
         return cosets;
     }
-    #getLibraryGroup(G) {
+    getLibraryGroup(G) {
         let libraryGroup = IsomorphicGroups.find(G);
         if (libraryGroup == null) {
             const presentation = DefiningRelations.makePresentation(G);
@@ -110,7 +110,7 @@ export class Subgroup {
     // such that Q is in the groups library and q is an onto map from G to Q
     // with kernel K.  q is stored as an array such that q[i] means q(i),
     // for all i in G.
-    #getQuotientGroup() {
+    getQuotientGroup() {
         const cosets = this.leftCosets;
         const quotientOrder = cosets.length;
         const cosetReps = cosets.map((coset) => coset.first());
@@ -122,7 +122,7 @@ export class Subgroup {
             });
         });
         const quotientGroup = Group.fromMulttable(multtable);
-        const libraryGroup = this.#getLibraryGroup(quotientGroup);
+        const libraryGroup = this.getLibraryGroup(quotientGroup);
         const isomorphism = IsomorphicGroups.isomorphism(quotientGroup, libraryGroup);
         if (isomorphism == null) {
             throw new Error('Subgroup.getQuotientGroup error:\n' +
@@ -134,7 +134,7 @@ export class Subgroup {
     // such that H' is in the groups library and f is an embedding of H'
     // into G and onto H.  f is stored as an array such that f[i] means f(i),
     // for all i in H'.
-    #getSubgroupAsGroup() {
+    getSubgroupAsGroup() {
         const subgroupToParent = this.members.toArray();
         const parentToSubgroup = subgroupToParent.reduce((acc, el, inx) => { acc[el] = inx; return acc; }, new Array(this.group.order));
         const multtable = Array.from({ length: this.order }, (_, inx) => {
@@ -143,7 +143,7 @@ export class Subgroup {
             });
         });
         const subgroupAsGroup = Group.fromMulttable(multtable);
-        const libraryGroup = this.#getLibraryGroup(subgroupAsGroup);
+        const libraryGroup = this.getLibraryGroup(subgroupAsGroup);
         const isomorphism = IsomorphicGroups.isomorphism(libraryGroup, subgroupAsGroup);
         if (isomorphism == null) {
             throw new Error('Subgroup.getSubgroupAsGroup error:\n' +
@@ -151,25 +151,25 @@ export class Subgroup {
         }
         return [libraryGroup, isomorphism.map((elt) => subgroupToParent[elt])];
     }
-    #setProperty(propertyName, value) {
+    setProperty(propertyName, value) {
         Object.defineProperty(this, propertyName, {
             value: value,
             enumerable: false
         });
     }
-    #setIsomorphicGroupAndEmbedding() {
-        const [isomorphicGroup, isomorphicGroupEmbedding] = this.#getSubgroupAsGroup();
-        this.#setProperty('isomorphicGroup', isomorphicGroup);
-        this.#setProperty('isomorphicGroupEmbedding', isomorphicGroupEmbedding);
+    setIsomorphicGroupAndEmbedding() {
+        const [isomorphicGroup, isomorphicGroupEmbedding] = this.getSubgroupAsGroup();
+        this.setProperty('isomorphicGroup', isomorphicGroup);
+        this.setProperty('isomorphicGroupEmbedding', isomorphicGroupEmbedding);
     }
-    #setQuotientGroupAndMap() {
+    setQuotientGroupAndMap() {
         const [isomorphicQuotientGroup, isomorphicQuotientMap] = this.isNormal
-            ? this.#getQuotientGroup()
+            ? this.getQuotientGroup()
             : [null, null];
-        this.#setProperty('isomorphicQuotientGroup', isomorphicQuotientGroup);
-        this.#setProperty('isomorphicQuotientMap', isomorphicQuotientMap);
+        this.setProperty('isomorphicQuotientGroup', isomorphicQuotientGroup);
+        this.setProperty('isomorphicQuotientMap', isomorphicQuotientMap);
     }
-    #subgroupIsNormal() {
+    subgroupIsNormal() {
         const isNormal = (this.group.isAbelian)
             ? true
             : this.group.generators.every((g) => this.generators.toArray().every((h) => this.members.isSet(this.group.conjugate(h, g))));

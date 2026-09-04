@@ -274,14 +274,14 @@ function manifestEntryToURL (entry: ExtendedManifestEntry): string {
    return `${EXTENDED_GROUP_PREFIX}?${entry.presentation}`
 }
 
-function loadExtendedGroups (Library: any) {
+function loadExtendedGroups (Library: typeof import("./Library.ts")) {
    for (const entry of EXTENDED_MANIFEST) {
       const group = Library.getGroupByURL(manifestEntryToURL(entry))
       if (group != null) {
          group.gapid   = entry.gapid
          group.gapname = entry.gapname
          group.names   = entry.names
-         if (entry.link != null)   group.link   = entry.link
+         if (entry.link != null)   group.links   = [entry.link]
          if (entry.phrase != null) group.phrase  = entry.phrase
          Library.saveGroup(group)
       }
@@ -331,7 +331,7 @@ export async function initialize () {
       }
 
       try {
-         const Library = await import('./Library.js') // dynamic import so it doesn't happen before loading this page
+         const Library: typeof import("./Library.ts") = await import('./Library.js') // dynamic import so it doesn't happen before loading this page
          await Library.updateAllGroups(groupFiles.map((url) => baseURL + url))
          loadExtendedGroups(Library)
       } catch (err) {

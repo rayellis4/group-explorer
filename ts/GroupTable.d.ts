@@ -11,7 +11,7 @@ type ColumnDef = {
     headerClass?: string;
     defaultVisible: boolean;
     sortComparator?: sortComparator;
-    cellHTML: (group: any, aux: Aux) => string;
+    cellHTML: (group: Group, aux: Aux) => string;
 };
 export declare const COLUMNS: ColumnDef[];
 export declare function display(tableElement: HTMLElement, groupsToDisplay: Group[]): void;

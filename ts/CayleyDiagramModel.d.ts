@@ -1,7 +1,7 @@
 import type { CayleyDiagramControlJSON } from './CayleyDiagramControl.ts';
 import type { LayoutType, LayoutJSON } from './CayleyDiagramView.ts';
 import type { Group } from './Group.ts';
-import type { HighlightControlModelInterface } from './HighlightControl.ts';
+import type { HighlightControlModelInterface, HighlightControlJSON } from './HighlightControl.ts';
 export { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js';
 export type { POV, NodeType, ArrowType, ChunkType, LayoutType } from './CayleyDiagramView.ts';
 export type CayleyDiagramModelJSON = {
@@ -16,7 +16,7 @@ export type CayleyDiagramModelJSON = {
     label_scale_factor: CayleyDiagramModel['label_scale_factor'];
     showing_axes: CayleyDiagramModel['showingAxes'];
     highlight_colors: CayleyDiagramModel['highlightColors'];
-    highlight_control: CayleyDiagramModel['highlightControl'];
+    highlight_control?: HighlightControlJSON;
     diagram_control: CayleyDiagramControlJSON;
 };
 export declare class CayleyDiagramModel implements HighlightControlModelInterface {
@@ -37,8 +37,8 @@ export declare class CayleyDiagramModel implements HighlightControlModelInterfac
     label_scale_factor: float;
     showingAxes: boolean;
     highlightColors: Maybe<color>[][];
-    highlightControl: any;
-    diagramControl: any;
+    highlightControl: HighlightControlJSON | (object & Serializable<HighlightControlJSON>);
+    diagramControl: CayleyDiagramControlJSON | (object & Serializable<CayleyDiagramControlJSON>);
     snap_to_axis_request: boolean;
     constructor(group: Group);
     reset(): void;

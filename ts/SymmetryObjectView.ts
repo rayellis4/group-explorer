@@ -53,9 +53,10 @@ type SymmetryObjectLayout = {
 const SYMMETRY_OBJECT_BACKGROUND_COLOR = '#C8E8C8';
 
 export class SymmetryObjectViewModel implements Updatable {
-   #model!: CayleyDiagramModel
-   #view!: AbstractDiagramDisplay
-   #modelFields: (keyof CayleyDiagramModel)[] = [
+   private _model!: CayleyDiagramModel
+   private _view!: AbstractDiagramDisplay
+
+   private static modelFields: (keyof CayleyDiagramModel)[] = [
       'group',
       'layout',
       'background',
@@ -72,44 +73,50 @@ export class SymmetryObjectViewModel implements Updatable {
    }
 
    get view (): AbstractDiagramDisplay {
-      return this.#view
+      return this._view
    }
 
    get model (): CayleyDiagramModel {
-      return this.#model
+      return this._model
    }
 
    setModel (model: SubscriptionProxy<CayleyDiagramModel>) {
-      this.#model = model
-      this.#modelFields.forEach((field) => model.$subscribe(this, field))
+      this._model = model
+      SymmetryObjectViewModel.modelFields.forEach((field) => model.$subscribe(this, field))
       if (this.view != null) {
-         this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
+         SymmetryObjectViewModel.modelFields.forEach((field) => this.update(field, this._model[field]))
       }
    }
 
    setView (view: AbstractDiagramDisplay) {
-      this.#view = view
+      this._view = view
       if (this.model != null) {
-         this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
+         SymmetryObjectViewModel.modelFields.forEach((field) => this.update(field, this._model[field]))
       }
    }
 
-   updateModel (field: string, value: any) {
-      (this.model as {[key: string]: any})[field] = value
-   }
-
-   update (field: string, value: any) {
-      if (this.view == null) {
+   update (field: string, value: unknown) {
+      if (this.view == null)
          return
-      }
+
       switch (field) {
       case 'group':
+        // FIXME
+        break
       case 'background':
+         this.view.background = value as typeof this.model.background
+         break
       case 'fog_level':
+         this.view.fog_level = value as typeof this.model.fog_level
+         break
       case 'line_width':
+         this.view.line_width = value as typeof this.model.line_width
+         break
       case 'sphere_scale_factor':
+         this.view._sphere_scale_factor = value as typeof this.model.sphere_scale_factor
+         break
       case 'zoom_level':
-         (this.view as {[key: string]: any})[field] = value
+         this.view.zoom_level = value as typeof this.model.zoom_level
          break
       case 'showingAxes': {
          const isShowing = this.view.getGroup('debug').children.length > 0
@@ -137,7 +144,7 @@ export class SymmetryObjectViewModel implements Updatable {
       case 'snap_to_axis_request':
          if (value == true) {
             this.view.snapToAxis()
-            this.updateModel(field, false)
+            this.model.snap_to_axis_request = false
          }
          break
       default:
@@ -230,7 +237,8 @@ export function layoutSymmetryObject (group: Group, symmetryObjectName: string):
  *     distance so that diagram fills field of view
  */
 function getPov (spherePositions: THREE.Vector3[]) {
-   let position, up;
+   let position!: THREE.Vector3
+   let up!: THREE.Vector3
    if (spherePositions.every( (position) => position.x == 0.0 )) {
       position = new THREE.Vector3(3, 0, 0);
       up = new THREE.Vector3(0, 1, 0);

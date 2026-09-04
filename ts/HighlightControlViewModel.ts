@@ -15,7 +15,6 @@ import * as THREE from '../lib/externals.js'
 
 import type { Group } from './Group.js'
 import type { Updatable, SubscriptionProxy } from './GEUtils.js'
-import type { HighlightControlModelInterface } from './HighlightControl.js'
 import type { HighlightControlView } from './HighlightControlView.js'
 
 export type {
@@ -33,11 +32,23 @@ export type {
    Cosets
 }
 
-type HighlightControlJSON = {
+export interface HighlightControlModelInterface {
+   group: Group,
+   highlightColors: Maybe<color>[][],
+   highlightConfiguration: {  // visualizer-specific highlight parameters
+      highlightTypes: string[],
+      saturation: number[],
+      lightness: number[],
+      hueOffset: number[]
+   },
+   highlightControl?: HighlightControlJSON | (object & Serializable<HighlightControlJSON>)
+}
+
+export type HighlightControlJSON = {
    next_id: number,
    next_subset_index: number,
    highlighted_items: Maybe<number>[],
-   display_map: Array<{ class_name: string } & any>
+   display_map: displayItemJSON[]
 }
 type sides = 'left' | 'right'
 type displayItemJSON = {
@@ -65,16 +76,16 @@ type displayItemJSON = {
   *  displayMap -- a map of all display items by id
 ```js
  */
-export class HighlightControlViewModel implements Updatable {
-   #model!: SubscriptionProxy<HighlightControlModelInterface>
-   #view!: HighlightControlView
+export class HighlightControlViewModel implements Updatable, Serializable<HighlightControlJSON> {
+   private _model!: SubscriptionProxy<HighlightControlModelInterface>
+   private _view!: HighlightControlView
    nextId: number = 0
    nextSubsetIndex: number = 0
    highlightedItems: Maybe<DisplayItem>[] = [null, null, null]
    displayMap: Map<number, DisplayItem> = new Map()
 
    constructor (model: SubscriptionProxy<HighlightControlModelInterface>) {
-      this.#model = model
+      this._model = model
 
       model.$subscribe(this, 'highlightColors')
 
@@ -110,7 +121,11 @@ export class HighlightControlViewModel implements Updatable {
 
          this.fromJSON(this.toJSON())
       } else {
-         this.fromJSON(model.highlightControl)
+         if (GEUtils.isSerializable<HighlightControlJSON>(model.highlightControl)) {
+            this.fromJSON(model.highlightControl.toJSON())
+         } else {
+            this.fromJSON(model.highlightControl)
+         }
       }
 
       model.highlightControl = this
@@ -129,11 +144,11 @@ export class HighlightControlViewModel implements Updatable {
    }
 
    get view (): HighlightControlView {
-      return this.#view  // this could also add it to an Array or Map
+      return this._view  // this could also add it to an Array or Map
    }
 
    set view (view: HighlightControlView) {
-      this.#view = view
+      this._view = view
       Array.from(this.displayMap.values())
          .filter((item) => item instanceof Subgroop || item instanceof Subset || item instanceof PartitioningScheme)
          .forEach((item) => view.addElement(item))
@@ -143,7 +158,7 @@ export class HighlightControlViewModel implements Updatable {
    }
 
    get model (): HighlightControlModelInterface {
-      return this.#model
+      return this._model
    }
 
    toJSON (): HighlightControlJSON {
@@ -157,9 +172,9 @@ export class HighlightControlViewModel implements Updatable {
       return highlightControlJSON
    }
 
-
    fromJSON (jsonObject: HighlightControlJSON) {
-      const classMap: {[key: string]: { fromJSON: (jsonObject: object) => DisplayItem } & any } = {
+      type Constructor = new (arg0: HighlightControlViewModel, ...args: any[]) => DisplayItem
+      const classMap: Record<string, Constructor> = {
          Subgroop: Subgroop,
          Subset: Subset,
          ConjugacyClass: ConjugacyClass,
@@ -189,7 +204,7 @@ export class HighlightControlViewModel implements Updatable {
 ### Create / Destroy display items
 ```js
  */
-   #createItem (item: DisplayItem): DisplayItem {
+   private createItem (item: DisplayItem): DisplayItem {
       item.id = this.nextId++
       this.displayMap.set(item.id, item)
 
@@ -202,12 +217,12 @@ export class HighlightControlViewModel implements Updatable {
          })
       }
 
-      this.#triggerModelUpdate()
+      this.triggerModelUpdate()
       this.view?.addElement(item)
       return item
    }
 
-   #matchingSubsets (elements: BitSet): Array<Subgroop | Subset> {
+   private matchingSubsets (elements: BitSet): Array<Subgroop | Subset> {
       const matchingSubsets = Array.from(this.displayMap.values())
          .filter((displayItem) => displayItem instanceof Subgroop || displayItem instanceof Subset)
          .filter((displayItem) => elements.equals(displayItem.elements))
@@ -216,9 +231,9 @@ export class HighlightControlViewModel implements Updatable {
    }
 
    async createAndConfirmSubset (elements: BitSet, explanation: html): Promise<Maybe<Subset>> {
-      const matchingSubsets = this.#matchingSubsets(elements)
+      const matchingSubsets = this.matchingSubsets(elements)
 
-      let result
+      let result: Maybe<Subset>
       if (matchingSubsets.length == 0) {
          result = this.createSubset(elements)
       } else {
@@ -230,21 +245,21 @@ export class HighlightControlViewModel implements Updatable {
    }
 
    createSubset (elements: BitSet): Subset {
-      return this.#createItem(new Subset(this, elements)) as Subset
+      return this.createItem(new Subset(this, elements)) as Subset
    }
 
    createConjugacyClasses () {
-      this.#createItem(new ConjugacyClasses(this)) as ConjugacyClasses
+      this.createItem(new ConjugacyClasses(this)) as ConjugacyClasses
    }
 
    createOrderClasses () {
-      this.#createItem(new OrderClasses(this))
+      this.createItem(new OrderClasses(this))
    }
 
    createCosets (subgroopId: integer, side: sides) {
       const subgroop = this.displayMap.get(subgroopId)
       if (subgroop instanceof Subgroop) {
-         this.#createItem(new Cosets(this, subgroop, side))
+         this.createItem(new Cosets(this, subgroop, side))
       }
    }
 
@@ -261,7 +276,7 @@ export class HighlightControlViewModel implements Updatable {
             : (type == 'normalizer' && 'normalizer' in subset)
                ? (subset as Subgroop).normalizer
                : subset.closure
-         const matchingSubsets = this.#matchingSubsets(derivedSubset)
+         const matchingSubsets = this.matchingSubsets(derivedSubset)
          if  (matchingSubsets.length == 0) {
             this.createSubset(derivedSubset)
          } else {
@@ -290,7 +305,7 @@ export class HighlightControlViewModel implements Updatable {
          clearItemHighlight(item)
          this.view.removeElement(item)
          this.displayMap.delete(itemId)
-         this.#updateHighlightColors()
+         this.updateHighlightColors()
       }
    }
 /**
@@ -298,7 +313,7 @@ export class HighlightControlViewModel implements Updatable {
 ### Manage display item highlighting
 ```js
  */
-   #updateHighlightColors () {
+   private updateHighlightColors () {
       const highlightColors = this.highlightedItems.map((item, inx) => {
          let highlight: Maybe<color>[] = []
          if (item == null) {
@@ -329,18 +344,18 @@ export class HighlightControlViewModel implements Updatable {
    highlightItem (itemId: integer, highlightTypeIndex: integer) {
       const item = this.displayMap.get(itemId)
       this.highlightedItems[highlightTypeIndex] = item
-      this.#updateHighlightColors()
+      this.updateHighlightColors()
    }
 
    toggleColorHighlight (itemId: integer) {
       const item = this.displayMap.get(itemId)
       this.highlightedItems[0] = (this.highlightedItems[0] == item) ? null : item
-      this.#updateHighlightColors()
+      this.updateHighlightColors()
    }
 
    clearAllHighlightColors () {
       this.highlightedItems = [null, null, null]
-      this.#updateHighlightColors()
+      this.updateHighlightColors()
    }
    /**
 ```
@@ -364,20 +379,20 @@ export class HighlightControlViewModel implements Updatable {
 ### Receiving and pushing updates to/from this.#model
 ```js
  */
-   updateModel (field: string, value: any) {
+   updateModel (field: string, value: unknown) {
       switch (field) {
       case 'highlightColors':
-         this.model['highlightColors'] = value
+         this.model['highlightColors'] = value as Maybe<color>[][]
          break
       }
    }
 
    // notify highlightControl subscribers (e.g. SheetEditor broadcast) that structural state changed
-   #triggerModelUpdate () {
-      this.#model.$touch('highlightControl')
+   private triggerModelUpdate () {
+      this._model.$touch('highlightControl')
    }
 
-   update (field: string, value: any) {
+   update (field: string, _value: unknown) {
       switch (field) {
          case 'highlightColors':
             this.view?.updateHighlightMark()

@@ -40,6 +40,7 @@ export interface SheetVisualizerInterface<JSONType> {
 }
 export interface SheetElementJSON {
     id?: string;
+    className?: string;
 }
 export interface NodeElementJSON extends SheetElementJSON {
     x: float;
@@ -104,7 +105,7 @@ export interface MorphismElementJSON extends LinkElementJSON {
 export declare function sheetPanelWidth(): number;
 export declare function fittedFontSize(html: html, maxWidth: float, min?: float, max?: float): string;
 export declare class SheetModel {
-    #private;
+    private _sheetElements;
     nextId: number;
     classMap: Record<keyof ConcreteSheetTypes, new (...args: any[]) => {
         fromJSON(jsonObject: unknown): any;
@@ -116,11 +117,10 @@ export declare class SheetModel {
     canConnect(linkElementOrType: LinkElement | 'ConnectingElement' | 'MorphismElement', sourceElementOrId: SheetElement | string, destinationElementOrId: SheetElement | string): boolean;
 }
 export declare abstract class SheetElement {
-    #private;
     id: string;
     className: keyof ConcreteSheetTypes;
+    readonly model: SheetModel;
     constructor(model: SheetModel, id: string);
-    get model(): SheetModel;
     abstract get z(): integer;
     toJSON(): SheetElementJSON;
     fromJSON(_jsonObject: SheetElementJSON): this;
@@ -195,7 +195,6 @@ export declare class ConnectingElement extends LinkElement {
     fromJSON(jsonObject: ConnectingElementJSON): this;
 }
 export declare class MorphismElement extends LinkElement {
-    #private;
     source: VisualizerElement;
     destination: VisualizerElement;
     readonly className: keyof ConcreteSheetTypes;
@@ -213,6 +212,7 @@ export declare class MorphismElement extends LinkElement {
     get z(): integer;
     toJSON(): MorphismElementJSON;
     fromJSON(jsonObject: MorphismElementJSON): this;
+    private getMathyName;
 }
 export interface SheetElementRequest {
     className: keyof SheetTypes;

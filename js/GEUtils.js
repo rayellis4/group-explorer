@@ -17,7 +17,7 @@ A collection of utility routines used throughout GE3.
 
 ```javascript
  */
-export { equals, fromRainbow, isTouchDevice, measureHTML, htmlToContext, escapeHTML, generateElements, createActionHandler, createModelProxy, countBy, };
+export { equals, fromRainbow, isTouchDevice, measureHTML, htmlToContext, escapeHTML, generateElements, createActionHandler, createModelProxy, countBy, isSerializable, };
 export { version } from './AutoUpgrade.js';
 /*
 ```
@@ -280,4 +280,20 @@ function countBy(valueArray, indexMap) {
     }, []);
     return [...countArray].map((el) => el ?? 0);
 }
+/*
+```
+### isSerializable
+Type guard for Serializable<T>
+
+```javascript
+ */
+function isSerializable(value) {
+    return value != null
+        && typeof value === 'object'
+        && 'toJSON' in value
+        && typeof value.toJSON === 'function';
+}
+/*
+```
+ */
 //# sourceMappingURL=GEUtils.js.map

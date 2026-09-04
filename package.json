@@ -1,6 +1,6 @@
 {
   "name": "group-explorer",
-  "version": "3.7rc25",
+  "version": "test-3.7rc27",
   "description": "Group theory visualization application for the web",
   "main": "index.js",
   "scripts": {
@@ -17,6 +17,8 @@
   "devDependencies": {
     "@types/three": "^0.170.0",
     "chai": "^4.3.8",
-    "mocha": "^10.2.0"
+    "mocha": "^10.2.0",
+    "type-coverage": "^2.30.1",
+    "typescript": "^6.0.3"
   }
 }

@@ -100,7 +100,7 @@ export class HighlightControlView {
       }
    }
 
-   #showHeaderMenu (event: MouseEvent) {
+   private showHeaderMenu (event: MouseEvent) {
       const headerMenu =
          `<ul id="header-menu">
             <li data-action="this.makeSubsetEditor()">Create ${this.nextSubsetName()}</li>
@@ -360,10 +360,10 @@ class DisplayItemView {
       view.itemMap[item.id] = this
 
       if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(item.className)) {
-         this.#buildScheme()
+         this.buildScheme()
       } else if (item.className === 'Subgroop' || item.className === 'Subset') {
          this.htmlElement = GEUtils.generateElements(this.displayLine)[0] as HTMLElement
-         this.#appendToSection()
+         this.appendToSection()
       }
       // Partition items: htmlElement and DOM insertion handled by #mountPartition, called from schemeView
    }
@@ -405,11 +405,11 @@ class DisplayItemView {
    get displayLine (): html {
       let displayLine = ''   // PartitioningScheme classes have no line of their own; children have lines
       switch (this.item.className) {
-      case 'Subgroop':         displayLine = this.#subgroopDisplayLine();         break
-      case 'Subset':           displayLine = this.#subsetDisplayLine();           break
-      case 'ConjugacyClass':   displayLine = this.#conjugacyClassDisplayLine();   break
-      case 'OrderClass':       displayLine = this.#orderClassDisplayLine();       break
-      case 'Coset':            displayLine = this.#cosetDisplayLine();            break
+      case 'Subgroop':         displayLine = this.subgroopDisplayLine();         break
+      case 'Subset':           displayLine = this.subsetDisplayLine();           break
+      case 'ConjugacyClass':   displayLine = this.conjugacyClassDisplayLine();   break
+      case 'OrderClass':       displayLine = this.orderClassDisplayLine();       break
+      case 'Coset':            displayLine = this.cosetDisplayLine();            break
       case 'ConjugacyClasses':
       case 'OrderClasses':
       case 'Cosets':                                                               break
@@ -423,11 +423,11 @@ class DisplayItemView {
    get menu (): html {
       let menu = ''
       switch (this.item.className) {
-      case 'Subgroop':         menu = this.#subgroopMenu();    break
-      case 'Subset':           menu = this.#subsetMenu();      break
+      case 'Subgroop':         menu = this.subgroopMenu();    break
+      case 'Subset':           menu = this.subsetMenu();      break
       case 'ConjugacyClass':
       case 'OrderClass':
-      case 'Coset':            menu = this.#partitionMenu();   break
+      case 'Coset':            menu = this.partitionMenu();   break
       case 'ConjugacyClasses':
       case 'OrderClasses':
       case 'Cosets':                                           break
@@ -596,15 +596,15 @@ class DisplayItemView {
 
    // ---- private: constructor helpers ----------------------------------------
 
-   #buildScheme () {
+   private buildScheme () {
       // All PartitioningScheme subclasses build partition views the same way
       this.partitionViews = (this.item as PartitioningScheme).partitions
          .map((partition) => new DisplayItemView(partition, this.view, this))
       ;(this.rootElement.querySelector('#partitions .placeholder') as HTMLElement).style.display = 'none'
-      this.partitionViews.forEach((pv) => pv.#mountPartition())
+      this.partitionViews.forEach((pv) => pv.mountPartition())
    }
 
-   #appendToSection () {
+   private appendToSection () {
       const thisElement = this.htmlElement as HTMLElement
       if (this.item.className === 'Subgroop') {
          ;(this.rootElement.querySelector('#subgroups ul') as HTMLElement).append(thisElement) 
@@ -617,14 +617,14 @@ class DisplayItemView {
       }
    }
 
-   #mountPartition () {
+   private mountPartition () {
       this.htmlElement = GEUtils.generateElements(this.displayLine)[0] as HTMLElement
       ;(this.rootElement.querySelector('#partitions ul') as HTMLElement).append(this.htmlElement)
    }
 
    // ---- private: displayLine implementations --------------------------------
 
-   #subgroopDisplayLine (): html {
+   private subgroopDisplayLine (): html {
       const item = this.item as Subgroop
       const group = this.viewModel.group
       const generators = group.subgroups[item.subgroupIndex].generators.toArray()
@@ -655,7 +655,7 @@ class DisplayItemView {
       }
    }
 
-   #subsetDisplayLine (): html {
+   private subsetDisplayLine (): html {
       const numElements = (this.elements as BitSet).popcount()
       const elements = (this.elements as BitSet).toArray().slice(0, 3)
          .map((el) => this.viewModel.group.representation[el])
@@ -668,7 +668,7 @@ class DisplayItemView {
          </li>`
    }
 
-   #conjugacyClassDisplayLine (): html {
+   private conjugacyClassDisplayLine (): html {
       return `<li id="${this.id}" class="conjugacyClass">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
                ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} }
@@ -677,7 +677,7 @@ class DisplayItemView {
          </li>`
    }
 
-   #orderClassDisplayLine (): html {
+   private orderClassDisplayLine (): html {
       return `<li id="${this.id}" class="orderClass">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
                ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} }
@@ -686,7 +686,7 @@ class DisplayItemView {
          </li>`
    }
 
-   #cosetDisplayLine (): html {
+   private cosetDisplayLine (): html {
       const cosets = (this.item as Coset).partitioningScheme as Cosets
       return `<li id="${this.id}" class="${cosets.side}coset${cosets.subgroop.id}">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
@@ -699,7 +699,7 @@ class DisplayItemView {
 
    // ---- private: menu implementations ---------------------------------------
 
-   #subgroopMenu (): html {
+   private subgroopMenu (): html {
       return `
          <ul id="subgroup-menu">
             <li data-action="this.makeSubsetEditor()">Create ${this.view.nextSubsetName()}</li>
@@ -742,7 +742,7 @@ class DisplayItemView {
          </ul>`
    }
 
-   #subsetMenu (): html {
+   private subsetMenu (): html {
       return `
          <ul id="subset-menu">
             <li data-action="this.makeSubsetEditor(${this.id})">Edit list of elements in ${this.name}</li>
@@ -779,7 +779,7 @@ class DisplayItemView {
          </ul>`
    }
 
-   #partitionMenu (): html {
+   private partitionMenu (): html {
       return `
          <ul id="partition-menu">
             <li data-action="this.viewModel.destroyItem(${(this.schemeView as DisplayItemView).id})"

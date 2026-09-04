@@ -1,16 +1,24 @@
 import { BitSet, BitSetJSON } from './BitSet.js';
 import type { Group } from './Group.js';
 import type { Updatable, SubscriptionProxy } from './GEUtils.js';
-import type { HighlightControlModelInterface } from './HighlightControl.js';
 import type { HighlightControlView } from './HighlightControlView.js';
 export type { DisplayItem, AbstractSubset, Subgroop, Subset, Partition, ConjugacyClass, OrderClass, Coset, PartitioningScheme, ConjugacyClasses, OrderClasses, Cosets };
-type HighlightControlJSON = {
+export interface HighlightControlModelInterface {
+    group: Group;
+    highlightColors: Maybe<color>[][];
+    highlightConfiguration: {
+        highlightTypes: string[];
+        saturation: number[];
+        lightness: number[];
+        hueOffset: number[];
+    };
+    highlightControl?: HighlightControlJSON | (object & Serializable<HighlightControlJSON>);
+}
+export type HighlightControlJSON = {
     next_id: number;
     next_subset_index: number;
     highlighted_items: Maybe<number>[];
-    display_map: Array<{
-        class_name: string;
-    } & any>;
+    display_map: displayItemJSON[];
 };
 type sides = 'left' | 'right';
 type displayItemJSON = {
@@ -24,8 +32,9 @@ type displayItemJSON = {
     subgroop_id?: integer;
     side?: sides;
 };
-export declare class HighlightControlViewModel implements Updatable {
-    #private;
+export declare class HighlightControlViewModel implements Updatable, Serializable<HighlightControlJSON> {
+    private _model;
+    private _view;
     nextId: number;
     nextSubsetIndex: number;
     highlightedItems: Maybe<DisplayItem>[];
@@ -39,6 +48,13 @@ export declare class HighlightControlViewModel implements Updatable {
     get model(): HighlightControlModelInterface;
     toJSON(): HighlightControlJSON;
     fromJSON(jsonObject: HighlightControlJSON): void;
+    /**
+    ```
+    ### Create / Destroy display items
+    ```js
+     */
+    private createItem;
+    private matchingSubsets;
     createAndConfirmSubset(elements: BitSet, explanation: html): Promise<Maybe<Subset>>;
     createSubset(elements: BitSet): Subset;
     createConjugacyClasses(): void;
@@ -46,6 +62,12 @@ export declare class HighlightControlViewModel implements Updatable {
     createCosets(subgroopId: integer, side: sides): void;
     createDerivedSubset(type: 'closure' | 'normalizer' | 'intersection' | 'union' | 'elementwiseProduct', subsetId: integer, subset2Id: integer): void;
     destroyItem(itemId: integer): void;
+    /**
+    ```
+    ### Manage display item highlighting
+    ```js
+     */
+    private updateHighlightColors;
     highlightItem(itemId: integer, highlightTypeIndex: integer): void;
     toggleColorHighlight(itemId: integer): void;
     clearAllHighlightColors(): void;
@@ -62,8 +84,9 @@ export declare class HighlightControlViewModel implements Updatable {
     ### Receiving and pushing updates to/from this.#model
     ```js
      */
-    updateModel(field: string, value: any): void;
-    update(field: string, value: any): void;
+    updateModel(field: string, value: unknown): void;
+    private triggerModelUpdate;
+    update(field: string, _value: unknown): void;
 }
 declare class DisplayItem {
     id: number;

@@ -48,9 +48,10 @@ const HIGHLIGHT_BACKGROUND = 0;
 const HIGHLIGHT_BORDER = 1;
 const HIGHLIGHT_CORNER = 2;
 export class MulttableViewModel {
-    #model;
-    #view;
-    #modelFields = [
+    _model;
+    _view;
+    _group;
+    static modelFields = [
         'group',
         'elements',
         'separation',
@@ -59,25 +60,24 @@ export class MulttableViewModel {
         'colorReordering',
         'highlightColors'
     ];
-    #group;
     get view() {
-        return this.#view;
+        return this._view;
     }
     set view(view) {
-        this.#view = view;
+        this._view = view;
         if (this.model != null) {
-            this.#modelFields.forEach((field) => this.update(field, this.model[field]));
+            MulttableViewModel.modelFields.forEach((field) => this.update(field, this.model[field]));
         }
     }
     get model() {
-        return this.#model;
+        return this._model;
     }
     get modelProxy() {
-        return this.#model;
+        return this._model;
     }
     set model(multtableModel) {
-        this.#model = multtableModel;
-        this.#modelFields.forEach((field) => {
+        this._model = multtableModel;
+        MulttableViewModel.modelFields.forEach((field) => {
             multtableModel.$subscribe(this, field);
             this.update(field, this.model[field]);
         });
@@ -92,7 +92,7 @@ export class MulttableViewModel {
         return this.model?.elements ?? this.makeLayout(this.organizingSubgroup);
     }
     get group() {
-        return this.model?.group ?? this.#group;
+        return this.model?.group ?? this._group;
     }
     get highlightColors() {
         return this.model?.highlightColors ?? [[], [], []];
@@ -188,7 +188,7 @@ export class MulttableViewModel {
     get canvas() { return this.view.canvas; }
     toJSON() { return this.model.toJSON(); }
     fromJSON(jsonObject) { this.model.fromJSON(jsonObject); }
-    draw(group) { this.#group = group; }
+    draw(group) { this._group = group; }
 }
 export class MulttableView /*: implements VizDisplay<MulttableJSON> */ {
     canvas;

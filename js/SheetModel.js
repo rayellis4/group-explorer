@@ -1,4 +1,3 @@
-var _a;
 /*
 
 # SheetModel
@@ -26,7 +25,7 @@ export function fittedFontSize(html, maxWidth, min = 1.5, max = 3) {
     return `${px.toFixed(1)}px`;
 }
 export class SheetModel {
-    #sheetElements = new Map();
+    _sheetElements = new Map();
     nextId = 0;
     classMap = {
         TextElement: TextElement,
@@ -37,7 +36,7 @@ export class SheetModel {
         MorphismElement: MorphismElement
     };
     get sheetElements() {
-        return this.#sheetElements;
+        return this._sheetElements;
     }
     toJSON() {
         return Array.from(this.sheetElements.values()).map((el) => el.toJSON());
@@ -138,13 +137,10 @@ export class SheetModel {
 export class SheetElement {
     id;
     className;
-    #model;
+    model;
     constructor(model, id) {
-        this.#model = model;
+        this.model = model;
         this.id = id;
-    }
-    get model() {
-        return this.#model;
     }
     toJSON() {
         return {
@@ -395,7 +391,7 @@ export class MorphismElement extends LinkElement {
     }
     fromJSON(jsonObject) {
         super.fromJSON(jsonObject);
-        this.morphismName = jsonObject.morphismName ?? this.#getMathyName();
+        this.morphismName = jsonObject.morphismName ?? this.getMathyName();
         this.showDomainAndCodomain = jsonObject.showDomainAndCodomain ?? false;
         this.showDefiningPairs = jsonObject.showDefiningPairs ?? false;
         this.showInjectionSurjection = jsonObject.showInjectionSurjection ?? false;
@@ -411,11 +407,11 @@ export class MorphismElement extends LinkElement {
         return this;
     }
     // Find the simplest mathy name for this morphism that's not yet used on this sheet.
-    #getMathyName() {
+    getMathyName() {
         const sheetElements = Array.from(this.model.sheetElements.values());
         const mathyNames = ['f', 'g', 'h'];
         const morphisms = sheetElements
-            .filter((element) => element instanceof _a); // array of MorphismElements
+            .filter((element) => element instanceof MorphismElement); // array of MorphismElements
         const [subscript, nameIndex] = morphisms
             .map((morphismElement) => morphismElement.morphismName) // array of MorphismElement names
             .map((name) => name.match(/[f-h](<sub>([0-9]+)<\/sub>)?$/)) // array of mathy names/nulls
@@ -434,7 +430,6 @@ export class MorphismElement extends LinkElement {
         return mathyNames[nameIndex] + ((subscript === -1) ? '' : `<sub>${subscript + 1}</sub>`);
     }
 }
-_a = MorphismElement;
 // create new sheet, used by GroupInfo routines
 // accepts {title, elements} or bare array (backward compat)
 // stores in IndexedDB and opens Sheet.html in new window
@@ -447,33 +442,43 @@ export function createNewSheet(arg) {
         .then(() => { newWindow.location.href = 'Sheet.html?passedSheet'; });
 }
 function translateRequest(requests) {
+    function isVisualizer(element) {
+        return ['CDElement', 'CGElement', 'MTElement'].includes(element.className);
+    }
+    function isCDElement(element) {
+        return element.className === 'CDElement';
+    }
+    function isMTElement(element) {
+        return element.className === 'MTElement';
+    }
     const results = requests.map((request) => {
         const result = { ...request };
+        result.className = request.className;
         // create visualizer and move relevant values to visualizer
-        if (['CDElement', 'CGElement', 'MTElement'].includes(request.className)) {
-            result.visualizerJSON = {};
-            result.visualizerJSON.group_url = request.groupURL;
-            result.visualizerJSON.highlight_colors = request.highlight_colors ?? [[], [], []];
-            switch (request.className) {
-                case 'CDElement':
-                    if (['arrow_generators', 'diagram_name', 'strategy_parameters'].some((field) => request[field] != null)) {
-                        result.visualizerJSON.diagram_control = {};
-                        if (request?.diagram_name != null) {
-                            result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name'];
-                        }
-                        else if (request?.strategy_parameters != null) {
-                            result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters'];
-                            if (request?.arrow_generators != null) {
-                                result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators'];
-                            }
+        if (isVisualizer(result)) {
+            result.visualizerJSON = {
+                group_url: request.groupURL,
+                highlight_colors: request.highlight_colors ?? [[], [], []]
+            };
+            if (isCDElement(result)) {
+                if (['arrow_generators', 'diagram_name', 'strategy_parameters']
+                    .some((field) => request[field] != null)) {
+                    result.visualizerJSON.diagram_control = {};
+                    if (request?.diagram_name != null) {
+                        result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name'];
+                    }
+                    else if (request?.strategy_parameters != null) {
+                        result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters'];
+                        if (request?.arrow_generators != null) {
+                            result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators'];
                         }
                     }
-                    break;
-                case 'MTElement':
-                    if ('organizing_subgroup' in request) {
-                        result.visualizerJSON['organizing_subgroup'] = request['organizing_subgroup'];
-                    }
-                    break;
+                }
+            }
+            else if (isMTElement(result)) {
+                if ('organizing_subgroup' in request) {
+                    result.visualizerJSON['organizing_subgroup'] = request['organizing_subgroup'];
+                }
             }
         }
         return result;

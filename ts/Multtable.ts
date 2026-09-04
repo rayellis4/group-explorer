@@ -73,7 +73,7 @@ export async function load () {
 
       SheetEditor.enableModelChangeBroadcast(elementId as string, multtableModel, SHEET_UPDATE_FIELDS)
 
-      SheetEditor.listenForSheetUpdates((json: MulttableJSON) => multtableModel.fromJSON(json))
+      SheetEditor.listenForSheetUpdates<MulttableJSON>((json) => multtableModel.fromJSON(json))
    }
 
    // Create Control Panel

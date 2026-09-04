@@ -79,26 +79,27 @@ class ViewModel {
     constructor(rootElement, model) {
         this.#model = model;
         this.rootElement = rootElement;
+        const modelDiagramControl = model.diagramControl;
         // get diagram name from sheet editor JSON or URL
-        if (model.diagramControl?.diagram_name != null) {
-            this.diagramName = model.diagramControl.diagram_name;
+        if (modelDiagramControl?.diagram_name != null) {
+            this.diagramName = modelDiagramControl.diagram_name;
         }
-        else if (model.diagramControl?.strategy_parameters != null) {
-            this.strategyParameters = model.diagramControl.strategy_parameters;
+        else if (modelDiagramControl?.strategy_parameters != null) {
+            this.strategyParameters = modelDiagramControl.strategy_parameters;
         }
         else {
             this.diagramName = new URL(window.location.href).searchParams.get('diagram');
         }
-        if (model.diagramControl?.arrow_generators != null) {
-            this.arrowGenerators = model.diagramControl.arrow_generators;
+        if (modelDiagramControl?.arrow_generators != null) {
+            this.arrowGenerators = modelDiagramControl.arrow_generators;
         }
         if (this.diagramName != null
             && this.group.cayleyDiagrams.findIndex((cayleyDiagram) => cayleyDiagram.name == this.diagramName) < 0) {
             Log.warn(`unknown diagram name in ${window.location.href}`);
             this.diagramName = null;
         }
-        if (model.diagramControl?.chunk_subgroup_index != null) {
-            this.chunkSubgroupIndex = model.diagramControl.chunk_subgroup_index;
+        if (modelDiagramControl?.chunk_subgroup_index != null) {
+            this.chunkSubgroupIndex = modelDiagramControl.chunk_subgroup_index;
         }
         // don't overwrite layout if it exists
         if (model.layout == null) {

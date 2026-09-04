@@ -24,6 +24,20 @@ const DEFAULTS: SettingsType = {
    showGenerated:    false,
 }
 
+type SettingsUpdate = {
+   source: 'settings',
+   values: SettingsType
+}
+
+export function isSettingsUpdate (message: unknown): message is SettingsUpdate {
+   return message != null
+      && typeof message === 'object'
+      && 'source' in message
+      && message.source === 'settings'
+      && 'values' in message
+      && message.values != null
+}
+
 // in-memory cache — authoritative source for this tab
 const cache: SettingsType = Object.assign({}, DEFAULTS)
 
@@ -34,10 +48,9 @@ export async function loadSettings () {
 }
 
 // listen for settings changes from other tabs and update cache from message
-new BroadcastChannel('GE3-channel').addEventListener('message', (ev) => {
-   if (ev.data.source !== 'settings') return
-   const values = ev.data.values
-   if (values != null) Object.assign(cache, values)
+new BroadcastChannel('GE3-channel').addEventListener('message', (messageEvent: MessageEvent<SettingsUpdate>) => {
+   if (isSettingsUpdate(messageEvent.data))
+      Object.assign(cache, messageEvent.data.values)
 })
 
 export function getFilterConfig (): SettingsType {

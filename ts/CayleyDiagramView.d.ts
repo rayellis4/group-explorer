@@ -20,6 +20,9 @@ export type LineUserData = {
     arrow: ArrowType;
     arrowhead?: THREE.ArrowHelper;
 };
+export type ChunkUserData = {
+    chunk: ChunkType;
+};
 export type POV = {
     position: THREE.Vector3;
     up: THREE.Vector3;
@@ -57,7 +60,9 @@ export type Vector3JSON = {
     y: number;
     z: number;
 };
-export type Matrix4JSON = number[];
+export type Matrix4JSON = {
+    elements: number[];
+};
 export type POVJSON = {
     position: Vector3JSON;
     up: Vector3JSON;
@@ -124,7 +129,9 @@ export type CayleyDiagramViewOptions = {
 export declare function layoutToJSON(layout: LayoutType): Maybe<LayoutJSON>;
 export declare function layoutFromJSON(json: LayoutJSON): LayoutType;
 export declare class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterface<CayleyDiagramModelJSON> {
-    #private;
+    private _model;
+    private _view;
+    private static modelFields;
     get group(): Group;
     get highlightColors(): Maybe<color>[][];
     set highlightColors(highlightColors: Maybe<color>[][]);
@@ -133,8 +140,7 @@ export declare class CayleyDiagramViewModel implements Updatable, SheetVisualize
     get modelProxy(): SubscriptionProxy<CayleyDiagramModel>;
     setModel(model: SubscriptionProxy<CayleyDiagramModel>): void;
     setView(view: CayleyDiagramView): void;
-    updateModel(field: keyof CayleyDiagramModel, value: any): void;
-    update(field: string, value: any): void;
+    update(field: string, value: unknown): void;
     getSize(): {
         w: number;
         h: number;

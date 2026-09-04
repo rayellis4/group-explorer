@@ -65,50 +65,51 @@ ViewModel
 View
  */
 class CycleGraphViewModel implements GEUtils.Updatable, SheetVisualizerInterface<CycleGraphJSON> {
-   #model!: GEUtils.SubscriptionProxy<CycleGraphModel>
-   #view!: CycleGraphView
-   #group!: Group
-   #modelFields: Array<keyof CycleGraphModel> = [
+   private _model!: GEUtils.SubscriptionProxy<CycleGraphModel>
+   private _view!: CycleGraphView
+   private _group!: Group
+
+   private static modelFields: Array<keyof CycleGraphModel> = [
       'group',
       'highlightColors'
    ]
 
    get view (): CycleGraphView {
-      return this.#view
+      return this._view
    }
 
    set view (view: CycleGraphView) {
-      this.#view = view
+      this._view = view
       if (this.model != null) {
-         this.#modelFields.forEach((field) => this.update(field, this.model[field]))
+         CycleGraphViewModel.modelFields.forEach((field) => this.update(field, this.model[field]))
       }
    }
 
    get model (): CycleGraphModel {
-      return this.#model
+      return this._model
    }
 
    get modelProxy (): GEUtils.SubscriptionProxy<CycleGraphModel> {
-      return this.#model
+      return this._model
    }
 
    set model (cycleGraphModel: GEUtils.SubscriptionProxy<CycleGraphModel>) {
-      this.#model = cycleGraphModel
-      this.#modelFields.forEach((field) => {
-         this.#model.$subscribe(this, field)
+      this._model = cycleGraphModel
+      CycleGraphViewModel.modelFields.forEach((field) => {
+         this._model.$subscribe(this, field)
          this.update(field, this.model[field])
       })
    }
 
    get group (): Group {
-      return this.model?.group ?? this.#group
+      return this.model?.group ?? this._group
    }
 
    get highlightColors (): Maybe<color>[][] {
       return this.model?.highlightColors ?? [[], [], []]
    }
 
-   update (field: string, value: any) {
+   update (field: string, _value: unknown) {
       if (this.view == null) {
          return
       }
@@ -132,7 +133,7 @@ class CycleGraphViewModel implements GEUtils.Updatable, SheetVisualizerInterface
    get canvas (): HTMLCanvasElement            { return this.view.canvas }
    toJSON (): CycleGraphJSON                   { return this.model.toJSON() }
    fromJSON (jsonObject: CycleGraphJSON)       { this.model.fromJSON(jsonObject) }
-   draw (group: Group)                         { this.#group = group }
+   draw (group: Group)                         { this._group = group }
 }
 
 class CycleGraphView {
@@ -478,7 +479,7 @@ class CycleGraphView {
     // orbit of an element in the group, but skipping the identity
     orbitOf(g: groupElement): groupElement[] {
         let result = [ 0 ];
-        let next;
+        let next: groupElement;
         while ( next = this.group.mult( result[result.length-1], g ) )
             result.push( next );
         result.shift();

@@ -16,18 +16,22 @@ import * as Log from './Log.js';
 import * as MathML from './MathML.js';
 import * as THREE from '../lib/externals.js';
 import * as SheetView from './SheetView.js';
-const CURRENT_FORMAT = 2;
-// separate wrapping/unwrapping sheet with version (and possibly other metadata) from serializing/deserializing
-export function wrapSheet(sheet) {
-    return {
-        version: CURRENT_FORMAT,
-        sheet: sheet
-    };
+export const CURRENT_FORMAT_VERSION = 2;
+function isNonNullPojo(obj) {
+    return obj != null && typeof obj === 'object' && !Array.isArray(obj);
 }
-export function unwrapSheet(wrappedSheet) {
-    return wrappedSheet.sheet;
+function isNonEmptyPojoArray(obj) {
+    return Array.isArray(obj) && isNonNullPojo(obj[0]);
+}
+export function isVersionedSheet(obj) {
+    return isNonNullPojo(obj) && 'version' in obj && typeof obj.version === 'number';
+}
+export function isRawSheet(obj) {
+    return isNonEmptyPojoArray(obj) && !('sheetName' in obj[0]);
 }
 /*
+use cases
+
 normal:
 import from textarea (could be left over from old export!)
 restore v2 export string from clipboard (version, no SheetName => ExportedSheet; deserialized as ExportedSheet object)
@@ -38,40 +42,30 @@ update:
 migrateToV1: create 'storedSheets' in indexedDB;  if 'sheets' exist in localStore, deserialize/stringify/store to indexedDB
 migrateToV2: deserialize v1 sheet string and store object in indexeddb
  */
-// given object for v0, v1, or v2 sheet, return SheetModel object
 export function deserializeSheet(json) {
     let sheet;
-    if (typeof json === 'object' && json?.version != null) { // version >= 2
-        sheet = convertSheetFromVersion(json.sheet, json.version);
+    const jsonObject = JSON.parse(json);
+    if (isVersionedSheet(jsonObject)) {
+        sheet = convertSheetFromVersion(jsonObject);
     }
-    else if (typeof json == 'string') { // might be text input or v1 stored sheet
-        const parsedString = JSON.parse(json);
-        if (typeof parsedString?.version === 'number') { // v2 export or later
-            sheet = convertSheetFromVersion(parsedString.sheet, parsedString.version);
-        }
-        else if (Array.isArray(parsedString) && typeof parsedString[0] === 'object') {
-            sheet = convertSheetFromVersion(parsedString, 1);
-        }
-        else {
-            const errorMessage = `SheetSerialization.deserializeSheet: unrecognized string argument: ${json}`;
-            Log.err(errorMessage);
-            throw new TypeError(errorMessage);
-        }
+    else if (isRawSheet(jsonObject)) {
+        sheet = convertSheetFromVersion({ version: 1, sheet: jsonObject });
     }
     else {
-        const jsonString = (json instanceof Object) ? JSON.stringify(json) : json;
-        const errorMessage = `SheetSerialization.deserializeSheet: unrecognized object argument: ${jsonString}`;
+        const errorMessage = `SheetSerialization.deserializeSheet: unrecognized argument: ${json}`;
         Log.err(errorMessage);
         throw new TypeError(errorMessage);
     }
     return sheet;
 }
-function convertSheetFromVersion(json, version) {
-    switch (version) {
+function convertSheetFromVersion(input) {
+    let json = input.sheet;
+    switch (input.version) {
         case 0: json = convertV0ToV1(json);
         case 1: json = convertV1ToV2(json);
+        case CURRENT_FORMAT_VERSION:
     }
-    return json;
+    return { version: CURRENT_FORMAT_VERSION, sheet: json };
 }
 // given JSON for v0 sheet, return JSON for v1 sheet
 export function convertV0ToV1(oldJSONArray) {
@@ -203,6 +197,12 @@ export function convertV1ToV2(v1Objects) {
         const result = highlights.map((colorList, inx) => (colorList == null) ? [] : colorList.map((color) => (color == nullish[inx]) ? null : color));
         return result;
     };
+    function copyCompatibleField(v1, v2, field) {
+        if (field in v1) { // Guard against missing runtime fields in the old object
+            const value = v1[field];
+            v2[field] = value; // check that types are compatible at compile time
+        }
+    }
     const v2Objects = v1Objects.map((v1Object) => {
         // create SheetJSON object skeletons
         const v2Object = {
@@ -272,7 +272,7 @@ export function convertV1ToV2(v1Objects) {
                     const maybeLayout = layoutCayleyDiagram(group, v1Visualizer?.diagram_name ?? undefined, v1Visualizer?.strategy_parameters, arrowGenerators, v1Visualizer.right_multiply, v1Visualizer?.chunk ?? undefined);
                     chunks.push(...maybeLayout.chunks.map((chunk) => {
                         return {
-                            box: JSON.parse(JSON.stringify(chunk.box)).elements,
+                            box: JSON.parse(JSON.stringify(chunk.box)),
                             name: chunk.name,
                             nodes: chunk.nodes.map((node) => node.element),
                             widths: JSON.parse(JSON.stringify(chunk.widths)),
@@ -295,7 +295,7 @@ export function convertV1ToV2(v1Objects) {
                     arrowhead_placement: v1Visualizer.arrowhead_placement,
                     label_scale_factor: v1Visualizer.label_scale_factor,
                     showing_axes: false,
-                    highlight_control: null, // not implemented in v1
+                    // highlight_control:   // not implemented in v1
                     highlight_colors: highlights,
                     diagram_control: diagramControl,
                     layout: layout,
@@ -347,8 +347,8 @@ export function convertV1ToV2(v1Objects) {
             case 'MTElement':
             case 'TextElement': {
                 ['x', 'y', 'w', 'h', 'z'].forEach((field) => {
-                    if (field in v1Object) {
-                        v2Object[field] = v1Object[field];
+                    if (field in v1Object && v1Object[field] != null) {
+                        copyCompatibleField(v1Object, v2Object, field);
                     }
                 });
             }
@@ -365,24 +365,22 @@ export function convertV1ToV2(v1Objects) {
                 if ('visualizer' in v2Object && v2Object.visualizerJSON != null) {
                     const v2Visualizer = v2Object.visualizerJSON;
                     if (v2Visualizer != null && 'highlight_colors' in v2Visualizer && v2Visualizer.highlight_colors != null) {
-                        v2Object.visualizerJSON.highlight_colors = v2Visualizer.highlight_colors;
+                        v2Object.visualizerJSON.highlight_colors =
+                            v2Visualizer.highlight_colors;
                     }
                 }
             }
             case 'TextElement': {
                 ['alignment', 'color', 'fontColor', 'fontSize', 'isPlainText', 'opacity', 'text']
                     .forEach((field) => {
-                    if (field in v1Object) {
-                        ;
-                        v2Object[field] = v1Object[field];
-                    }
+                    copyCompatibleField(v1Object, v2Object, field);
                 });
                 break;
             }
             case 'ConnectingElement': {
                 ['color', 'hasArrowhead', 'thickness'].forEach((field) => {
                     if (field in v1Object) {
-                        v2Object[field] = v1Object[field];
+                        copyCompatibleField(v1Object, v2Object, field);
                     }
                 });
                 break;
@@ -391,7 +389,7 @@ export function convertV1ToV2(v1Objects) {
                 ['arrowMargin', 'definingPairs', 'showDefiningPairs', 'showDomainAndCodomain', 'showInjectionSurjection',
                     'showManyArrows'].forEach((field) => {
                     if (field in v1Object) {
-                        v2Object[field] = v1Object[field];
+                        copyCompatibleField(v1Object, v2Object, field);
                     }
                 });
                 if (v1Object.name != null) {
