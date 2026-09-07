@@ -300,6 +300,7 @@ export abstract class NodeElement extends SheetElement {
       super(model, id)
 
       // NodeElements have even z-index, LinkElements have odd, so they can overlay/underlay the NodeElements they connect
+      // see docs/README.md § The Sheet system, "Z ordering" for the full contract (spans SheetModel/SheetViewUI/SheetView)
       this.z = 2 * (model.sheetElements.size + 1)
    }
 
@@ -470,6 +471,7 @@ export abstract class LinkElement extends SheetElement {
    isLink = true
 
    // z level of link is determined from z levels of source/destination
+   // see docs/README.md § The Sheet system, "Z ordering" for the full contract
    get z (): integer {
       return Math.min(this.source.z, this.destination.z) - 1
    }

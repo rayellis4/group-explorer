@@ -220,6 +220,8 @@ export class SheetView {
     destroy() {
         this.domElement.remove();
     }
+    // applies the z SheetModel computed/SheetViewUI set; see docs/README.md § The Sheet system,
+    // "Z ordering" for the full contract
     updateZ() {
         this.domElement.style.zIndex = this.modelElement.z.toString();
     }

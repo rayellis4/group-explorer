@@ -224,9 +224,19 @@ element (`modelElement.visualizerJSON`) before the shared view model is repointe
 requesting element. This constraint lives in the View layer and must be preserved by any future
 refactor.
 
-**What's left**: A new element's `z` is just an insertion-order artifact
-(`z = 2 * (sheetElements.size + 1)` in `SheetModel.ts`) — don't read stored `z` values as
-meaningful ordering intent.
+**Z ordering**: NodeElements get an even `z`; a newly-created element's initial value,
+`z = 2 * (sheetElements.size + 1)` in `SheetModel.ts`, is just an insertion-order artifact. But
+`z` isn't fixed at creation — the node context menu's Move Forward/Backward/to Front/to Back
+options (`SheetViewUI.moveForward`/`moveBackward`/`moveToFront`/`moveToBack`) let the user
+reassign it afterward, swapping with or jumping past neighboring nodes' `z` values, so a loaded
+sheet's `z` values can reflect deliberate stacking choices and shouldn't be assumed to still
+match insertion order. LinkElements never carry their own `z`: `LinkElement.z` derives from the
+two nodes they connect, `Math.min(source.z, destination.z) - 1`, landing on an odd value strictly
+below both endpoints — node `z`s are always even and link `z`s always odd, so the two never
+collide. A `MorphismElement` with `showManyArrows` set is the one exception: its `z` is
+`Math.max(source.z, destination.z) + 1`, placing its arrows above both nodes instead of below,
+since a dense multi-arrow overlay needs to stay visible over the node artwork rather than hidden
+beneath it.
 
 ### Generated groups
 
