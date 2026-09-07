@@ -15,7 +15,8 @@ Method overview:
 ```js
 */
 
-import type { Group } from './Group.js'
+import type { Group } from './Group.ts'
+import type { SettingsType } from './Settings.ts'
 
 export {
    groups,
@@ -39,16 +40,17 @@ function getGroupsByOrder (order: integer): Group[] {
 }
 
 // return groups visible under the given filter config (from Settings.getFilterConfig())
-function getVisibleGroups (filterConfig: {[key: string]: any}): Group[] {
+type filterType = { groupVisibility?: { [key: html]: 'shown' | 'hidden' } } & SettingsType
+function getVisibleGroups (filterConfig: filterType): Group[] {
    const groupVisibility = filterConfig.groupVisibility ?? {}
    return getAllGroups().filter((group) => {
       const override = groupVisibility[group.URL]
       if (override != null) return override === 'shown'
-      const lib = group.library
-      if (lib == null)                         return true
-      if (lib === 'extended') return group.order < 32 ? filterConfig.showExtendedLt32 : filterConfig.showExtendedGe32
-      if (lib === 'notable')                   return filterConfig.showNotable
-      if (lib === 'generated')                 return filterConfig.showGenerated
-      return true
+      switch (group.library) {
+         case 'extended':   return group.order < 32 ? filterConfig.showExtendedLt32 : filterConfig.showExtendedGe32
+         case 'notable':    return filterConfig.showNotable
+         case 'generated':  return filterConfig.showGenerated
+         default:           return true  // group in default library
+      }
    })
 }

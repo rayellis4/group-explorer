@@ -1,4 +1,5 @@
-import type { Group } from './Group.js';
+import type { Group } from './Group.ts';
+import type { SettingsType } from './Settings.ts';
 export { groups, getAllGroups, getGroupsByOrder, getVisibleGroups, };
 export type GroupRegistryType = {
     [key: string]: Group;
@@ -6,6 +7,9 @@ export type GroupRegistryType = {
 declare const groups: GroupRegistryType;
 declare function getAllGroups(): Group[];
 declare function getGroupsByOrder(order: integer): Group[];
-declare function getVisibleGroups(filterConfig: {
-    [key: string]: any;
-}): Group[];
+type filterType = {
+    groupVisibility?: {
+        [key: html]: 'shown' | 'hidden';
+    };
+} & SettingsType;
+declare function getVisibleGroups(filterConfig: filterType): Group[];

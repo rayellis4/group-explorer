@@ -714,7 +714,7 @@ export class MorphismEditor extends SheetElementEditor {
       this.modelElement.viewElement?.redraw()
    }
 
-   removeDefiningPair(domainElement: groupElement) {
+   removeDefiningPair (domainElement: groupElement) {
       this.modelElement.mapping.removeDefiningPair(domainElement)
       this.fillDefiningPairs()
 
@@ -727,7 +727,7 @@ export class MorphismEditor extends SheetElementEditor {
 
    pushSourceThroughMorphism () {
       const fullMapping = this.modelElement.mapping.fullMapping
-      const colorMap = new Map()
+      const colorMap: Map<groupElement, THREE.Color> = new Map()
       // generate color map of destination elements that are the image of highlighted elements in source
       this.modelElement.source.viewElement.visualizer.model.highlightColors[0]
          .forEach((color: Maybe<color>, inx: integer) => {
@@ -741,7 +741,7 @@ export class MorphismEditor extends SheetElementEditor {
       const destinationSaturation = destinationHighlightConfig.saturation[0]
       const destinationLightness = destinationHighlightConfig.lightness[0]
       colorMap.forEach((color) =>
-         color.set(GEUtils.fromRainbow(color.getHSL({}).h, destinationSaturation, destinationLightness)))
+         color.set(GEUtils.fromRainbow(color.getHSL({h: 0, s: 0, l: 0}).h, destinationSaturation, destinationLightness)))
 
       // highlight image in destination
       const destinationHighlights = this.modelElement.destination.viewElement.visualizer.model.highlightColors[0]
@@ -763,7 +763,7 @@ export class MorphismEditor extends SheetElementEditor {
          }
          (inverseMapping.get(dest) as groupElement[]).push(src)
       })
-      const colorMap = new Map()
+      const colorMap: Map<groupElement, THREE.Color> = new Map()
 
       // generate color map of source elements whose images are highlighted elements in destination
       let incompletePreImage = false
@@ -788,12 +788,12 @@ export class MorphismEditor extends SheetElementEditor {
       const sourceSaturation = sourceHighlightConfig.saturation[0]
       const sourceLightness = sourceHighlightConfig.lightness[0]
       colorMap.forEach((color) =>
-         color.set(GEUtils.fromRainbow(color.getHSL({}).h, sourceSaturation, sourceLightness)))
+         color.set(GEUtils.fromRainbow(color.getHSL({h: 0, s: 0, l: 0}).h, sourceSaturation, sourceLightness)))
 
       // highlight pre-image in source
       const sourceHighlights = this.modelElement.source.viewElement.visualizer.model.highlightColors[0]
       this.modelElement.source.viewElement.visualizer.model.group.elements.forEach((inx: groupElement) => {
-         sourceHighlights[inx] = colorMap.has(inx) ? ('#' + colorMap.get(inx).getHexString()) : null
+         sourceHighlights[inx] = colorMap.has(inx) ? ('#' + colorMap.get(inx)!.getHexString()) : null
       })
       this.modelElement.source.viewElement.visualizer.modelProxy.$touch('highlightColors')
       this.modelElement.source.viewElement.redraw()
@@ -805,11 +805,17 @@ export class MorphismEditor extends SheetElementEditor {
 ### RemoteEditor
 ```javascript
  */
-export class RemoteEditor {
-   static #messageHandler: (messageEvent: MessageEvent) => void  // singleton message handler to update visualizers
-   static #editorWindows = new Map()  // elementId → editor window reference
+type EditorMessageType = {
+   source: 'editor',
+   elementId: string,
+   json: unknown
+}
 
-   static #editPageURLs: Record<string, string> = {
+export class RemoteEditor {
+   private static messageHandler: (messageEvent: MessageEvent) => void  // singleton message handler to update visualizers
+   private static editorWindows: Map<string, Window> = new Map()  // elementId → editor window reference
+
+   private static editPageURLs: Record<string, string> = {
       MTElement: './Multtable.html',
       CGElement: './CycleGraph.html',
       CDElement: './CayleyDiagram.html'
@@ -817,23 +823,23 @@ export class RemoteEditor {
 
    static editElement (modelElement: VisualizerElement & {onVisualizerChange?: (json: unknown) => void}) {
       // create listener instance, if needed; holds reference to Model instance
-      if (RemoteEditor.#messageHandler == null) {
+      if (RemoteEditor.messageHandler == null) {
          const model = modelElement.model
-         RemoteEditor.#messageHandler = (messageEvent: MessageEvent) => {
+         RemoteEditor.messageHandler = (messageEvent: MessageEvent<EditorMessageType>) => {
             if (messageEvent.data?.source != 'editor')
                return
             const {elementId, json} = messageEvent.data
             Log.debug(`RemoteEditor received msg for modelElement ${elementId}`, json)
             ;(model.sheetElements.get(elementId) as VisualizerElement)?.updateVisualizer?.(json)
          }
-         window.addEventListener('message', RemoteEditor.#messageHandler)
+         window.addEventListener('message', RemoteEditor.messageHandler)
       }
 
       // open visualizer/editor window; store reference for Sheet→Editor push
-      const editPageURL = `${RemoteEditor.#editPageURLs[modelElement.className]}?SheetEditor` +
+      const editPageURL = `${RemoteEditor.editPageURLs[modelElement.className]}?SheetEditor` +
          (window.location.href.includes('log=debug') ? '&log=debug' : '')  // open in debug if we're in debug
-      const editorWindow = window.open(editPageURL)
-      RemoteEditor.#editorWindows.set(modelElement.id, editorWindow)
+      const editorWindow = window.open(editPageURL)!  // FIXME: check this, it could fail
+      RemoteEditor.editorWindows.set(modelElement.id, editorWindow)
 
       // register push callback on modelElement so CDView's subscriber can trigger it
       modelElement.onVisualizerChange = (json) => RemoteEditor.pushToEditor(modelElement.id, json)
@@ -848,9 +854,9 @@ export class RemoteEditor {
 
    // push updated JSON to an open editor tab for this element, if one exists
    static pushToEditor (elementId: string, json: unknown) {
-      const editorWindow = RemoteEditor.#editorWindows.get(elementId)
+      const editorWindow = RemoteEditor.editorWindows.get(elementId)
       if (editorWindow == null || editorWindow.closed) {
-         RemoteEditor.#editorWindows.delete(elementId)
+         RemoteEditor.editorWindows.delete(elementId)
          return
       }
       editorWindow.postMessage({source: 'sheet', elementId: elementId, json: json}, '*')

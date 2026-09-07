@@ -61,6 +61,10 @@ export type LineUserData = {
    arrowhead?: THREE.ArrowHelper,
 };
 
+export type ChunkUserData = {
+   chunk: ChunkType
+}
+
 export type POV = { position: THREE.Vector3, up: THREE.Vector3 }
 
 export type NodeType = {
@@ -96,7 +100,7 @@ export type LayoutType = {
 }
 
 export type Vector3JSON = { x: number, y: number, z: number }
-export type Matrix4JSON = number[]
+export type Matrix4JSON = { elements: number[] }
 
 export type POVJSON = { position: Vector3JSON, up: Vector3JSON }
 
@@ -196,7 +200,7 @@ export function layoutToJSON (layout: LayoutType): Maybe<LayoutJSON>  {
    const toChunkDataJSON: (arg0: ChunkType) => ChunkJSON =
       ({box, name, widths, nodes}) => {
          return {
-            box: JSON.parse(JSON.stringify(box)).elements as Matrix4JSON,
+            box: JSON.parse(JSON.stringify(box)) as Matrix4JSON,
             name,
             nodes: nodes.map((node) => node.element),
             widths: toXYZ(widths)
@@ -241,7 +245,7 @@ export function layoutFromJSON (json: LayoutJSON): LayoutType {
       })
    const chunks: ChunkType[] = json.chunks.map(({box, name, widths, nodes}) => {
       return {
-         box: new THREE.Matrix4().fromArray(box),
+         box: new THREE.Matrix4().fromArray(box.elements),
          name,
          widths: fromXYZ(widths),
          nodes: nodes.map((node) => nodeMap.get(node) as NodeType)
@@ -252,9 +256,10 @@ export function layoutFromJSON (json: LayoutJSON): LayoutType {
 }
 
 export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterface<CayleyDiagramModelJSON> {
-   #model!: SubscriptionProxy<CayleyDiagramModel>
-   #view!: CayleyDiagramView
-   #modelFields: (keyof CayleyDiagramModel)[] = [
+   private _model!: SubscriptionProxy<CayleyDiagramModel>
+   private _view!: CayleyDiagramView
+
+   private static modelFields: (keyof CayleyDiagramModel)[] = [
       'group',
       'layout',
       'background',
@@ -284,63 +289,75 @@ export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterfa
    }
 
    get view (): CayleyDiagramView {
-      return this.#view
+      return this._view
    }
 
    get model (): CayleyDiagramModel {
-      return this.#model
+      return this._model
    }
 
    get modelProxy (): SubscriptionProxy<CayleyDiagramModel> {
-      return this.#model
+      return this._model
    }
 
    setModel (model: SubscriptionProxy<CayleyDiagramModel>) {
-      this.#model = model
-      this.#modelFields.forEach((field) => model.$subscribe(this, field))
+      this._model = model
+      CayleyDiagramViewModel.modelFields.forEach((field) => model.$subscribe(this, field))
       if (this.view != null) {
-         this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
+         CayleyDiagramViewModel.modelFields.forEach((field) => this.update(field, this._model[field]))
       }
    }
 
    setView (view: CayleyDiagramView) {
-      this.#view = view
+      this._view = view
       view.viewModel = this
-      if (this.#model != null) {
-         this.#modelFields.forEach((field) => this.update(field, this.#model[field]))
+      if (this._model != null) {
+         CayleyDiagramViewModel.modelFields.forEach((field) => this.update(field, this._model[field]))
       }
    }
 
-   updateModel (field: keyof CayleyDiagramModel, value: any) {
-      (this.model as {[key: string]: any})[field] = value
-   }
-
-   update (field: string, value: any) {
-      if (this.view == null) {
+   update (field: string, value: unknown) {
+      if (this.view == null)
          return
-      }
+
       switch (field) {
       case 'group':
+         this.view.group = value as typeof this.model.group
+         break
       case 'background':
+         this.view.background = value as typeof this.model.background
+         break
       case 'fog_level':
+         this.view.fog_level = value as typeof this.model.fog_level
+         break
       case 'line_width':
+         this.view.line_width = value as typeof this.model.line_width
+         break
       case 'sphere_scale_factor':
+         this.view._sphere_scale_factor = value as typeof this.model.sphere_scale_factor
+         break
       case 'zoom_level':
+         this.view.zoom_level = value as typeof this.model.zoom_level
+         break
       case 'arrowhead_placement':
+         this.view.arrowhead_placement = value as typeof this.model.arrowhead_placement
+         break
       case 'label_scale_factor':
          if (value != null) {
-            this.view[field] = value
+            this.view.label_scale_factor = value as typeof this.model.label_scale_factor
          }
          break
       case 'showingAxes': {
          const isShowing = this.view.getGroup('debug').children.length > 0
-         if (value && !isShowing) this.view.drawCoordinateAxes()
-         else if (!value && isShowing) this.view.removeCoordinateAxes()
+         if (value && !isShowing)
+            this.view.drawCoordinateAxes()
+         else if (!value && isShowing)
+            this.view.removeCoordinateAxes()
          break
       }
       case 'layout':
          if (value != null && JSON.stringify(value) != JSON.stringify(this.view.layout)) {
-            const {pov, nodes, arrows, chunks} = value
+            const {pov, nodes, arrows, chunks} = value as typeof this.model.layout
             this.view.drawFromModel(pov, nodes, arrows)
             if (chunks != null) {
                this.view.createChunks(chunks)
@@ -350,14 +367,14 @@ export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterfa
       case 'highlightColors':
          if (value != null) {
             // spread new highlightColors across color_highlights, ring_highlights, square_highlights
-            this.highlightColors = value
+            this.highlightColors = value as typeof this.model.highlightColors
             this.view.drawAllHighlights()
          }
          break
       case 'snap_to_axis_request':
          if (value == true) {
             this.view.snapToAxis()
-            this.updateModel(field, false)
+            this.model.snap_to_axis_request = false
          }
          break
       default:
@@ -508,12 +525,13 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         // if there's a containing chunk then move it too
         if (moveContainingChunk) {
             const chunk = this.chunks
-                .find((chunk) => chunk.userData.chunk.nodes.includes(sphere.userData.node))
+               .find((chunk) =>
+                  (chunk.userData as ChunkUserData).chunk.nodes.includes((sphere.userData as SphereUserData).node))
             if (chunk != null) {
-               const centroid = (chunk.userData.chunk as ChunkType).nodes
+               const centroid = (chunk.userData as ChunkUserData).chunk.nodes
                   .reduce<THREE.Vector3>(
                      (centroid: THREE.Vector3, node: NodeType) => centroid.add(node.position), new THREE.Vector3())
-                  .multiplyScalar(1/chunk.userData.chunk.nodes.length)
+                  .multiplyScalar(1/(chunk.userData as ChunkUserData).chunk.nodes.length)
                 chunk.position.copy(centroid)
             }
         }
@@ -709,7 +727,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
             label.center = new THREE.Vector2(-0.045/label_scale_factor, 0.30 - 0.72/label_scale_factor);
             label.position.copy(node.position);
 
-            sphere.userData.label = label;
+            (sphere.userData as SphereUserData).label = label
 
             label_group.add(label);
         } )
@@ -953,7 +971,7 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     moveChunkTo (chunk: THREE.Mesh, position: THREE.Vector3) {
         const movement = position.clone().sub(chunk.position)
         chunk.position.copy(position)
-        chunk.userData.chunk.nodes.forEach((node: NodeType) => {
+        ;(chunk.userData as ChunkUserData).chunk.nodes.forEach((node: NodeType) => {
             const sphere = this.nodes[node.element]
             this.moveSphere(sphere, sphere.position.clone().add(movement), false)  // don't let moveSphere try to move chunk :-)
         })
@@ -983,9 +1001,9 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
 
    get layout (): LayoutType {
       const pov: POV = {position: this.camera.position, up: this.camera.up}
-      const arrows: ArrowType[] = this.arrows.map((arrow) => arrow.userData.arrow)
-      const nodes: NodeType[] = this.nodes.map((node) => node.userData.node)
-      const chunks: ChunkType[] = this.chunks.map((chunk) => chunk.userData.chunk)
+      const arrows: ArrowType[] = this.arrows.map((arrow) => (arrow.userData as LineUserData).arrow)
+      const nodes: NodeType[] = this.nodes.map((node) => (node.userData as SphereUserData).node)
+      const chunks: ChunkType[] = this.chunks.map((chunk) => (chunk.userData as ChunkUserData).chunk)
       return { pov, arrows, nodes, chunks }
    }
 }

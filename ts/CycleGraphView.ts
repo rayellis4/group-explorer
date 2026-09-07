@@ -65,50 +65,51 @@ ViewModel
 View
  */
 class CycleGraphViewModel implements GEUtils.Updatable, SheetVisualizerInterface<CycleGraphJSON> {
-   #model!: GEUtils.SubscriptionProxy<CycleGraphModel>
-   #view!: CycleGraphView
-   #group!: Group
-   #modelFields: Array<keyof CycleGraphModel> = [
+   private _model!: GEUtils.SubscriptionProxy<CycleGraphModel>
+   private _view!: CycleGraphView
+   private _group!: Group
+
+   private static modelFields: Array<keyof CycleGraphModel> = [
       'group',
       'highlightColors'
    ]
 
    get view (): CycleGraphView {
-      return this.#view
+      return this._view
    }
 
    set view (view: CycleGraphView) {
-      this.#view = view
+      this._view = view
       if (this.model != null) {
-         this.#modelFields.forEach((field) => this.update(field, this.model[field]))
+         CycleGraphViewModel.modelFields.forEach((field) => this.update(field, this.model[field]))
       }
    }
 
    get model (): CycleGraphModel {
-      return this.#model
+      return this._model
    }
 
    get modelProxy (): GEUtils.SubscriptionProxy<CycleGraphModel> {
-      return this.#model
+      return this._model
    }
 
    set model (cycleGraphModel: GEUtils.SubscriptionProxy<CycleGraphModel>) {
-      this.#model = cycleGraphModel
-      this.#modelFields.forEach((field) => {
-         this.#model.$subscribe(this, field)
+      this._model = cycleGraphModel
+      CycleGraphViewModel.modelFields.forEach((field) => {
+         this._model.$subscribe(this, field)
          this.update(field, this.model[field])
       })
    }
 
    get group (): Group {
-      return this.model?.group ?? this.#group
+      return this.model?.group ?? this._group
    }
 
    get highlightColors (): Maybe<color>[][] {
       return this.model?.highlightColors ?? [[], [], []]
    }
 
-   update (field: string, value: any) {
+   update (field: string, _value: unknown) {
       if (this.view == null) {
          return
       }
@@ -132,7 +133,7 @@ class CycleGraphViewModel implements GEUtils.Updatable, SheetVisualizerInterface
    get canvas (): HTMLCanvasElement            { return this.view.canvas }
    toJSON (): CycleGraphJSON                   { return this.model.toJSON() }
    fromJSON (jsonObject: CycleGraphJSON)       { this.model.fromJSON(jsonObject) }
-   draw (group: Group)                         { this.#group = group }
+   draw (group: Group)                         { this._group = group }
 }
 
 class CycleGraphView {
@@ -476,9 +477,9 @@ class CycleGraphView {
     }
 
     // orbit of an element in the group, but skipping the identity
-    orbitOf(g: groupElement): groupElement[] {
+    orbitOf (g: groupElement): groupElement[] {
         let result = [ 0 ];
-        let next;
+        let next: groupElement;
         while ( next = this.group.mult( result[result.length-1], g ) )
             result.push( next );
         result.shift();
@@ -486,7 +487,7 @@ class CycleGraphView {
     }
 
     // element to a power
-    raiseToThe(h: groupElement, n: number): groupElement {
+    raiseToThe (h: groupElement, n: number): groupElement {
         let result = 0;
         for ( let i = 0 ; i < n ; i++ ) result = this.group.mult( result, h );
         return result;
@@ -495,7 +496,7 @@ class CycleGraphView {
     // how soon does the orbit of g intersect the given list of elements?
     // that is, consider the smallest power of g that appears in the array;
     // at what index does it appear?
-    howSoonDoesOrbitIntersect(g: groupElement, array: groupElement[]): number {
+    howSoonDoesOrbitIntersect (g: groupElement, array: groupElement[]): number {
         let orbit = this.orbitOf( g );
         let power = 0;
         for ( let walk = g ; walk != 0 ; walk = this.group.mult( walk, g ) ) {
@@ -510,7 +511,7 @@ class CycleGraphView {
     // to g," meaning the power t such that the orbit [e,h^t,h^2t,...]
     // intersects the orbit [e,g,g^2,...] as early as possible (in the orbit
     // of g).
-    bestPowerRelativeTo(h: groupElement, g: groupElement): number {
+    bestPowerRelativeTo (h: groupElement, g: groupElement): number {
         let orbit_g = this.orbitOf( g );
         let bestPower = 0;
         let bestIndex = orbit_g.length;
@@ -754,23 +755,23 @@ class CycleGraphView {
 
 
 // gcd of two natural numbers
-function gcd(n: integer, m: integer): integer { return m ? gcd( m, n % m ) : n; }
+function gcd (n: integer, m: integer): integer { return m ? gcd( m, n % m ) : n; }
 
 // ease-in-out curves, one going uphill from (0,0) to (1,1)
-function easeUp(t: float): float {
+function easeUp (t: float): float {
     return ( Math.cos( ( 1 - t ) * Math.PI ) + 1 ) / 2;
 }
 
 // and another going downhill, from (0,1) to (1,0)
-function easeDown(t: float): float { return 1 - easeUp( 1 - t ); }
+function easeDown (t: float): float { return 1 - easeUp( 1 - t ); }
 
 // generic linear interpolation function
-function interp(A: float, B: float, t: float): float { return ( 1 - t ) * A + t * B; }
+function interp (A: float, B: float, t: float): float { return ( 1 - t ) * A + t * B; }
 
 // mutating a point in the upper half plane to sit within the arc
 // defined by two given angles alpha and beta, pulled toward the
 // center of that arc with a specific level of gravity, 0<=g<=1.
-function mutate(x: float, y: float, alpha: float, beta: float, g: float): Coordinate {
+function mutate (x: float, y: float, alpha: float, beta: float, g: float): Coordinate {
     const r = Math.sqrt( x*x + y*y );
     const theta = Math.atan2( y, x );
     const theta2 = interp( alpha, beta, theta/Math.PI );

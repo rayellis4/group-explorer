@@ -24,23 +24,18 @@ function getAllGroups() {
 function getGroupsByOrder(order) {
     return Object.values(groups).filter((group) => group.order == order);
 }
-// return groups visible under the given filter config (from Settings.getFilterConfig())
 function getVisibleGroups(filterConfig) {
     const groupVisibility = filterConfig.groupVisibility ?? {};
     return getAllGroups().filter((group) => {
         const override = groupVisibility[group.URL];
         if (override != null)
             return override === 'shown';
-        const lib = group.library;
-        if (lib == null)
-            return true;
-        if (lib === 'extended')
-            return group.order < 32 ? filterConfig.showExtendedLt32 : filterConfig.showExtendedGe32;
-        if (lib === 'notable')
-            return filterConfig.showNotable;
-        if (lib === 'generated')
-            return filterConfig.showGenerated;
-        return true;
+        switch (group.library) {
+            case 'extended': return group.order < 32 ? filterConfig.showExtendedLt32 : filterConfig.showExtendedGe32;
+            case 'notable': return filterConfig.showNotable;
+            case 'generated': return filterConfig.showGenerated;
+            default: return true; // group in default library
+        }
     });
 }
 //# sourceMappingURL=GroupRegistry.js.map

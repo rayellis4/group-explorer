@@ -12,7 +12,10 @@ export type MulttableViewOptions = {
     width?: number;
 };
 export declare class MulttableViewModel implements Updatable, SheetVisualizerInterface<MulttableJSON> {
-    #private;
+    private _model;
+    private _view;
+    private _group;
+    private static modelFields;
     get view(): MulttableView;
     set view(view: MulttableView);
     get model(): MulttableModel;
@@ -25,7 +28,7 @@ export declare class MulttableViewModel implements Updatable, SheetVisualizerInt
     get highlightColors(): Maybe<color>[][];
     get organizingSubgroup(): number;
     get separation(): number;
-    update(field: string, value: any): void;
+    update(field: string, value: unknown): void;
     makeLayout(organizingSubgroupIndex: number): Array<groupElement>;
     chooseSubgroup(G: Group): Subgroup;
     layoutSubgroup(G: Group, H: Subgroup): groupElement[];

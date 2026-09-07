@@ -90,7 +90,7 @@ function makeSolvableGroupContent (group: Group) {
    return htmlFragments.join('')
 }
 
-function makeGroupRef(group: Group): string {
+function makeGroupRef (group: Group): string {
    return `<a href="./GroupInfo.html?groupURL=${group.URL}" target="_blank">${group.name}</a>`
 }
 

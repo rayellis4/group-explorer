@@ -10,16 +10,17 @@ Model for the multtable visualizer. Holds all serializable state:
 ```javascript
  */
 
-import * as Library from './Library.js'
-
+import { Serializable, isSerializable } from './GEUtils.js'
 import {Group} from './Group.js'
+import { HighlightControlJSON } from './HighlightControl.js';
+import * as Library from './Library.js'
 
 export type MulttableColoration = 'rainbow' | 'grayscale' | 'none'
 export type MulttableColorReordering = 'topRowFixed' | 'elementColorsFixed'
 export type MulttableJSON = {
    group_url: string,
    highlight_colors?: Maybe<color>[][],
-   highlight_control?: any,
+   highlight_control?: HighlightControlJSON,
    organizing_subgroup?: number,
    separation?: number,
    coloration?: MulttableColoration,
@@ -48,7 +49,7 @@ export class MulttableModel {
    elements!: groupElement[]
 
    // Opaque plugin slots (carried opaquely through serialization)
-   highlightControl: any = null
+   highlightControl!: HighlightControlJSON | (object & Serializable<HighlightControlJSON>)
 
    constructor (group: Group) {
       this.group = group
@@ -68,7 +69,9 @@ export class MulttableModel {
       const json = {
          group_url: this.group.URL,
          highlight_colors: this.highlightColors,
-         highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
+         highlight_control: isSerializable<HighlightControlJSON>(this.highlightControl)
+            ? this.highlightControl.toJSON()
+            : this.highlightControl,
          organizing_subgroup: this.organizingSubgroup,
          separation: this.separation,
          coloration: this.coloration,
@@ -94,10 +97,12 @@ export class MulttableModel {
       this.elements = json.elements ?? this.elements
 
       // let owners deserialize opaque slots
-      if (this.highlightControl?.fromJSON == null) {
-         this.highlightControl = json.highlight_control
-      } else if (json.highlight_control != null) {
-         this.highlightControl.fromJSON(json.highlight_control)
+      if (json.highlight_control != null) {
+         if (this.highlightControl == null || !('fromJSON' in this.highlightControl)) {
+            this.highlightControl = json.highlight_control
+         } else if (json.highlight_control != null) {
+            this.highlightControl.fromJSON(json.highlight_control)
+         }
       }
 
       return this

@@ -1,4 +1,3 @@
-var _a;
 /*
 # HighlightControlView - View for Subset and Highlighting
 
@@ -70,7 +69,7 @@ export class HighlightControlView {
             this.updateHighlightMark();
         }
     }
-    #showHeaderMenu(event) {
+    showHeaderMenu(event) {
         const headerMenu = `<ul id="header-menu">
             <li data-action="this.makeSubsetEditor()">Create ${this.nextSubsetName()}</li>
             <hr>
@@ -295,11 +294,11 @@ class DisplayItemView {
         this.schemeView = schemeView;
         view.itemMap[item.id] = this;
         if (['ConjugacyClasses', 'OrderClasses', 'Cosets'].includes(item.className)) {
-            this.#buildScheme();
+            this.buildScheme();
         }
         else if (item.className === 'Subgroop' || item.className === 'Subset') {
             this.htmlElement = GEUtils.generateElements(this.displayLine)[0];
-            this.#appendToSection();
+            this.appendToSection();
         }
         // Partition items: htmlElement and DOM insertion handled by #mountPartition, called from schemeView
     }
@@ -345,19 +344,19 @@ class DisplayItemView {
         let displayLine = ''; // PartitioningScheme classes have no line of their own; children have lines
         switch (this.item.className) {
             case 'Subgroop':
-                displayLine = this.#subgroopDisplayLine();
+                displayLine = this.subgroopDisplayLine();
                 break;
             case 'Subset':
-                displayLine = this.#subsetDisplayLine();
+                displayLine = this.subsetDisplayLine();
                 break;
             case 'ConjugacyClass':
-                displayLine = this.#conjugacyClassDisplayLine();
+                displayLine = this.conjugacyClassDisplayLine();
                 break;
             case 'OrderClass':
-                displayLine = this.#orderClassDisplayLine();
+                displayLine = this.orderClassDisplayLine();
                 break;
             case 'Coset':
-                displayLine = this.#cosetDisplayLine();
+                displayLine = this.cosetDisplayLine();
                 break;
             case 'ConjugacyClasses':
             case 'OrderClasses':
@@ -371,15 +370,15 @@ class DisplayItemView {
         let menu = '';
         switch (this.item.className) {
             case 'Subgroop':
-                menu = this.#subgroopMenu();
+                menu = this.subgroopMenu();
                 break;
             case 'Subset':
-                menu = this.#subsetMenu();
+                menu = this.subsetMenu();
                 break;
             case 'ConjugacyClass':
             case 'OrderClass':
             case 'Coset':
-                menu = this.#partitionMenu();
+                menu = this.partitionMenu();
                 break;
             case 'ConjugacyClasses':
             case 'OrderClasses':
@@ -533,14 +532,14 @@ class DisplayItemView {
     }
     get elementString() { return '[' + this.elements.toString() + ']'; }
     // ---- private: constructor helpers ----------------------------------------
-    #buildScheme() {
+    buildScheme() {
         // All PartitioningScheme subclasses build partition views the same way
         this.partitionViews = this.item.partitions
-            .map((partition) => new _a(partition, this.view, this));
+            .map((partition) => new DisplayItemView(partition, this.view, this));
         this.rootElement.querySelector('#partitions .placeholder').style.display = 'none';
-        this.partitionViews.forEach((pv) => pv.#mountPartition());
+        this.partitionViews.forEach((pv) => pv.mountPartition());
     }
-    #appendToSection() {
+    appendToSection() {
         const thisElement = this.htmlElement;
         if (this.item.className === 'Subgroop') {
             ;
@@ -554,12 +553,12 @@ class DisplayItemView {
             this.rootElement.querySelector('#subsets li.placeholder').style.display = 'none';
         }
     }
-    #mountPartition() {
+    mountPartition() {
         this.htmlElement = GEUtils.generateElements(this.displayLine)[0];
         this.rootElement.querySelector('#partitions ul').append(this.htmlElement);
     }
     // ---- private: displayLine implementations --------------------------------
-    #subgroopDisplayLine() {
+    subgroopDisplayLine() {
         const item = this.item;
         const group = this.viewModel.group;
         const generators = group.subgroups[item.subgroupIndex].generators.toArray()
@@ -589,7 +588,7 @@ class DisplayItemView {
             }
         }
     }
-    #subsetDisplayLine() {
+    subsetDisplayLine() {
         const numElements = this.elements.popcount();
         const elements = this.elements.toArray().slice(0, 3)
             .map((el) => this.viewModel.group.representation[el]);
@@ -602,7 +601,7 @@ class DisplayItemView {
             </span></summary>${this.info}</details>
          </li>`;
     }
-    #conjugacyClassDisplayLine() {
+    conjugacyClassDisplayLine() {
         return `<li id="${this.id}" class="conjugacyClass">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
                ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} }
@@ -610,7 +609,7 @@ class DisplayItemView {
             </span></summary>${this.info}</details>
          </li>`;
     }
-    #orderClassDisplayLine() {
+    orderClassDisplayLine() {
         return `<li id="${this.id}" class="orderClass">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
                ${this.name} = <wbr>{ ${this.elementRepresentations.join(', <wbr>')} }
@@ -618,7 +617,7 @@ class DisplayItemView {
             </span></summary>${this.info}</details>
          </li>`;
     }
-    #cosetDisplayLine() {
+    cosetDisplayLine() {
         const cosets = this.item.partitioningScheme;
         return `<li id="${this.id}" class="${cosets.side}coset${cosets.subgroop.id}">
             <details><summary><span ${this.clickAction} ${this.contextAction}>
@@ -629,7 +628,7 @@ class DisplayItemView {
          </li>`;
     }
     // ---- private: menu implementations ---------------------------------------
-    #subgroopMenu() {
+    subgroopMenu() {
         return `
          <ul id="subgroup-menu">
             <li data-action="this.makeSubsetEditor()">Create ${this.view.nextSubsetName()}</li>
@@ -671,7 +670,7 @@ class DisplayItemView {
             <li data-action="this.viewModel.clearAllHighlightColors()">Clear all highlighting</li>
          </ul>`;
     }
-    #subsetMenu() {
+    subsetMenu() {
         return `
          <ul id="subset-menu">
             <li data-action="this.makeSubsetEditor(${this.id})">Edit list of elements in ${this.name}</li>
@@ -707,7 +706,7 @@ class DisplayItemView {
             <li data-action="this.viewModel.clearAllHighlightColors()">Clear all highlighting</li>
          </ul>`;
     }
-    #partitionMenu() {
+    partitionMenu() {
         return `
          <ul id="partition-menu">
             <li data-action="this.viewModel.destroyItem(${this.schemeView.id})"
@@ -747,7 +746,6 @@ class DisplayItemView {
          </ul>`;
     }
 }
-_a = DisplayItemView;
 /*
 ```
 ## SubsetEditor

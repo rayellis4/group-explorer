@@ -15,20 +15,19 @@ export function display(basicFactsElementId, group) {
     // listen for library or settings update
     const channel = new BroadcastChannel('GE3-channel');
     channel.addEventListener('message', async (messageEvent) => {
-        const message = messageEvent.data;
-        if (message.source === 'library') {
-            await Library.loadLibrary();
-            const newGroup = Library.getAllGroups().find((G) => G.URL === group.URL);
-            if (newGroup != null && newGroup.gapid != null && newGroup.gapid != '' && newGroup.gapid != group.gapid) {
-                basicFactsElement.querySelectorAll('tr > td:first-child').forEach((el) => {
-                    if (el.textContent === 'GAP ID') {
-                        el.parentElement.children[1].textContent = newGroup.gapid;
-                    }
-                    else if (el.textContent === 'GAP name') {
-                        el.parentElement.children[1].textContent = newGroup.gapname ?? null;
-                    }
-                });
-            }
+        if (messageEvent.data?.source !== 'library')
+            return;
+        await Library.loadLibrary();
+        const newGroup = Library.getAllGroups().find((G) => G.URL === group.URL);
+        if (newGroup != null && newGroup.gapid != null && newGroup.gapid != '' && newGroup.gapid != group.gapid) {
+            basicFactsElement.querySelectorAll('tr > td:first-child').forEach((el) => {
+                if (el.textContent === 'GAP ID') {
+                    el.parentElement.children[1].textContent = newGroup.gapid;
+                }
+                else if (el.textContent === 'GAP name') {
+                    el.parentElement.children[1].textContent = newGroup.gapname ?? null;
+                }
+            });
         }
     });
 }

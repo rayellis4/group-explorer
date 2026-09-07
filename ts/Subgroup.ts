@@ -26,9 +26,7 @@ export class Subgroup {
    generators: BitSet
    members: BitSet
 
-   constructor(group: Group,
-               generators: number[] = [],
-               members: number[] = []) {
+   constructor (group: Group, generators: number[] = [], members: number[] = []) {
       this.group = group;
       this.generators = new BitSet(group.order, generators);
       this.members = new BitSet(group.order, members);
@@ -51,63 +49,64 @@ export class Subgroup {
    }
 
    get order(): number {
-      this.#setProperty('order', this.members.popcount())
+      this.setProperty<typeof this.order>('order', this.members.popcount())
       return this.order
    }
 
    get index(): number {
-      this.#setProperty('index', this.group.order/this.order)
+      this.setProperty<typeof this.index>('index', this.group.order/this.order)
       return this.index
    }
 
    get isCyclic (): boolean {
-      this.#setProperty('isCyclic', this.generators.popcount() == 1)
+      this.setProperty<typeof this.isCyclic>('isCyclic', this.generators.popcount() === 1)
       return this.isCyclic
    }
 
    get isNormal(): boolean {
-      this.#setProperty('isNormal', this.#subgroupIsNormal())
+      this.setProperty<typeof this.isNormal>('isNormal', this.subgroupIsNormal())
       return this.isNormal;
    }
 
    get isomorphicGroup (): Group {
-      this.#setIsomorphicGroupAndEmbedding()
+      this.setIsomorphicGroupAndEmbedding()
       return this.isomorphicGroup
    }
 
    get isomorphicGroupEmbedding (): groupElement[] {
-      this.#setIsomorphicGroupAndEmbedding()
+      this.setIsomorphicGroupAndEmbedding()
       return this.isomorphicGroupEmbedding
    }
 
    get isomorphicQuotientGroup (): Maybe<Group> {
-      this.#setQuotientGroupAndMap()
+      this.setQuotientGroupAndMap()
       return this.isomorphicQuotientGroup
    }
 
    get isomorphicQuotientMap (): Maybe<groupElement[]> {
-      this.#setQuotientGroupAndMap()
+      this.setQuotientGroupAndMap()
       return this.isomorphicQuotientMap
    }
 
    get leftCosets (): BitSet[] {
-      this.#setProperty('leftCosets', this.#getCosets('left'))
+      this.setProperty<typeof this.leftCosets>('leftCosets', this.getCosets('left'))
       return this.leftCosets
    }
 
    get rightCosets (): BitSet[] {
-      this.#setProperty('rightCosets', this.#getCosets('right'))
+      this.setProperty<typeof this.rightCosets>('rightCosets', this.getCosets('right'))
       return this.rightCosets
    }
 
    get subgroupIndex (): number {
-      this.#setProperty('subgroupIndex', this.group.subgroups.findIndex((H) => H.members.equals(this.members)))
+      this.setProperty<typeof this.subgroupIndex>(
+         'subgroupIndex', this.group.subgroups.findIndex((H) => H.members.equals(this.members)))
       return this.subgroupIndex
    }
 
    ////////////////////////// Private helper functions
 
-  #getCosets (side: 'left' | 'right'): BitSet[] {
+  private getCosets (side: 'left' | 'right'): BitSet[] {
       const mult = (side == 'left')
          ? (a: groupElement, b: groupElement) => this.group.multtable[a][b]
          : (a: groupElement, b: groupElement) => this.group.multtable[b][a]
@@ -127,7 +126,7 @@ export class Subgroup {
       return cosets;
    }
 
-   #getLibraryGroup (G: Group): Group {
+   private getLibraryGroup (G: Group): Group {
       let libraryGroup = IsomorphicGroups.find(G)
       if (libraryGroup == null) {
          const presentation = DefiningRelations.makePresentation(G)
@@ -142,7 +141,7 @@ export class Subgroup {
    // such that Q is in the groups library and q is an onto map from G to Q
    // with kernel K.  q is stored as an array such that q[i] means q(i),
    // for all i in G.
-   #getQuotientGroup (): [Group, groupElement[]] {
+   private getQuotientGroup (): [Group, groupElement[]] {
       const cosets = this.leftCosets
       const quotientOrder = cosets.length;
       const cosetReps = cosets.map((coset: BitSet) => coset.first() as number)
@@ -157,7 +156,7 @@ export class Subgroup {
          })
 
       const quotientGroup = Group.fromMulttable(multtable)
-      const libraryGroup = this.#getLibraryGroup(quotientGroup)
+      const libraryGroup = this.getLibraryGroup(quotientGroup)
       const isomorphism = IsomorphicGroups.isomorphism(quotientGroup, libraryGroup)
       if (isomorphism == null) {
          throw new Error('Subgroup.getQuotientGroup error:\n' +
@@ -171,7 +170,7 @@ export class Subgroup {
    // such that H' is in the groups library and f is an embedding of H'
    // into G and onto H.  f is stored as an array such that f[i] means f(i),
    // for all i in H'.
-   #getSubgroupAsGroup (): [Group, groupElement[]] {
+   private getSubgroupAsGroup (): [Group, groupElement[]] {
       const subgroupToParent = this.members.toArray();
       const parentToSubgroup = subgroupToParent.reduce<groupElement[]>(
          (acc, el, inx) => { acc[el] = inx; return acc; }, new Array(this.group.order)
@@ -185,7 +184,7 @@ export class Subgroup {
          })
 
       const subgroupAsGroup = Group.fromMulttable(multtable)
-      const libraryGroup = this.#getLibraryGroup(subgroupAsGroup)
+      const libraryGroup = this.getLibraryGroup(subgroupAsGroup)
       const isomorphism = IsomorphicGroups.isomorphism(libraryGroup, subgroupAsGroup)
       if (isomorphism == null) {
          throw new Error('Subgroup.getSubgroupAsGroup error:\n' +
@@ -195,28 +194,28 @@ export class Subgroup {
       return [libraryGroup, isomorphism.map((elt) => subgroupToParent[elt])]
    }
 
-  #setProperty (propertyName: string, value: any) {
+   private setProperty<T> (propertyName: string, value: T) {
       Object.defineProperty(this, propertyName, {
          value: value,
          enumerable: false
       })
    }
 
-   #setIsomorphicGroupAndEmbedding () {
-      const [isomorphicGroup, isomorphicGroupEmbedding] = this.#getSubgroupAsGroup()
-      this.#setProperty('isomorphicGroup', isomorphicGroup)
-      this.#setProperty('isomorphicGroupEmbedding', isomorphicGroupEmbedding)
+   private setIsomorphicGroupAndEmbedding () {
+      const [isomorphicGroup, isomorphicGroupEmbedding] = this.getSubgroupAsGroup()
+      this.setProperty<typeof isomorphicGroup>('isomorphicGroup', isomorphicGroup)
+      this.setProperty<typeof isomorphicGroupEmbedding>('isomorphicGroupEmbedding', isomorphicGroupEmbedding)
    }
 
-   #setQuotientGroupAndMap () {
+   private setQuotientGroupAndMap () {
       const [isomorphicQuotientGroup, isomorphicQuotientMap] = this.isNormal
-         ? this.#getQuotientGroup()
+         ? this.getQuotientGroup()
          : [null, null]
-      this.#setProperty('isomorphicQuotientGroup', isomorphicQuotientGroup)
-      this.#setProperty('isomorphicQuotientMap', isomorphicQuotientMap)
+      this.setProperty<typeof isomorphicQuotientGroup>('isomorphicQuotientGroup', isomorphicQuotientGroup)
+      this.setProperty<typeof isomorphicQuotientMap>('isomorphicQuotientMap', isomorphicQuotientMap)
    }
 
-   #subgroupIsNormal (): boolean {
+   private subgroupIsNormal (): boolean {
       const isNormal = (this.group.isAbelian)
          ? true
          : this.group.generators.every((g) =>

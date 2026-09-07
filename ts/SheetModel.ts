@@ -54,7 +54,8 @@ export interface SheetVisualizerInterface<JSONType> {
 };
 
 export interface SheetElementJSON {
-   id?: string
+   id?: string,
+   className?: string
 }
 export interface NodeElementJSON extends SheetElementJSON {
    x: float,
@@ -136,7 +137,7 @@ export function fittedFontSize (html: html, maxWidth: float, min: float = 1.5, m
 interface SheetElementJSONWithId extends SheetElementJSON { id: string, className: keyof ConcreteSheetTypes }
 
 export class SheetModel {
-   #sheetElements: Map<string, SheetElement> = new Map()
+   private _sheetElements: Map<string, SheetElement> = new Map()
    nextId = 0
    classMap: Record<keyof ConcreteSheetTypes, new (...args: any[]) => { fromJSON (jsonObject: unknown): any}> = {
       TextElement: TextElement,
@@ -148,7 +149,7 @@ export class SheetModel {
    }
 
    get sheetElements (): Map<string, SheetElement> {
-      return this.#sheetElements
+      return this._sheetElements
    }
 
    toJSON (): SheetJSON[] {
@@ -225,7 +226,8 @@ export class SheetModel {
          }
          plainObject = {...plainObject, id: this.nextId.toString()}
       }
-      const newElement = new (this.classMap[className])(this, plainObject.id as string).fromJSON(plainObject)
+      const newElement: SheetElement =
+         new (this.classMap[className])(this, plainObject.id as string).fromJSON(plainObject)
       this.sheetElements.set(newElement.id, newElement)
       return newElement
    }
@@ -265,15 +267,11 @@ export class SheetModel {
 export abstract class SheetElement {
    id: string
    className!: keyof ConcreteSheetTypes
-   #model: SheetModel
+   readonly model: SheetModel
 
    constructor (model: SheetModel, id: string) {
-      this.#model = model
+      this.model = model
       this.id = id
-   }
-
-   get model () {
-      return this.#model
    }
 
    abstract get z (): integer
@@ -568,7 +566,7 @@ export class MorphismElement extends LinkElement {
 
    fromJSON (jsonObject: MorphismElementJSON) {
       super.fromJSON(jsonObject)
-      this.morphismName = jsonObject.morphismName ?? this.#getMathyName()
+      this.morphismName = jsonObject.morphismName ?? this.getMathyName()
       this.showDomainAndCodomain = jsonObject.showDomainAndCodomain ?? false
       this.showDefiningPairs = jsonObject.showDefiningPairs ?? false
       this.showInjectionSurjection = jsonObject.showInjectionSurjection ?? false
@@ -587,7 +585,7 @@ export class MorphismElement extends LinkElement {
    }
 
    // Find the simplest mathy name for this morphism that's not yet used on this sheet.
-   #getMathyName (): string {
+   private getMathyName (): string {
       const sheetElements = Array.from(this.model.sheetElements.values())
       const mathyNames = ['f', 'g', 'h']
       const morphisms = sheetElements
@@ -677,35 +675,44 @@ export function createNewSheet (arg: {title: string, elements: SheetElementReque
 }
 
 function translateRequest (requests: SheetElementRequest[]): SheetJSON[] {
-   const results: any = requests.map((request) => {
-      const result = {...request} as Record<string, any>
+   function isVisualizer (element: SheetElementJSON): element is VisualizerElementJSON {
+      return ['CDElement', 'CGElement', 'MTElement'].includes(element.className!)
+   }
+   function isCDElement (element: VisualizerElementJSON): element is CDElementJSON {
+      return element.className === 'CDElement'
+   }
+   function isMTElement (element: VisualizerElementJSON): element is MTElementJSON {
+      return element.className === 'MTElement'
+   }
+   const results: SheetJSON[] = requests.map((request) => {
+      const result = {...request} as SheetElementJSON
+      result.className = request.className
 
       // create visualizer and move relevant values to visualizer
-      if (['CDElement', 'CGElement', 'MTElement'].includes(request.className)) {
-         result.visualizerJSON = {}
-         result.visualizerJSON.group_url = request.groupURL
-         result.visualizerJSON.highlight_colors = request.highlight_colors ?? [[], [], []]
+      if (isVisualizer(result)) {
+         result.visualizerJSON = {
+            group_url: request.groupURL!,
+            highlight_colors: request.highlight_colors ?? [[], [], []]
+         }
 
-         switch (request.className) {
-            case 'CDElement':
-               if (['arrow_generators', 'diagram_name', 'strategy_parameters'].some((field) => request[field as keyof SheetElementRequest] != null)) {
-                  result.visualizerJSON.diagram_control = {}
-                  if (request?.diagram_name != null) {
-                     result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name']
-                  } else if (request?.strategy_parameters != null) {
-                     result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters']
-                     if (request?.arrow_generators != null) {
-                        result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators']
-                     }
+         if (isCDElement(result)) {
+            if (['arrow_generators', 'diagram_name', 'strategy_parameters']
+               .some((field) => request[field as keyof SheetElementRequest] != null)
+            ) {
+               result.visualizerJSON.diagram_control = {}
+               if (request?.diagram_name != null) {
+                  result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name']
+               } else if (request?.strategy_parameters != null) {
+                  result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters']
+                  if (request?.arrow_generators != null) {
+                     result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators']
                   }
                }
-               break
-
-            case 'MTElement':
-               if ('organizing_subgroup' in request) {
-                  result.visualizerJSON['organizing_subgroup'] = request['organizing_subgroup']
-               }
-               break
+            }
+         } else if (isMTElement(result)) {
+            if ('organizing_subgroup' in request) {
+               result.visualizerJSON['organizing_subgroup'] = request['organizing_subgroup']
+            }
          }
       }
 

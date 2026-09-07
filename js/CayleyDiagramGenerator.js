@@ -603,7 +603,7 @@ class Chunk {
     strategy;
     transformedChunkBox;
     originalChunkSize;
-    #allChildNodes;
+    _allChildNodes;
     constructor(children, strategy) {
         if (children[0] != null) {
             if (Object.getPrototypeOf(children[0]) === Object.prototype) {
@@ -623,13 +623,13 @@ class Chunk {
         return this.leaves.length > 0;
     }
     get allChildNodes() {
-        if (this.#allChildNodes == null) {
+        if (this._allChildNodes == null) {
             const childNodes = (chunk) => (chunk.isLeaf)
                 ? [...chunk.leaves]
                 : chunk.chunks.map((child) => childNodes(child)).flat(1);
-            this.#allChildNodes = childNodes(this).flat(1);
+            this._allChildNodes = childNodes(this).flat(1);
         }
-        return this.#allChildNodes;
+        return this._allChildNodes;
     }
     get leftBoundary() {
         const leftBoundary = (this.isLeaf)

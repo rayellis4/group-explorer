@@ -12,53 +12,47 @@ Display input elements that configure the SymmetryObjectView:
 ```javascript
  */
 import * as Log from './Log.js';
-import { makeMockSelect } from './UIComponents.js';
 import { layoutSymmetryObject } from './SymmetryObjectView.js';
+import { makeMockSelect } from './UIComponents.js';
 export function addControl(symmetryObjectControlElement, symmetryObjectModel) {
-    const viewModel = new ViewModel();
-    viewModel.setModel(symmetryObjectModel);
-    const view = new View(symmetryObjectControlElement);
-    view.setViewModel(viewModel);
+    const viewModel = new ViewModel(symmetryObjectModel);
+    viewModel.view = new View(symmetryObjectControlElement, viewModel);
 }
 class ViewModel {
-    #model;
-    #view;
-    #modelFields = [
+    _model;
+    _view;
+    static modelFields = [
         'zoom_level',
         'line_width',
         'sphere_scale_factor',
         'fog_level',
     ];
+    constructor(model) {
+        this.model = model;
+    }
     get group() {
-        return this.#model.group;
+        return this.model.group;
     }
     get model() {
-        return this.#model;
+        return this._model;
+    }
+    set model(model) {
+        this._model = model;
+        ViewModel.modelFields.forEach((field) => model.$subscribe(this, field));
     }
     get view() {
-        return this.#view;
+        return this._view;
     }
-    setModel(model) {
-        this.#model = model;
-        this.#modelFields.forEach((field) => model.$subscribe(this, field));
-        if (this.view != null) {
-            this.initializeView();
-        }
+    set view(view) {
+        this._view = view;
+        ViewModel.modelFields.forEach((field) => this.update(field, this.model[field]));
+        const initialDiagramName = this.initialDiagramName();
+        this.update('diagram_select', initialDiagramName);
+        this.updateModel('diagram_select');
     }
-    setView(view) {
-        this.#view = view;
-        if (this.model != null) {
-            this.initializeView();
-        }
-    }
-    initializeView() {
-        this.#modelFields.forEach((field) => this.update(field, this.model[field]));
-        this.update('diagram_select', this.#initialDiagramName());
-        this.updateModel('diagram_select', null);
-    }
-    #initialDiagramName() {
+    initialDiagramName() {
         let diagramName;
-        // get diagram name from 
+        // get diagram name from
         const urlDiagramName = new URL(window.location.href).searchParams.get('diagram');
         // unless it is empty
         if (urlDiagramName == undefined) {
@@ -78,51 +72,49 @@ class ViewModel {
         }
         return diagramName;
     }
-    getFromView(field) {
-        return this.view.getFieldValue(field);
-    }
-    // handles input events from View, updates Model
-    updateModel(field, value) {
+    // field update callbacks from Model — convert to slider values and push to View directly
+    update(field, value) {
+        if (this.view == null)
+            return;
         switch (field) {
             case 'diagram_select':
-                this.model.layout = // override CayleyDiagramModel type to avoid having to create a SymmetryObjectModel
-                    layoutSymmetryObject(this.model.group, this.getFromView('diagram_select'));
+                this.view.diagram_select = value;
                 break;
             case 'zoom_level':
-                this.model.zoom_level = Math.exp(value / 10);
+                this.view.zoom_level = 10 * Math.log(value);
                 break;
             case 'line_width':
-                this.model.line_width = 1 + 0.75 * (value - 1);
+                this.view.line_width = 1 + (value - 1) / 0.75;
                 break;
             case 'sphere_scale_factor':
-                this.model.sphere_scale_factor = Math.exp(value / 10);
+                this.view.sphere_scale_factor = 10 * Math.log(value);
                 break;
-            case 'use_fog':
             case 'fog_level':
-                this.model.fog_level = this.getFromView('use_fog') ? (this.getFromView('fog_level') / 10) : 0;
+                this.view.use_fog = value != 0;
+                if (this.view.use_fog)
+                    this.view.fog_level = 10 * value;
                 break;
         }
     }
-    // field update callbacks from Model — convert to slider values and push to View directly
-    update(field, value) {
+    // handles input events from View, updates Model
+    updateModel(field) {
         switch (field) {
             case 'diagram_select':
-                this.view.update('diagram_select', value);
+                this.model.layout = // override CayleyDiagramModel type to avoid having to create a SymmetryObjectModel
+                    layoutSymmetryObject(this.model.group, this.view.diagram_select);
                 break;
             case 'zoom_level':
-                this.view.update('zoom_level', 10 * Math.log(value));
+                this.model.zoom_level = Math.exp(this.view.zoom_level / 10);
                 break;
             case 'line_width':
-                this.view.update('line_width', 1 + (value - 1) / 0.75);
+                this.model.line_width = 1 + 0.75 * (this.view.line_width - 1);
                 break;
             case 'sphere_scale_factor':
-                this.view.update('sphere_scale_factor', 10 * Math.log(value));
+                this.model.sphere_scale_factor = Math.exp(this.view.sphere_scale_factor / 10);
                 break;
+            case 'use_fog':
             case 'fog_level':
-                this.view.update('use_fog', value != 0);
-                if (value != 0) {
-                    this.view.update('fog_level', 10 * value);
-                }
+                this.model.fog_level = this.view.use_fog ? (this.view.fog_level / 10) : 0;
                 break;
         }
     }
@@ -135,24 +127,105 @@ class ViewModel {
 class View {
     rootElement;
     viewModel;
-    constructor(rootElement) {
+    constructor(rootElement, viewModel) {
         this.rootElement = rootElement;
-        this.addHTML();
+        this.viewModel = viewModel;
+        rootElement.innerHTML = View.getHTML();
         this.rootElement.addEventListener('input', (ev) => this.handleInputEvent(ev));
         this.rootElement.addEventListener('click', (ev) => this.handleClickEvent(ev));
     }
-    addHTML() {
-        this.rootElement.innerHTML =
-            `<div>
+    get diagram_select() { return this.getField('diagram_select'); }
+    set diagram_select(symmetryObject) {
+        const organizationSelectElement = this.getDisplayElement('diagram_select');
+        organizationSelectElement.setAttribute('data-value', symmetryObject);
+        organizationSelectElement.innerHTML = symmetryObject;
+    }
+    get zoom_level() { return this.getField('zoom_level'); }
+    set zoom_level(zoom_level) { this.updateField('zoom_level', zoom_level); }
+    get line_width() { return this.getField('line_width'); }
+    set line_width(line_width) { this.updateField('line_width', line_width); }
+    get sphere_scale_factor() { return this.getField('sphere_scale_factor'); }
+    set sphere_scale_factor(sphere_scale_factor) { this.updateField('sphere_scale_factor', sphere_scale_factor); }
+    get use_fog() { return this.getField('use_fog'); }
+    set use_fog(use_fog) { this.updateField('use_fog', use_fog); }
+    get fog_level() { return this.getField('fog_level'); }
+    set fog_level(fog_level) { this.updateField('fog_level', fog_level); }
+    getDisplayElement(field) {
+        const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`);
+        if (displayElement == null) {
+            Log.warn(`SymmetryObjectControl.View.getDisplayElement: search for unknown data binding ${field}`);
+        }
+        return displayElement;
+    }
+    getField(field) {
+        let result;
+        const displayElement = this.getDisplayElement(field);
+        if (displayElement instanceof HTMLInputElement) {
+            if (displayElement.type.toLowerCase() == 'range') {
+                result = displayElement.valueAsNumber;
+            }
+            else if (displayElement.type.toLowerCase() == 'checkbox') {
+                result = displayElement.checked;
+            }
+        }
+        else if (displayElement instanceof HTMLDivElement) { // .mock-select
+            result = displayElement.getAttribute('data-value'); // just has string, not index
+        }
+        return result;
+    }
+    updateField(field, value) {
+        const displayElement = this.getDisplayElement(field);
+        if (displayElement instanceof HTMLInputElement) {
+            if (displayElement.type.toLowerCase() == 'range') {
+                displayElement.valueAsNumber = value;
+            }
+            else if (displayElement.type.toLowerCase() == 'checkbox') {
+                displayElement.checked = value;
+            }
+        }
+        else if (field == 'diagram_select') {
+            const symmetryObjectIndex = this.viewModel.group.symmetryObjects
+                .findIndex((symmetryObject) => symmetryObject.name == value);
+            displayElement.setAttribute('data-index', symmetryObjectIndex.toString());
+            displayElement.innerHTML = value;
+        }
+    }
+    // generic input event handler, forwards to ViewModel
+    handleInputEvent(inputEvent) {
+        const field = inputEvent.target?.getAttribute('data-bind');
+        if (field != null) {
+            inputEvent.stopPropagation();
+            this.viewModel.updateModel(field);
+        }
+    }
+    // handle click event --
+    handleClickEvent(clickEvent) {
+        const action = clickEvent.target.closest('[data-action]')?.getAttribute('data-action');
+        if (action == null) {
+            const maybeMockSelect = clickEvent.target.closest('.mock-select');
+            if (maybeMockSelect != null) {
+                const diagramChoices = this.viewModel.group.symmetryObjects.map((symmetryObject) => { return { value: symmetryObject.name }; });
+                makeMockSelect(maybeMockSelect, diagramChoices)
+                    .then((_choice) => this.viewModel.updateModel('diagram_select'), () => { });
+            }
+        }
+        else {
+            clickEvent.stopPropagation();
+            this.viewModel.executeCommand(action);
+        }
+    }
+    static getHTML() {
+        return `
+          <div>
              View this symmetry object:
              <div data-bind="diagram_select" class="mock-select" data-index=""></div>
           </div>
-      
+
           <div>
              Zoom level:
              <input data-bind="zoom_level" type="range" min="-10" max="10" value="0">
           </div>
-      
+
           <div>
              Line thickness:
              <input data-bind="line_width" type="range" min="1" max="20">
@@ -177,75 +250,6 @@ class View {
                    >Snap to axis</button>
              </details>
           </div>`;
-    }
-    setViewModel(viewModel) {
-        this.viewModel = viewModel;
-        this.viewModel.setView(this);
-    }
-    getDisplayElement(field) {
-        const displayElement = this.rootElement.querySelector(`[data-bind="${field}"]`);
-        if (displayElement == null) {
-            Log.warn(`SymmetryObjectControl.View.getDisplayElement: search for unknown data binding ${field}`);
-        }
-        return displayElement;
-    }
-    getFieldValue(field) {
-        let result;
-        const displayElement = this.getDisplayElement(field);
-        if (displayElement instanceof HTMLInputElement) {
-            if (displayElement.type.toLowerCase() == 'range') {
-                result = displayElement.value;
-            }
-            else if (displayElement.type.toLowerCase() == 'checkbox') {
-                result = displayElement.checked;
-            }
-        }
-        else if (field == 'diagram_select') {
-            result = displayElement.innerHTML;
-        }
-        return result;
-    }
-    update(field, value) {
-        const displayElement = this.getDisplayElement(field);
-        if (displayElement instanceof HTMLInputElement) {
-            if (displayElement.type.toLowerCase() == 'range') {
-                displayElement.value = value;
-            }
-            else if (displayElement.type.toLowerCase() == 'checkbox') {
-                displayElement.checked = value;
-            }
-        }
-        else if (field == 'diagram_select') {
-            const symmetryObjectIndex = this.viewModel.group.symmetryObjects
-                .findIndex((symmetryObject) => symmetryObject.name == value);
-            displayElement.setAttribute('data-index', symmetryObjectIndex.toString());
-            displayElement.innerHTML = value;
-        }
-    }
-    // generic input event handler, forwards to ViewModel
-    handleInputEvent(inputEvent) {
-        const field = inputEvent.target.getAttribute('data-bind');
-        if (field != null) {
-            inputEvent.stopPropagation();
-            this.viewModel.updateModel(field, this.getFieldValue(field));
-        }
-    }
-    handleClickEvent(clickEvent) {
-        const action = clickEvent.target.closest('[data-action]')?.getAttribute('data-action');
-        if (action == null) {
-            const maybeMockSelect = clickEvent.target.closest('.mock-select');
-            if (maybeMockSelect != null) {
-                const diagramChoices = [
-                    ...this.viewModel.group.symmetryObjects.map((symmetryObject) => { return { value: symmetryObject.name }; })
-                ];
-                makeMockSelect(maybeMockSelect, diagramChoices)
-                    .then((choice) => this.viewModel.updateModel('diagram_select', choice), () => { });
-            }
-        }
-        else {
-            clickEvent.stopPropagation();
-            this.viewModel.executeCommand(action);
-        }
     }
 }
 //# sourceMappingURL=SymmetryObjectControl.js.map

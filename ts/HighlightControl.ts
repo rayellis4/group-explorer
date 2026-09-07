@@ -8,24 +8,13 @@ the visualizer model in the model's `highlightControl` slot.
 
 ```js
  */
-import {HighlightControlViewModel} from './HighlightControlViewModel.js'
-import {HighlightControlView} from './HighlightControlView.js'
+import { HighlightControlViewModel } from './HighlightControlViewModel.js'
+import { HighlightControlView } from './HighlightControlView.js'
 
 import type { SubscriptionProxy } from './GEUtils.js'
-import type { Group } from './Group.js'
+import type { HighlightControlModelInterface } from './HighlightControlViewModel.js'
 
-export interface HighlightControlModelInterface {
-   group: Group,
-   highlightColors: Maybe<color>[][],
-   highlightConfiguration: {  // visualizer-specific highlight parameters
-      highlightTypes: string[],
-      saturation: number[],
-      lightness: number[],
-      hueOffset: number[]
-   },
-   highlightControl: any
-}
-
+export type { HighlightControlModelInterface, HighlightControlJSON } from './HighlightControlViewModel.ts'
 /*
 ```
 ## AddControl

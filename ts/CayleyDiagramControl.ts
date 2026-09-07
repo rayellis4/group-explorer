@@ -27,7 +27,7 @@ import { makeDetachedMenu, makeMockSelect } from './UIComponents.js'
 import type { Layout, Direction } from './CayleyDiagramGenerator.ts'
 import type { CayleyDiagramModel } from './CayleyDiagramModel.ts'
 import type { StrategyParameters, ArrowGenerator } from './CayleyDiagramGenerator.ts'
-import type { SubscriptionProxy } from './GEUtils.ts'
+import type { SubscriptionProxy, Serializable } from './GEUtils.ts'
 
 export type CayleyDiagramControlJSON = {
    diagram_name?: string,                       // undefined => generate diagram from strategy parameters
@@ -94,7 +94,7 @@ function clickHandler (event: MouseEvent) {
    }
 }
 
-class ViewModel {
+class ViewModel implements Serializable<CayleyDiagramControlJSON> {
    #model
    rootElement: HTMLElement
    handlers: View[] = []
@@ -107,18 +107,19 @@ class ViewModel {
    constructor (rootElement: HTMLElement, model: CayleyDiagramModel) {
       this.#model = model
       this.rootElement = rootElement
+      const modelDiagramControl = model.diagramControl as Maybe<CayleyDiagramControlJSON>
 
       // get diagram name from sheet editor JSON or URL
-      if (model.diagramControl?.diagram_name != null) {
-         this.diagramName = model.diagramControl.diagram_name
-      } else if (model.diagramControl?.strategy_parameters != null) {
-         this.strategyParameters = model.diagramControl.strategy_parameters
+      if (modelDiagramControl?.diagram_name != null) {
+         this.diagramName = modelDiagramControl.diagram_name
+      } else if (modelDiagramControl?.strategy_parameters != null) {
+         this.strategyParameters = modelDiagramControl.strategy_parameters
       } else {
          this.diagramName = new URL(window.location.href).searchParams.get('diagram')
       }
 
-      if (model.diagramControl?.arrow_generators != null) {
-         this.arrowGenerators = model.diagramControl.arrow_generators
+      if (modelDiagramControl?.arrow_generators != null) {
+         this.arrowGenerators = modelDiagramControl.arrow_generators
       }
 
       if (  this.diagramName != null
@@ -128,8 +129,8 @@ class ViewModel {
          this.diagramName = null
       }
 
-      if (model.diagramControl?.chunk_subgroup_index != null) {
-         this.chunkSubgroupIndex = model.diagramControl.chunk_subgroup_index
+      if (modelDiagramControl?.chunk_subgroup_index != null) {
+         this.chunkSubgroupIndex = modelDiagramControl.chunk_subgroup_index
       }
 
       // don't overwrite layout if it exists

@@ -6,4 +6,4 @@ export declare function getInitialData(): Promise<{
 export declare function enableModelChangeBroadcast(elementId: string, model: SubscriptionProxy<{
     toJSON: () => unknown;
 }>, fields: string[]): void;
-export declare function listenForSheetUpdates(fromJSONCallback: (json: any) => unknown): void;
+export declare function listenForSheetUpdates<T>(fromJSONCallback: (json: T) => unknown): void;

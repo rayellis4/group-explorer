@@ -26,8 +26,9 @@ Model for the Cayley diagram visualizer. Holds all serializable state:
 
 ```javascript
  */
-import * as Library from './Library.js';
 import { layoutToJSON, layoutFromJSON } from './CayleyDiagramView.js';
+import { isSerializable } from './GEUtils.js';
+import * as Library from './Library.js';
 export { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js';
 export class CayleyDiagramModel {
     group;
@@ -51,8 +52,8 @@ export class CayleyDiagramModel {
     // View parameters — manipulated by HighlightControl
     highlightColors;
     // Opaque plugin slots (carried opaquely through serialization)
-    highlightControl; // owned by HighlightControl
-    diagramControl; // owned by CayleyDiagramControl
+    highlightControl;
+    diagramControl;
     // Request fields — transient commands; set by CayleyViewControl, cleared by CayleyDiagramView
     snap_to_axis_request;
     constructor(group) {
@@ -84,8 +85,12 @@ export class CayleyDiagramModel {
             label_scale_factor: this.label_scale_factor,
             showing_axes: this.showingAxes,
             highlight_colors: this.highlightColors,
-            highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
-            diagram_control: this.diagramControl?.toJSON?.() ?? this.diagramControl,
+            highlight_control: isSerializable(this.highlightControl)
+                ? this.highlightControl.toJSON()
+                : this.highlightControl,
+            diagram_control: isSerializable(this.diagramControl)
+                ? this.diagramControl.toJSON()
+                : this.diagramControl
         };
         return json;
     }
@@ -105,13 +110,15 @@ export class CayleyDiagramModel {
         this.label_scale_factor = json.label_scale_factor ?? this.label_scale_factor;
         this.showingAxes = json.showing_axes ?? this.showingAxes;
         // let owners deserialize opaque slots
-        if (this.highlightControl?.fromJSON == null) {
-            this.highlightControl = json.highlight_control;
+        if (json?.highlight_control != null) {
+            if (this.highlightControl == null || !('fromJSON' in this.highlightControl)) {
+                this.highlightControl = json.highlight_control;
+            }
+            else {
+                this.highlightControl.fromJSON(json.highlight_control);
+            }
         }
-        else if (json.highlight_control != null) {
-            this.highlightControl.fromJSON(json.highlight_control);
-        }
-        if (this.diagramControl?.fromJSON == null) {
+        if (this.diagramControl == null || !('fromJSON' in this.diagramControl)) {
             this.diagramControl = json.diagram_control;
         }
         else if (json.diagram_control != null) {

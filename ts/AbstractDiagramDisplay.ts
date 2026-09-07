@@ -175,11 +175,11 @@ export class AbstractDiagramDisplay {
     }
 
     // legacy interface, for compatibility with Sheets
-    getSize(): {w: number, h: number} {
+    getSize (): {w: number, h: number} {
         return this.size;
     }
 
-    setSize(width: number, height: number) {
+    setSize (width: number, height: number) {
         this.size = {w: width, h: height};
     }
 

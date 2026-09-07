@@ -223,10 +223,10 @@ function setArrowColors (arrows: ArrowType[], passedArrowGenerators: Maybe<Arrow
 }
 
 // colors from Mat Macaulay's slides, Sasha Trubetskoy's list of distinct colors
-const ARROW_COLORS =
+const ARROW_COLORS: color[] =
    ['#89b910', '#b79100', '#f58231', '#469990', '#808000', '#007700', '#0d0db0', '#990000']
 export function nextArrowColor (colorsUsed: color[] = []): color {
-   let nextColor
+   let nextColor: color
    if (colorsUsed.length < ARROW_COLORS.length) {
       const unusedColors = [...ARROW_COLORS]
       colorsUsed.forEach((color) => {
@@ -340,7 +340,7 @@ function createArrows (
       const chunkIndex = ancestry.findIndex((chunk) => chunk == commonChunk)
 
       // look past colinear lines: they don't help to determine the display plane
-      let child = null
+      let child: Maybe<Chunk> = null
       for (let inx = chunkIndex - 1; inx >= 0; inx--) {
          const maybeChild = ancestry[inx] as Chunk
          if ( !(maybeChild.strategy instanceof LinearLayoutStrategy)
@@ -350,7 +350,7 @@ function createArrows (
             }
       }
 
-      let parent = null
+      let parent: Maybe<Chunk> = null
       for (let inx = chunkIndex + 1; inx < ancestry.length; inx++) {
          const maybeParent = ancestry[inx] as Chunk
          if (   !(maybeParent.strategy instanceof LinearLayoutStrategy)
@@ -379,7 +379,7 @@ function createArrows (
       const commonChunkDirectionIndex = DIRECTION_INDEX[commonChunk.strategy.direction]
       const otherChunkDirectionIndex = DIRECTION_INDEX[otherChunk.strategy.direction]
 
-      let thirdPoint
+      let thirdPoint: THREE.Vector3
       if (otherChunk.strategy instanceof CurvedLayoutStrategy) {              //   line of rings, ring of lines
          if (commonChunkDirectionIndex == otherChunkDirectionIndex) {         //     line is normal to other chunk
             thirdPoint = new THREE.Vector3()
@@ -458,7 +458,7 @@ function createArrows (
 
    // this is a stand-alone line
    const getThirdPointForSingleLine = (chunk: Chunk): THREE.Vector3 => {
-      let thirdPoint
+      let thirdPoint: THREE.Vector3
 
       // deal with colinear line-of-lines case?
       const thirdPoints = [
@@ -612,7 +612,7 @@ const positionTransforms = {
 class CurvedLayoutStrategy extends AbstractLayoutStrategy {
     positionTransform: (r: number, theta: number) => THREE.Vector3
 
-    constructor(generator: groupElement, direction: Direction, nesting_level: number) {
+    constructor (generator: groupElement, direction: Direction, nesting_level: number) {
         super(generator, direction, nesting_level);
         this.positionTransform = positionTransforms[direction as PlaneDirection]
     }
@@ -661,7 +661,7 @@ class CurvedLayoutStrategy extends AbstractLayoutStrategy {
 class CircularLayoutStrategy extends CurvedLayoutStrategy {
     readonly layout: Layout = 'circular'
 
-    constructor(generator: groupElement, direction: Direction, nesting_level: integer) {
+    constructor (generator: groupElement, direction: Direction, nesting_level: integer) {
         super(generator, direction, nesting_level);
     }
 
@@ -710,7 +710,7 @@ class RotatedLayoutStrategy extends CurvedLayoutStrategy {
     layout: Layout = 'rotated'
     rotationTransform: (theta: number) => THREE.Matrix4;
 
-    constructor(generator: groupElement, direction: Direction, nesting_level: integer) {
+    constructor (generator: groupElement, direction: Direction, nesting_level: integer) {
         super(generator, direction, nesting_level);
         // ToDo: make a choice with Nathan and remove this
         if (localStorage.getItem('POV') == 'GE2') {
@@ -760,7 +760,7 @@ class Chunk {
    strategy!: AbstractLayoutStrategy
    transformedChunkBox!: THREE.Matrix4
    originalChunkSize!: THREE.Vector3
-   #allChildNodes!: NodeType[]
+   private _allChildNodes!: NodeType[]
     
    constructor (children: Chunk[] | NodeType[], strategy?: AbstractLayoutStrategy) {
       if (children[0] != null) {
@@ -783,15 +783,15 @@ class Chunk {
    }
    
     get allChildNodes (): NodeType[] {
-       if (this.#allChildNodes == null) {
+       if (this._allChildNodes == null) {
           const childNodes = (chunk: Chunk): NodeType[] =>
              (chunk.isLeaf)
                 ? [...chunk.leaves]
                 : chunk.chunks.map((child) => childNodes(child)).flat(1)
-          this.#allChildNodes = childNodes(this).flat(1)
+          this._allChildNodes = childNodes(this).flat(1)
        }
 
-       return this.#allChildNodes
+       return this._allChildNodes
     }
 
     get leftBoundary (): Chunk[] {

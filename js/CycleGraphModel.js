@@ -9,6 +9,7 @@ Model for the cycle graph visualizer. Holds all serializable state:
 
 ```javascript
  */
+import { isSerializable } from './GEUtils.js';
 import * as Library from './Library.js';
 export class CycleGraphModel {
     group;
@@ -20,7 +21,7 @@ export class CycleGraphModel {
         hueOffset: [0, 1 / 3, 2 / 3]
     };
     // Opaque plugin slots (carried opaquely through serialization)
-    highlightControl = null;
+    highlightControl;
     constructor(group) {
         this.group = group;
         this.reset();
@@ -32,7 +33,9 @@ export class CycleGraphModel {
         const json = {
             group_url: this.group.URL,
             highlight_colors: this.highlightColors,
-            highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl
+            highlight_control: isSerializable(this.highlightControl)
+                ? this.highlightControl.toJSON()
+                : this.highlightControl
         };
         return json;
     }
@@ -43,11 +46,11 @@ export class CycleGraphModel {
         }
         this.highlightColors = json.highlight_colors ?? this.highlightColors;
         if (json.highlight_control != null) {
-            if (this.highlightControl != null && 'fromJSON' in this.highlightControl) {
-                this.highlightControl.fromJSON(json.highlight_control);
-            }
-            else {
+            if (this.highlightControl == null || !('fromJSON' in this.highlightControl)) {
                 this.highlightControl = json.highlight_control;
+            }
+            else if (json.highlight_control != null) {
+                this.highlightControl.fromJSON(json.highlight_control);
             }
         }
         return this;

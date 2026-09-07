@@ -39,8 +39,8 @@ export class BitSet {
       return { len: this.len, arr: Array.from(this.arr) }
    }
 
-    fromJSON (json: string | BitSetJSON): this {
-      const jsonObject = (typeof json == 'string') ? JSON.parse(json) : json
+   fromJSON (json: string | BitSetJSON): this {
+      const jsonObject: BitSetJSON = (typeof json == 'string') ? JSON.parse(json) : json
       this.len = jsonObject.len
       this.arr = Uint32Array.from(jsonObject.arr)
 

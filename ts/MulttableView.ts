@@ -71,9 +71,11 @@ const HIGHLIGHT_BORDER = 1
 const HIGHLIGHT_CORNER = 2
 
 export class MulttableViewModel implements Updatable, SheetVisualizerInterface<MulttableJSON> {
-   #model!: GEUtils.SubscriptionProxy<MulttableModel>
-   #view!: MulttableView
-   #modelFields: (keyof MulttableModel)[] = [
+   private _model!: GEUtils.SubscriptionProxy<MulttableModel>
+   private _view!: MulttableView
+   private _group!: Group
+
+   private static modelFields: (keyof MulttableModel)[] = [
       'group',
       'elements',
       'separation',
@@ -82,30 +84,29 @@ export class MulttableViewModel implements Updatable, SheetVisualizerInterface<M
       'colorReordering',
       'highlightColors'
    ]
-   #group!: Group
 
    get view (): MulttableView {
-      return this.#view
+      return this._view
    }
 
    set view (view: MulttableView) {
-      this.#view = view
+      this._view = view
       if (this.model != null) {
-         this.#modelFields.forEach((field) => this.update(field, this.model[field]))
+         MulttableViewModel.modelFields.forEach((field) => this.update(field, this.model[field]))
       }
    }
 
    get model (): MulttableModel {
-      return this.#model
+      return this._model
    }
 
    get modelProxy (): GEUtils.SubscriptionProxy<MulttableModel> {
-      return this.#model
+      return this._model
    }
 
    set model (multtableModel: SubscriptionProxy<MulttableModel>) {
-      this.#model = multtableModel
-      this.#modelFields.forEach((field) => {
+      this._model = multtableModel
+      MulttableViewModel.modelFields.forEach((field) => {
          multtableModel.$subscribe(this, field)
          this.update(field, this.model[field])
       })
@@ -124,7 +125,7 @@ export class MulttableViewModel implements Updatable, SheetVisualizerInterface<M
    }
 
    get group (): Group {
-      return this.model?.group ?? this.#group
+      return this.model?.group ?? this._group
    }
 
    get highlightColors (): Maybe<color>[][] {
@@ -139,7 +140,7 @@ export class MulttableViewModel implements Updatable, SheetVisualizerInterface<M
       return (this.organizingSubgroup == 0) ? 0 : (this.model?.separation ?? 0)
    }
 
-   update (field: string, value: any) {
+   update (field: string, value: unknown) {
       if (this.view == null) {
          return
       }
@@ -153,7 +154,7 @@ export class MulttableViewModel implements Updatable, SheetVisualizerInterface<M
          this.view.queueShowGraphic()
          break
       case 'organizingSubgroup':  // update elements when organizing subgroup changes
-         this.model['elements'] = (this.group != null) ? this.makeLayout(value) : []
+         this.model['elements'] = (this.group != null) ? this.makeLayout(value as number) : []
          break
       default:
          Log.info(`unsupported field ${field} in MulttableView.MulttableViewModel.updateView`)
@@ -238,7 +239,7 @@ export class MulttableViewModel implements Updatable, SheetVisualizerInterface<M
    get canvas (): HTMLCanvasElement            { return this.view.canvas }
    toJSON (): MulttableJSON                    { return this.model.toJSON() }
    fromJSON (jsonObject: MulttableJSON)        { this.model.fromJSON(jsonObject) }
-   draw (group: Group)                         { this.#group = group }
+   draw (group: Group)                         { this._group = group }
 }
 
 export class MulttableView /*: implements VizDisplay<MulttableJSON> */ {

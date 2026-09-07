@@ -67,7 +67,7 @@ export async function load () {
 
       SheetEditor.enableModelChangeBroadcast(elementId as string, cycleGraphModel, SHEET_UPDATE_FIELDS)
 
-      SheetEditor.listenForSheetUpdates((json: CycleGraphJSON) => cycleGraphModel.fromJSON(json))
+      SheetEditor.listenForSheetUpdates<CycleGraphJSON>((json) => cycleGraphModel.fromJSON(json))
    }
 
    // Create Control Panel

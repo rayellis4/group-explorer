@@ -23,7 +23,10 @@ type Path = {
     pathIndex?: number;
 };
 declare class CycleGraphViewModel implements GEUtils.Updatable, SheetVisualizerInterface<CycleGraphJSON> {
-    #private;
+    private _model;
+    private _view;
+    private _group;
+    private static modelFields;
     get view(): CycleGraphView;
     set view(view: CycleGraphView);
     get model(): CycleGraphModel;
@@ -31,7 +34,7 @@ declare class CycleGraphViewModel implements GEUtils.Updatable, SheetVisualizerI
     set model(cycleGraphModel: GEUtils.SubscriptionProxy<CycleGraphModel>);
     get group(): Group;
     get highlightColors(): Maybe<color>[][];
-    update(field: string, value: any): void;
+    update(field: string, _value: unknown): void;
     getSize(): {
         w: number;
         h: number;

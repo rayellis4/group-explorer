@@ -11,12 +11,17 @@ import { parseFormattedPresentation } from './DefiningRelations.js'
 
 import type { Group } from './Group.js'
 /*
- * We give access to live GAP execution online through the Sage Cell Server
- */
+```
+## setup
+ Gives access to live GAP execution online through the [Sage Cell Server](https://sagecell.sagemath.org).
 
-// purpose -> code map
-// note that the code contains template string expressions which will be expanded
-// when the code is wrapped in back tics '`' and eval'd in getCode
+ Opens [ShowGAPCode.html](../html/ShowGAPCode.html) in iframe defined in [GroupInfo.ts](./GroupInfo.ts),
+ which creates an [embedded Sage cell](https://github.com/sagemath/sagecell/blob/master/doc/embedding.rst)
+ that is initialized with code from the `codeForPurpose` map. The results of the GAP computation are discarded.
+
+ N.B.: `codeForPurpose` maps a purpose string to a template literal, which is evaluated in the parent
+ [GroupInfo page](./GroupInfo.html) context before being passed to the Sage cell in the iframe.
+ */
 const codeForPurpose = new Map<string, string>([
   ['creating this group',
    `# In GAP's Small Groups library, of all the groups
@@ -109,7 +114,8 @@ export async function setup (purpose: string, group: Group) {
 
   // get the GAP code to accomplish the purpose for this group and show it in iframeElement
   const code = getCode(purpose, group)
-  ;(iframeElement.contentWindow as Window & {GAPCell: any}).GAPCell.show(purpose, code)
+  ;(iframeElement.contentWindow as Window & {GAPCell: {show: (purpose: string, code: string) => void}})
+     .GAPCell.show(purpose, code)
 }
 
 function getCode (purpose: string, group: Group): string {
@@ -126,33 +132,20 @@ function getCode (purpose: string, group: Group): string {
   const gpdef = `SmallGroup( ${ord}, ${idx} )`
 
   const code = codeForPurpose.get(purpose) as string
-  const newCode = eval('`' + code.split('\n').map((line) => line.trim()).join('\n') + '`')
+  const newCode = eval('`' + code.split('\n').map((line) => line.trim()).join('\n') + '`') as string
 
   return newCode
 }
+/*
+```
+## resolveGAPInfo
 
-function executeCommands (gapCommands: string): Promise<string> {
-   return new Promise((resolve, reject) => {
-      const iframeElement = document.body.appendChild(document.createElement('iframe'))
-      iframeElement.style.display = 'none'
+Sends message to online GAP server to find gapid, gapname.
+Accumulates array of requests to be processed together at the end of the current tick
+after the current batch, if any, has completed.
 
-      window.addEventListener('message', (event) => {
-         if (new URL(window.location.href).origin != event.origin) {
-            return
-         }
-         if (event.data.input == gapCommands) {
-            iframeElement.remove()
-            if ('output' in event.data) {
-               resolve(event.data.output)
-            } else {
-               reject(event.data.error)
-            }
-         }
-      })
-
-      iframeElement.setAttribute('src', `./html/ExecuteGAPCommands.html?${encodeURIComponent(gapCommands)}`)
-   })
-}
+```js
+ */
 
 // pending queue for microbatch GAP resolution
 const pendingResolutions: Array<{presentation: string, resolve: Function, reject: Function}> = []
@@ -193,4 +186,43 @@ async function processBatch () {
    } catch (error) {
       batch.forEach(({reject}) => reject(error))
    }
+}
+/*
+```
+### executeCommands
+
+ * Runs html/ExecuteGAPCommands.html in hidden iframe
+ * Passes GAP commands to execute in query ?? of URL
+ * Receive result in GAPCommandResult message
+ * Returns result in promise
+
+```js
+ */
+type GAPCommandResult = {
+   input: string,
+   output?: string,
+   error?: string
+}
+
+function executeCommands (gapCommands: string): Promise<string> {
+   return new Promise<string>((resolve, reject) => {
+      const iframeElement = document.body.appendChild(document.createElement('iframe'))
+      iframeElement.style.display = 'none'
+
+      window.addEventListener('message', (event: MessageEvent<GAPCommandResult>) => {
+         if (new URL(window.location.href).origin != event.origin) {
+            return
+         }
+         if (event.data.input == gapCommands) {
+            iframeElement.remove()
+            if ('output' in event.data) {
+               resolve(event.data.output!)
+            } else {
+               reject(event.data.error)
+            }
+         }
+      })
+
+      iframeElement.setAttribute('src', `./html/ExecuteGAPCommands.html?${encodeURIComponent(gapCommands)}`)
+   })
 }

@@ -65,7 +65,8 @@ export function enableModelChangeBroadcast (
                modelChangeBroadcaster.lastJsonString = currentJsonString
                const msg = {source: 'editor', elementId, json: currentJson}
                Log.debug(`message posted for ${elementId}: ${currentJsonString}`)
-               window.opener?.postMessage(msg, new URL(window.location.href).origin)            
+               // window.opener mis-typed as 'any' in v6.0.3 node_modules/typescript/lib/lib.dom.d.ts
+               ;(window.opener as Window | null)?.postMessage(msg, new URL(window.location.href).origin)
             }}, 0)
       }
    }
@@ -73,8 +74,8 @@ export function enableModelChangeBroadcast (
    fields.forEach((field) => model.$subscribe(modelChangeBroadcaster, field))
 }
 
-export function listenForSheetUpdates (fromJSONCallback: (json: any) => unknown) {
-   window.addEventListener('message', (event) => {
+export function listenForSheetUpdates<T> (fromJSONCallback: (json: T) => unknown) {
+   window.addEventListener('message', (event: MessageEvent<{source: 'sheet', json: T}>) => {
       if (event.data?.source !== 'sheet')
          return
       const {json} = event.data

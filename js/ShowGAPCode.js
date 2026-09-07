@@ -9,11 +9,17 @@ GAP code in the [GroupInfo](./GroupInfo.html.md) page.
  */
 import { parseFormattedPresentation } from './DefiningRelations.js';
 /*
- * We give access to live GAP execution online through the Sage Cell Server
+```
+## setup
+ Gives access to live GAP execution online through the [Sage Cell Server](https://sagecell.sagemath.org).
+
+ Opens [ShowGAPCode.html](../html/ShowGAPCode.html) in iframe defined in [GroupInfo.ts](./GroupInfo.ts),
+ which creates an [embedded Sage cell](https://github.com/sagemath/sagecell/blob/master/doc/embedding.rst)
+ that is initialized with code from the `codeForPurpose` map. The results of the GAP computation are discarded.
+
+ N.B.: `codeForPurpose` maps a purpose string to a template literal, which is evaluated in the parent
+ [GroupInfo page](./GroupInfo.html) context before being passed to the Sage cell in the iframe.
  */
-// purpose -> code map
-// note that the code contains template string expressions which will be expanded
-// when the code is wrapped in back tics '`' and eval'd in getCode
 const codeForPurpose = new Map([
     ['creating this group',
         `# In GAP's Small Groups library, of all the groups
@@ -93,7 +99,8 @@ export async function setup(purpose, group) {
     }
     // get the GAP code to accomplish the purpose for this group and show it in iframeElement
     const code = getCode(purpose, group);
-    iframeElement.contentWindow.GAPCell.show(purpose, code);
+    iframeElement.contentWindow
+        .GAPCell.show(purpose, code);
 }
 function getCode(purpose, group) {
     // converting an arbitrary string to a JS identifier (not injective)
@@ -110,27 +117,16 @@ function getCode(purpose, group) {
     const newCode = eval('`' + code.split('\n').map((line) => line.trim()).join('\n') + '`');
     return newCode;
 }
-function executeCommands(gapCommands) {
-    return new Promise((resolve, reject) => {
-        const iframeElement = document.body.appendChild(document.createElement('iframe'));
-        iframeElement.style.display = 'none';
-        window.addEventListener('message', (event) => {
-            if (new URL(window.location.href).origin != event.origin) {
-                return;
-            }
-            if (event.data.input == gapCommands) {
-                iframeElement.remove();
-                if ('output' in event.data) {
-                    resolve(event.data.output);
-                }
-                else {
-                    reject(event.data.error);
-                }
-            }
-        });
-        iframeElement.setAttribute('src', `./html/ExecuteGAPCommands.html?${encodeURIComponent(gapCommands)}`);
-    });
-}
+/*
+```
+## resolveGAPInfo
+
+Sends message to online GAP server to find gapid, gapname.
+Accumulates array of requests to be processed together at the end of the current tick
+after the current batch, if any, has completed.
+
+```js
+ */
 // pending queue for microbatch GAP resolution
 const pendingResolutions = [];
 let batchScheduled = false;
@@ -163,5 +159,26 @@ async function processBatch() {
     catch (error) {
         batch.forEach(({ reject }) => reject(error));
     }
+}
+function executeCommands(gapCommands) {
+    return new Promise((resolve, reject) => {
+        const iframeElement = document.body.appendChild(document.createElement('iframe'));
+        iframeElement.style.display = 'none';
+        window.addEventListener('message', (event) => {
+            if (new URL(window.location.href).origin != event.origin) {
+                return;
+            }
+            if (event.data.input == gapCommands) {
+                iframeElement.remove();
+                if ('output' in event.data) {
+                    resolve(event.data.output);
+                }
+                else {
+                    reject(event.data.error);
+                }
+            }
+        });
+        iframeElement.setAttribute('src', `./html/ExecuteGAPCommands.html?${encodeURIComponent(gapCommands)}`);
+    });
 }
 //# sourceMappingURL=ShowGAPCode.js.map

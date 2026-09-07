@@ -1,9 +1,10 @@
+import { Serializable } from './GEUtils.js';
 import type { Group } from './Group.js';
-import type { HighlightControlModelInterface } from './HighlightControl.js';
+import type { HighlightControlModelInterface, HighlightControlJSON } from './HighlightControl.js';
 export type CycleGraphJSON = {
     group_url: string;
     highlight_colors?: Maybe<color>[][];
-    highlight_control?: any;
+    highlight_control?: HighlightControlJSON;
 };
 export declare class CycleGraphModel implements HighlightControlModelInterface {
     group: Group;
@@ -14,7 +15,7 @@ export declare class CycleGraphModel implements HighlightControlModelInterface {
         lightness: number[];
         hueOffset: number[];
     };
-    highlightControl: any;
+    highlightControl: HighlightControlJSON | (object & Serializable<HighlightControlJSON>);
     constructor(group: Group);
     reset(): void;
     toJSON(): CycleGraphJSON;

@@ -1,6 +1,7 @@
 import * as THREE from '../lib/externals.js';
 import { CayleyDiagramModel, CayleyDiagramModelJSON } from './CayleyDiagramModel.js';
 import { CycleGraphJSON } from './CycleGraphModel.js';
+import { Updatable } from './GEUtils.js';
 import { MulttableJSON } from './MulttableModel.js';
 import type { CayleyDiagramViewModel } from './CayleyDiagramView.ts';
 import type { CycleGraphViewModel } from './CycleGraphView.ts';
@@ -20,7 +21,6 @@ export declare function zoom(scaleFactor: float): void;
 export declare function redrawAll(): void;
 export declare function redrawLinksFor(modelElement: NodeElement): void;
 export declare class View {
-    #private;
     viewModel: SheetViewModel;
     viewElements: Map<string, SheetView>;
     constructor(viewModel: SheetViewModel, _rootElement: HTMLElement);
@@ -34,6 +34,7 @@ export declare class View {
     resizeElement(modelElement: NodeElement): void;
     getVisualizerJSON(modelElement: VisualizerElement): unknown;
     updateVisualizer(modelElement: VisualizerElement, json: unknown): void;
+    private redrawLinks;
 }
 export declare abstract class SheetView {
     view: View;
@@ -66,9 +67,7 @@ export declare abstract class VisualizerView extends NodeView {
     domElement: HTMLCanvasElement;
     unitSquarePositions: Array<THREE.Vector2>;
     lastZoom: float;
-    protected _highlightSubscriber: {
-        update: (field: string, value: unknown) => void;
-    };
+    protected _highlightSubscriber: Updatable;
     constructor(view: View, modelElement: VisualizerElement, domElement?: HTMLElement);
     abstract get visualizer(): CayleyDiagramViewModel | CycleGraphViewModel | MulttableViewModel;
     abstract updateFromJSON(json: unknown): void;
@@ -93,21 +92,23 @@ export declare class MTView extends VisualizerView {
     get visualizer(): MulttableViewModel;
 }
 export declare class CDView extends VisualizerView {
-    #private;
     modelElement: CDElement & {
         onVisualizerChange?: (json: unknown) => void;
     };
     private _highlightModelProxy;
+    private static sharedViewModel;
+    private static activeView;
     constructor(view: View, modelElement: CDElement);
     initializeLayout(): void;
     get visualizer(): CayleyDiagramViewModel;
+    private canFastTrack;
     get highlightModelProxy(): SubscriptionProxy<CayleyDiagramModel>;
     updateFromJSON(json: CayleyDiagramModelJSON): void;
     destroy(): void;
     redraw(): void;
     restoreHighlights(snapshot: NonNullable<SheetModel.VisualizerElementJSON['visualizerJSON']['highlight_colors']>[number]): void;
 }
-declare class Arrow {
+export declare class Arrow {
     static PIXELS_PER_INCH: number;
     line: HTMLCanvasElement;
     head: HTMLCanvasElement;
@@ -153,4 +154,3 @@ export declare class MorphismView extends LinkView {
     drawSingleLine(): void;
     drawManyLines(): void;
 }
-export {};

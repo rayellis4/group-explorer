@@ -27,14 +27,14 @@ import * as THREE from '../lib/externals.js';
 ```js
  */
 export class HighlightControlViewModel {
-    #model;
-    #view;
+    _model;
+    _view;
     nextId = 0;
     nextSubsetIndex = 0;
     highlightedItems = [null, null, null];
     displayMap = new Map();
     constructor(model) {
-        this.#model = model;
+        this._model = model;
         model.$subscribe(this, 'highlightColors');
         if (model.highlightControl == null) {
             // initialize displayMap with model.group's subgroups
@@ -67,7 +67,12 @@ export class HighlightControlViewModel {
             this.fromJSON(this.toJSON());
         }
         else {
-            this.fromJSON(model.highlightControl);
+            if (GEUtils.isSerializable(model.highlightControl)) {
+                this.fromJSON(model.highlightControl.toJSON());
+            }
+            else {
+                this.fromJSON(model.highlightControl);
+            }
         }
         model.highlightControl = this;
     }
@@ -81,10 +86,10 @@ export class HighlightControlViewModel {
         return this.model.highlightConfiguration.highlightTypes;
     }
     get view() {
-        return this.#view; // this could also add it to an Array or Map
+        return this._view; // this could also add it to an Array or Map
     }
     set view(view) {
-        this.#view = view;
+        this._view = view;
         Array.from(this.displayMap.values())
             .filter((item) => item instanceof Subgroop || item instanceof Subset || item instanceof PartitioningScheme)
             .forEach((item) => view.addElement(item));
@@ -93,7 +98,7 @@ export class HighlightControlViewModel {
         }
     }
     get model() {
-        return this.#model;
+        return this._model;
     }
     toJSON() {
         const highlightControlJSON = {
@@ -133,7 +138,7 @@ export class HighlightControlViewModel {
     ### Create / Destroy display items
     ```js
      */
-    #createItem(item) {
+    createItem(item) {
         item.id = this.nextId++;
         this.displayMap.set(item.id, item);
         if (item instanceof Subset) {
@@ -145,18 +150,18 @@ export class HighlightControlViewModel {
                 this.displayMap.set(partition.id, partition);
             });
         }
-        this.#triggerModelUpdate();
+        this.triggerModelUpdate();
         this.view?.addElement(item);
         return item;
     }
-    #matchingSubsets(elements) {
+    matchingSubsets(elements) {
         const matchingSubsets = Array.from(this.displayMap.values())
             .filter((displayItem) => displayItem instanceof Subgroop || displayItem instanceof Subset)
             .filter((displayItem) => elements.equals(displayItem.elements));
         return matchingSubsets;
     }
     async createAndConfirmSubset(elements, explanation) {
-        const matchingSubsets = this.#matchingSubsets(elements);
+        const matchingSubsets = this.matchingSubsets(elements);
         let result;
         if (matchingSubsets.length == 0) {
             result = this.createSubset(elements);
@@ -168,18 +173,18 @@ export class HighlightControlViewModel {
         return result;
     }
     createSubset(elements) {
-        return this.#createItem(new Subset(this, elements));
+        return this.createItem(new Subset(this, elements));
     }
     createConjugacyClasses() {
-        this.#createItem(new ConjugacyClasses(this));
+        this.createItem(new ConjugacyClasses(this));
     }
     createOrderClasses() {
-        this.#createItem(new OrderClasses(this));
+        this.createItem(new OrderClasses(this));
     }
     createCosets(subgroopId, side) {
         const subgroop = this.displayMap.get(subgroopId);
         if (subgroop instanceof Subgroop) {
-            this.#createItem(new Cosets(this, subgroop, side));
+            this.createItem(new Cosets(this, subgroop, side));
         }
     }
     createDerivedSubset(type, subsetId, subset2Id) {
@@ -191,7 +196,7 @@ export class HighlightControlViewModel {
                 : (type == 'normalizer' && 'normalizer' in subset)
                     ? subset.normalizer
                     : subset.closure;
-            const matchingSubsets = this.#matchingSubsets(derivedSubset);
+            const matchingSubsets = this.matchingSubsets(derivedSubset);
             if (matchingSubsets.length == 0) {
                 this.createSubset(derivedSubset);
             }
@@ -219,7 +224,7 @@ export class HighlightControlViewModel {
             clearItemHighlight(item);
             this.view.removeElement(item);
             this.displayMap.delete(itemId);
-            this.#updateHighlightColors();
+            this.updateHighlightColors();
         }
     }
     /**
@@ -227,7 +232,7 @@ export class HighlightControlViewModel {
     ### Manage display item highlighting
     ```js
      */
-    #updateHighlightColors() {
+    updateHighlightColors() {
         const highlightColors = this.highlightedItems.map((item, inx) => {
             let highlight = [];
             if (item == null) {
@@ -256,16 +261,16 @@ export class HighlightControlViewModel {
     highlightItem(itemId, highlightTypeIndex) {
         const item = this.displayMap.get(itemId);
         this.highlightedItems[highlightTypeIndex] = item;
-        this.#updateHighlightColors();
+        this.updateHighlightColors();
     }
     toggleColorHighlight(itemId) {
         const item = this.displayMap.get(itemId);
         this.highlightedItems[0] = (this.highlightedItems[0] == item) ? null : item;
-        this.#updateHighlightColors();
+        this.updateHighlightColors();
     }
     clearAllHighlightColors() {
         this.highlightedItems = [null, null, null];
-        this.#updateHighlightColors();
+        this.updateHighlightColors();
     }
     /**
  ```
@@ -295,10 +300,10 @@ export class HighlightControlViewModel {
         }
     }
     // notify highlightControl subscribers (e.g. SheetEditor broadcast) that structural state changed
-    #triggerModelUpdate() {
-        this.#model.$touch('highlightControl');
+    triggerModelUpdate() {
+        this._model.$touch('highlightControl');
     }
-    update(field, value) {
+    update(field, _value) {
         switch (field) {
             case 'highlightColors':
                 this.view?.updateHighlightMark();

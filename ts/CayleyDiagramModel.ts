@@ -26,13 +26,14 @@ Model for the Cayley diagram visualizer. Holds all serializable state:
 
 ```javascript
  */
-import * as Library from './Library.js'
 import { layoutToJSON, layoutFromJSON } from './CayleyDiagramView.js'
+import { Serializable, isSerializable } from './GEUtils.js'
+import * as Library from './Library.js'
 
 import type { CayleyDiagramControlJSON } from './CayleyDiagramControl.ts'
 import type { LayoutType, LayoutJSON } from './CayleyDiagramView.ts'
 import type { Group } from './Group.ts'
-import type { HighlightControlModelInterface } from './HighlightControl.ts'
+import type { HighlightControlModelInterface, HighlightControlJSON } from './HighlightControl.ts'
 
 export { DEFAULT_NODE_COLOR } from './CayleyDiagramView.js'
 export type { POV, NodeType, ArrowType, ChunkType, LayoutType } from './CayleyDiagramView.ts'
@@ -49,7 +50,7 @@ export type CayleyDiagramModelJSON = {
    label_scale_factor: CayleyDiagramModel['label_scale_factor'],
    showing_axes: CayleyDiagramModel['showingAxes'],
    highlight_colors: CayleyDiagramModel['highlightColors'],
-   highlight_control: CayleyDiagramModel['highlightControl'],
+   highlight_control?: HighlightControlJSON,
    diagram_control: CayleyDiagramControlJSON,
 }
 
@@ -79,8 +80,8 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
    highlightColors!: Maybe<color>[][]
 
    // Opaque plugin slots (carried opaquely through serialization)
-   highlightControl: any // owned by HighlightControl
-   diagramControl: any   // owned by CayleyDiagramControl
+   highlightControl!: HighlightControlJSON | (object & Serializable<HighlightControlJSON>)
+   diagramControl!: CayleyDiagramControlJSON | (object & Serializable<CayleyDiagramControlJSON>)
 
    // Request fields — transient commands; set by CayleyViewControl, cleared by CayleyDiagramView
    snap_to_axis_request!: boolean
@@ -116,8 +117,12 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
          label_scale_factor: this.label_scale_factor,
          showing_axes: this.showingAxes,
          highlight_colors: this.highlightColors,
-         highlight_control: this.highlightControl?.toJSON?.() ?? this.highlightControl,
-         diagram_control: this.diagramControl?.toJSON?.() ?? this.diagramControl,
+         highlight_control: isSerializable<HighlightControlJSON>(this.highlightControl)
+            ? this.highlightControl.toJSON()
+            : this.highlightControl,
+         diagram_control: isSerializable<CayleyDiagramControlJSON>(this.diagramControl)
+            ? this.diagramControl.toJSON()
+            : this.diagramControl
       }
 
       return json
@@ -142,13 +147,15 @@ export class CayleyDiagramModel implements HighlightControlModelInterface {
       this.showingAxes = json.showing_axes ?? this.showingAxes
 
       // let owners deserialize opaque slots
-      if (this.highlightControl?.fromJSON == null) {
-         this.highlightControl = json.highlight_control
-      } else if (json.highlight_control != null) {
-         this.highlightControl.fromJSON(json.highlight_control)
+      if (json?.highlight_control != null) {
+         if (this.highlightControl == null || !('fromJSON' in this.highlightControl)) {
+            this.highlightControl = json.highlight_control
+         } else {
+            this.highlightControl.fromJSON(json.highlight_control)
+         }
       }
 
-      if (this.diagramControl?.fromJSON == null) {
+      if (this.diagramControl == null || !('fromJSON' in this.diagramControl)) {
          this.diagramControl = json.diagram_control
       } else if (json.diagram_control != null) {
          this.diagramControl.fromJSON(json.diagram_control)

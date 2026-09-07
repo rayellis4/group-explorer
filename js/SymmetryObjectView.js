@@ -21,9 +21,9 @@ import * as Log from './Log.js';
 import * as THREE from '../lib/externals.js';
 const SYMMETRY_OBJECT_BACKGROUND_COLOR = '#C8E8C8';
 export class SymmetryObjectViewModel {
-    #model;
-    #view;
-    #modelFields = [
+    _model;
+    _view;
+    static modelFields = [
         'group',
         'layout',
         'background',
@@ -38,39 +38,45 @@ export class SymmetryObjectViewModel {
         return this.model.group;
     }
     get view() {
-        return this.#view;
+        return this._view;
     }
     get model() {
-        return this.#model;
+        return this._model;
     }
     setModel(model) {
-        this.#model = model;
-        this.#modelFields.forEach((field) => model.$subscribe(this, field));
+        this._model = model;
+        SymmetryObjectViewModel.modelFields.forEach((field) => model.$subscribe(this, field));
         if (this.view != null) {
-            this.#modelFields.forEach((field) => this.update(field, this.#model[field]));
+            SymmetryObjectViewModel.modelFields.forEach((field) => this.update(field, this._model[field]));
         }
     }
     setView(view) {
-        this.#view = view;
+        this._view = view;
         if (this.model != null) {
-            this.#modelFields.forEach((field) => this.update(field, this.#model[field]));
+            SymmetryObjectViewModel.modelFields.forEach((field) => this.update(field, this._model[field]));
         }
-    }
-    updateModel(field, value) {
-        this.model[field] = value;
     }
     update(field, value) {
-        if (this.view == null) {
+        if (this.view == null)
             return;
-        }
         switch (field) {
             case 'group':
+                // FIXME
+                break;
             case 'background':
+                this.view.background = value;
+                break;
             case 'fog_level':
+                this.view.fog_level = value;
+                break;
             case 'line_width':
+                this.view.line_width = value;
+                break;
             case 'sphere_scale_factor':
+                this.view._sphere_scale_factor = value;
+                break;
             case 'zoom_level':
-                this.view[field] = value;
+                this.view.zoom_level = value;
                 break;
             case 'showingAxes': {
                 const isShowing = this.view.getGroup('debug').children.length > 0;
@@ -98,7 +104,7 @@ export class SymmetryObjectViewModel {
             case 'snap_to_axis_request':
                 if (value == true) {
                     this.view.snapToAxis();
-                    this.updateModel(field, false);
+                    this.model.snap_to_axis_request = false;
                 }
                 break;
             default:
@@ -171,7 +177,8 @@ export function layoutSymmetryObject(group, symmetryObjectName) {
  *     distance so that diagram fills field of view
  */
 function getPov(spherePositions) {
-    let position, up;
+    let position;
+    let up;
     if (spherePositions.every((position) => position.x == 0.0)) {
         position = new THREE.Vector3(3, 0, 0);
         up = new THREE.Vector3(0, 1, 0);
