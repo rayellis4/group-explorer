@@ -19,13 +19,24 @@ In either case it leaves the group library loaded and ready for synchronous acce
 // Extended groups — generated from presentation, no .group files needed
 export const EXTENDED_GROUP_PREFIX = 'data:,//GE3/extended'
 
-type ExtendedManifestEntry = {
+// One curated entry in EXTENDED_MANIFEST: a group presentation plus the metadata Library stamps
+// onto the group it generates. Passed through to Library.updateAllGroups alongside base-library
+// URLs, so it's exported (with its guard) as the shared shape.
+export type ExtendedManifestEntry = {
    presentation: string,
    gapid: string,
    gapname: string,
    names: string[],
    link?: string,
    phrase?: string
+}
+
+export function isExtendedManifestEntry (arg: unknown): arg is ExtendedManifestEntry {
+   return arg != null && typeof arg === 'object'
+      && typeof (arg as ExtendedManifestEntry).presentation === 'string'
+      && typeof (arg as ExtendedManifestEntry).gapid === 'string'
+      && typeof (arg as ExtendedManifestEntry).gapname === 'string'
+      && Array.isArray((arg as ExtendedManifestEntry).names)
 }
 
 const codeFiles = [
@@ -270,23 +281,26 @@ const EXTENDED_MANIFEST: ExtendedManifestEntry[] = [
    {"presentation": "a,b,c:a5=b4=c2=bab-1a=caca=cbcb=1", "gapid": "40,8", "gapname": "(C10 x C2) : C2", "names": ["ℤ<sub>5</sub> ⋊<sub>2</sub> <i>D</i><sub>4</sub>"], "link": "http://groupnames.org/1/C5sD4.html"}
 ]
 
-function manifestEntryToURL (entry: ExtendedManifestEntry): string {
-   return `${EXTENDED_GROUP_PREFIX}?${entry.presentation}`
+/*
+```
+### refreshGroupLibrary
+
+The group-library half of a version upgrade: hand Library the full manifest of what ships in
+this build -- every base-library `.group` URL under `baseURL`, plus every `EXTENDED_MANIFEST`
+entry -- and let it fetch, generate, decorate, and persist. `initialize()` runs this on a version
+bump; the headless test harness runs it against its local file server to populate a fresh
+`fake-indexeddb` the same way real code does.
+```javascript
+ */
+export async function refreshGroupLibrary (baseURL: string): Promise<void> {
+   // dynamic import so loading this module doesn't pull in Library before the page is ready
+   const Library: typeof import("./Library.ts") = await import('./Library.js')
+   await Library.updateAllGroups([
+      ...groupFiles.map((path) => baseURL + path),
+      ...EXTENDED_MANIFEST,
+   ])
 }
 
-function loadExtendedGroups (Library: typeof import("./Library.ts")) {
-   for (const entry of EXTENDED_MANIFEST) {
-      const group = Library.getGroupByURL(manifestEntryToURL(entry))
-      if (group != null) {
-         group.gapid   = entry.gapid
-         group.gapname = entry.gapname
-         group.names   = entry.names
-         if (entry.link != null)   group.links   = [entry.link]
-         if (entry.phrase != null) group.phrase  = entry.phrase
-         Library.saveGroup(group)
-      }
-   }
-}
 /*
 ```
 ### version
@@ -331,9 +345,7 @@ export async function initialize () {
       }
 
       try {
-         const Library: typeof import("./Library.ts") = await import('./Library.js') // dynamic import so it doesn't happen before loading this page
-         await Library.updateAllGroups(groupFiles.map((url) => baseURL + url))
-         loadExtendedGroups(Library)
+         await refreshGroupLibrary(baseURL)
       } catch (err) {
          alert(`GE3 upgrade failed to update group library — check your network connection and reload the page.\n\n${err}`)
          return

@@ -118,7 +118,7 @@ describe('Visualizer model serialization', function () {
          expect(model.toJSON()).to.have.all.keys(
             'group_url', 'background', 'fog_level', 'line_width', 'sphere_scale_factor',
             'zoom_level', 'arrowhead_placement', 'label_scale_factor', 'showing_axes',
-            'highlight_colors', 'highlight_control', 'diagram_control', 'view_state'
+            'highlight_colors', 'highlight_control', 'diagram_control', 'layout'
          )
       })
 
@@ -183,15 +183,6 @@ describe('Visualizer model serialization', function () {
          model2.fromJSON(model.toJSON())
          expect(model2.diagramControl).to.deep.equal({strategy: 'circular', level: 2})
       })
-
-      it('round-trips view_state opaque blob', function () {
-         const model = new CayleyDiagramModel(S3)
-         model.viewState = makeMockControl({camera: {x: 1, y: 2, z: 3}})
-         const model2 = new CayleyDiagramModel(S3)
-         model2.fromJSON(model.toJSON())
-         expect(model2.viewState).to.deep.equal({camera: {x: 1, y: 2, z: 3}})
-      })
-
    })
 
 })

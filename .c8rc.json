@@ -1,0 +1,8 @@
+{
+  "reporter": ["text", "html"],
+  "reporter-options": { "text": { "maxCols": 250 } },
+  "all": true,
+  "src": ["js"],
+  "exclude": ["tests/**", "**/*.d.ts", "lib/**"],
+  "skip-full": true
+}

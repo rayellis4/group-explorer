@@ -17,6 +17,13 @@ In either case it leaves the group library loaded and ready for synchronous acce
  */
 // Extended groups — generated from presentation, no .group files needed
 export const EXTENDED_GROUP_PREFIX = 'data:,//GE3/extended';
+export function isExtendedManifestEntry(arg) {
+    return arg != null && typeof arg === 'object'
+        && typeof arg.presentation === 'string'
+        && typeof arg.gapid === 'string'
+        && typeof arg.gapname === 'string'
+        && Array.isArray(arg.names);
+}
 const codeFiles = [
     './GroupExplorer.html',
     './GroupInfo.html',
@@ -255,23 +262,24 @@ const EXTENDED_MANIFEST = [
     { "presentation": "a,b,c:a2=b10=c2b-5=aba-1b-1=aca-1c-1=cbc-1b=1", "gapid": "40,7", "gapname": "C2 x (C5 : C4)", "names": ["ℤ<sub>2</sub> × <i>Dic</i><sub>5</sub>"], "link": "http://groupnames.org/1/C2xDic5.html" },
     { "presentation": "a,b,c:a5=b4=c2=bab-1a=caca=cbcb=1", "gapid": "40,8", "gapname": "(C10 x C2) : C2", "names": ["ℤ<sub>5</sub> ⋊<sub>2</sub> <i>D</i><sub>4</sub>"], "link": "http://groupnames.org/1/C5sD4.html" }
 ];
-function manifestEntryToURL(entry) {
-    return `${EXTENDED_GROUP_PREFIX}?${entry.presentation}`;
-}
-function loadExtendedGroups(Library) {
-    for (const entry of EXTENDED_MANIFEST) {
-        const group = Library.getGroupByURL(manifestEntryToURL(entry));
-        if (group != null) {
-            group.gapid = entry.gapid;
-            group.gapname = entry.gapname;
-            group.names = entry.names;
-            if (entry.link != null)
-                group.links = [entry.link];
-            if (entry.phrase != null)
-                group.phrase = entry.phrase;
-            Library.saveGroup(group);
-        }
-    }
+/*
+```
+### refreshGroupLibrary
+
+The group-library half of a version upgrade: hand Library the full manifest of what ships in
+this build -- every base-library `.group` URL under `baseURL`, plus every `EXTENDED_MANIFEST`
+entry -- and let it fetch, generate, decorate, and persist. `initialize()` runs this on a version
+bump; the headless test harness runs it against its local file server to populate a fresh
+`fake-indexeddb` the same way real code does.
+```javascript
+ */
+export async function refreshGroupLibrary(baseURL) {
+    // dynamic import so loading this module doesn't pull in Library before the page is ready
+    const Library = await import('./Library.js');
+    await Library.updateAllGroups([
+        ...groupFiles.map((path) => baseURL + path),
+        ...EXTENDED_MANIFEST,
+    ]);
 }
 /*
 ```
@@ -311,9 +319,7 @@ export async function initialize() {
             return;
         }
         try {
-            const Library = await import('./Library.js'); // dynamic import so it doesn't happen before loading this page
-            await Library.updateAllGroups(groupFiles.map((url) => baseURL + url));
-            loadExtendedGroups(Library);
+            await refreshGroupLibrary(baseURL);
         }
         catch (err) {
             alert(`GE3 upgrade failed to update group library — check your network connection and reload the page.\n\n${err}`);

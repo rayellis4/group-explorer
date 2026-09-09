@@ -26,11 +26,12 @@ Method overview (* are exported):
  * loadFromStoredGroups* -- populate in-memory library from object
  * loadLibrary* -- load library from object store
  * saveGroup* -- store group in Library
- * updateAllGroups* -- refresh remote groups from server
+ * updateAllGroups* -- reconcile the library against a build manifest: (re)fetch base .group
+     files from the server, (re)generate the extended-library groups, persist the result
 
 ```js
 */
-import { EXTENDED_GROUP_PREFIX } from './AutoUpgrade.js';
+import { EXTENDED_GROUP_PREFIX, isExtendedManifestEntry } from './AutoUpgrade.js';
 import { BitSet } from './BitSet.js';
 import * as DefiningRelations from './DefiningRelations.js';
 import { Group } from './Group.js';
@@ -365,7 +366,7 @@ function scheduleLocalStoreUpdate() {
             updatedGroupURLs.length = 0;
             deletedGroupURLs.length = 0;
         }
-        await StoredObjects.saveGroupLibrary(library); // wait for store to complete before exiting
+        await saveLibrary(); // wait for store to complete before exiting
         if (maybeMessage != null) {
             const channel = new BroadcastChannel('GE3-channel');
             channel.postMessage(maybeMessage);
@@ -373,11 +374,26 @@ function scheduleLocalStoreUpdate() {
         }
     });
 }
-// Update all groups in library and from the provided manifest URL list
-export async function updateAllGroups(manifestURLs) {
-    // replace latest group definitions from server in library
+/*
+```
+### saveLibrary
+
+Persist the in-memory group library to IndexedDB right now — the counterpart to `loadLibrary`,
+and the one write callers can rely on having completed (`saveGroup` only *schedules* a debounced
+write). `updateAllGroups` finishes with it.
+```javascript
+ */
+export function saveLibrary() {
+    return StoredObjects.saveGroupLibrary(library);
+}
+// Reconcile the library against a build manifest -- a mix of base-library `.group` URLs (strings)
+// and extended-library entries (ExtendedManifestEntry, generated from a presentation). Called by
+// AutoUpgrade.refreshGroupLibrary on a version bump.
+export async function updateAllGroups(manifest) {
     await loadLibrary();
-    const updateGroup = async (groupURL) => {
+    // base library: (re)fetch one .group file, honoring If-Modified-Since and preserving any
+    // user customization already stored for it
+    const refreshFetchedGroup = async (groupURL) => {
         const localGroup = getGroupByURL(groupURL);
         const options = { cache: 'no-cache', mode: 'no-cors' };
         if (localGroup?.lastModifiedOnServer != null) {
@@ -396,14 +412,33 @@ export async function updateAllGroups(manifestURLs) {
             library[groupURL] = freshGroup;
         }
     };
-    // Collect URLs from the current library and the provided manifest URLs and update them
-    await loadLibrary();
-    const allURLs = new Set();
-    Object.values(library || {}).filter((group) => !group.URL.startsWith('data:')).forEach((group) => allURLs.add(group.URL));
-    manifestURLs.forEach((url) => allURLs.add(url));
-    // complete updates
-    await Promise.all(Array.from(allURLs).map((url) => updateGroup(url)));
-    // and save library
-    await StoredObjects.saveGroupLibrary(library);
+    // extended library: generate the group from its presentation (getGroupByURL runs Todd-Coxeter
+    // and the generated-group decoration) then stamp on the manifest's curated GAP metadata
+    const generateExtendedGroup = (entry) => {
+        const group = getGroupByURL(`${EXTENDED_GROUP_PREFIX}?${entry.presentation}`);
+        if (group != null) {
+            group.gapid = entry.gapid;
+            group.gapname = entry.gapname;
+            group.names = entry.names;
+            if (entry.link != null)
+                group.links = [entry.link];
+            if (entry.phrase != null)
+                group.phrase = entry.phrase;
+            saveGroup(group);
+        }
+    };
+    // fetch every base URL in the manifest plus any already in the library; then generate the
+    // extended groups
+    const fetchURLs = new Set();
+    Object.values(library || {}).filter((group) => !group.URL.startsWith('data:')).forEach((group) => fetchURLs.add(group.URL));
+    manifest.forEach((entry) => { if (typeof entry === 'string')
+        fetchURLs.add(entry); });
+    await Promise.all(Array.from(fetchURLs).map(refreshFetchedGroup));
+    manifest.filter(isExtendedManifestEntry).forEach(generateExtendedGroup);
+    // Persist now and await it. The saveGroup calls above only *schedule* a debounced write, and
+    // a caller (AutoUpgrade.initialize) advances the stored version number the moment this
+    // resolves -- a reload or browser/OS restart before the debounce timer fires would pair the
+    // new version number with a stale library. That bug has bitten before; keep the await.
+    await saveLibrary();
 }
 //# sourceMappingURL=Library.js.map

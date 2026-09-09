@@ -1,4 +1,5 @@
 import { Group } from './Group.js';
+import type { ExtendedManifestEntry } from './AutoUpgrade.js';
 export { getAllGroups, getGroupsByOrder } from './GroupRegistry.js';
 export declare const GENERATED_GROUP_PREFIX = "data:,//GE3/generated";
 export { EXTENDED_GROUP_PREFIX } from './AutoUpgrade.js';
@@ -15,4 +16,5 @@ type LibraryUpdate = {
     deleted: string[];
 };
 export declare function isLibraryUpdate(message: unknown): message is LibraryUpdate;
-export declare function updateAllGroups(manifestURLs: string[]): Promise<void>;
+export declare function saveLibrary(): Promise<unknown>;
+export declare function updateAllGroups(manifest: ReadonlyArray<string | ExtendedManifestEntry>): Promise<void>;

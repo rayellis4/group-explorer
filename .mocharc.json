@@ -1,0 +1,4 @@
+{
+  "require": ["./tests/node/setup.mjs", "./tests/node/setup-library.mjs"],
+  "timeout": 15000
+}

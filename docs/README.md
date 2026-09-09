@@ -37,7 +37,7 @@ fit together, and a catalog of every module with a link to its source.
 | `js/` | Compiled output (`.js` + `.js.map`); committed to git so deployment needs no build step |
 | `docs/` | This developer documentation, plus one `*.ts.md` symlink per `ts/*.ts` file (see below) and `docs/adr/` |
 | `docs/adr/` | Architecture decision records |
-| `tests/` | Browser-based unit tests (Mocha + Chai via CDN), run through `UnitTests.html` |
+| `tests/` | Unit tests (Mocha + Chai) — run headless via `npm test` or in a browser through `UnitTests.html`; `tests/node/` holds the headless environment shims |
 | `groups/` | Group library `.group` JSON data files |
 | `fgb_groups/` | Group library data files for groups 22 < \|G\| < 40 (deprecated, replaced by extended definitions in [AutoUpgrade](./AutoUpgrade.ts.md)) |
 | `help-src/`, `help/`, `help-style/` | MkDocs source, build output, and theme for the user-facing help site |
@@ -59,17 +59,41 @@ fit together, and a catalog of every module with a link to its source.
 - **`make clean`** — remove editor backup files (`*~`).
 - **`npx tsc -p .`** — compile TypeScript only, once.
 - **`npx tsc --watch`** — incremental compile on save; the practical edit-debug loop day to day.
-- **Tests** — browser-based (Mocha + Chai via CDN), not headless. Serve the repo over HTTP and
-  open `UnitTests.html`:
-  ```bash
-  python3 -m http.server 8080   # then open http://localhost:8080/.../group-explorer/tests/UnitTests.html
-  ```
-  or
-  ```bash
-  npm install -g http-server
-    ...
-  http-server                   # then open http://localhost:8080/.../group-explorer/tests/UnitTests.html
-  ```
+- **Tests** (`tests/*_Tests.js`, Mocha + Chai) run two ways from the same source files:
+
+  - **Headless — `npm test`.** One-time setup: `npm install` (pulls the test-only devDeps —
+    `mocha`, `chai`, `fake-indexeddb`, `linkedom`, `c8`, `three`). Then `npm test` runs the whole
+    suite in Node. `tests/node/setup.mjs` and `tests/node/setup-library.mjs` (wired in via
+    `.mocharc.json`) stand up just enough of a browser — a linkedom DOM, a `fake-indexeddb`, an
+    in-process static file server over the repo root — then call
+    [`AutoUpgrade.refreshGroupLibrary`](./AutoUpgrade.ts.md), the same routine `initialize()` runs
+    on a version bump, to populate the library (base **and** extended, order 22–40). So the
+    `*_Tests.js` files run unmodified against a real load path. Results print to the terminal
+    (`N passing` / `N failing`, with a stack per failure). The headless run is currently fully
+    green and matches the browser run.
+    - **One file / one test** — `npx mocha tests/Foo_Tests.js` (the `.mocharc.json` require hooks
+      still apply; the spec glob lives in the `npm test` script, so it isn't merged in), or
+      `npm test -- --grep '<pattern>'` to filter by name across the whole suite.
+    - **Watch** — `npm run test:watch` re-runs on save.
+    - **Coverage** — `npm run coverage` runs the suite under `c8` (config in `.c8rc.json`),
+      printing a per-file table mapped back through source maps to `ts/*.ts` lines and writing a
+      drill-down HTML report to `coverage/index.html` (gitignored). `--all` is on, so every module
+      appears — untested ones at 0% — the table skips 100%-covered files and shows full
+      uncovered-line ranges, and the HTML report is the one to open for line-by-line detail.
+      `npm run coverage:one -- tests/Foo_Tests.js` scopes the run to one test file and reports
+      only the modules it actually loaded.
+  - **In a browser — `tests/UnitTests.html`.** Serve the repo over HTTP and open it; this is the
+    reference run for anything depending on real layout or WebGL. To exercise the
+    `DefiningRelations` tests, load `GroupExplorer.html` first so the group library is in
+    IndexedDB.
+    ```bash
+    python3 -m http.server 8080   # then open http://localhost:8080/.../group-explorer/tests/UnitTests.html
+    ```
+    or
+    ```bash
+    npm install -g http-server
+    http-server                   # then open http://localhost:8080/.../group-explorer/tests/UnitTests.html
+    ```
 - **`mkdocs build`** / **`mkdocs serve`** — build or live-preview the separate user-facing help
   site (`help-src/` → `help/`; config in `mkdocs.yml` at the project root). `mkdocs serve` watches
   for changes at `127.0.0.1:8989`.
@@ -100,6 +124,9 @@ these and a change can look complete while silently breaking something later:
 - **Adding a new field to a visualizer model** → add it to the `SHEET_UPDATE_FIELDS` array in
   the visualizer factory (e.g., [`CayleyDiagram.ts`](./CayleyDiagram.ts.md)) to make an update
   to that field trigger a change broadcast.
+- **Adding a test file** (`tests/*_Tests.js`) → also add an `import` line for it in
+  `tests/UnitTests.html`'s module `<script>`. `npm test` finds it by glob, but the browser run
+  has an explicit import list and will silently skip a file that's missing from it.
 
 This list is what's turned up in practice, not the result of a deliberate audit — treat it as a
 starting point, not a complete one, and add to it when another one surfaces.
@@ -305,9 +332,13 @@ editing through the symlink with a tool that resolves it, or edit the real path 
   `document.getElementById('foo') as HTMLDivElement`. Typing large pojo's is particularly
   encouraged, especially those underlying external interfaces or passed between sheets.
   When needed, modules that export a type `Foo` should also export a type guard `isFoo`.
-  <br>Type coverage is measured with nodejs-based `type-coverage`. The Go rewrite in typescript7
-  does not provide the programmatic compiler interface type-coverage uses, so we'll use
-  typescript6 until this changes. It's slower, but this isn't a particularly large project.
+  <br>Type coverage is measured with nodejs-based `type-coverage`: `npm run type-coverage`, or
+  bare `npx type-coverage`. Config lives in `package.json`'s `typeCoverage` block — `atLeast: 100`
+  (the run fails, non-zero exit, below that and names the offending node) with generated `**/*.d.ts`
+  ignored, since tsc emits `any` for private class members whose types aren't nameable and that's
+  its declaration emitter, not our source. The Go rewrite in typescript7 does not provide the
+  programmatic compiler interface type-coverage uses, so we'll use typescript6 until this changes.
+  It's slower, but this isn't a particularly large project.
 - **No jQuery** in production code — DOM APIs directly
 - Model layer stays OO (persistent identity, pub/sub, `toJSON`/`fromJSON` serialization suit
   objects); View/ViewUI layers lean functional as they're touched (closures for handler state,
