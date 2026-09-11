@@ -276,7 +276,7 @@ bump; the headless test harness runs it against its local file server to populat
 export async function refreshGroupLibrary(baseURL) {
     // dynamic import so loading this module doesn't pull in Library before the page is ready
     const Library = await import('./Library.js');
-    await Library.updateAllGroups([
+    await Library.updateGroups([
         ...groupFiles.map((path) => baseURL + path),
         ...EXTENDED_MANIFEST,
     ]);

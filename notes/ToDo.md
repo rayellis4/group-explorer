@@ -19,7 +19,8 @@
 ### Miscellany
 
  * Make test to simulate loading GE from GAP using 'waitForMessage'
-
+ >> Superseded by ability to invoke GE with a group presentation
+ 
 ### 3D diagrams and viewing angles
 
  * Eventually, we want to have a camera position be specifiable in the OS/CD diagram

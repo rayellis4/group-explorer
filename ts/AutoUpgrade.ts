@@ -20,7 +20,7 @@ In either case it leaves the group library loaded and ready for synchronous acce
 export const EXTENDED_GROUP_PREFIX = 'data:,//GE3/extended'
 
 // One curated entry in EXTENDED_MANIFEST: a group presentation plus the metadata Library stamps
-// onto the group it generates. Passed through to Library.updateAllGroups alongside base-library
+// onto the group it generates. Passed through to Library.updateGroups alongside base-library
 // URLs, so it's exported (with its guard) as the shared shape.
 export type ExtendedManifestEntry = {
    presentation: string,
@@ -295,7 +295,7 @@ bump; the headless test harness runs it against its local file server to populat
 export async function refreshGroupLibrary (baseURL: string): Promise<void> {
    // dynamic import so loading this module doesn't pull in Library before the page is ready
    const Library: typeof import("./Library.ts") = await import('./Library.js')
-   await Library.updateAllGroups([
+   await Library.updateGroups([
       ...groupFiles.map((path) => baseURL + path),
       ...EXTENDED_MANIFEST,
    ])

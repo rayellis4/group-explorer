@@ -26,8 +26,9 @@ Method overview (* are exported):
  * loadFromStoredGroups* -- populate in-memory library from object
  * loadLibrary* -- load library from object store
  * saveGroup* -- store group in Library
- * updateAllGroups* -- reconcile the library against a build manifest: (re)fetch base .group
-     files from the server, (re)generate the extended-library groups, persist the result
+ * saveLibrary* -- persist the in-memory group library to IndexedDB right now
+ * updateGroups* -- fetch/generate exactly the groups named in a build manifest: (re)fetch base
+     .group files from the server, (re)generate the extended-library groups, persist the result
 
 ```js
 */
@@ -254,9 +255,7 @@ export async function loadFromPageURL (): Promise<Group> {
                result = await downloadGroup(groupURL)
             }
          }
-      } else if (hrefURL.searchParams.get('waitForMessage') != null) {
-         result = await waitForGroupInMessage()
-      } else {  // no groupURL, no waitForMessage
+      } else {
          throw new Error("error in URL: can't find groupURL query parameter")
       }
 
@@ -302,46 +301,6 @@ export async function loadFromPageURL (): Promise<Group> {
       })
 
       return result
-   }
-
-   // FIXME: remove this function or test it
-   function waitForGroupInMessage (): Promise<Group> {
-      return new Promise((resolve, reject) => {
-         /*
-          * When this page is loaded in an iframe, the parent window can
-          * indicate which group to load by passing the full JSON
-          * definition of the group in a postMessage() call to this
-          * window, with the format { type: 'load group', group: G },
-          * where G is the JSON data in question.
-          */
-         window.addEventListener('message', function (event: MessageEvent<unknown>) {
-            const eventData = event.data
-            if (eventData == null) {
-               Log.err('empty message received in Library.js:')
-               Log.err(eventData)
-               reject(new Error('empty message received in Library.js'))
-            } else if (typeof eventData === 'object' && 'type' in eventData && eventData.type === 'load group') {
-               const loadGroupMessage = eventData
-               try {
-                  if ('group' in loadGroupMessage && typeof loadGroupMessage.group === 'object') {
-                     // FIXME: this does *NOT* work, it just keeps the compiler happy
-                     const group = dataToGroup(loadGroupMessage.group as GroupFileJSON, 'json')
-                     if (group != null) {
-                        library[group.shortName] = group
-                        resolve(group)
-                     }
-                  }
-                  reject(new Error('unable to understand loadGroupMessage'))
-               } catch (error) {
-                  reject(error)
-               }
-            } else {
-               Log.err('unknown message received in Library.js:')
-               Log.err(eventData)
-               reject(new Error('unknown message received in Library.js'))
-            }
-         }, false)
-      })
    }
 }
 
@@ -413,17 +372,23 @@ function scheduleLocalStoreUpdate () {
 
 Persist the in-memory group library to IndexedDB right now — the counterpart to `loadLibrary`,
 and the one write callers can rely on having completed (`saveGroup` only *schedules* a debounced
-write). `updateAllGroups` finishes with it.
+write). `updateGroups` finishes with it.
 ```javascript
  */
 export function saveLibrary (): Promise<unknown> {
    return StoredObjects.saveGroupLibrary(library)
 }
 
-// Reconcile the library against a build manifest -- a mix of base-library `.group` URLs (strings)
-// and extended-library entries (ExtendedManifestEntry, generated from a presentation). Called by
-// AutoUpgrade.refreshGroupLibrary on a version bump.
-export async function updateAllGroups (manifest: ReadonlyArray<string | ExtendedManifestEntry>) {
+// Fetch/generate exactly the groups named in a manifest -- a mix of base-library `.group` URLs
+// (strings) and extended-library entries (ExtendedManifestEntry, generated from a presentation)
+// -- and save the result. Only touches these; a group already in the library under some other
+// URL is left alone. (It used to also refetch every URL already in the library, regardless of
+// the manifest -- but the only caller always passes the complete catalog anyway, so that added
+// no real coverage; it only meant one stray/unreachable URL left over in a user's library -- an
+// externally-loaded group, or a base group later dropped from the catalog -- could fail the
+// single `Promise.all` below and abort the refresh of every *other* group along with it.) Called
+// by AutoUpgrade.refreshGroupLibrary on a version bump.
+export async function updateGroups (manifest: ReadonlyArray<string | ExtendedManifestEntry>) {
    await loadLibrary()
 
    // base library: (re)fetch one .group file, honoring If-Modified-Since and preserving any
@@ -467,12 +432,8 @@ export async function updateAllGroups (manifest: ReadonlyArray<string | Extended
       }
    }
 
-   // fetch every base URL in the manifest plus any already in the library; then generate the
-   // extended groups
-   const fetchURLs: Set<string> = new Set()
-   Object.values(library || {}).filter((group) => !group.URL.startsWith('data:')).forEach((group) => fetchURLs.add(group.URL))
-   manifest.forEach((entry) => { if (typeof entry === 'string') fetchURLs.add(entry) })
-
+   // fetch every base URL named in the manifest, then generate the extended groups
+   const fetchURLs: Set<string> = new Set(manifest.filter((entry): entry is string => typeof entry === 'string'))
    await Promise.all(Array.from(fetchURLs).map(refreshFetchedGroup))
    manifest.filter(isExtendedManifestEntry).forEach(generateExtendedGroup)
 

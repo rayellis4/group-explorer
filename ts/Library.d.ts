@@ -17,4 +17,4 @@ type LibraryUpdate = {
 };
 export declare function isLibraryUpdate(message: unknown): message is LibraryUpdate;
 export declare function saveLibrary(): Promise<unknown>;
-export declare function updateAllGroups(manifest: ReadonlyArray<string | ExtendedManifestEntry>): Promise<void>;
+export declare function updateGroups(manifest: ReadonlyArray<string | ExtendedManifestEntry>): Promise<void>;
