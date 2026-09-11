@@ -4,7 +4,7 @@
 // scope find a populated library, exactly as tests/UnitTests.html's setup note describes.
 //
 // A tiny static file server over the repo root is started in-process (see startFileServer below)
-// so window.fetch(...) inside Library.updateAllGroups can retrieve the real .group files -- this
+// so window.fetch(...) inside Library.updateGroups can retrieve the real .group files -- this
 // is not mocked data. Set GE3_TEST_SERVER_URL to point at an external server instead.
 
 import 'fake-indexeddb/auto'
@@ -25,7 +25,7 @@ const CONTENT_TYPES = {
 }
 
 // Serve REPO_ROOT read-only. Just enough for Library's fetch of .group files: a 200 with a
-// Last-Modified header (updateAllGroups reads response.headers.get('last-modified')) or a 404.
+// Last-Modified header (updateGroups reads response.headers.get('last-modified')) or a 404.
 function startFileServer () {
    const server = createServer((req, res) => {
       const urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname)
