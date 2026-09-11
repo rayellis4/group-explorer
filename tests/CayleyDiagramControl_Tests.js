@@ -217,6 +217,31 @@ describe('CayleyDiagramControl', function () {
          expect(model.layout.nodes.length).to.equal(S3.order)
       })
 
+      // Regression for "cayley diagram control loses chunks on import" (7f96dbd, 618f589,
+      // ccb3a1e) -- chunking is only ever set through getChunkingChoices()/setChunk(), which
+      // requires strategy_parameters to already be populated, so toJSON() always carries the two
+      // together; this is the realistic "saved with a chunk, reloaded" path.
+      it('chunk_subgroup_index survives an import round trip', function () {
+         addControl(rootElement, model)
+         const vm = model.diagramControl
+         const choices = vm.getChunkingChoices()
+         expect(choices.length).to.be.greaterThan(0)   // sanity: S_3 has a chunkable subgroup
+
+         vm.setChunk(choices[0].subgroupIndex)
+         const chunkedCount = model.layout.chunks.length
+         expect(chunkedCount).to.be.greaterThan(0)
+
+         const json = vm.toJSON()
+         expect(json.chunk_subgroup_index).to.equal(choices[0].subgroupIndex)
+
+         vm.setChunk(0)   // clear it, simulating a different prior state
+         expect(model.layout.chunks.length).to.equal(0)
+
+         vm.fromJSON(json)   // "reload" from the saved JSON
+         expect(vm.chunkSubgroupIndex).to.equal(choices[0].subgroupIndex)
+         expect(model.layout.chunks.length).to.equal(chunkedCount)
+      })
+
    })
 
 })
