@@ -216,6 +216,14 @@ incoming array (topologically sorted so anchors precede their captions) — used
 replacement: control panel Import, IndexedDB Load, and the external generators that build sheets
 programmatically (SolvableInfo, GroupInfo, etc.).
 
+A freshly-created element's JSON starts out minimal — `SheetControl.addElement()` gives a new
+`CDElement` just `{group_url}` — and completing it is each element class's own job, in its
+`fromJSON()` here in [SheetModel](./SheetModel.ts.md), not SheetView's. `CDElement.fromJSON()` is
+the concrete case: when `visualizerJSON` has neither a `layout` nor a real `diagram_control`, it
+computes a default strategy (via [CayleyDiagramGenerator](./CayleyDiagramGenerator.ts.md)'s
+`layoutCayleyDiagram`) and writes both back, so a brand-new element and one loaded from a saved
+sheet go through the same completion path and SheetView never has to tell the difference.
+
 The live visualizer for a node element lives in its [SheetView](./SheetView.ts.md) element; the
 model element holds only the JSON the visualizer was last built from (`visualizerJSON`). What
 SheetView needs from a visualizer is specified in `SheetVisualizerInterface<JSONType>` defined in

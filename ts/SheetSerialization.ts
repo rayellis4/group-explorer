@@ -416,13 +416,21 @@ export function convertV1ToV2 (v1Objects: v1SheetType[]): v2SheetType[] {
                .filter((arrow) => arrow.start_element == 0)
                .map((arrow) => ({generator: arrow.generator, color: arrow.color}))
 
-            const diagramControl: CayleyDiagramControlJSON = {
-               ...(v1Visualizer.diagram_name != null && {diagram_name: v1Visualizer.diagram_name}),
-               ...(strategyParameters.length != 0 && {strategy_parameters: strategyParameters}),
+            const diagramControlCommon = {
                ...(arrowGenerators != null && {arrow_generators: arrowGenerators}),
                ...(v1Visualizer.right_multiply == false && {right_multiply: false}),
-               ...(v1Visualizer?.chunk && {chunk_subgroup_index: v1Visualizer.chunk})
             }
+            // build one union member or the other -- never both. A named diagram can't be
+            // chunked (chunking only applies to a strategy-generated one), so a stray v1 `chunk`
+            // left over from switching to a named diagram is correctly dropped here, not carried
+            // forward as dead data.
+            const diagramControl: CayleyDiagramControlJSON = (v1Visualizer.diagram_name != null)
+               ? { diagram_name: v1Visualizer.diagram_name, ...diagramControlCommon }
+               : {
+                    ...(strategyParameters.length != 0 && {strategy_parameters: strategyParameters}),
+                    ...(v1Visualizer?.chunk && {chunk_subgroup_index: v1Visualizer.chunk}),
+                    ...diagramControlCommon
+                 }
 
             const nodes = v1Visualizer.nodes.map(({position, element, label}) => {
                return {position: {...position}, element, label, color: DEFAULT_NODE_COLOR}
@@ -462,11 +470,11 @@ export function convertV1ToV2 (v1Objects: v1SheetType[]): v2SheetType[] {
             })
 
             const chunks: ChunkJSON[] = []
-            if (v1Visualizer?.chunk != null && v1Visualizer.chunk !== 0) {
-               const maybeLayout =
+            // chunking never applies to a named diagram -- see CayleyDiagramControlJSON
+            if (v1Visualizer?.diagram_name == null && v1Visualizer?.chunk != null && v1Visualizer.chunk !== 0) {
+               const {layout: maybeLayout} =
                   layoutCayleyDiagram(
                      group,
-                     v1Visualizer?.diagram_name ?? undefined,
                      v1Visualizer?.strategy_parameters,
                      arrowGenerators,
                      v1Visualizer.right_multiply,

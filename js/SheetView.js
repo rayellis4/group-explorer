@@ -9,7 +9,6 @@ The View part of the Sheet Model-View-Controller structure.
 /* global DOMRect MouseEvent ResizeObserver TouchEvent Touch */
 import * as THREE from '../lib/externals.js';
 import { CayleyDiagramModel } from './CayleyDiagramModel.js';
-import { layoutCayleyDiagram } from './CayleyDiagramGenerator.js';
 import { createStaticCayleyDiagramView, layoutToJSON } from './CayleyDiagramView.js';
 import { CycleGraphModel } from './CycleGraphModel.js';
 import { createLargeCycleGraphView } from './CycleGraphView.js';
@@ -404,14 +403,7 @@ export class CDView extends VisualizerView {
     static activeView = null;
     constructor(view, modelElement) {
         super(view, modelElement, document.createElement('canvas'));
-        this.initializeLayout();
         this.redraw();
-    }
-    initializeLayout() {
-        const group = this.modelElement.group;
-        const visualizerJSON = this.modelElement.visualizerJSON;
-        const diagram_control = visualizerJSON.diagram_control;
-        visualizerJSON.layout ??= layoutToJSON(layoutCayleyDiagram(group, diagram_control?.diagram_name, diagram_control?.strategy_parameters, diagram_control?.arrow_generators, diagram_control?.right_multiply, diagram_control?.chunk_subgroup_index));
     }
     // swap our json into shared visualizer and use it to draw diagram
     // check the case where we delete the element holding the shared view model
@@ -434,6 +426,8 @@ export class CDView extends VisualizerView {
             }
             else {
                 CDView.sharedViewModel.fromJSON(this.modelElement.visualizerJSON);
+                // @ts-expect-error: manually restore highlightControl from copy -- it may be null
+                CDView.sharedViewModel.model.highlightControl = this.modelElement.visualizerJSON.highlight_control;
             }
         }
         CDView.activeView = this;

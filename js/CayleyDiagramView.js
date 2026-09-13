@@ -236,7 +236,7 @@ export class CayleyDiagramViewModel {
     toJSON() { return this.model.toJSON(); }
     fromJSON(jsonObject) { this.model.fromJSON(jsonObject); }
     draw(group, diagramName, strategyParameters, arrowGenerators) {
-        const layout = CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramName, strategyParameters, arrowGenerators);
+        const layout = CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramName ?? strategyParameters, arrowGenerators).layout;
         this.update('group', group);
         this.update('layout', layout);
     }

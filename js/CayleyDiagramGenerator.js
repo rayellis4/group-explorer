@@ -10,37 +10,37 @@ import { DEFAULT_NODE_COLOR } from "./CayleyDiagramModel.js";
 export const DIRECTION_INDEX = { X: 0, Y: 1, Z: 2, YZ: 0, XZ: 1, XY: 2 };
 export const AXIS_NAME = ['X', 'Y', 'Z'];
 const DEFAULT_ARC_OFFSET = 0.15;
-export function layoutCayleyDiagram(group, diagramName, strategyParameters, arrowGenerators, rightMultiply, chunkSubgroupIndex) {
-    if (diagramName != null) {
-        return drawDiagram(group, diagramName, arrowGenerators, rightMultiply);
+export function layoutCayleyDiagram(group, nameOrStrategies, arrowGenerators, rightMultiply, chunkSubgroupIndex) {
+    let layout;
+    let strategiesUsed = null;
+    if (typeof nameOrStrategies === 'string') {
+        layout = drawDiagram(group, nameOrStrategies, arrowGenerators, rightMultiply);
     }
-    else if (strategyParameters != null) {
-        return drawFromStrategy(group, strategyParameters, arrowGenerators, rightMultiply, chunkSubgroupIndex);
+    else if (Array.isArray(nameOrStrategies)) {
+        layout = drawFromStrategy(group, nameOrStrategies, arrowGenerators, rightMultiply, chunkSubgroupIndex);
+        strategiesUsed = nameOrStrategies;
     }
     else {
-        return drawDefault(group);
+        strategiesUsed = getDefaultStrategies(group);
+        layout = drawFromStrategy(group, strategiesUsed, arrowGenerators, rightMultiply, chunkSubgroupIndex);
     }
+    if (arrowGenerators == null) {
+        const arrowGeneratorMap = new Map();
+        layout.arrows.forEach((arrow) => {
+            arrowGeneratorMap.set(arrow.generator, { generator: arrow.generator, color: arrow.color });
+        });
+        arrowGenerators = Array.from(arrowGeneratorMap.values());
+    }
+    const result = {
+        layout: layout,
+        arrowGenerators: arrowGenerators
+    };
+    if (strategiesUsed != null)
+        result.strategyParameters = strategiesUsed;
+    return result;
 }
 export function getDefaultStrategies(group) {
     return generateStrategy(group);
-}
-function drawDefault(group) {
-    if (group.elements.length == 1) {
-        const nodes = [
-            { position: new THREE.Vector3(), element: 0, label: group.representation[0], color: DEFAULT_NODE_COLOR }
-        ];
-        const chunkTree = new Chunk(nodes);
-        return makeLayout(chunkTree, [], true);
-    }
-    const strategyParameters = generateStrategy(group);
-    const strategies = strategyParameters.map(({ generator, layout, direction, nestingLevel }) => new STRATEGY_BY_LAYOUT[layout](generator, direction, nestingLevel));
-    const chunkTree = generateTree(group, strategies);
-    chunkTree.strategy.layoutChunk(chunkTree);
-    normalizeScene(chunkTree);
-    const arrowGeneratorElements = strategies.map((strategy) => strategy.generator).reverse();
-    const arrows = createArrows(group, chunkTree, arrowGeneratorElements, true);
-    setArrowColors(arrows, null);
-    return makeLayout(chunkTree, arrows, true);
 }
 function drawDiagram(group, diagramName, arrowGenerators, rightMultiply = true) {
     const cayleyDiagram = group.cayleyDiagrams.find((cd) => cd.name == diagramName);

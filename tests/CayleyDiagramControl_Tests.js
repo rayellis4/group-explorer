@@ -242,6 +242,22 @@ describe('CayleyDiagramControl', function () {
          expect(model.layout.chunks.length).to.equal(chunkedCount)
       })
 
+      // No current writer of CayleyDiagramControlJSON produces chunk_subgroup_index without
+      // strategy_parameters (chunking can only be set once strategy_parameters is already
+      // populated -- see the round-trip test above). But nothing enforces that as an invariant,
+      // and updateLayout()'s "default strategy" branch used to unconditionally reset
+      // right_multiply to true whenever it ran, silently discarding whatever fromJSON had just
+      // set. right_multiply has nothing to do with whether the strategy needed defaulting, so
+      // this is a real guarantee, not a best-effort one -- unlike chunk_subgroup_index, which the
+      // same branch now also passes through, but can only recover if the freshly-defaulted
+      // strategy happens to produce a matching subgroup level.
+      it('does not lose right_multiply when strategy_parameters is absent', function () {
+         addControl(rootElement, model)
+         const vm = model.diagramControl
+         vm.fromJSON({ right_multiply: false })
+         expect(vm.rightMultiply).to.be.false
+      })
+
    })
 
 })

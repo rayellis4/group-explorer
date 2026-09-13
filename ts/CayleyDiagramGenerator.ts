@@ -32,49 +32,43 @@ const DEFAULT_ARC_OFFSET = 0.15
 
 export function layoutCayleyDiagram (
    group: Group,
-   diagramName?: string,
-   strategyParameters?: StrategyParameters[],
+   nameOrStrategies?: string | StrategyParameters[] | null,
    arrowGenerators?: ArrowGenerator[],
    rightMultiply?: boolean,
    chunkSubgroupIndex?: integer
-): LayoutType {
-   if (diagramName != null) {
-      return drawDiagram(group, diagramName, arrowGenerators, rightMultiply)
-   } else if (strategyParameters != null) {
-      return drawFromStrategy(group, strategyParameters, arrowGenerators, rightMultiply, chunkSubgroupIndex)
+): {layout: LayoutType, arrowGenerators: ArrowGenerator[], strategyParameters?: StrategyParameters[]} {
+   let layout: LayoutType
+   let strategiesUsed: Maybe<StrategyParameters[]> = null
+   if (typeof nameOrStrategies === 'string') {
+      layout = drawDiagram(group, nameOrStrategies, arrowGenerators, rightMultiply)
+   } else if (Array.isArray(nameOrStrategies)) {
+      layout = drawFromStrategy(group, nameOrStrategies, arrowGenerators, rightMultiply, chunkSubgroupIndex)
+      strategiesUsed = nameOrStrategies as StrategyParameters[]
    } else {
-      return drawDefault(group)
+      strategiesUsed = getDefaultStrategies(group)
+      layout = drawFromStrategy(group, strategiesUsed, arrowGenerators, rightMultiply, chunkSubgroupIndex)
    }
+
+   if (arrowGenerators == null) {
+      const arrowGeneratorMap = new Map()
+      layout.arrows.forEach((arrow) => {
+         arrowGeneratorMap.set(arrow.generator, {generator: arrow.generator, color: arrow.color})
+      })
+      arrowGenerators = Array.from(arrowGeneratorMap.values())
+   }
+
+   const result: {layout: LayoutType, arrowGenerators: ArrowGenerator[], strategyParameters?: StrategyParameters[]} = {
+      layout: layout,
+      arrowGenerators: arrowGenerators
+   }
+   if (strategiesUsed != null)
+      result.strategyParameters = strategiesUsed
+
+   return result
 }
 
 export function getDefaultStrategies (group: Group): StrategyParameters[] {
    return generateStrategy(group)
-}
-
-function drawDefault (group: Group) {
-   if (group.elements.length == 1) {
-      const nodes = [
-         { position: new THREE.Vector3(), element: 0, label: group.representation[0], color: DEFAULT_NODE_COLOR }
-      ]
-      const chunkTree = new Chunk(nodes)
-      return makeLayout(chunkTree, [], true)
-   }
-
-   const strategyParameters = generateStrategy(group)
-   const strategies = strategyParameters.map( ({generator, layout, direction, nestingLevel}:
-          {generator: groupElement, layout: Layout, direction: Direction, nestingLevel: integer}) =>
-      new STRATEGY_BY_LAYOUT[layout](generator, direction, nestingLevel)
-   )
-
-   const chunkTree = generateTree(group, strategies)
-   chunkTree.strategy.layoutChunk(chunkTree)
-   normalizeScene(chunkTree)
-
-   const arrowGeneratorElements = strategies.map((strategy: AbstractLayoutStrategy) => strategy.generator).reverse()
-   const arrows = createArrows(group, chunkTree, arrowGeneratorElements, true)
-   setArrowColors(arrows, null)
-
-   return makeLayout(chunkTree, arrows, true)
 }
 
 function drawDiagram (

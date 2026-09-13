@@ -14,8 +14,7 @@ This module implements the Cayley diagram control panel. It consists of:
 ```javascript
  */
 import { BitSet } from './BitSet.js';
-import { DIRECTION_INDEX, AXIS_NAME, layoutCayleyDiagram, nextArrowColor, getDefaultStrategies } from './CayleyDiagramGenerator.js';
-import * as Log from './Log.js';
+import { DIRECTION_INDEX, AXIS_NAME, layoutCayleyDiagram, nextArrowColor, } from './CayleyDiagramGenerator.js';
 import { makeDetachedMenu, makeMockSelect } from './UIComponents.js';
 // layout choices (linear/circular/rotated), direction (X/Y/Z)
 const AXIS_LABELS = {
@@ -79,29 +78,13 @@ class ViewModel {
     constructor(rootElement, model) {
         this.#model = model;
         this.rootElement = rootElement;
-        const modelDiagramControl = model.diagramControl;
-        // get diagram name from sheet editor JSON or URL
-        if (modelDiagramControl?.diagram_name != null) {
-            this.diagramName = modelDiagramControl.diagram_name;
+        if (new URL(window.location.href).searchParams.get('SheetEditor') != null) { // SheetEditor startup
+            this.setFromJSON(model.diagramControl);
         }
-        else if (modelDiagramControl?.strategy_parameters != null) {
-            this.strategyParameters = modelDiagramControl.strategy_parameters;
-        }
-        else {
+        else { // normal startup
             this.diagramName = new URL(window.location.href).searchParams.get('diagram');
         }
-        if (modelDiagramControl?.arrow_generators != null) {
-            this.arrowGenerators = modelDiagramControl.arrow_generators;
-        }
-        if (this.diagramName != null
-            && this.group.cayleyDiagrams.findIndex((cayleyDiagram) => cayleyDiagram.name == this.diagramName) < 0) {
-            Log.warn(`unknown diagram name in ${window.location.href}`);
-            this.diagramName = null;
-        }
-        if (modelDiagramControl?.chunk_subgroup_index != null) {
-            this.chunkSubgroupIndex = modelDiagramControl.chunk_subgroup_index;
-        }
-        // don't overwrite layout if it exists
+        // set layout if there isn't one passed in already
         if (model.layout == null) {
             this.updateLayout();
         }
@@ -110,50 +93,36 @@ class ViewModel {
         this.handlers.push(handler);
     }
     updateLayout() {
-        if (this.diagramName == null) {
-            if (this.strategyParameters.length == 0) { // default layout
-                this.strategyParameters = getDefaultStrategies(this.group);
-                this.rightMultiply = true;
-                this.model.layout = layoutCayleyDiagram(this.group, undefined, this.strategyParameters);
-                const arrowGeneratorMap = new Map();
-                this.model.layout.arrows.forEach((arrow) => {
-                    arrowGeneratorMap.set(arrow.generator, { generator: arrow.generator, color: arrow.color });
-                });
-                this.arrowGenerators = Array.from(arrowGeneratorMap.values());
-            }
-            else { // user-specified strategy
-                this.model.layout = layoutCayleyDiagram(this.group, undefined, this.strategyParameters, this.arrowGenerators ?? undefined, this.rightMultiply, this.chunkSubgroupIndex ?? undefined);
-            }
-        }
-        else { // user-specified diagram
-            this.model.layout = layoutCayleyDiagram(this.group, this.diagramName, undefined, (this.arrowGenerators == null) ? undefined : this.arrowGenerators, this.rightMultiply);
-            if (this.arrowGenerators == null) {
-                const arrowGeneratorMap = new Map();
-                this.model.layout.arrows.forEach((arrow) => {
-                    arrowGeneratorMap.set(arrow.generator, { generator: arrow.generator, color: arrow.color });
-                });
-                this.arrowGenerators = Array.from(arrowGeneratorMap.values());
-            }
-        }
+        const { layout, arrowGenerators, strategyParameters } = layoutCayleyDiagram(this.group, this.diagramName ?? ((this.strategyParameters.length > 0) ? this.strategyParameters : null), this.arrowGenerators ?? undefined, this.rightMultiply, this.chunkSubgroupIndex ?? undefined);
+        this.model.layout = layout;
+        this.strategyParameters = strategyParameters ?? [];
+        this.arrowGenerators = arrowGenerators;
         this.handlers.forEach((handler) => handler.update());
         this.model.$touch('diagramControl');
     }
     toJSON() {
-        const json = {
-            ...(this.diagramName != null && { diagram_name: this.diagramName }),
-            ...(this.strategyParameters.length != 0 && { strategy_parameters: this.strategyParameters }),
+        const common = {
             ...(this.arrowGenerators != null && { arrow_generators: this.arrowGenerators }),
             ...(this.rightMultiply == false && { right_multiply: false }),
-            ...(this.chunkSubgroupIndex != null && { chunk_subgroup_index: this.chunkSubgroupIndex })
         };
-        return json;
+        // build one union member or the other -- never both -- so this stays a type error to get wrong
+        return (this.diagramName != null)
+            ? { diagram_name: this.diagramName, ...common }
+            : {
+                ...(this.strategyParameters.length != 0 && { strategy_parameters: this.strategyParameters }),
+                ...(this.chunkSubgroupIndex != null && { chunk_subgroup_index: this.chunkSubgroupIndex }),
+                ...common
+            };
+    }
+    setFromJSON(jsonObject) {
+        this.diagramName = jsonObject?.diagram_name ?? null;
+        this.strategyParameters = jsonObject?.strategy_parameters ?? [];
+        this.arrowGenerators = jsonObject?.arrow_generators ?? null;
+        this.rightMultiply = jsonObject?.right_multiply ?? true;
+        this.chunkSubgroupIndex = jsonObject?.chunk_subgroup_index ?? null;
     }
     fromJSON(jsonObject) {
-        this.diagramName = jsonObject.diagram_name ?? null;
-        this.strategyParameters = jsonObject.strategy_parameters ?? [];
-        this.arrowGenerators = jsonObject.arrow_generators ?? null;
-        this.rightMultiply = jsonObject.right_multiply ?? true;
-        this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index ?? null;
+        this.setFromJSON(jsonObject);
         this.updateLayout();
         return this;
     }

@@ -398,7 +398,8 @@ export class CayleyDiagramViewModel implements Updatable, SheetVisualizerInterfa
       strategyParameters?: StrategyParameters[],
       arrowGenerators?: ArrowGenerator[]
    ) {
-      const layout = CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramName, strategyParameters, arrowGenerators)
+      const layout =
+         CayleyDiagramGenerator.layoutCayleyDiagram(group, diagramName ?? strategyParameters, arrowGenerators).layout
       this.update('group', group)
       this.update('layout', layout)
    }

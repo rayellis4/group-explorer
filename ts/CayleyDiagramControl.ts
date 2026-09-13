@@ -19,7 +19,6 @@ import {
    AXIS_NAME,
    layoutCayleyDiagram,
    nextArrowColor,
-   getDefaultStrategies
 } from './CayleyDiagramGenerator.js'
 import * as Log from './Log.js'
 import { makeDetachedMenu, makeMockSelect } from './UIComponents.js'
@@ -29,12 +28,16 @@ import type { CayleyDiagramModel } from './CayleyDiagramModel.ts'
 import type { StrategyParameters, ArrowGenerator } from './CayleyDiagramGenerator.ts'
 import type { SubscriptionProxy, Serializable } from './GEUtils.ts'
 
-export type CayleyDiagramControlJSON = {
-   diagram_name?: string,                       // undefined => generate diagram from strategy parameters
-   strategy_parameters?: StrategyParameters[],  // undefined => generate default diagram
-   arrow_generators?: ArrowGenerator[],         // undefined => use default arrows; [] => use no arrows
-   right_multiply?: boolean,                    // undefined => right multiply
-   chunk_subgroup_index?: integer               // null => no chunking
+// A diagram is either a named (pre-built) one, or generated from a strategy -- never both. This
+// is a discriminated union on diagram_name's presence so a producer can't construct the illegal
+// combination (a named diagram can't carry strategy_parameters/chunk_subgroup_index -- both are
+// meaningless for it) and have it fail silently instead of as a type error.
+export type CayleyDiagramControlJSON = (
+   | { diagram_name: string, strategy_parameters?: undefined, chunk_subgroup_index?: undefined }
+   | { diagram_name?: undefined, strategy_parameters?: StrategyParameters[], chunk_subgroup_index?: integer }
+) & {
+   arrow_generators?: ArrowGenerator[],   // undefined => use default arrows; [] => use no arrows
+   right_multiply?: boolean,              // undefined => right multiply
 }
 
 // layout choices (linear/circular/rotated), direction (X/Y/Z)
@@ -107,33 +110,14 @@ class ViewModel implements Serializable<CayleyDiagramControlJSON> {
    constructor (rootElement: HTMLElement, model: CayleyDiagramModel) {
       this.#model = model
       this.rootElement = rootElement
-      const modelDiagramControl = model.diagramControl as Maybe<CayleyDiagramControlJSON>
 
-      // get diagram name from sheet editor JSON or URL
-      if (modelDiagramControl?.diagram_name != null) {
-         this.diagramName = modelDiagramControl.diagram_name
-      } else if (modelDiagramControl?.strategy_parameters != null) {
-         this.strategyParameters = modelDiagramControl.strategy_parameters
-      } else {
+      if (new URL(window.location.href).searchParams.get('SheetEditor') != null) {  // SheetEditor startup
+         this.setFromJSON(model.diagramControl as CayleyDiagramControlJSON)
+      } else {  // normal startup
          this.diagramName = new URL(window.location.href).searchParams.get('diagram')
       }
 
-      if (modelDiagramControl?.arrow_generators != null) {
-         this.arrowGenerators = modelDiagramControl.arrow_generators
-      }
-
-      if (  this.diagramName != null
-         && this.group.cayleyDiagrams.findIndex((cayleyDiagram) => cayleyDiagram.name == this.diagramName) < 0
-      ) {
-         Log.warn(`unknown diagram name in ${window.location.href}`)
-         this.diagramName = null
-      }
-
-      if (modelDiagramControl?.chunk_subgroup_index != null) {
-         this.chunkSubgroupIndex = modelDiagramControl.chunk_subgroup_index
-      }
-
-      // don't overwrite layout if it exists
+      // set layout if there isn't one passed in already
       if (model.layout == null) {
          this.updateLayout()
       }
@@ -144,66 +128,48 @@ class ViewModel implements Serializable<CayleyDiagramControlJSON> {
    }
 
    updateLayout () {
-      if (this.diagramName == null) {
-         if (this.strategyParameters.length == 0) {  // default layout
-            this.strategyParameters = getDefaultStrategies(this.group)
-            this.rightMultiply = true
-            this.model.layout = layoutCayleyDiagram(this.group, undefined, this.strategyParameters)
-            const arrowGeneratorMap = new Map()
-            this.model.layout.arrows.forEach((arrow) => {
-               arrowGeneratorMap.set(arrow.generator, {generator: arrow.generator, color: arrow.color})
-            })
-            this.arrowGenerators = Array.from(arrowGeneratorMap.values())
-         } else {  // user-specified strategy
-            this.model.layout = layoutCayleyDiagram(
-               this.group,
-               undefined,
-               this.strategyParameters,
-               this.arrowGenerators ?? undefined,
-               this.rightMultiply,
-               this.chunkSubgroupIndex ?? undefined
-            )
-         }
-      } else {  // user-specified diagram
-         this.model.layout = layoutCayleyDiagram(
+      const {layout, arrowGenerators, strategyParameters} =
+         layoutCayleyDiagram(
             this.group,
-            this.diagramName,
-            undefined,
-            (this.arrowGenerators == null) ? undefined : this.arrowGenerators,
+            this.diagramName ?? ((this.strategyParameters.length > 0) ? this.strategyParameters : null),
+            this.arrowGenerators ?? undefined,
             this.rightMultiply,
+            this.chunkSubgroupIndex ?? undefined
          )
-         if (this.arrowGenerators == null) {
-            const arrowGeneratorMap = new Map()
-            this.model.layout.arrows.forEach((arrow) => {
-               arrowGeneratorMap.set(arrow.generator, {generator: arrow.generator, color: arrow.color})
-            })
-            this.arrowGenerators = Array.from(arrowGeneratorMap.values())
-         }
-      }
+      this.model.layout = layout
+      this.strategyParameters = strategyParameters ?? []
+      this.arrowGenerators = arrowGenerators
 
       this.handlers.forEach((handler) => handler.update())
       ;(this.model as SubscriptionProxy<CayleyDiagramModel>).$touch('diagramControl')
    }
 
    toJSON (): CayleyDiagramControlJSON {
-      const json = {
-         ...(this.diagramName != null && {diagram_name: this.diagramName}),
-         ...(this.strategyParameters.length != 0 && {strategy_parameters: this.strategyParameters}),
+      const common = {
          ...(this.arrowGenerators != null && {arrow_generators: this.arrowGenerators}),
          ...(this.rightMultiply == false && {right_multiply: false}),
-         ...(this.chunkSubgroupIndex != null && {chunk_subgroup_index: this.chunkSubgroupIndex})
       }
 
-      return json
+      // build one union member or the other -- never both -- so this stays a type error to get wrong
+      return (this.diagramName != null)
+         ? { diagram_name: this.diagramName, ...common }
+         : {
+              ...(this.strategyParameters.length != 0 && {strategy_parameters: this.strategyParameters}),
+              ...(this.chunkSubgroupIndex != null && {chunk_subgroup_index: this.chunkSubgroupIndex}),
+              ...common
+           }
+   }
+
+   setFromJSON (jsonObject: CayleyDiagramControlJSON) {
+      this.diagramName = jsonObject?.diagram_name ?? null
+      this.strategyParameters = jsonObject?.strategy_parameters ?? []
+      this.arrowGenerators = jsonObject?.arrow_generators ?? null
+      this.rightMultiply = jsonObject?.right_multiply ?? true
+      this.chunkSubgroupIndex = jsonObject?.chunk_subgroup_index ?? null
    }
 
    fromJSON (jsonObject: CayleyDiagramControlJSON) {
-      this.diagramName = jsonObject.diagram_name ?? null
-      this.strategyParameters = jsonObject.strategy_parameters ?? []
-      this.arrowGenerators = jsonObject.arrow_generators ?? null
-      this.rightMultiply = jsonObject.right_multiply ?? true
-      this.chunkSubgroupIndex = jsonObject.chunk_subgroup_index ?? null
-
+      this.setFromJSON(jsonObject)
       this.updateLayout()
 
       return this

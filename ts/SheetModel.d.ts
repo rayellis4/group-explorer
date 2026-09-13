@@ -248,4 +248,5 @@ export declare function createNewSheet(arg: {
     title: string;
     elements: SheetElementRequest[];
 } | SheetElementRequest[]): void;
+export declare function translateRequest(requests: SheetElementRequest[]): SheetJSON[];
 export declare function loadPassedSheet(sheetModel: SheetModel): Promise<Maybe<string>>;

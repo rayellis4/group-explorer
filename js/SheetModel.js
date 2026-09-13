@@ -6,6 +6,8 @@ The Model part of the Sheet Model-View-Control structure
 
 ```javascript
  */
+import { layoutCayleyDiagram } from './CayleyDiagramGenerator.js';
+import { layoutToJSON } from './CayleyDiagramView.js';
 import * as GEUtils from './GEUtils.js';
 import * as Library from './Library.js';
 import * as Log from './Log.js';
@@ -265,9 +267,24 @@ export class CDElement extends VisualizerElement {
             visualizerJSON: this.getVisualizerJSON()
         };
     }
+    // The one place a CDElement's visualizerJSON gets completed -- for both a freshly-added
+    // element (SheetControl.addElement gives it just {group_url}) and one loaded from a saved
+    // sheet -- so SheetView never has to tell the difference. See docs/README.md § The Sheet
+    // system for why this belongs here and not in the View.
     fromJSON(jsonObject) {
         super.fromJSON(jsonObject);
-        this.visualizerJSON = jsonObject.visualizerJSON;
+        const visualizerJSON = this.visualizerJSON = jsonObject.visualizerJSON;
+        if (visualizerJSON.diagram_control == null)
+            visualizerJSON.diagram_control = {};
+        const diagramControl = visualizerJSON.diagram_control;
+        if (visualizerJSON.layout == null) {
+            const layoutResults = layoutCayleyDiagram(this.group, diagramControl?.diagram_name ?? diagramControl?.strategy_parameters ?? null, diagramControl?.arrow_generators, diagramControl?.right_multiply, diagramControl?.chunk_subgroup_index);
+            visualizerJSON.layout = layoutToJSON(layoutResults.layout);
+            if (diagramControl?.diagram_name == null && diagramControl?.strategy_parameters == null) {
+                diagramControl.strategy_parameters = layoutResults.strategyParameters;
+                diagramControl.arrow_generators = layoutResults.arrowGenerators;
+            }
+        }
         return this;
     }
 }
@@ -443,7 +460,7 @@ export function createNewSheet(arg) {
     StoredObjects.setPassedSheet({ title, elements: translatedRequest })
         .then(() => { newWindow.location.href = 'Sheet.html?passedSheet'; });
 }
-function translateRequest(requests) {
+export function translateRequest(requests) {
     function isVisualizer(element) {
         return ['CDElement', 'CGElement', 'MTElement'].includes(element.className);
     }
@@ -463,18 +480,24 @@ function translateRequest(requests) {
                 highlight_colors: request.highlight_colors ?? [[], [], []]
             };
             if (isCDElement(result)) {
-                if (['arrow_generators', 'diagram_name', 'strategy_parameters']
-                    .some((field) => request[field] != null)) {
-                    result.visualizerJSON.diagram_control = {};
-                    if (request?.diagram_name != null) {
-                        result.visualizerJSON.diagram_control['diagram_name'] = request['diagram_name'];
-                    }
-                    else if (request?.strategy_parameters != null) {
-                        result.visualizerJSON.diagram_control['strategy_parameters'] = request['strategy_parameters'];
-                        if (request?.arrow_generators != null) {
-                            result.visualizerJSON.diagram_control['arrow_generators'] = request['arrow_generators'];
-                        }
-                    }
+                // build one union member or the other -- never both. arrow_generators applies to
+                // either variant, so it's threaded through all three cases below (it used to be
+                // dropped whenever strategy_parameters was itself absent -- e.g. a request giving
+                // only arrow_generators). diagram_control stays unset if none of the three was given.
+                if (request?.diagram_name != null) {
+                    result.visualizerJSON.diagram_control = {
+                        diagram_name: request.diagram_name,
+                        ...(request?.arrow_generators != null && { arrow_generators: request.arrow_generators })
+                    };
+                }
+                else if (request?.strategy_parameters != null) {
+                    result.visualizerJSON.diagram_control = {
+                        strategy_parameters: request.strategy_parameters,
+                        ...(request?.arrow_generators != null && { arrow_generators: request.arrow_generators })
+                    };
+                }
+                else if (request?.arrow_generators != null) {
+                    result.visualizerJSON.diagram_control = { arrow_generators: request.arrow_generators };
                 }
             }
             else if (isMTElement(result)) {

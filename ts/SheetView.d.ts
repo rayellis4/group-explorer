@@ -99,7 +99,6 @@ export declare class CDView extends VisualizerView {
     private static sharedViewModel;
     private static activeView;
     constructor(view: View, modelElement: CDElement);
-    initializeLayout(): void;
     get visualizer(): CayleyDiagramViewModel;
     private canFastTrack;
     get highlightModelProxy(): SubscriptionProxy<CayleyDiagramModel>;

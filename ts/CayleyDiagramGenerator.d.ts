@@ -25,7 +25,11 @@ export declare const DIRECTION_INDEX: {
     XY: number;
 };
 export declare const AXIS_NAME: LineDirection[];
-export declare function layoutCayleyDiagram(group: Group, diagramName?: string, strategyParameters?: StrategyParameters[], arrowGenerators?: ArrowGenerator[], rightMultiply?: boolean, chunkSubgroupIndex?: integer): LayoutType;
+export declare function layoutCayleyDiagram(group: Group, nameOrStrategies?: string | StrategyParameters[] | null, arrowGenerators?: ArrowGenerator[], rightMultiply?: boolean, chunkSubgroupIndex?: integer): {
+    layout: LayoutType;
+    arrowGenerators: ArrowGenerator[];
+    strategyParameters?: StrategyParameters[];
+};
 export declare function getDefaultStrategies(group: Group): StrategyParameters[];
 export declare function getPOV(chunkOrNodePositions: Chunk | {
     position: THREE.Vector3;

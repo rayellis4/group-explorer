@@ -10,7 +10,6 @@ The View part of the Sheet Model-View-Controller structure.
 
 import * as THREE from '../lib/externals.js'
 import { CayleyDiagramModel, CayleyDiagramModelJSON } from './CayleyDiagramModel.js'
-import { layoutCayleyDiagram } from './CayleyDiagramGenerator.js'
 import { createStaticCayleyDiagramView, layoutToJSON } from './CayleyDiagramView.js'
 import { CycleGraphJSON, CycleGraphModel } from './CycleGraphModel.js'
 import { createLargeCycleGraphView } from './CycleGraphView.js'
@@ -26,7 +25,6 @@ import type { MulttableViewModel } from './MulttableView.ts'
 import type * as SheetModel from './SheetModel.ts'
 import type { SheetViewModel, SheetElement, NodeElement, TextElement, VisualizerElement, CDElement,
    CGElement, MTElement, LinkElement, ConnectingElement, MorphismElement } from './SheetViewModel.ts'
-import { HighlightControlView } from './HighlightControlView.js';
 
 let Graphic: HTMLElement
 export let graphicRect: DOMRect = new DOMRect(0, 0, 0, 0)
@@ -507,24 +505,7 @@ export class CDView extends VisualizerView {
 
    constructor (view: View, modelElement: CDElement) {
       super(view, modelElement, document.createElement('canvas'))
-
-      this.initializeLayout()
       this.redraw()
-   }
-
-   initializeLayout () {
-      const group = this.modelElement.group
-      const visualizerJSON = this.modelElement.visualizerJSON
-      const diagram_control = visualizerJSON.diagram_control
-
-      visualizerJSON.layout ??= layoutToJSON(layoutCayleyDiagram(
-         group,
-         diagram_control?.diagram_name,
-         diagram_control?.strategy_parameters,
-         diagram_control?.arrow_generators,
-         diagram_control?.right_multiply,
-         diagram_control?.chunk_subgroup_index
-      ))
    }
 
    // swap our json into shared visualizer and use it to draw diagram
@@ -547,6 +528,8 @@ export class CDView extends VisualizerView {
                          [...(this.modelElement.visualizerJSON.highlight_colors ?? [[], [], []])]
          } else {
             CDView.sharedViewModel.fromJSON(this.modelElement.visualizerJSON)
+            // @ts-expect-error: manually restore highlightControl from copy -- it may be null
+            CDView.sharedViewModel.model.highlightControl = this.modelElement.visualizerJSON.highlight_control
          }
       }
 
