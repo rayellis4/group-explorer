@@ -82,6 +82,17 @@ fit together, and a catalog of every module with a link to its source.
       uncovered-line ranges, and the HTML report is the one to open for line-by-line detail.
       `npm run coverage:one -- tests/Foo_Tests.js` scopes the run to one test file and reports
       only the modules it actually loaded.
+    - **Shared library state across test files** — [Library](./Library.ts.md)'s group registry is
+      one process-wide singleton, not per-file-isolated, so every `*_Tests.js` file in a single
+      headless run shares the same copy. (The real app instead has multiple *tabs*, each with its
+      own in-memory copy, kept in sync via the `BroadcastChannel` mechanism under
+      [Inter-page communication](#inter-page-communication) — headless testing is more like one
+      tab than many, so there's nothing analogous to sync, just the one library every test file
+      reads and can mutate.) A test that generates, deletes, or mocks `fetch` for library groups
+      can affect every *other* test file in the same run — see the `updateGroups` tests in
+      `tests/Library_Tests.js` for a case that actually broke `DefiningRelations_Tests.js` this
+      way, and check any new test like it against that file (which snapshots the whole library at
+      import time) before trusting it in isolation.
   - **In a browser — `tests/UnitTests.html`.** Serve the repo over HTTP and open it; this is the
     reference run for anything depending on real layout or WebGL. To exercise the
     `DefiningRelations` tests, load `GroupExplorer.html` first so the group library is in
