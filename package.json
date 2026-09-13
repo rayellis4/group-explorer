@@ -1,6 +1,6 @@
 {
   "name": "group-explorer",
-  "version": "test-3.7rc29",
+  "version": "test-3.7rc30",
   "description": "Group theory visualization application for the web",
   "main": "index.js",
   "type": "module",
