@@ -176,6 +176,21 @@ describe('Visualizer model serialization', function () {
          expect(model2.highlightControl).to.deep.equal({type: 'highlight', colors: ['red', 'blue']})
       })
 
+      // Regression: SheetView's shared CayleyDiagramViewModel is reused across every CDElement
+      // on a sheet -- fromJSON must clear highlightControl when the incoming JSON has none, not
+      // leave whichever element previously held the shared model's highlightControl in place.
+      it('clears highlight_control when absent from JSON, even with a live control already set', function () {
+         const model = new CayleyDiagramModel(S3)
+         model.highlightControl = makeMockControl({type: 'highlight', colors: ['red', 'blue']})
+         const json = model.toJSON()
+         delete json.highlight_control
+
+         const model2 = new CayleyDiagramModel(S3)
+         model2.highlightControl = makeMockControl({type: 'stale', colors: ['green']})
+         model2.fromJSON(json)
+         expect(model2.highlightControl).to.be.undefined
+      })
+
       it('round-trips diagram_control opaque blob', function () {
          const model = new CayleyDiagramModel(S3)
          model.diagramControl = makeMockControl({strategy: 'circular', level: 2})

@@ -51,8 +51,10 @@ export class CayleyDiagramModel {
     showingAxes;
     // View parameters — manipulated by HighlightControl
     highlightColors;
-    // Opaque plugin slots (carried opaquely through serialization)
-    highlightControl;
+    // Opaque plugin slots (carried opaquely through serialization). highlightControl is genuinely
+    // optional -- most elements never get subset highlighting configured -- unlike diagramControl,
+    // which always needs some strategy/diagram_name to render anything at all.
+    highlightControl = undefined;
     diagramControl;
     // Request fields — transient commands; set by CayleyViewControl, cleared by CayleyDiagramView
     snap_to_axis_request;
@@ -109,23 +111,24 @@ export class CayleyDiagramModel {
         this.arrowhead_placement = json.arrowhead_placement ?? this.arrowhead_placement;
         this.label_scale_factor = json.label_scale_factor ?? this.label_scale_factor;
         this.showingAxes = json.showing_axes ?? this.showingAxes;
-        // let owners deserialize opaque slots
-        if (json?.highlight_control != null) {
-            if (this.highlightControl == null || !('fromJSON' in this.highlightControl)) {
-                this.highlightControl = json.highlight_control;
-            }
-            else {
-                this.highlightControl.fromJSON(json.highlight_control);
-            }
+        this.highlightColors = json.highlight_colors ?? this.highlightColors;
+        // let owners deserialize opaque slots. A live highlightControl only merges json data in
+        // place when there's real data to merge; otherwise the slot is just assigned outright --
+        // including clearing it to undefined when json has none. (HighlightControlViewModel.fromJSON
+        // indexes into its argument unconditionally, so calling it with no data would throw --
+        // discard the reference instead of trying to reset a live object to "no highlights".)
+        if (isSerializable(this.highlightControl) && json?.highlight_control != null) {
+            this.highlightControl.fromJSON(json.highlight_control);
         }
-        if (this.diagramControl == null || !('fromJSON' in this.diagramControl)) {
+        else {
+            this.highlightControl = json?.highlight_control ?? undefined;
+        }
+        if (this.diagramControl == null || !isSerializable(this.diagramControl)) {
             this.diagramControl = json.diagram_control;
         }
         else if (json.diagram_control != null) {
             this.diagramControl.fromJSON(json.diagram_control);
         }
-        // don't want to do this before the nodes are laid down setting view_state
-        this.highlightColors = json.highlight_colors ?? this.highlightColors;
         return this;
     }
 }

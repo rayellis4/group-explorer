@@ -426,8 +426,6 @@ export class CDView extends VisualizerView {
             }
             else {
                 CDView.sharedViewModel.fromJSON(this.modelElement.visualizerJSON);
-                // @ts-expect-error: manually restore highlightControl from copy -- it may be null
-                CDView.sharedViewModel.model.highlightControl = this.modelElement.visualizerJSON.highlight_control;
             }
         }
         CDView.activeView = this;
@@ -442,10 +440,15 @@ export class CDView extends VisualizerView {
         ];
         const canFastTrack = sharedModel?.group.URL == thisModel.group_url
             && JSON.stringify(layoutToJSON(sharedModel.layout)) == JSON.stringify(thisModel.layout)
+            // The fast path only refreshes highlightColors -- it must never run while the shared
+            // model holds a highlightControl thisModel doesn't already agree with (stale or live),
+            // since nothing else would clear/reconcile it. Required in every branch below, not just
+            // the "has been live" one -- a never-live thisModel still needs the shared model to have
+            // no leftover highlightControl from whichever element held it before.
+            && sharedModel?.highlightControl == null
+            && thisModel.highlight_control == null
             && (thisModel.background == null // => thisModel has never been live
-                || (sharedModel.highlightControl == null // has been live, but never edited
-                    && thisModel.highlight_control == null // has been live, but never edited
-                    && REQUIRED_MATCHING_FIELDS.every((field) => sharedModel[field] == thisModel[field])));
+                || REQUIRED_MATCHING_FIELDS.every((field) => sharedModel[field] == thisModel[field]));
         return canFastTrack;
     }
     get highlightModelProxy() {
@@ -488,8 +491,13 @@ export class CDView extends VisualizerView {
         this.visualizer.fromJSON(json);
         if (this._highlightModelProxy != null) {
             const highlightControl = this.visualizer.model.highlightControl;
-            this._highlightModelProxy.highlightControl
-                .fromJSON(isSerializable(highlightControl) ? highlightControl.toJSON() : highlightControl);
+            const data = isSerializable(highlightControl) ? highlightControl.toJSON() : highlightControl;
+            // data can now genuinely be undefined (highlightControl is legitimately optional); a
+            // live HighlightControlViewModel.fromJSON indexes into its argument unconditionally, so
+            // only call it when there's real data -- skip if not, rather than pass it undefined
+            if (data != null) {
+                this._highlightModelProxy.highlightControl.fromJSON(data);
+            }
             this._highlightModelProxy.highlightColors = [...this.visualizer.model.highlightColors];
             // subscriber handles redraw
         }

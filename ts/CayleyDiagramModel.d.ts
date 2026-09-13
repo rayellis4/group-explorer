@@ -38,7 +38,7 @@ export declare class CayleyDiagramModel implements HighlightControlModelInterfac
     label_scale_factor: float;
     showingAxes: boolean;
     highlightColors: Maybe<color>[][];
-    highlightControl: HighlightControlJSON | (object & Serializable<HighlightControlJSON>);
+    highlightControl: HighlightControlJSON | (object & Serializable<HighlightControlJSON>) | undefined;
     diagramControl: CayleyDiagramControlJSON | (object & Serializable<CayleyDiagramControlJSON>);
     snap_to_axis_request: boolean;
     constructor(group: Group);

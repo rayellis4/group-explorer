@@ -259,6 +259,15 @@ element (`modelElement.visualizerJSON`) before the shared view model is repointe
 requesting element. This constraint lives in the View layer and must be preserved by any future
 refactor.
 
+Because the same model instance is reused across elements, hydrating it (`fromJSON`) has to be a
+*total* operation, not a delta: an absent optional field means clear it, not leave whatever the
+previous element had. `CayleyDiagramModel.highlightControl` got this wrong for a while —
+`fromJSON` only ever applied a `highlight_control` when the incoming JSON had one, never cleared
+it otherwise, so an element with no highlighting silently inherited whichever element previously
+held the shared view model's. Any future optional field on a visualizer Model needs the same
+discipline, and `canFastTrack()` (the same file) needs to keep agreeing: it must never skip
+`fromJSON` while the shared model holds anything the target element hasn't confirmed it also has.
+
 **Z ordering**: NodeElements get an even `z`; a newly-created element's initial value,
 `z = 2 * (sheetElements.size + 1)` in `SheetModel.ts`, is just an insertion-order artifact. But
 `z` isn't fixed at creation — the node context menu's Move Forward/Backward/to Front/to Back
