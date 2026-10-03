@@ -328,9 +328,13 @@ function showSubgroupLattice(group, type, reduced = false, labelled = false) {
         const nColors = conjugateSubgroupClasses.filter((klass) => klass.popcount() > 1).length;
         const rainbow = Array.from({ length: nColors }, (_, inx) => GEUtils.fromRainbow(inx / nColors, .4));
         const colors = conjugateSubgroupClasses.map((klass) => (klass.popcount() > 1) ? rainbow.pop() : '#d8d8d8');
-        // find caption size in scratch element, and calculate scaled fontSize
-        const { width: captionWidth } = captionSize(`<span style="white-space: nowrap"><i>H</i><sub>${group.order}</sub> (order ${group.order})</span>`);
-        const fontSize = Math.min(20, 20 * (cellWidth - 2 * hMargin) / (captionWidth + 20)) + 'px';
+        const gens = (H) => H.generators.toArray()
+            .map((el) => group.representation[el])
+            .join(', ');
+        const captions = group.subgroups.map((H, inx) => `<span style="white-space: nowrap"><i>H</i><sub>${inx}</sub> = ⟨ ${gens(H)} ⟩</span>`);
+        //generator names vary a lot in length (e.g. permutations), so size the font off the widest real caption
+        const widest = Math.max(...captions.map((cap) => captionSize(cap).width));
+        const fontSize = Math.min(20, 20 * (cellWidth - 2 * hMargin) / (widest + 20)) + 'px';
         group.subgroups.forEach((H, subgroupIndex) => {
             sheetElementsAsJSON.push({
                 className: type,
@@ -344,12 +348,11 @@ function showSubgroupLattice(group, type, reduced = false, labelled = false) {
                 highlight_colors: [highlightSubgroup(group, H, type), [], []]
             });
             const conjugacyClass = conjugateSubgroupClasses.findIndex((klass) => klass.isSet(subgroupIndex));
-            const caption = `<span style="white-space: nowrap"><i>H</i><sub>${subgroupIndex}</sub> (order ${H.order})</span>`;
             sheetElementsAsJSON.push({
                 className: 'TextElement',
                 id: `sub-${subgroupIndex}`,
                 anchor_id: `viz-${subgroupIndex}`,
-                text: caption,
+                text: captions[subgroupIndex],
                 fontColor: H.isNormal ? 'blue' : 'black',
                 color: colors[conjugacyClass],
                 alignment: 'center',
