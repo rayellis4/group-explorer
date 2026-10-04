@@ -366,14 +366,29 @@ and use `this.cayleyDiagramView` methods to redraw the arc and its arrowhead.
 ```js
 */
 class Arrow extends Customizable {
+    highlighted = false;
     constructor(cayleyDiagramView, raycaster, object3D) {
         super(cayleyDiagramView, raycaster, object3D);
         this.originalColor = this.color;
     }
-    redraw(currentLocation, _isDragStart) {
+    // the line currently drawn for this arrow -- redrawLines replaces line objects, so this.object3D
+    //   can be stale, but the arrow data it points to (shared with the model's layout) is not
+    get line() {
         const arrow = this.object3D.userData.arrow;
-        const line = this.cayleyDiagramView.arrows
+        return this.cayleyDiagramView.arrows
             .find((line) => line.userData.arrow == arrow);
+    }
+    setHighlight() {
+        this.highlighted = true;
+        super.setHighlight();
+    }
+    clearHighlight() {
+        this.highlighted = false;
+        super.clearHighlight();
+    }
+    redraw(currentLocation, _isDragStart) {
+        const line = this.line;
+        const arrow = line.userData.arrow;
         // update raycaster with new event location
         this.raycaster.setFromCamera(currentLocation, this.cayleyDiagramView.camera);
         const pickLine = new THREE.Line3(this.raycaster.ray.origin, this.raycaster.ray.origin.clone().addScaledVector(this.raycaster.ray.direction, 100));
@@ -394,17 +409,26 @@ class Arrow extends Customizable {
         const offset = pickSign * chordLength * chordLength * vPick / (4 * uPick * (chordLength - uPick));
         // set line offset in diagram
         arrow.offset = offset / chordLength;
-        // redraw line, arrowheads
+        // redraw line, arrowheads -- the new line is drawn in the arrow's own color, so re-highlight it
         this.cayleyDiagramView.redrawLines([line]);
+        if (this.highlighted) {
+            this.color = SELECTED_HIGHLIGHT_COLOR;
+        }
     }
+    // displayed color only: arrow.color belongs to the model's layout, and a selection highlight
+    //   written there would be pushed to the model (and on to a Sheet) by the next drop
     get color() {
-        const currentColor = this.object3D.userData.arrow.color;
-        return currentColor;
+        return '#' + this.line.material.color.getHexString();
     }
     set color(color) {
-        ;
-        this.object3D.userData.arrow.color = color;
-        this.cayleyDiagramView.redrawAllLines();
+        const line = this.line;
+        line.material.color.set(color);
+        const arrowhead = line.userData.arrowhead;
+        if (arrowhead != undefined) {
+            ;
+            arrowhead.line.material.color.set(color);
+            arrowhead.cone.material.color.set(color);
+        }
     }
     equals(other) {
         const areEqual = other instanceof Arrow

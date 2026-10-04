@@ -404,6 +404,8 @@ and use `this.cayleyDiagramView` methods to redraw the arc and its arrowhead.
 ```js
 */
 class Arrow extends Customizable {
+   private highlighted: boolean = false
+
    constructor (
       cayleyDiagramView: CayleyDiagramView,
       raycaster: THREE.Raycaster,
@@ -413,10 +415,27 @@ class Arrow extends Customizable {
       this.originalColor = this.color
    }
 
-   redraw (currentLocation: THREE.Vector2, _isDragStart: boolean) {
-      const arrow: ArrowType = (this.object3D.userData as LineUserData).arrow
-      const line = this.cayleyDiagramView.arrows
+   // the line currently drawn for this arrow -- redrawLines replaces line objects, so this.object3D
+   //   can be stale, but the arrow data it points to (shared with the model's layout) is not
+   get line (): LineType {
+      const arrow = (this.object3D.userData as LineUserData).arrow
+      return this.cayleyDiagramView.arrows
          .find((line) => (line.userData as LineUserData).arrow == arrow) as LineType
+   }
+
+   setHighlight () {
+      this.highlighted = true
+      super.setHighlight()
+   }
+
+   clearHighlight () {
+      this.highlighted = false
+      super.clearHighlight()
+   }
+
+   redraw (currentLocation: THREE.Vector2, _isDragStart: boolean) {
+      const line = this.line
+      const arrow: ArrowType = (line.userData as LineUserData).arrow
 
       // update raycaster with new event location
       this.raycaster.setFromCamera(currentLocation, this.cayleyDiagramView.camera);
@@ -447,18 +466,27 @@ class Arrow extends Customizable {
       // set line offset in diagram
       arrow.offset = offset / chordLength;
 
-      // redraw line, arrowheads
+      // redraw line, arrowheads -- the new line is drawn in the arrow's own color, so re-highlight it
       this.cayleyDiagramView.redrawLines([line]);
+      if (this.highlighted) {
+         this.color = SELECTED_HIGHLIGHT_COLOR
+      }
    }
 
+   // displayed color only: arrow.color belongs to the model's layout, and a selection highlight
+   //   written there would be pushed to the model (and on to a Sheet) by the next drop
    get color (): color {
-      const currentColor = ((this.object3D as LineType).userData as LineUserData).arrow.color
-      return currentColor
+      return '#' + (this.line.material as THREE.LineMaterial).color.getHexString()
    }
 
    set color (color: color) {
-      ;(((this.object3D as LineType).userData as LineUserData).arrow as ArrowType).color = color
-      this.cayleyDiagramView.redrawAllLines()
+      const line = this.line
+      ;(line.material as THREE.LineMaterial).color.set(color)
+      const arrowhead = (line.userData as LineUserData).arrowhead
+      if (arrowhead != undefined) {
+         ;(arrowhead.line.material as THREE.LineBasicMaterial).color.set(color)
+         ;(arrowhead.cone.material as THREE.MeshBasicMaterial).color.set(color)
+      }
    }
 
    equals (other: Maybe<Customizable>): boolean {
