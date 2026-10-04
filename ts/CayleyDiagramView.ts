@@ -143,6 +143,19 @@ export type CayleyDiagramViewOptions = {
 const CAYLEY_DIAGRAM_BACKGROUND_COLOR = '#E8C8C8';
 const CAYLEY_DIAGRAM_DISPLAY_GROUP_NAMES = ['labels', 'arrowheads', 'highlights', 'chunks'];
 
+// sphere radius never exceeds this fraction of the distance between the two closest nodes
+const MAX_RADIUS_TO_CLOSEST_NODE_DISTANCE = 0.45
+
+function closestNodeDistance (nodes: NodeType[]): float {
+   let closestSq = Infinity
+   for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+         closestSq = Math.min(closestSq, nodes[i].position.distanceToSquared(nodes[j].position))
+      }
+   }
+   return Math.sqrt(closestSq)
+}
+
 const HIGHLIGHT_NODE = 0
 const HIGHLIGHT_RING = 1
 const HIGHLIGHT_SQUARE = 2
@@ -423,6 +436,10 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
    drawFromModel ({position, up}: {position: THREE.Vector3, up: THREE.Vector3}, nodes: NodeType[], arrows: ArrowType[]) {
         this.setCameraPosition(position, up)
         this.deleteAllObjects();
+        // size spheres for the screen, but never so big that they overlap in this layout --
+        //   recomputed per layout (not during drags, which don't redraw from the model)
+        this.sphere_base_radius = Math.min(
+           0.3 / Math.sqrt(nodes.length), MAX_RADIUS_TO_CLOSEST_NODE_DISTANCE * closestNodeDistance(nodes))
         this.createSpheres(nodes);
         this.drawAllHighlights();
         if (this.display_labels) {

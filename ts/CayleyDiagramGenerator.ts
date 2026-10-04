@@ -620,33 +620,98 @@ class CurvedLayoutStrategy extends AbstractLayoutStrategy {
             {lengthDirection: 0, widthDirection: 1},  // XY length: X, width: Y
         ]
 
-        const nodeSize = 0.3 / Math.sqrt(chunk.allChildNodes.length)  // leave room for nodes in layout
-        const childNodes = (chunk.isLeaf) ? chunk.leaves : chunk.chunks[0].allChildNodes
-        const childWidth = getWidth(childNodes, dir[this.directionIndex].widthDirection) + nodeSize
-        const childHeight = getWidth(childNodes, dir[this.directionIndex].lengthDirection) + nodeSize
         const childCount = chunk.children.length
 
-        let radius = childHeight * 5 / 6
-        let scale = 1
+        // ad-hoc adjustment for two-node children
+        if (!chunk.isLeaf && chunk.chunks[0].leaves.length == 2) {
+            return [0.75 + 0.01 * childCount / 2, 0.5 - 0.01 * childCount]
+        }
 
-       // ad-hoc adjustment for two-node children
-       if (  !chunk.isLeaf
-          && chunk.chunks[0].leaves.length == 2
-        ) {
-            radius = 0.75 + 0.01 * childCount / 2
-            scale = 0.5 - 0.01 * childCount
-        } else
-        // recalculate scale if circumference is too crowded
-        if (2 * Math.PI * (radius - childHeight / 2) < childWidth * childCount) {
-            const aspectRatio = childHeight / childWidth
+        // children that are chunks: make them as large as the spacing rule allows (see hasRoomBetweenChildren)
+        if (!chunk.isLeaf) {
+            const childNodes = chunk.chunks[0].allChildNodes
+            const childHeight = getWidth(childNodes, dir[this.directionIndex].lengthDirection)
+            if (this.hasRoomBetweenChildren(chunk, childHeight * 5 / 6, 1)) {
+                return [childHeight * 5 / 6, 1]
+            }
+            // crowded: find the largest scale that leaves room -- as scale grows the gaps between
+            //   children shrink and the spacing within them grows, so the test is monotone in scale
+            const radiusAt = (scale: float) => 1 - childHeight * scale / 2  // children's outer edges on the unit circle
+            let [lo, hi] = [0, 1]
+            for (let iteration = 0; iteration < 30; iteration++) {
+                const mid = (lo + hi) / 2
+                if (this.hasRoomBetweenChildren(chunk, radiusAt(mid), mid)) {
+                    lo = mid
+                } else {
+                    hi = mid
+                }
+            }
+            return [radiusAt(lo), lo]
+        }
+
+        // children that are nodes (points): only the radius matters, and with nodeSize as both
+        //   width and height it cancels out of the result except when childCount == 2
+        const nodeSize = 0.3 / Math.sqrt(chunk.allChildNodes.length)
+        let radius = nodeSize * 5 / 6
+        let scale = 1
+        if (2 * Math.PI * (radius - nodeSize / 2) < nodeSize * childCount) {
             const averageArc = 2 * Math.PI / childCount
-            // based on the width at the inner radius
-            scale = averageArc / (1 + aspectRatio * averageArc) / childWidth
-            radius = 1 - childHeight * scale / 2
+            scale = averageArc / (1 + averageArc) / nodeSize
+            radius = 1 - nodeSize * scale / 2
         }
 
         return [radius, scale]
     }
+
+    // Spacing rule for a curve of chunks: no node of one child may lie inside another child's bounding
+    //   box, padded by MIN_GAP_TO_SPACING_RATIO times the closest spacing between two nodes within a
+    //   child -- so cosets read as separate regions (circular layouts translate children without
+    //   rotating them, so they can interleave without any two nodes colliding), and nodes in
+    //   different children are at least that far apart. A ratio, not a distance, because no layer
+    //   knows its final size; the view sizes spheres to the finished layout
+    //   (CayleyDiagramView.drawFromModel), so this rule only has to keep proportions. Tested in each
+    //   child's own (unplaced) coordinates, so it holds for rotated children too.
+    hasRoomBetweenChildren (chunk: Chunk, radius: float, scale: float): boolean {
+        const local = chunk.chunks[0].allChildNodes.map((node) => node.position)  // children are congruent before placement
+        const margin = MIN_GAP_TO_SPACING_RATIO * closestDistance(local, local)
+        if (!Number.isFinite(margin)) {
+            return true
+        }
+        const min = local.reduce((min, p) => min.min(p), new THREE.Vector3(Infinity, Infinity, Infinity)).subScalar(margin)
+        const max = local.reduce((max, p) => max.max(p), new THREE.Vector3(-Infinity, -Infinity, -Infinity)).addScalar(margin)
+        const paddedBox = new THREE.Box3(min, max)
+
+        const transforms = chunk.chunks.map((_, inx) => this.childTransform(chunk, inx, radius, scale))
+        const placed = chunk.chunks.map((child, inx) =>
+            child.allChildNodes.map((node) => node.position.clone().applyMatrix4(transforms[inx])))
+        for (let i = 0; i < placed.length; i++) {
+            const toLocal = transforms[i].clone().invert()
+            for (let j = 0; j < placed.length; j++) {
+                if (i != j && placed[j].some((p) => paddedBox.containsPoint(p.clone().applyMatrix4(toLocal)))) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    // transform placing child #inx of chunk, scaled by scale, on the circle of the given radius
+    childTransform (_chunk: Chunk, _inx: integer, _radius: float, _scale: float): THREE.Matrix4 {
+        return new THREE.Matrix4()  // subclass responsibility
+    }
+}
+
+const MIN_GAP_TO_SPACING_RATIO = 0.3
+
+// closest distance between a point of `as` and a different point of `bs` (as === bs: within one set)
+function closestDistance (as: THREE.Vector3[], bs: THREE.Vector3[]): float {
+    let closestSq = Infinity
+    for (let i = 0; i < as.length; i++) {
+        for (let j = (as === bs) ? i + 1 : 0; j < bs.length; j++) {
+            closestSq = Math.min(closestSq, as[i].distanceToSquared(bs[j]))
+        }
+    }
+    return Math.sqrt(closestSq)
 }
 
 // Scale children to fit and translate them so they're distributed
@@ -660,16 +725,15 @@ class CircularLayoutStrategy extends CurvedLayoutStrategy {
 
     layoutNodes (chunk: Chunk) {
         const [radius, scale] = this.getRadiusAndScale(chunk)
+        const transforms = chunk.children.map((_, inx) => this.childTransform(chunk, inx, radius, scale))
+        chunk.children.forEach((child, inx) => this.transformChild(child, transforms[inx]))
+    }
 
-        const transform = (new THREE.Matrix4()).makeScale(
-            ...new THREE.Vector3(...Array.from({length: 3}, (_,inx) => (this.directionIndex == inx) ? 1 : scale)).toArray()
-        )
-
-        // translate children to [0.5, 0.5] + [r*sin(th), -r*cos(th)]
-        chunk.children.forEach( (child, inx) => {
-            transform.setPosition(this.positionTransform(radius, 2*inx*Math.PI/chunk.children.length));
-            this.transformChild(child, transform);
-        } );
+    // scale child in the plane of the circle, and translate it to [0.5, 0.5] + [r*sin(th), -r*cos(th)]
+    childTransform (chunk: Chunk, inx: integer, radius: float, scale: float): THREE.Matrix4 {
+        return new THREE.Matrix4()
+            .makeScale(...Array.from({length: 3}, (_, axis) => (this.directionIndex == axis) ? 1 : scale) as [float, float, float])
+            .setPosition(this.positionTransform(radius, 2*inx*Math.PI/chunk.children.length))
     }
 }
 
@@ -716,24 +780,23 @@ class RotatedLayoutStrategy extends CurvedLayoutStrategy {
 
     layoutNodes (chunk: Chunk) {
         const [radius, scale] = this.getRadiusAndScale(chunk)
+        // all transforms first: each depends on the children's centroid, which moving a child changes
+        const transforms = chunk.children.map((_, inx) => this.childTransform(chunk, inx, radius, scale))
+        chunk.children.forEach((child, inx) => this.transformChild(child, transforms[inx]))
+    }
 
-        // scale and translate to origin
+    // scale and translate child to origin, rotate (about origin), and translate to new position
+    childTransform (chunk: Chunk, inx: integer, radius: float, scale: float): THREE.Matrix4 {
         const centroid = getCentroid(chunk.children)
         const toOrigin = new THREE.Matrix4()
             .makeScale(scale, scale, scale)
             .setPosition(centroid.clone().multiplyScalar(-scale))
+        const theta = inx*2*Math.PI/chunk.children.length
+        const rotate = this.rotationTransform(theta)
+        const toNewPosition = new THREE.Matrix4()
+            .makeTranslation(centroid.clone().add(this.positionTransform(radius, theta)))
 
-        // scale, rotate, and translate each child
-        chunk.children.forEach((child, inx) => {
-            const theta = inx*2*Math.PI/chunk.children.length
-
-            const rotate = this.rotationTransform(theta)
-            const toNewPosition = new THREE.Matrix4()
-                .makeTranslation(centroid.clone().add(this.positionTransform(radius, theta)))
-
-            // scale and translate child to origin, rotate (about origin), and translate to new position
-            this.transformChild(child, toNewPosition.clone().multiply(rotate.clone().multiply(toOrigin)))
-        } );
+        return toNewPosition.multiply(rotate.multiply(toOrigin))
     }
 }
 
