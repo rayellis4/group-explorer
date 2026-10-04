@@ -113,7 +113,7 @@ export class SymmetryObjectViewModel implements Updatable {
          this.view.line_width = value as typeof this.model.line_width
          break
       case 'sphere_scale_factor':
-         this.view._sphere_scale_factor = value as typeof this.model.sphere_scale_factor
+         this.view.sphere_scale_factor = value as typeof this.model.sphere_scale_factor
          break
       case 'zoom_level':
          this.view.zoom_level = value as typeof this.model.zoom_level

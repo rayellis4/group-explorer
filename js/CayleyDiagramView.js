@@ -187,7 +187,7 @@ export class CayleyDiagramViewModel {
                 this.view.line_width = value;
                 break;
             case 'sphere_scale_factor':
-                this.view._sphere_scale_factor = value;
+                this.view.sphere_scale_factor = value;
                 break;
             case 'zoom_level':
                 this.view.zoom_level = value;
