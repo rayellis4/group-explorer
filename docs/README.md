@@ -281,6 +281,16 @@ held the shared view model's. Any future optional field on a visualizer Model ne
 discipline, and `canFastTrack()` (the same file) needs to keep agreeing: it must never skip
 `fromJSON` while the shared model holds anything the target element hasn't confirmed it also has.
 
+The converse matters too: `canFastTrack()` compares the shared model's layout against the target
+element's, so the view must never write its own display decisions back into the model's layout
+while drawing it. `CayleyDiagramView.createLines` used to: it filled in the offset that curves an
+arrow around a sphere in its path directly on the arrow objects, which are the model's own, so the
+shared model's layout silently stopped matching the one the generator produced, and any diagram
+with such an arrow (Z<sub>3</sub>&nbsp;×&nbsp;Z<sub>3</sub>'s wrap-around arrows, say) never took
+the fast path. A `null` arrow offset now means "the view decides" — recomputed on every draw, never
+stored — and a number is an explicit choice, by the generator or by the user dragging the arrow,
+drawn exactly as given.
+
 **Z ordering**: NodeElements get an even `z`; a newly-created element's initial value,
 `z = 2 * (sheetElements.size + 1)` in `SheetModel.ts`, is just an insertion-order artifact. But
 `z` isn't fixed at creation — the node context menu's Move Forward/Backward/to Front/to Back

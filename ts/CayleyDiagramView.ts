@@ -80,8 +80,7 @@ export type ArrowType = {
    generator: groupElement,
    bidirectional: boolean,
    thirdPoint: THREE.Vector3,
-   keepCurved: boolean,  // true => use specified offset
-   offset: Maybe<float>,  // undefined => straight line
+   offset: Maybe<float>,  // null => shape left to the view (straight, or curved to avoid spheres)
    color: color
 }
 
@@ -117,7 +116,6 @@ export type ArrowJSON = {
     generator: groupElement,
     bidirectional: boolean,
     thirdPoint: Vector3JSON,
-    keepCurved: boolean,
     offset: Maybe<float>,
     color: color
 }
@@ -162,14 +160,13 @@ export function layoutToJSON (layout: LayoutType): Maybe<LayoutJSON>  {
          return { position: toXYZ(position), element, label, color }
       }
    const toArrowDataJSON: (arg0: ArrowType) => ArrowJSON =
-      ({start_node, end_node, generator, bidirectional, thirdPoint, keepCurved, offset, color}) => {
+      ({start_node, end_node, generator, bidirectional, thirdPoint, offset, color}) => {
          return {
             start_element: start_node.element,
             end_element: end_node.element,
             generator,
             bidirectional,
             thirdPoint: toXYZ(thirdPoint),
-            keepCurved,
             offset,
             color
          }
@@ -208,14 +205,13 @@ export function layoutFromJSON (json: LayoutJSON): LayoutType {
    })
    const nodeMap: Map<groupElement, NodeType> = new Map(nodes.map((node) => [node.element, node]))
    const arrows: ArrowType[] = json.arrows.map(
-      ({start_element, end_element, generator, bidirectional, thirdPoint, keepCurved, offset, color}) => {
+      ({start_element, end_element, generator, bidirectional, thirdPoint, offset, color}) => {
          return {
             start_node: nodeMap.get(start_element) as NodeType,
             end_node: nodeMap.get(end_element) as NodeType,
             generator,
             bidirectional,
             thirdPoint: fromXYZ(thirdPoint),
-            keepCurved,
             offset,
             color
          }
@@ -754,15 +750,16 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
     // Create arrows between start and end nodes
     createLines (line_data: ArrowType[]) {
         line_data.forEach( (line_datum) => {
-            // Curve straight lines to avoid spheres
-            if (line_datum.offset == null) {
-                line_datum.offset = this.offsetAroundSpheres(line_datum) as float
-            }
+            // A null offset leaves the shape to the view: straight, or curved to avoid spheres.
+            //   The avoidance offset is a display decision, recomputed on every draw and never written
+            //   back to line_datum -- it's shared with the model's layout, which must stay as given
+            //   (a number there is an explicit choice, by the generator or by the user, and is honored).
+            const offset = line_datum.offset ?? this.offsetAroundSpheres(line_datum);
 
-            if (line_datum.offset == null) {
+            if (offset == null) {
                 this.createStraightLine(line_datum);
             } else {
-                this.createCurvedLine(line_datum);
+                this.createCurvedLine(line_datum, offset);
             }
         } );
     }
@@ -798,14 +795,14 @@ export class CayleyDiagramView extends AbstractDiagramDisplay {
         }
     }
 
-    createCurvedLine (line_datum: ArrowType) {
+    createCurvedLine (line_datum: ArrowType, relative_offset: float) {
         const start = line_datum.start_node.position;
         const end = line_datum.end_node.position;
         const middle = start.clone().add(end).multiplyScalar(1/2);
         const middle2end = end.clone().sub(middle);
         const thirdPoint = line_datum.thirdPoint;
         const normal = new THREE.Plane().setFromCoplanarPoints(start, thirdPoint, end).normal;
-        const offset = (line_datum.offset as float) * start.distanceTo(end);
+        const offset = relative_offset * start.distanceTo(end);
         const middle_control =
               new THREE.Vector3().crossVectors(normal, middle2end).normalize().multiplyScalar(2*offset).add(middle);
         const curve = new THREE.QuadraticBezierCurve3(start, middle_control, end);

@@ -507,7 +507,6 @@ function createArrows (
                generator: generator,
                bidirectional: bidirectional,
                thirdPoint: getThirdPoint(nodes[element], nodes[product]),
-               keepCurved: generatedCurved,
                offset: generatedCurved ? DEFAULT_ARC_OFFSET : null,  // Heuristic value
                color: 'white'  // keeps typechecker happy, soon to be overwritten
             }

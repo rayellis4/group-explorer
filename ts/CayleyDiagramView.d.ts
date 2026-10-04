@@ -39,7 +39,6 @@ export type ArrowType = {
     generator: groupElement;
     bidirectional: boolean;
     thirdPoint: THREE.Vector3;
-    keepCurved: boolean;
     offset: Maybe<float>;
     color: color;
 };
@@ -79,7 +78,6 @@ export type ArrowJSON = {
     generator: groupElement;
     bidirectional: boolean;
     thirdPoint: Vector3JSON;
-    keepCurved: boolean;
     offset: Maybe<float>;
     color: color;
 };
@@ -172,7 +170,7 @@ export declare class CayleyDiagramView extends AbstractDiagramDisplay {
     createLines(line_data: ArrowType[]): void;
     colorAllLines(): void;
     createStraightLine(line_datum: ArrowType): void;
-    createCurvedLine(line_datum: ArrowType): void;
+    createCurvedLine(line_datum: ArrowType, relative_offset: float): void;
     createArrowhead(line_datum: ArrowType, curve: THREE.Curve<THREE.Vector3>, curve_length: float): THREE.ArrowHelper;
     offsetAroundSpheres(line_datum: ArrowType): Maybe<float>;
     redrawAllLines(): void;

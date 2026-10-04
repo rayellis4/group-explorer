@@ -453,6 +453,9 @@ export function convertV1ToV2 (v1Objects: v1SheetType[]): v2SheetType[] {
                Object.assign(up, {x: -up.x, y: -up.y, z: -up.z})
             }
 
+            // Key order matters here: SheetView's canFastTrack compares layouts as JSON strings, so
+            //   every writer of layout JSON must order keys exactly as CayleyDiagramView.layoutToJSON
+            //   does -- otherwise identical layouts compare unequal and never take the fast path.
             const arrows: ArrowJSON[] = v1Visualizer.arrows.map((arrow) => {
                const {start_element, end_element, generator, thirdPoint, offset, color} = arrow
                const bidirectional = group.mult(end_element, generator) === start_element
@@ -460,10 +463,9 @@ export function convertV1ToV2 (v1Objects: v1SheetType[]): v2SheetType[] {
                   start_element,
                   end_element,
                   generator,
+                  bidirectional,
                   thirdPoint: {...thirdPoint},
                   offset,
-                  bidirectional,
-                  keepCurved: false,
                   color}
 
                return result

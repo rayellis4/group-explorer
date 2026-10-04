@@ -439,6 +439,7 @@ export class CDView extends VisualizerView {
             'zoom_level', 'arrowhead_placement', 'label_scale_factor'
         ];
         const canFastTrack = sharedModel?.group.ref == thisModel.group_ref
+            // compared as JSON strings, so key order counts: any writer of layout JSON must match layoutToJSON's
             && JSON.stringify(layoutToJSON(sharedModel.layout)) == JSON.stringify(thisModel.layout)
             // The fast path only refreshes highlightColors -- it must never run while the shared
             // model holds a highlightControl thisModel doesn't already agree with (stale or live),
