@@ -130,7 +130,7 @@ these and a change can look complete while silently breaking something later:
 - **Adding a new application page** → add it to the `PAGES` list in [`makefile`](../makefile), or
   `make VERSION=x.y.z` won't generate or version-stamp its `PAGE.html`.
 - **Adding a new node-element visualizer type to Sheet** → add it to
-  `RemoteEditor.#editPageURLs` in [SheetModelEditors](./SheetModelEditors.ts.md), which maps each
+  `RemoteEditor.editPageURLs` in [SheetModelEditors](./SheetModelEditors.ts.md), which maps each
   element type to the standalone page that edits it (e.g. `CDElement` → `CayleyDiagram.html`).
 - **Adding a new field to a visualizer model** → add it to the `SHEET_UPDATE_FIELDS` array in
   the visualizer factory (e.g., [`CayleyDiagram.ts`](./CayleyDiagram.ts.md)) to make an update
@@ -265,7 +265,7 @@ elements, as well as various display parameters.
 
 **Load-bearing WebGL constraint**: browsers support only ~16 WebGL contexts, but a sheet may
 contain dozens of Cayley diagrams. All `CDElement`s share one `CayleyDiagramViewModel`, held
-statically by [`CDView`](./SheetView.ts.md) (`#sharedViewModel`, `#activeView`). A `CDView`'s
+statically by [`CDView`](./SheetView.ts.md) (`sharedViewModel`, `activeView`). A `CDView`'s
 `get visualizer()` getter performs the handoff: if a different element currently holds the shared
 view model, that element's live state is read back out and stashed as JSON on its own model
 element (`modelElement.visualizerJSON`) before the shared view model is repointed at the
@@ -438,6 +438,58 @@ directly (bypassing `Log` entirely) for its own fetch-failure and corrupted-page
 so those aren't subject to `Log`'s level filtering or rate limit. Worth knowing if you're driving
 the app in a browser (e.g. for automated testing) — a blocking alert dialog stalls the page
 differently than a log line would.
+
+## Where to Look
+
+The [Component Catalog](#component-catalog) below is organized by module, which helps once you
+know which module you need. This table runs the other way: it starts from what you can see — a
+control, a menu item, a bug — and points to where to start reading. Labels in quotes are as they
+appear in the app (and in the [help pages](#help-system)), so searching this file for the words on
+the screen should land you on the right row.
+
+| What you see, or want to change | Start in |
+|---|---|
+| **Cayley diagram page** | |
+| *Diagram* tab: "Choose diagram", and "Generate diagram this way" (Generator / Axis / Order) — node, arrow, and chunk positions | [CayleyDiagramControl](./CayleyDiagramControl.ts.md); layout computed by [CayleyDiagramGenerator](./CayleyDiagramGenerator.ts.md) (`layoutCayleyDiagram`) |
+| *Diagram* tab: "Show these arrows", "Arrows mean" (right / left multiplication), "Chunk this subgroup" | [CayleyDiagramControl](./CayleyDiagramControl.ts.md), [CayleyDiagramGenerator](./CayleyDiagramGenerator.ts.md) |
+| *View* tab: "Zoom level", "Line thickness", "Node radius", fog, labels, "Arrowhead placement"; "Show/hide axes", "Snap to axis" | [CayleyViewControl](./CayleyViewControl.ts.md); drawn by [CayleyDiagramView](./CayleyDiagramView.ts.md) |
+| How arrows are drawn, including curving around nodes in their path | [CayleyDiagramView](./CayleyDiagramView.ts.md) (`createLines`, `offsetAroundSpheres`) |
+| Dragging nodes, chunks, or the arc of an arrow; selecting them (help: "Changing the positions of nodes", "Changing the arcing of arrows") | [CayleyDiagramViewUI](./CayleyDiagramViewUI.ts.md) |
+| **Other visualizer pages** | |
+| *Subsets* tab, in every visualizer: "Subgroups", "User-defined subsets", "Partitions", "Clear all highlighting" | [HighlightControl](./HighlightControl.ts.md) and its ViewModel and View |
+| Multiplication table *Table* tab: "Organize by subgroup", "Separate cosets by", "Default coloration", "Element coloring on reorganization" | [MulttableControl](./MulttableControl.ts.md); drawn by [MulttableView](./MulttableView.ts.md) |
+| Cycle graph layout and drawing | [CycleGraphView](./CycleGraphView.ts.md) (`layoutElementsAndPaths`) |
+| Symmetry objects | [SymmetryObjectView](./SymmetryObjectView.ts.md), [SymmetryObjectControl](./SymmetryObjectControl.ts.md) |
+| **Group Library and Group Info pages** | |
+| The group table: its columns, sorting, and links | [GroupTable](./GroupTable.ts.md), [GroupTableUI](./GroupTableUI.ts.md), [GroupExplorer](./GroupExplorer.ts.md) |
+| Thumbnails in the group table and Group Info "Views" | `createCayleyDiagramThumbnailView` in [CayleyDiagramView](./CayleyDiagramView.ts.md); [GroupTable](./GroupTable.ts.md), [ViewInfo](./ViewInfo.ts.md), [SubgroupInfo](./SubgroupInfo.ts.md) |
+| Group Info "Basic Facts" and "Computed properties" panels | the `*Info` module named for the panel — see [GroupInfo](#web-pages) in the catalog |
+| Group Info naming schemes: "Default element names", "Loaded naming schemes", "User-defined naming schemes" | [NamingSchemeInfo](./NamingSchemeInfo.ts.md), `Group.representations` |
+| GAP ids, and the live GAP server code shown on Group Info | [ShowGAPCode](./ShowGAPCode.ts.md) (`resolveGAPInfo`), the lazy `gapid` getter in [Group](./Group.ts.md) |
+| **Sheet page** | |
+| Control panel: "Add element" (Rectangle, Text box), "Add visualizer for group" (Cayley diagram, Multiplication table, Cycle graph), "Redraw", "Clear" | [SheetControl](./SheetControl.ts.md) |
+| Control panel "Stored sheets": save, load, rename, "Export current sheet", "Import", "Backup stored sheets", "Restore from backup" | [SheetControl](./SheetControl.ts.md), [StoredObjects](./StoredObjects.ts.md); formats and upgrading old sheets in [SheetSerialization](./SheetSerialization.ts.md) |
+| Node context menu: "Resize", "Copy", "Set Anchor", "Move Forward" / "Backward" / "to Front" / "to Back", "Delete" | [SheetViewUI](./SheetViewUI.ts.md) — z-order is explained under [The Sheet system](#the-sheet-system) |
+| Node context menu "Edit": inline dialogs, or a visualizer page opened as an editor | [SheetModelEditors](./SheetModelEditors.ts.md) (`RemoteEditor`), [SheetEditor](./SheetEditor.ts.md) |
+| Node context menu "Create Connection" and "Create Map" (morphisms) | `ConnectingElement`/`MorphismElement` in [SheetModel](./SheetModel.ts.md), their views in [SheetView](./SheetView.ts.md), [Mapping](./Mapping.ts.md) |
+| How elements are drawn; the one Cayley diagram shared by all `CDElement`s | [SheetView](./SheetView.ts.md) (`CDView`) |
+| **Every page** | |
+| The heading and its ≡ menu (items like "Group Info", "Group Library", "New Sheet") | [Heading](./Heading.ts.md); each page passes its own items, e.g. in [CycleGraph](./CycleGraph.ts.md) |
+| "Settings" dialog: "Group universe", "Library management", "Delete generated groups" | [Settings](./Settings.ts.md); which groups are shown in [GroupRegistry](./GroupRegistry.ts.md) (`getVisibleGroups`) |
+| Touch and mouse gestures | [Gestures](./Gestures.ts.md) |
+| Menus and dialogs generally | [UIComponents](./UIComponents.ts.md) |
+| Help pages ("Help" in the ≡ menu) | `help-src/`, not `docs/` — see [Help system](#help-system) |
+| **Behind the scenes** | |
+| Group properties (subgroups, conjugacy classes, orders, …) | [Group](./Group.ts.md), [SubgroupLattice](./SubgroupLattice.ts.md), [Subgroup](./Subgroup.ts.md) |
+| How groups are named in links (`?groupURL=`) and sheets | [Library](./Library.ts.md) (`getGroupByRef`), `Group.ref` — see [Group identity](#group-identity-ref-and-sourceurl) |
+| Groups created from a presentation ("A Generated Group of Order …") | [DefiningRelations](./DefiningRelations.ts.md), [Library](./Library.ts.md) |
+| Finding an isomorphic group in the library | [IsomorphicGroups](./IsomorphicGroups.ts.md) (`find`, `isomorphism`) |
+| What happens on a version upgrade | [AutoUpgrade](./AutoUpgrade.ts.md) — see [Version upgrades](#version-upgrades) |
+| Log messages and alert dialogs | [Log](./Log.ts.md) — see [Logging](#logging) |
+
+Like [Things That Must Stay In Sync](#things-that-must-stay-in-sync), this is a starting point
+built from questions that have actually come up, not a complete map; rows get added as new ones
+do.
 
 ## Component Catalog
 
