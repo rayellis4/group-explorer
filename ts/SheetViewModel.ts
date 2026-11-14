@@ -172,8 +172,16 @@ export class SheetViewModel implements Updatable {
       const element = this.modelElements.get(id) as NodeElement
       if (element == null || !('isNode' in element))
          return
+      const oldWidth = element.w
       element.w += dw / this._view.zoomFactor
       element.h += dh / this._view.zoomFactor
+
+      //keep the unit, generated sheets use em
+      if (element.className == 'TextElement' && oldWidth > 0) {
+         const text = element as TextElement
+         text.fontSize = text.fontSize.replace(/[\d.]+/, (n) => `${parseFloat(n) * element.w / oldWidth}`)
+      }
+
       this._view.resizeElement(element)
       // reposition anchored elements to stay flush with the bottom edge
       this.modelElements.forEach((el) => {
