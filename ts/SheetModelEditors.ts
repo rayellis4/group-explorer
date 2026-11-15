@@ -185,7 +185,7 @@ export class TextEditor extends SheetElementEditor {
       textBox.alignment =
          (this.editor.querySelector('[type="radio"]:checked') as HTMLInputElement).value as SheetModel.alignmentType
       textBox.color = (document.getElementById('text-editor-color') as HTMLInputElement).value
-      textBox.opacity = parseInt((document.getElementById('text-editor-opacity') as HTMLInputElement).value)
+      textBox.opacity = parseFloat((document.getElementById('text-editor-opacity') as HTMLInputElement).value)
    }
 }
 /*

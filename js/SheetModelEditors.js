@@ -168,7 +168,7 @@ export class TextEditor extends SheetElementEditor {
         textBox.alignment =
             this.editor.querySelector('[type="radio"]:checked').value;
         textBox.color = document.getElementById('text-editor-color').value;
-        textBox.opacity = parseInt(document.getElementById('text-editor-opacity').value);
+        textBox.opacity = parseFloat(document.getElementById('text-editor-opacity').value);
     }
 }
 /*
